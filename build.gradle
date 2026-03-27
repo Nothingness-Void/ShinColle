@@ -94,6 +94,12 @@ tasks.named('processResources', ProcessResources).configure {
     filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
         expand replaceProperties + [project: project]
     }
+
+    from('src/main/java/com/lulan/shincolle/client/model') {
+        include 'Model*.java'
+        into 'assets/shincolle/legacy_model_sources'
+        rename { fileName -> fileName.toLowerCase() }
+    }
 }
 
 tasks.named('jar', Jar).configure {

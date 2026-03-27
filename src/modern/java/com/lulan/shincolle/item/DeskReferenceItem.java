@@ -1,6 +1,8 @@
 package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.menu.DeskReferenceMenu;
+import com.lulan.shincolle.registry.ModSoundEvents;
+import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -28,6 +30,8 @@ public class DeskReferenceItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
 
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
+                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
             NetworkHooks.openScreen(serverPlayer,
                     new SimpleMenuProvider(
                             (containerId, inventory, ignoredPlayer) -> new DeskReferenceMenu(containerId, inventory, this.variant),

@@ -1,5 +1,7 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.sound.ShipSoundType;
+import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -51,6 +53,8 @@ public class LegacyUseFeedbackItem extends Item {
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity livingEntity) {
         if (!level.isClientSide() && livingEntity instanceof Player player) {
+            ShinColleSoundHelper.playShipVoice(level, player, ShipSoundType.PICKITEM, 0.55F,
+                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
             player.displayClientMessage(Component.translatable(this.pendingKey), true);
         }
 

@@ -1,5 +1,8 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.registry.ModSoundEvents;
+import com.lulan.shincolle.sound.ShipSoundType;
+import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -17,7 +20,7 @@ import java.util.List;
 public class PointerItem extends Item {
 
     private static final String MODE_TAG = "Mode";
-    private static final int MAX_MODE = 2;
+    private static final int MAX_MODE = 3;
 
     public PointerItem(Properties properties) {
         super(properties);
@@ -37,11 +40,16 @@ public class PointerItem extends Item {
             setMode(stack, nextMode);
 
             if (!level.isClientSide()) {
+                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
+                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
                 player.displayClientMessage(Component.translatable("chat.shincolle.pointer.mode_changed", getModeName(nextMode)), true);
             }
 
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
+
+        ShinColleSoundHelper.playShipVoice(level, player, ShipSoundType.PICKITEM, 0.55F,
+                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.1F));
 
         if (level.isClientSide()) {
             player.displayClientMessage(Component.translatable("gui.shincolle.placeholder_command_item"), true);
@@ -54,14 +62,14 @@ public class PointerItem extends Item {
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("gui.shincolle.pointer.current_mode", getModeName(getMode(stack))).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("gui.shincolle.pointer3").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("gui.shincolle.placeholder_command_item").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("gui.shincolle.pointer.caress_note").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     public static float getModelMode(ItemStack stack) {
         return getMode(stack);
     }
 
-    private static int getMode(ItemStack stack) {
+    public static int getMode(ItemStack stack) {
         CompoundTag tag = stack.getTag();
         if (tag == null) {
             return 0;
@@ -79,6 +87,7 @@ public class PointerItem extends Item {
         return switch (mode) {
             case 1 -> Component.translatable("gui.shincolle.pointer1");
             case 2 -> Component.translatable("gui.shincolle.pointer2");
+            case 3 -> Component.translatable("gui.shincolle.pointer.caress");
             default -> Component.translatable("gui.shincolle.pointer0");
         };
     }

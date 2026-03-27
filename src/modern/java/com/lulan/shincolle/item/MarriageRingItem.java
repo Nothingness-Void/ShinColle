@@ -1,8 +1,12 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.sound.ShipSoundType;
+import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -29,6 +33,12 @@ public class MarriageRingItem extends Item {
         if (!level.isClientSide()) {
             boolean active = !isActive(stack);
             stack.getOrCreateTag().putBoolean(ACTIVE_TAG, active);
+            if (player instanceof ServerPlayer serverPlayer) {
+                TeitokuHelper.markRingState(serverPlayer, active);
+            }
+            ShinColleSoundHelper.playShipVoice(level, player, active ? ShipSoundType.MARRY : ShipSoundType.PICKITEM,
+                    active ? 0.8F : 0.55F,
+                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
             player.displayClientMessage(Component.translatable(active
                     ? "chat.shincolle.marriagering.enabled"
                     : "chat.shincolle.marriagering.disabled"), true);
@@ -47,10 +57,10 @@ public class MarriageRingItem extends Item {
         tooltip.add(Component.translatable(isActive(stack)
                 ? "gui.shincolle.marriagering.active"
                 : "gui.shincolle.marriagering.inactive").withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.translatable("gui.shincolle.marriagering.pending").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("gui.shincolle.marriagering.use").withStyle(ChatFormatting.DARK_GRAY));
     }
 
-    private static boolean isActive(ItemStack stack) {
+    public static boolean isActive(ItemStack stack) {
         CompoundTag tag = stack.getTag();
         return tag != null && tag.getBoolean(ACTIVE_TAG);
     }

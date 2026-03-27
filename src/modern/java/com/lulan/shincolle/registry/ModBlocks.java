@@ -1,8 +1,14 @@
 package com.lulan.shincolle.registry;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.block.CraneBlock;
+import com.lulan.shincolle.block.DeskBlock;
 import com.lulan.shincolle.block.LegacyInteractiveBlock;
+import com.lulan.shincolle.block.SmallShipyardBlock;
+import com.lulan.shincolle.block.WaypointBlock;
+import com.lulan.shincolle.item.WaypointBlockItem;
 import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.level.block.FallingBlock;
@@ -14,6 +20,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class ModBlocks {
@@ -28,20 +35,19 @@ public final class ModBlocks {
                     .sound(SoundType.METAL)));
 
     public static final RegistryObject<Block> BLOCK_CRANE = register("blockcrane",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new CraneBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .strength(1.0F, 10.0F)
                     .requiresCorrectToolForDrops()
                     .sound(SoundType.METAL)
-                    .noOcclusion(), "gui.shincolle.placeholder.block.crane"));
+                    .noOcclusion()));
 
     public static final RegistryObject<Block> BLOCK_DESK = register("blockdesk",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new DeskBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WOOD)
                     .strength(1.0F, 60.0F)
                     .requiresCorrectToolForDrops()
-                    .sound(SoundType.WOOD)
-                    .noOcclusion(), "gui.shincolle.placeholder.block.desk"));
+                    .sound(SoundType.WOOD)));
 
     public static final RegistryObject<Block> BLOCK_FRAME = register("blockframe",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -117,13 +123,13 @@ public final class ModBlocks {
                     .sound(SoundType.SAND)));
 
     public static final RegistryObject<Block> BLOCK_SMALL_SHIPYARD = register("blocksmallshipyard",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new SmallShipyardBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_ORANGE)
                     .strength(10.0F, 1200.0F)
                     .requiresCorrectToolForDrops()
                     .lightLevel(state -> 4)
                     .sound(SoundType.STONE)
-                    .noOcclusion(), "gui.shincolle.placeholder.block.shipyard"));
+                    .noOcclusion()));
 
     public static final RegistryObject<Block> BLOCK_VOL_BLOCK = register("blockvolblock",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -141,12 +147,13 @@ public final class ModBlocks {
                     .sound(SoundType.SAND), "gui.shincolle.placeholder.block.volcore"));
 
     public static final RegistryObject<Block> BLOCK_WAYPOINT = register("blockwaypoint",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new WaypointBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_BLUE)
                     .strength(0.4F, 5.0F)
                     .lightLevel(state -> 10)
                     .sound(SoundType.GLASS)
-                    .noOcclusion(), "gui.shincolle.placeholder.block.waypoint"));
+                    .noOcclusion()),
+            block -> new WaypointBlockItem(block.get(), new Item.Properties()));
 
     private ModBlocks() {
     }
@@ -154,6 +161,12 @@ public final class ModBlocks {
     private static <T extends Block> RegistryObject<T> register(String name, Supplier<T> supplier) {
         RegistryObject<T> block = BLOCKS.register(name, supplier);
         ModItems.registerBlockItem(name, block);
+        return block;
+    }
+
+    private static <T extends Block> RegistryObject<T> register(String name, Supplier<T> supplier, Function<RegistryObject<T>, ? extends Item> itemFactory) {
+        RegistryObject<T> block = BLOCKS.register(name, supplier);
+        ModItems.registerItem(name, () -> itemFactory.apply(block));
         return block;
     }
 }
