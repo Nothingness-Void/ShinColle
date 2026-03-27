@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "shincolle:blockabyssium",
+    "shincolle:blockcrane",
+    "shincolle:blockdesk",
+    "shincolle:blockframe",
+    "shincolle:blockpolymetal",
+    "shincolle:blockpolymetalore",
+    "shincolle:blocksmallshipyard",
+    "shincolle:blockvolcore",
+    "shincolle:blockwaypoint",
+    "shincolle:blockvolblock"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "group": "tool",
+  "ingredients": [
+    {
+      "item": "shincolle:grudge"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:lapis_lazuli"
+    }
+  ],
+  "result": {
+    "item": "shincolle:recipepaper"
+  }
+}
