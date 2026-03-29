@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "shincolle_resources",
+  "key": {
+    "p": {
+      "item": "shincolle:abyssmetal1"
+    }
+  },
+  "pattern": [
+    "pp",
+    "pp"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockpolymetalgravel"
+  }
+}

@@ -57,8 +57,7 @@ sourceSets {
     main {
         java.srcDirs = ['src/modern/java']
         resources {
-            srcDir 'src/modern/resources'
-            srcDir 'src/generated/resources'
+            srcDirs = ['src/modern/resources', 'src/generated/resources']
             exclude 'mcmod.info'
             exclude 'assets/shincolle/blockstates/*[A-Z]*.json'
             exclude 'assets/shincolle/models/block/*[A-Z]*.json'
@@ -100,6 +99,62 @@ tasks.named('processResources', ProcessResources).configure {
         into 'assets/shincolle/legacy_model_sources'
         rename { fileName -> fileName.toLowerCase() }
     }
+}
+
+tasks.register('verifyItemModelCoverage') {
+    group = 'verification'
+    description = 'Ensures every registered modern item id has a lowercase item model json.'
+
+    doLast {
+        def modItemsSource = file('src/modern/java/com/lulan/shincolle/registry/ModItems.java').text
+        def equipmentFamilySource = file('src/modern/java/com/lulan/shincolle/item/equipment/LegacyEquipmentFamily.java').text
+        def modelRelativePath = 'assets/shincolle/models/item'
+        def modelRoots = sourceSets.main.resources.srcDirs.collect { new File(it, modelRelativePath) }
+
+        Set<String> expectedIds = new LinkedHashSet<>()
+
+        (modItemsSource =~ /ITEMS\.register\("([a-z0-9_]+)"/).each { match ->
+            expectedIds.add(match[1])
+        }
+        (modItemsSource =~ /\bregister\("([a-z0-9_]+)"\)/).each { match ->
+            expectedIds.add(match[1])
+        }
+
+        def shipEggCall = (modItemsSource =~ /shipSpawnEggItems\(([\s\S]*?)\);/)
+        if (shipEggCall.find()) {
+            def shipEggArgs = shipEggCall.group(1)
+            (shipEggArgs =~ /"([a-z0-9_]+)"/).each { match ->
+                expectedIds.add(match[1])
+            }
+        }
+
+        def familyPattern = ~/([A-Z0-9_]+)\("([a-z0-9_]+)",\s*keys\(([\s\S]*?)\)\s*(?:,\s*new int\[]\{[\s\S]*?\})?\)\s*(?:,|;)/
+        (equipmentFamilySource =~ familyPattern).each { match ->
+            def base = match[2]
+            def keysChunk = match[3]
+            def variantCount = (keysChunk =~ /"[^"]+"/).count
+
+            (0..<variantCount).each { index ->
+                expectedIds.add(index == 0 ? base : "${base}${index}")
+            }
+        }
+
+        def missingModels = expectedIds.findAll { id ->
+            !modelRoots.any { root ->
+                new File(root, "${id}.json").exists()
+            }
+        }.sort()
+
+        if (!missingModels.isEmpty()) {
+            def preview = missingModels.take(30).join(', ')
+            def roots = modelRoots.collect { it.path }.join('; ')
+            throw new GradleException("Missing item model json for ${missingModels.size()} ids under ${roots}: ${preview}")
+        }
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('verifyItemModelCoverage')
 }
 
 tasks.named('jar', Jar).configure {
