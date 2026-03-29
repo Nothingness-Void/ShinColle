@@ -27,6 +27,26 @@ public final class LegacyEquipmentBuildHelper {
             new TypeRollEntry("AIR_R_LO", 256, 3),
             new TypeRollEntry("CANNON_TW_LO", 320, 2));
 
+    private static final List<TypeRollEntry> LARGE_TYPE_ROLLS = List.of(
+            new TypeRollEntry("ARMOR_HI", 500, 1),
+            new TypeRollEntry("GUN_HI", 800, 2),
+            new TypeRollEntry("AMMO_HI", 1000, 2),
+            new TypeRollEntry("AIR_R_HI", 1000, 3),
+            new TypeRollEntry("TORPEDO_HI", 1200, 2),
+            new TypeRollEntry("TURBINE_LO", 1400, 0),
+            new TypeRollEntry("CANNON_TW_HI", 1600, 2),
+            new TypeRollEntry("RADAR_HI", 2000, 0),
+            new TypeRollEntry("AIR_T_LO", 2400, 3),
+            new TypeRollEntry("AIR_F_LO", 2400, 3),
+            new TypeRollEntry("AIR_B_LO", 2400, 3),
+            new TypeRollEntry("CATAPULT_LO", 2800, 3),
+            new TypeRollEntry("TURBINE_HI", 3200, 0),
+            new TypeRollEntry("AIR_T_HI", 3800, 3),
+            new TypeRollEntry("AIR_F_HI", 3800, 3),
+            new TypeRollEntry("AIR_B_HI", 3800, 3),
+            new TypeRollEntry("CANNON_TR", 4400, 2),
+            new TypeRollEntry("CATAPULT_HI", 5000, 3));
+
     private LegacyEquipmentBuildHelper() {
     }
 
@@ -37,7 +57,7 @@ public final class LegacyEquipmentBuildHelper {
         if (random.nextFloat() < equipRate) {
             String rareType = rollSmallType(materialAmounts, random);
             if (rareType != null) {
-                ItemStack equipment = rollEquipmentOfType(rareType, totalMaterials, random);
+                ItemStack equipment = rollEquipmentOfType(rareType, totalMaterials, random, true);
                 if (!equipment.isEmpty()) {
                     return equipment;
                 }
@@ -49,6 +69,27 @@ public final class LegacyEquipmentBuildHelper {
         }
 
         return new ItemStack(ModItems.AMMO3.get(), 2 + random.nextInt(2));
+    }
+
+    public static ItemStack buildLargeResult(int[] materialAmounts, RandomSource random) {
+        int totalMaterials = materialAmounts[0] + materialAmounts[1] + materialAmounts[2] + materialAmounts[3];
+        float equipRate = Math.min(totalMaterials / 2000.0F, 1.0F);
+
+        if (random.nextFloat() < equipRate) {
+            String rareType = rollLargeType(materialAmounts, random);
+            if (rareType != null) {
+                ItemStack equipment = rollEquipmentOfType(rareType, totalMaterials, random, false);
+                if (!equipment.isEmpty()) {
+                    return equipment;
+                }
+            }
+        }
+
+        if (random.nextBoolean()) {
+            return new ItemStack(ModItems.AMMO2.get(), 8 + random.nextInt(9));
+        }
+
+        return new ItemStack(ModItems.AMMO3.get(), 3 + random.nextInt(3));
     }
 
     private static @Nullable String rollSmallType(int[] materialAmounts, RandomSource random) {
@@ -78,8 +119,35 @@ public final class LegacyEquipmentBuildHelper {
         return null;
     }
 
-    private static ItemStack rollEquipmentOfType(String rareType, int totalMaterials, RandomSource random) {
-        int scaledMaterials = (int) (totalMaterials * 15.625F);
+    private static @Nullable String rollLargeType(int[] materialAmounts, RandomSource random) {
+        float[] probabilities = new float[LARGE_TYPE_ROLLS.size()];
+        float totalProbability = 0.0F;
+        int totalMaterials = materialAmounts[0] + materialAmounts[1] + materialAmounts[2] + materialAmounts[3];
+
+        for (int i = 0; i < LARGE_TYPE_ROLLS.size(); i++) {
+            TypeRollEntry entry = LARGE_TYPE_ROLLS.get(i);
+            int mean = entry.favoredMaterial() >= 0 && entry.favoredMaterial() < materialAmounts.length
+                    ? entry.mean() - materialAmounts[entry.favoredMaterial()]
+                    : entry.mean();
+            int meanDistance = Math.abs(totalMaterials - mean);
+            probabilities[i] = LegacyBuildRollHelper.normalProbability(meanDistance);
+            totalProbability += probabilities[i];
+        }
+
+        float randomValue = random.nextFloat() * totalProbability;
+        float accumulated = 0.0125F;
+        for (int i = 0; i < LARGE_TYPE_ROLLS.size(); i++) {
+            accumulated += probabilities[i];
+            if (accumulated > randomValue) {
+                return LARGE_TYPE_ROLLS.get(i).rareType();
+            }
+        }
+
+        return null;
+    }
+
+    private static ItemStack rollEquipmentOfType(String rareType, int totalMaterials, RandomSource random, boolean smallBuild) {
+        int rollMaterials = smallBuild ? (int) (totalMaterials * 15.625F) : totalMaterials;
         List<EquipmentCandidate> candidates = new ArrayList<>();
         float totalProbability = 0.0F;
 
@@ -91,7 +159,7 @@ public final class LegacyEquipmentBuildHelper {
                     continue;
                 }
 
-                int meanDistance = Math.abs(scaledMaterials - miscData.rareMean());
+                int meanDistance = Math.abs(rollMaterials - miscData.rareMean());
                 float probability = LegacyBuildRollHelper.normalProbability(meanDistance);
                 totalProbability += probability;
                 candidates.add(new EquipmentCandidate(family, index, probability));

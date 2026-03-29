@@ -50,6 +50,7 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
         guiGraphics.drawString(this.font, shortPos("F", this.menu.getLastWaypoint(), ChatFormatting.LIGHT_PURPLE), 80, 36, 0xD0C8D8, false);
         guiGraphics.drawString(this.font, shortPos("T", this.menu.getNextWaypoint(), ChatFormatting.AQUA), 80, 48, 0xC8DFE1, false);
         guiGraphics.drawString(this.font, shortPos("C", this.menu.getPairedChest(), ChatFormatting.GOLD), 80, 60, 0xE1D1B4, false);
+        guiGraphics.drawString(this.font, this.menu.getEnergyStatusLabel(), 80, 72, 0xDDE6A5, false);
     }
 
     @Override
@@ -177,7 +178,9 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
         }
 
         if (inside(localX, localY, ENERGY_X, ENERGY_Y, 13, 13)) {
-            guiGraphics.renderTooltip(this.font, this.menu.getEnergyModeLabel(), mouseX, mouseY);
+            renderComponentTooltip(guiGraphics, List.of(
+                    this.menu.getEnergyModeLabel(),
+                    this.menu.getEnergyStatusLabel()), mouseX, mouseY);
             return;
         }
 

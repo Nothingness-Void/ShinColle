@@ -5,6 +5,7 @@ import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
@@ -35,6 +36,26 @@ public final class ModNetwork {
                 .decoder(ClientboundSyncTeitokuDataPacket::decode)
                 .consumerMainThread(ClientboundSyncTeitokuDataPacket::handle)
                 .add();
+        CHANNEL.messageBuilder(ServerboundGameplayCommandPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(ServerboundGameplayCommandPacket::encode)
+                .decoder(ServerboundGameplayCommandPacket::decode)
+                .consumerMainThread(ServerboundGameplayCommandPacket::handle)
+                .add();
+        CHANNEL.messageBuilder(ClientboundGameplayStatePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(ClientboundGameplayStatePacket::encode)
+                .decoder(ClientboundGameplayStatePacket::decode)
+                .consumerMainThread(ClientboundGameplayStatePacket::handle)
+                .add();
+        CHANNEL.messageBuilder(ClientboundCombatReactPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(ClientboundCombatReactPacket::encode)
+                .decoder(ClientboundCombatReactPacket::decode)
+                .consumerMainThread(ClientboundCombatReactPacket::handle)
+                .add();
+        CHANNEL.messageBuilder(ClientboundSpawnParticlePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(ClientboundSpawnParticlePacket::encode)
+                .decoder(ClientboundSpawnParticlePacket::decode)
+                .consumerMainThread(ClientboundSpawnParticlePacket::handle)
+                .add();
 
         initialized = true;
     }
@@ -43,5 +64,17 @@ public final class ModNetwork {
         TeitokuHelper.get(player).ifPresent(teitokuData ->
                 CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                         new ClientboundSyncTeitokuDataPacket(teitokuData.saveToTag(new CompoundTag()))));
+    }
+
+    public static void syncGameplayState(ServerPlayer player, CompoundTag payload) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientboundGameplayStatePacket(payload));
+    }
+
+    public static void sendToTrackingAndSelf(Entity entity, Object packet) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), packet);
+    }
+
+    public static void sendToServer(Object packet) {
+        CHANNEL.sendToServer(packet);
     }
 }

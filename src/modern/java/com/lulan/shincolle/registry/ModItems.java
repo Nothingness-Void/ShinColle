@@ -7,6 +7,7 @@ import com.lulan.shincolle.item.DeskReferenceItem;
 import com.lulan.shincolle.item.KaitaiHammerItem;
 import com.lulan.shincolle.item.LegacyPlaceholderItem;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
+import com.lulan.shincolle.item.LegacyShipSupportItem;
 import com.lulan.shincolle.item.MarriageRingItem;
 import com.lulan.shincolle.item.ModernKitItem;
 import com.lulan.shincolle.item.OpToolItem;
@@ -33,14 +34,20 @@ public final class ModItems {
 
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, ShinColle.MOD_ID);
 
-    public static final RegistryObject<Item> ABYSSMETAL = register("abyssmetal");
-    public static final RegistryObject<Item> ABYSSMETAL1 = register("abyssmetal1");
+    public static final RegistryObject<Item> ABYSSMETAL = shipSupportItem("abyssmetal",
+            "gui.shincolle.ship_support.abyssmetal", "gui.shincolle.ship_support.use");
+    public static final RegistryObject<Item> ABYSSMETAL1 = shipSupportItem("abyssmetal1",
+            "gui.shincolle.ship_support.polymetal", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> ABYSSNUGGET = register("abyssnugget");
     public static final RegistryObject<Item> ABYSSNUGGET1 = register("abyssnugget1");
-    public static final RegistryObject<Item> AMMO = register("ammo");
-    public static final RegistryObject<Item> AMMO1 = register("ammo1");
-    public static final RegistryObject<Item> AMMO2 = register("ammo2");
-    public static final RegistryObject<Item> AMMO3 = register("ammo3");
+    public static final RegistryObject<Item> AMMO = shipSupportItem("ammo",
+            "gui.shincolle.ship_support.ammo", "gui.shincolle.ship_support.use");
+    public static final RegistryObject<Item> AMMO1 = shipSupportItem("ammo1",
+            "gui.shincolle.ship_support.ammo", "gui.shincolle.ship_support.use");
+    public static final RegistryObject<Item> AMMO2 = shipSupportItem("ammo2",
+            "gui.shincolle.ship_support.heavy_ammo", "gui.shincolle.ship_support.use");
+    public static final RegistryObject<Item> AMMO3 = shipSupportItem("ammo3",
+            "gui.shincolle.ship_support.heavy_ammo", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> BUCKETREPAIR = ITEMS.register("bucketrepair",
             () -> new BucketRepairItem(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> COMBATRATION = combatRation("combatration", "gui.shincolle.combatration0", 1400, 900, 1800, 4, 0.35F);
@@ -66,8 +73,10 @@ public final class ModItems {
     public static final RegistryObject<Item> EQUIPSEARCHLIGHT = equipmentItem(LegacyEquipmentFamily.SEARCHLIGHT, 0);
     public static final List<RegistryObject<Item>> EQUIPTORPEDO_ITEMS = equipmentVariants(LegacyEquipmentFamily.TORPEDO);
     public static final List<RegistryObject<Item>> EQUIPTURBINE_ITEMS = equipmentVariants(LegacyEquipmentFamily.TURBINE);
-    public static final RegistryObject<Item> GRUDGE = register("grudge");
-    public static final RegistryObject<Item> GRUDGE1 = register("grudge1");
+    public static final RegistryObject<Item> GRUDGE = shipSupportItem("grudge",
+            "gui.shincolle.ship_support.grudge", "gui.shincolle.ship_support.use");
+    public static final RegistryObject<Item> GRUDGE1 = shipSupportItem("grudge1",
+            "gui.shincolle.ship_support.grudge1", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> INSTANTCONMAT = register("instantconmat");
     public static final RegistryObject<Item> KAITAIHAMMER = ITEMS.register("kaitaihammer",
             () -> new KaitaiHammerItem(new Item.Properties().stacksTo(1).durability(20)));
@@ -100,7 +109,8 @@ public final class ModItems {
             "shipegg63", "shipegg2063", "shipegg64", "shipegg2064", "shipegg65", "shipegg2065", "shipegg74");
     public static final RegistryObject<Item> TARGETWRENCH = ITEMS.register("targetwrench",
             () -> new TargetWrenchItem(new Item.Properties().stacksTo(1)));
-    public static final RegistryObject<Item> TOYAIRPLANE = register("toyairplane");
+    public static final RegistryObject<Item> TOYAIRPLANE = shipSupportItem("toyairplane",
+            "gui.shincolle.ship_support.toyairplane", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> TRAININGBOOK = ITEMS.register("trainingbook",
             () -> new TrainingBookItem(new Item.Properties().stacksTo(1)));
     public static final List<RegistryObject<Item>> EQUIPAIRPLANE_DISPLAY_ITEMS = orderedEquipmentItems(LegacyEquipmentFamily.AIRPLANE, EQUIPAIRPLANE_ITEMS);
@@ -126,6 +136,10 @@ public final class ModItems {
 
     private static RegistryObject<Item> register(String name) {
         return ITEMS.register(name, () -> new Item(new Item.Properties()));
+    }
+
+    private static RegistryObject<Item> shipSupportItem(String name, String descriptionKey, String useKey) {
+        return ITEMS.register(name, () -> new LegacyShipSupportItem(new Item.Properties(), descriptionKey, useKey));
     }
 
     public static RegistryObject<Item> registerItem(String name, java.util.function.Supplier<? extends Item> supplier) {

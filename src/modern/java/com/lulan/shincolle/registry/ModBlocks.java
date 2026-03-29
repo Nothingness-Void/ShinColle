@@ -3,9 +3,14 @@ package com.lulan.shincolle.registry;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.block.CraneBlock;
 import com.lulan.shincolle.block.DeskBlock;
-import com.lulan.shincolle.block.LegacyInteractiveBlock;
+import com.lulan.shincolle.block.HeavyGrudgeBlock;
+import com.lulan.shincolle.block.LargeShipyardBlock;
+import com.lulan.shincolle.block.LegacyCoreBlock;
+import com.lulan.shincolle.block.PolymetalServantBlock;
 import com.lulan.shincolle.block.SmallShipyardBlock;
 import com.lulan.shincolle.block.WaypointBlock;
+import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
+import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
 import com.lulan.shincolle.item.WaypointBlockItem;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.item.Item;
@@ -74,11 +79,11 @@ public final class ModBlocks {
                     .noOcclusion()));
 
     public static final RegistryObject<Block> BLOCK_GRUDGE_HEAVY = register("blockgrudgeheavy",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new HeavyGrudgeBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .strength(3.0F, 600.0F)
                     .lightLevel(state -> 15)
-                    .sound(SoundType.SAND), "gui.shincolle.placeholder.block.grudgeheavy"));
+                    .sound(SoundType.SAND)));
 
     public static final RegistryObject<Block> BLOCK_GRUDGE_HEAVY_DECO = register("blockgrudgeheavydeco",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -103,12 +108,20 @@ public final class ModBlocks {
                     .noOcclusion()
                     .noCollission()));
 
+    public static final RegistryObject<Block> BLOCK_LARGE_SHIPYARD = register("blocklargeshipyard",
+            () -> new LargeShipyardBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_PURPLE)
+                    .strength(12.0F, 1800.0F)
+                    .requiresCorrectToolForDrops()
+                    .lightLevel(state -> state.getValue(LargeShipyardBlock.ACTIVE) ? 10 : 4)
+                    .sound(SoundType.STONE)));
+
     public static final RegistryObject<Block> BLOCK_POLYMETAL = register("blockpolymetal",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new PolymetalServantBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .strength(3.0F)
                     .requiresCorrectToolForDrops()
-                    .sound(SoundType.METAL), "gui.shincolle.placeholder.block.polymetal"));
+                    .sound(SoundType.METAL)));
 
     public static final RegistryObject<Block> BLOCK_POLYMETAL_ORE = register("blockpolymetalore",
             () -> new DropExperienceBlock(BlockBehaviour.Properties.of()
@@ -139,12 +152,14 @@ public final class ModBlocks {
                     .sound(SoundType.SAND)));
 
     public static final RegistryObject<Block> BLOCK_VOL_CORE = register("blockvolcore",
-            () -> new LegacyInteractiveBlock(BlockBehaviour.Properties.of()
+            () -> new LegacyCoreBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_BLACK)
                     .strength(6.0F, 600.0F)
                     .requiresCorrectToolForDrops()
                     .lightLevel(state -> 15)
-                    .sound(SoundType.SAND), "gui.shincolle.placeholder.block.volcore"));
+                    .sound(SoundType.SAND),
+                    LegacyCoreBlockEntity::newVolCore,
+                    ModBlockEntities.VOL_CORE));
 
     public static final RegistryObject<Block> BLOCK_WAYPOINT = register("blockwaypoint",
             () -> new WaypointBlock(BlockBehaviour.Properties.of()

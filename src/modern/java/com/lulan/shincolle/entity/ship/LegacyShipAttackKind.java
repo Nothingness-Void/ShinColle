@@ -47,4 +47,12 @@ public enum LegacyShipAttackKind {
     public boolean justLaunch() {
         return this.justLaunch;
     }
+
+    public static LegacyShipAttackKind byOrdinal(int ordinal) {
+        LegacyShipAttackKind[] values = values();
+        if (ordinal < 0 || ordinal >= values.length) {
+            return MELEE;
+        }
+        return values[ordinal];
+    }
 }

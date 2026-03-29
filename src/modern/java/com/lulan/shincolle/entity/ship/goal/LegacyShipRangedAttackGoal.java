@@ -76,7 +76,7 @@ public class LegacyShipRangedAttackGoal extends Goal {
             if (distanceSqr <= rangeSqr && onSight) {
                 this.ship.getNavigation().stop();
             } else {
-                this.ship.getNavigation().moveTo(target, this.speedModifier);
+                this.ship.getNavigation().moveTo(target, this.speedModifier * this.ship.getCombatMovementSpeedModifier());
             }
         }
 

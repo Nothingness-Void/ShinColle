@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
@@ -61,6 +62,34 @@ public final class TeitokuEvents {
     public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.initializeAndSync(serverPlayer);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide()) {
+            return;
+        }
+        if (!(event.player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        int cooldown = TeitokuHelper.getTeamCooldown(serverPlayer);
+        int bossCooldown = TeitokuHelper.get(serverPlayer).map(TeitokuData::getBossCooldown).orElse(0);
+        boolean shouldSync = false;
+
+        if (cooldown > 0) {
+            int next = TeitokuHelper.tickCooldown(serverPlayer);
+            shouldSync |= next == 0 || (serverPlayer.tickCount % 20) == 0;
+        }
+
+        if (bossCooldown > 0) {
+            int nextBoss = TeitokuHelper.tickBossCooldown(serverPlayer);
+            shouldSync |= nextBoss == 0 || (serverPlayer.tickCount % 20) == 0;
+        }
+
+        if (shouldSync) {
+            TeitokuHelper.syncGameplayState(serverPlayer);
         }
     }
 }

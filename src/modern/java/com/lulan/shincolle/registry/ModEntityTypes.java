@@ -1,6 +1,7 @@
 package com.lulan.shincolle.registry;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.world.entity.EntityType;
@@ -27,6 +28,13 @@ public final class ModEntityTypes {
                             .clientTrackingRange(8)
                             .updateInterval(1)
                             .build("legacy_ship_projectile"));
+    public static final RegistryObject<EntityType<LegacyMountEntity>> LEGACY_MOUNT =
+            ENTITY_TYPES.register("legacy_mount",
+                    () -> EntityType.Builder.<LegacyMountEntity>of(LegacyMountEntity::new, MobCategory.MISC)
+                            .sized(0.95F, 0.95F)
+                            .clientTrackingRange(8)
+                            .updateInterval(1)
+                            .build("legacy_mount"));
 
     private ModEntityTypes() {
     }

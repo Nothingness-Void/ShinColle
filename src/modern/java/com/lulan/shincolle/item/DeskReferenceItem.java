@@ -34,7 +34,8 @@ public class DeskReferenceItem extends Item {
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
             NetworkHooks.openScreen(serverPlayer,
                     new SimpleMenuProvider(
-                            (containerId, inventory, ignoredPlayer) -> new DeskReferenceMenu(containerId, inventory, this.variant),
+                            (containerId, inventory, ignoredPlayer) ->
+                                    new DeskReferenceMenu(containerId, inventory, this.variant),
                             Component.translatable(this.titleKey)),
                     buffer -> buffer.writeVarInt(this.variant));
         }

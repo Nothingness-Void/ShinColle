@@ -2,6 +2,7 @@ package com.lulan.shincolle.entity.projectile;
 
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModItems;
 import net.minecraft.nbt.CompoundTag;
@@ -32,6 +33,8 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     private int targetId = -1;
     private int lifeTicks = 80;
     private boolean missedShot;
+    private float speedScale = 1.0F;
+    private float guidanceBlend = 0.18F;
 
     public LegacyShipProjectileEntity(EntityType<? extends LegacyShipProjectileEntity> entityType, Level level) {
         super(entityType, level);
@@ -48,6 +51,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         projectile.damage = damage;
         projectile.missedShot = missedShot;
         projectile.targetId = missedShot ? -1 : target.getId();
+        ShipEquipmentBehaviorState behaviorState = owner.getEquipmentBehaviorState();
+        projectile.speedScale = (float) behaviorState.projectileSpeedMultiplier(attackKind);
+        projectile.guidanceBlend = (float) behaviorState.airGuidanceBlend();
         projectile.lifeTicks = switch (attackKind) {
             case HEAVY -> 80;
             case AIR_LIGHT, AIR_HEAVY -> 100;
@@ -163,6 +169,8 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         tag.putInt("TargetId", this.targetId);
         tag.putInt("LifeTicks", this.lifeTicks);
         tag.putBoolean("MissedShot", this.missedShot);
+        tag.putFloat("SpeedScale", this.speedScale);
+        tag.putFloat("GuidanceBlend", this.guidanceBlend);
     }
 
     @Override
@@ -173,6 +181,8 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         this.targetId = tag.getInt("TargetId");
         this.lifeTicks = tag.getInt("LifeTicks");
         this.missedShot = tag.getBoolean("MissedShot");
+        this.speedScale = tag.contains("SpeedScale") ? tag.getFloat("SpeedScale") : 1.0F;
+        this.guidanceBlend = tag.contains("GuidanceBlend") ? tag.getFloat("GuidanceBlend") : 0.18F;
     }
 
     public LegacyShipAttackKind getAttackKind() {
@@ -201,7 +211,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
 
         Vec3 current = this.getDeltaMovement();
-        Vec3 redirected = current.scale(0.82D).add(desired.normalize().scale(speed * 0.18D));
+        Vec3 redirected = current.scale(1.0D - this.guidanceBlend).add(desired.normalize().scale(speed * this.guidanceBlend));
         if (redirected.lengthSqr() < 1.0E-6D) {
             redirected = desired.normalize().scale(speed);
         } else {
@@ -245,13 +255,14 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     private double baseSpeed(LegacyShipAttackKind attackKind) {
-        return switch (attackKind) {
+        double baseSpeed = switch (attackKind) {
             case HEAVY -> 0.52D;
             case AIR_LIGHT -> 0.42D;
             case AIR_HEAVY -> 0.38D;
             case LIGHT -> 0.75D;
             case MELEE -> 0.0D;
         };
+        return baseSpeed * this.speedScale;
     }
 
     private static LegacyShipAttackKind attackKindByOrdinal(int ordinal) {

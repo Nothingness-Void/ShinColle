@@ -38,6 +38,48 @@ public final class LegacyShipStatTables {
             0F, 0F, 0F, 0F, 0F,
             0F
     };
+    private static final float[] MARRIAGE_BONUS = {
+            24F, 0F, 0F, 0F, 0F,
+            0.08F, 0F, 0F, 3F, 0.03F,
+            0.03F, 0.01F, 0.03F, 0F, 0F,
+            0.04F, 0F, 0F, 0F, 0.12F,
+            0.08F
+    };
+    private static final float[] FORMATION_LINE_AHEAD = {
+            0F, 2F, 2F, 1.2F, 1.2F,
+            0.3F, 1.3F, 0.08F, 4F, 1.75F,
+            1.75F, 1.75F, 1.25F, 0.5F, 0.4F,
+            0.1F, 0F, 0.2F, 0F, 0F,
+            0F
+    };
+    private static final float[] FORMATION_DOUBLE_LINE = {
+            0F, 1.4F, 1.4F, 1.1F, 1.1F,
+            0.9F, 1.08F, 0F, 2F, 1.15F,
+            1.15F, 1.15F, 1.55F, 1.2F, 1F,
+            -0.15F, 0F, 0.1F, 0F, 0.3F,
+            0.05F
+    };
+    private static final float[] FORMATION_DIAMOND = {
+            0F, 0.6F, 0.3F, 2F, 2F,
+            1.5F, 1F, -0.1F, 4F, 1.1F,
+            1F, 1F, 1F, 2F, 1F,
+            -0.5F, 0F, 0F, 0F, 0.5F,
+            0.1F
+    };
+    private static final float[] FORMATION_ECHELON = {
+            0F, 1.2F, 1.2F, 1F, 1F,
+            0.75F, 1F, 0.18F, 2F, 1.25F,
+            1.25F, 1.25F, 0.65F, 0.3F, 0.8F,
+            0.25F, 0F, 0.25F, 0F, 0F,
+            0F
+    };
+    private static final float[] FORMATION_LINE_ABREAST = {
+            0F, 0.9F, 0.9F, 0.9F, 0.9F,
+            1.35F, 0.8F, 0.05F, -2F, 1.15F,
+            1F, 1F, 1F, 1F, 1.75F,
+            -0.15F, 0F, 0F, 0F, 0.1F,
+            0F
+    };
     private static final float[] HOSTILE_DEFAULT = {0.35F, 0.35F, 0.35F, 1F, 1.1F, 0.7F};
 
     private LegacyShipStatTables() {
@@ -135,8 +177,27 @@ public final class LegacyShipStatTables {
         return Arrays.copyOf(RESET_FORMATION, ATTR_COUNT);
     }
 
+    public static int normalizeFormationId(int formationId) {
+        return formationId >= 1 && formationId <= 5 ? formationId : 0;
+    }
+
+    public static float[] copyFormationStats(int formationId) {
+        return switch (normalizeFormationId(formationId)) {
+            case 1 -> Arrays.copyOf(FORMATION_LINE_AHEAD, ATTR_COUNT);
+            case 2 -> Arrays.copyOf(FORMATION_DOUBLE_LINE, ATTR_COUNT);
+            case 3 -> Arrays.copyOf(FORMATION_DIAMOND, ATTR_COUNT);
+            case 4 -> Arrays.copyOf(FORMATION_ECHELON, ATTR_COUNT);
+            case 5 -> Arrays.copyOf(FORMATION_LINE_ABREAST, ATTR_COUNT);
+            default -> copyResetFormation();
+        };
+    }
+
     public static float[] copyResetMorale() {
         return Arrays.copyOf(RESET_MORALE, ATTR_COUNT);
+    }
+
+    public static float[] copyMarriageStats(boolean married) {
+        return married ? Arrays.copyOf(MARRIAGE_BONUS, ATTR_COUNT) : new float[ATTR_COUNT];
     }
 
     public static double[] hostileScaleFor(ShipArchetype archetype) {

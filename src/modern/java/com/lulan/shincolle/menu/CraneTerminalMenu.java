@@ -1,6 +1,7 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
+import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
@@ -131,6 +132,25 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
     public @Nullable BlockPos getPairedChest() {
         CraneBlockEntity crane = this.getCrane();
         return crane != null ? crane.getPairedChest() : null;
+    }
+
+    public Component getEnergyStatusLabel() {
+        RouteEnergyAccess access = this.getPairedEnergyAccess();
+        if (access == null) {
+            return Component.translatable("gui.shincolle.crane.energy_status.none");
+        }
+
+        return Component.translatable("gui.shincolle.crane.energy_status.value",
+                access.getRouteEnergyStored(), access.getRouteEnergyCapacity());
+    }
+
+    private @Nullable RouteEnergyAccess getPairedEnergyAccess() {
+        BlockPos paired = this.getPairedChest();
+        if (paired == null) {
+            return null;
+        }
+
+        return this.inventory.player.level().getBlockEntity(paired) instanceof RouteEnergyAccess access ? access : null;
     }
 
     public ItemStack getFilterStack(int slot) {

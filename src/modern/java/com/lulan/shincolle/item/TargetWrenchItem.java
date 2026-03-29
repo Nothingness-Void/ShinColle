@@ -1,6 +1,8 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
+import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import net.minecraft.ChatFormatting;
@@ -21,6 +23,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -42,7 +45,10 @@ public class TargetWrenchItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
 
         if (!player.isShiftKeyDown()) {
-            return InteractionResultHolder.pass(stack);
+            if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                MorphHelper.openMorphScreen(serverPlayer);
+            }
+            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
         if (!level.isClientSide() && hasSelection(stack)) {
@@ -132,6 +138,7 @@ public class TargetWrenchItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("gui.shincolle.wrench.selection", describeSelection(stack)).withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable("gui.shincolle.wrench.morph").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.translatable("gui.shincolle.wrench3").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("gui.shincolle.wrench.clear").withStyle(ChatFormatting.DARK_GRAY));
     }
@@ -280,7 +287,9 @@ public class TargetWrenchItem extends Item {
                 return ROUTE_NODE;
             }
 
-            if (blockEntity instanceof Container) {
+            if (blockEntity instanceof Container
+                    || blockEntity instanceof RouteEnergyAccess
+                    || (blockEntity != null && blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent())) {
                 return CONTAINER;
             }
 

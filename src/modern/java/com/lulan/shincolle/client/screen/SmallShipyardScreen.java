@@ -42,10 +42,9 @@ public class SmallShipyardScreen extends AbstractContainerScreen<SmallShipyardMe
         String buildTime = this.menu.getBuildTimeString();
         guiGraphics.drawString(this.font, buildTime, 71 - this.font.width(buildTime) / 2, 51, 0x404040, false);
 
-        if (this.menu.getPowerGoal() <= 0) {
-            drawCenteredText(guiGraphics, Component.translatable("gui.shincolle.shipyard.nomaterial"), 80, 67, 0xFF2A73);
-        } else if (!this.menu.hasRemainedPower()) {
-            drawCenteredText(guiGraphics, Component.translatable("gui.shincolle.shipyard.nofuel"), 80, 67, 0xFF2A73);
+        Component failure = this.menu.getFailureMessage();
+        if (!failure.getString().isBlank()) {
+            drawCenteredText(guiGraphics, failure, 80, 67, 0xFF2A73);
         }
     }
 

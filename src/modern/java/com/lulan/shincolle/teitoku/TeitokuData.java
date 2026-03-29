@@ -1,12 +1,17 @@
 package com.lulan.shincolle.teitoku;
 
+import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.morph.MorphRuntimeState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class TeitokuData {
 
@@ -18,12 +23,26 @@ public class TeitokuData {
     private static final String MARRIAGE_NUM_TAG = "MarriageNum";
     private static final String BOSS_COOLDOWN_TAG = "BossCD";
     private static final String TEAM_COOLDOWN_TAG = "TeamCD";
+    private static final String HAS_TEAM_TAG = "HasTeam";
+    private static final String FORMATION_ID_TAG = "FormationId";
     private static final String COLLECTED_SHIPS_TAG = "ColleShip";
     private static final String COLLECTED_EQUIPMENT_TAG = "ColleEquip";
     private static final String TARGET_CLASSES_TAG = "CustomTargetClass";
+    private static final String CURRENT_TEAM_ID_TAG = "CurrentTeamId";
+    private static final String FORMATION_IDS_TAG = "FormationIds";
+    private static final String TEAM_SHIP_UIDS_TAG = "TeamShipUids";
+    private static final String TEAM_SHIP_SELECTED_TAG = "TeamShipSelected";
+    private static final String TEAM_NAMES_TAG = "TeamNames";
+    private static final String MORPH_PROFILES_TAG = "MorphProfiles";
+    private static final String MORPH_RUNTIME_TAG = "MorphRuntime";
 
     public static final int DEFAULT_BOSS_COOLDOWN = 4800;
     public static final int DEFAULT_TEAM_COOLDOWN = 6000;
+    public static final int DEFAULT_FORMATION_ID = 0;
+    public static final int MAX_FORMATION_ID = 5;
+    public static final int TEAM_COUNT = 9;
+    public static final int TEAM_SIZE = 6;
+    public static final int TEAM_SLOT_COUNT = TEAM_COUNT * TEAM_SIZE;
 
     private String playerName = "";
     private int playerUid = -1;
@@ -33,9 +52,24 @@ public class TeitokuData {
     private int marriageNum;
     private int bossCooldown = DEFAULT_BOSS_COOLDOWN;
     private int teamCooldown = DEFAULT_TEAM_COOLDOWN;
+    private boolean hasTeam;
+    private int currentTeamId;
+    private final int[] formationIds = new int[TEAM_COUNT];
+    private final int[] teamShipUids = new int[TEAM_SLOT_COUNT];
+    private final boolean[] teamShipSelected = new boolean[TEAM_SLOT_COUNT];
+    private final String[] teamNames = new String[TEAM_COUNT];
     private final List<Integer> collectedShips = new ArrayList<>();
     private final List<Integer> collectedEquipment = new ArrayList<>();
     private final List<String> targetClasses = new ArrayList<>();
+    private final List<MorphProfile> morphProfiles = new ArrayList<>();
+    private final MorphRuntimeState morphRuntimeState = new MorphRuntimeState();
+
+    public TeitokuData() {
+        Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
+        Arrays.fill(this.teamShipUids, -1);
+        Arrays.fill(this.teamNames, "");
+        this.morphRuntimeState.setSelectedClassId(0);
+    }
 
     public CompoundTag saveToTag(CompoundTag tag) {
         tag.putString(PLAYER_NAME_TAG, this.playerName);
@@ -46,14 +80,33 @@ public class TeitokuData {
         tag.putInt(MARRIAGE_NUM_TAG, this.marriageNum);
         tag.putInt(BOSS_COOLDOWN_TAG, this.bossCooldown);
         tag.putInt(TEAM_COOLDOWN_TAG, this.teamCooldown);
+        tag.putBoolean(HAS_TEAM_TAG, this.hasTeam);
+        tag.putInt(FORMATION_ID_TAG, this.getCurrentFormationId());
+        tag.putIntArray(FORMATION_IDS_TAG, this.formationIds);
+        tag.putInt(CURRENT_TEAM_ID_TAG, this.currentTeamId);
+        tag.putIntArray(TEAM_SHIP_UIDS_TAG, this.teamShipUids);
+        tag.putByteArray(TEAM_SHIP_SELECTED_TAG, toByteArray(this.teamShipSelected));
         tag.putIntArray(COLLECTED_SHIPS_TAG, this.collectedShips);
         tag.putIntArray(COLLECTED_EQUIPMENT_TAG, this.collectedEquipment);
+
+        ListTag teamNameList = new ListTag();
+        for (String teamName : this.teamNames) {
+            teamNameList.add(StringTag.valueOf(teamName == null ? "" : teamName));
+        }
+        tag.put(TEAM_NAMES_TAG, teamNameList);
 
         ListTag targetClassList = new ListTag();
         for (String targetClass : this.targetClasses) {
             targetClassList.add(StringTag.valueOf(targetClass));
         }
         tag.put(TARGET_CLASSES_TAG, targetClassList);
+
+        ListTag morphProfileList = new ListTag();
+        for (MorphProfile morphProfile : this.morphProfiles) {
+            morphProfileList.add(morphProfile.saveToTag(new CompoundTag()));
+        }
+        tag.put(MORPH_PROFILES_TAG, morphProfileList);
+        tag.put(MORPH_RUNTIME_TAG, this.morphRuntimeState.saveToTag(new CompoundTag()));
         return tag;
     }
 
@@ -66,6 +119,39 @@ public class TeitokuData {
         this.marriageNum = Math.max(0, tag.getInt(MARRIAGE_NUM_TAG));
         this.bossCooldown = tag.contains(BOSS_COOLDOWN_TAG) ? tag.getInt(BOSS_COOLDOWN_TAG) : DEFAULT_BOSS_COOLDOWN;
         this.teamCooldown = tag.contains(TEAM_COOLDOWN_TAG) ? tag.getInt(TEAM_COOLDOWN_TAG) : DEFAULT_TEAM_COOLDOWN;
+        this.hasTeam = tag.contains(HAS_TEAM_TAG) ? tag.getBoolean(HAS_TEAM_TAG) : this.playerUid > 0;
+        this.currentTeamId = normalizeTeamId(tag.getInt(CURRENT_TEAM_ID_TAG));
+
+        Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
+        int[] loadedFormationIds = tag.getIntArray(FORMATION_IDS_TAG);
+        if (loadedFormationIds.length > 0) {
+            for (int i = 0; i < TEAM_COUNT && i < loadedFormationIds.length; i++) {
+                this.formationIds[i] = normalizeFormationId(loadedFormationIds[i]);
+            }
+        } else {
+            int fallbackFormationId = tag.contains(FORMATION_ID_TAG)
+                    ? normalizeFormationId(tag.getInt(FORMATION_ID_TAG))
+                    : DEFAULT_FORMATION_ID;
+            this.formationIds[this.currentTeamId] = fallbackFormationId;
+        }
+
+        Arrays.fill(this.teamShipUids, -1);
+        int[] loadedShipUids = tag.getIntArray(TEAM_SHIP_UIDS_TAG);
+        for (int i = 0; i < TEAM_SLOT_COUNT && i < loadedShipUids.length; i++) {
+            this.teamShipUids[i] = loadedShipUids[i] > 0 ? loadedShipUids[i] : -1;
+        }
+
+        Arrays.fill(this.teamShipSelected, false);
+        byte[] selected = tag.getByteArray(TEAM_SHIP_SELECTED_TAG);
+        for (int i = 0; i < TEAM_SLOT_COUNT && i < selected.length; i++) {
+            this.teamShipSelected[i] = selected[i] != 0;
+        }
+
+        Arrays.fill(this.teamNames, "");
+        ListTag teamNameList = tag.getList(TEAM_NAMES_TAG, Tag.TAG_STRING);
+        for (int i = 0; i < TEAM_COUNT && i < teamNameList.size(); i++) {
+            this.teamNames[i] = teamNameList.getString(i);
+        }
 
         this.collectedShips.clear();
         for (int shipId : tag.getIntArray(COLLECTED_SHIPS_TAG)) {
@@ -85,6 +171,33 @@ public class TeitokuData {
                 this.targetClasses.add(targetClass);
             }
         }
+
+        this.morphProfiles.clear();
+        ListTag morphProfileList = tag.getList(MORPH_PROFILES_TAG, Tag.TAG_COMPOUND);
+        for (int index = 0; index < morphProfileList.size(); index++) {
+            MorphProfile morphProfile = new MorphProfile();
+            morphProfile.setDirtyCallback(() -> {
+            });
+            morphProfile.loadFromTag(morphProfileList.getCompound(index));
+            morphProfile.setDirtyCallback(() -> {
+            });
+            if (morphProfile.getLegacyClassId() > 0) {
+                this.morphProfiles.add(morphProfile);
+            }
+        }
+
+        if (tag.contains(MORPH_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
+            this.morphRuntimeState.loadFromTag(tag.getCompound(MORPH_RUNTIME_TAG));
+        } else {
+            this.morphRuntimeState.setActive(false);
+            this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+        }
+
+        if (this.getSelectedMorphProfile() == null) {
+            this.morphRuntimeState.setActive(false);
+            this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+        }
+        this.bindMorphDirtyCallbacks();
     }
 
     public void copyFrom(TeitokuData other) {
@@ -159,6 +272,242 @@ public class TeitokuData {
         this.teamCooldown = Math.max(0, teamCooldown);
     }
 
+    public boolean hasTeam() {
+        return this.hasTeam;
+    }
+
+    public void setHasTeam(boolean hasTeam) {
+        this.hasTeam = hasTeam;
+    }
+
+    public int getCurrentTeamId() {
+        return this.currentTeamId;
+    }
+
+    public void setCurrentTeamId(int teamId) {
+        this.currentTeamId = normalizeTeamId(teamId);
+    }
+
+    public int getCurrentFormationId() {
+        return this.getFormationId(this.currentTeamId);
+    }
+
+    public int getFormationId() {
+        return this.getCurrentFormationId();
+    }
+
+    public int getFormationId(int teamId) {
+        return this.formationIds[normalizeTeamId(teamId)];
+    }
+
+    public int[] getFormationIdsCopy() {
+        return Arrays.copyOf(this.formationIds, this.formationIds.length);
+    }
+
+    public void setFormationId(int formationId) {
+        this.setFormationId(this.currentTeamId, formationId);
+    }
+
+    public void setFormationId(int teamId, int formationId) {
+        this.formationIds[normalizeTeamId(teamId)] = normalizeFormationId(formationId);
+    }
+
+    public int cycleFormationId() {
+        return this.cycleFormationId(this.currentTeamId);
+    }
+
+    public int cycleFormationId(int teamId) {
+        int normalizedTeamId = normalizeTeamId(teamId);
+        int next = (this.formationIds[normalizedTeamId] + 1) % (MAX_FORMATION_ID + 1);
+        this.formationIds[normalizedTeamId] = next;
+        return next;
+    }
+
+    public int getShipUid(int teamId, int slot) {
+        return this.teamShipUids[slotIndex(teamId, slot)];
+    }
+
+    public void setShipUid(int teamId, int slot, int shipUid) {
+        int index = slotIndex(teamId, slot);
+        this.teamShipUids[index] = shipUid > 0 ? shipUid : -1;
+        if (shipUid <= 0) {
+            this.teamShipSelected[index] = false;
+        }
+    }
+
+    public void removeShipUidEverywhere(int shipUid) {
+        if (shipUid <= 0) {
+            return;
+        }
+
+        for (int i = 0; i < TEAM_SLOT_COUNT; i++) {
+            if (this.teamShipUids[i] == shipUid) {
+                this.teamShipUids[i] = -1;
+                this.teamShipSelected[i] = false;
+            }
+        }
+    }
+
+    public void assignCurrentTeamSlot(int slot, int shipUid) {
+        this.removeShipUidEverywhere(shipUid);
+        this.setShipUid(this.currentTeamId, slot, shipUid);
+    }
+
+    public boolean isShipSelected(int teamId, int slot) {
+        return this.teamShipSelected[slotIndex(teamId, slot)];
+    }
+
+    public void setShipSelected(int teamId, int slot, boolean selected) {
+        int index = slotIndex(teamId, slot);
+        this.teamShipSelected[index] = selected && this.teamShipUids[index] > 0;
+    }
+
+    public boolean setCurrentTeamSelection(int slot, boolean selected) {
+        int index = slotIndex(this.currentTeamId, slot);
+        if (this.teamShipUids[index] <= 0) {
+            this.teamShipSelected[index] = false;
+            return false;
+        }
+
+        this.teamShipSelected[index] = selected;
+        return true;
+    }
+
+    public boolean toggleCurrentTeamSelect(int slot) {
+        int index = slotIndex(this.currentTeamId, slot);
+        if (this.teamShipUids[index] <= 0) {
+            this.teamShipSelected[index] = false;
+            return false;
+        }
+
+        this.teamShipSelected[index] = !this.teamShipSelected[index];
+        return this.teamShipSelected[index];
+    }
+
+    public void clearCurrentTeamSelect() {
+        int base = this.currentTeamId * TEAM_SIZE;
+        for (int i = 0; i < TEAM_SIZE; i++) {
+            this.teamShipSelected[base + i] = false;
+        }
+    }
+
+    public void clearCurrentTeam() {
+        int base = this.currentTeamId * TEAM_SIZE;
+        for (int i = 0; i < TEAM_SIZE; i++) {
+            this.teamShipUids[base + i] = -1;
+            this.teamShipSelected[base + i] = false;
+        }
+    }
+
+    public boolean swapCurrentTeamSlots(int fromSlot, int toSlot) {
+        int from = slotIndex(this.currentTeamId, fromSlot);
+        int to = slotIndex(this.currentTeamId, toSlot);
+        if (from == to) {
+            return false;
+        }
+
+        int uid = this.teamShipUids[from];
+        this.teamShipUids[from] = this.teamShipUids[to];
+        this.teamShipUids[to] = uid;
+
+        boolean selected = this.teamShipSelected[from];
+        this.teamShipSelected[from] = this.teamShipSelected[to];
+        this.teamShipSelected[to] = selected;
+        return true;
+    }
+
+    public int[] getTeamShipUids(int teamId) {
+        int normalizedTeamId = normalizeTeamId(teamId);
+        int[] values = new int[TEAM_SIZE];
+        int base = normalizedTeamId * TEAM_SIZE;
+        System.arraycopy(this.teamShipUids, base, values, 0, TEAM_SIZE);
+        return values;
+    }
+
+    public boolean[] getTeamShipSelected(int teamId) {
+        int normalizedTeamId = normalizeTeamId(teamId);
+        boolean[] values = new boolean[TEAM_SIZE];
+        int base = normalizedTeamId * TEAM_SIZE;
+        System.arraycopy(this.teamShipSelected, base, values, 0, TEAM_SIZE);
+        return values;
+    }
+
+    public List<Integer> getCurrentTeamShipUids(boolean selectedOnly) {
+        List<Integer> values = new ArrayList<>(TEAM_SIZE);
+        int base = this.currentTeamId * TEAM_SIZE;
+        for (int i = 0; i < TEAM_SIZE; i++) {
+            int uid = this.teamShipUids[base + i];
+            if (uid <= 0) {
+                continue;
+            }
+            if (selectedOnly && !this.teamShipSelected[base + i]) {
+                continue;
+            }
+            values.add(uid);
+        }
+        return values;
+    }
+
+    public int findTeamIdByShipUid(int shipUid) {
+        if (shipUid <= 0) {
+            return -1;
+        }
+
+        for (int team = 0; team < TEAM_COUNT; team++) {
+            int base = team * TEAM_SIZE;
+            for (int slot = 0; slot < TEAM_SIZE; slot++) {
+                if (this.teamShipUids[base + slot] == shipUid) {
+                    return team;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public int findSlotIndexByShipUid(int shipUid) {
+        if (shipUid <= 0) {
+            return -1;
+        }
+
+        for (int team = 0; team < TEAM_COUNT; team++) {
+            int base = team * TEAM_SIZE;
+            for (int slot = 0; slot < TEAM_SIZE; slot++) {
+                if (this.teamShipUids[base + slot] == shipUid) {
+                    return slot;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public int countShipsInTeam(int teamId) {
+        int normalizedTeamId = normalizeTeamId(teamId);
+        int base = normalizedTeamId * TEAM_SIZE;
+        int count = 0;
+
+        for (int slot = 0; slot < TEAM_SIZE; slot++) {
+            if (this.teamShipUids[base + slot] > 0) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    public String getTeamName(int teamId) {
+        return this.teamNames[normalizeTeamId(teamId)];
+    }
+
+    public void setTeamName(int teamId, String teamName) {
+        this.teamNames[normalizeTeamId(teamId)] = teamName == null ? "" : teamName;
+    }
+
+    public String[] getTeamNamesCopy() {
+        return Arrays.copyOf(this.teamNames, this.teamNames.length);
+    }
+
     public List<Integer> getCollectedShips() {
         return List.copyOf(this.collectedShips);
     }
@@ -183,6 +532,40 @@ public class TeitokuData {
         return List.copyOf(this.targetClasses);
     }
 
+    public int getTargetClassCount() {
+        return this.targetClasses.size();
+    }
+
+    public boolean hasTargetClass(String targetClass) {
+        String normalized = normalizeTargetClass(targetClass);
+        return !normalized.isBlank() && this.targetClasses.contains(normalized);
+    }
+
+    public boolean addTargetClass(String targetClass) {
+        String normalized = normalizeTargetClass(targetClass);
+        if (normalized.isBlank() || this.targetClasses.contains(normalized)) {
+            return false;
+        }
+
+        this.targetClasses.add(normalized);
+        return true;
+    }
+
+    public boolean removeTargetClass(String targetClass) {
+        String normalized = normalizeTargetClass(targetClass);
+        if (normalized.isBlank()) {
+            return false;
+        }
+
+        return this.targetClasses.remove(normalized);
+    }
+
+    public boolean toggleTargetClass(String targetClass) {
+        return this.hasTargetClass(targetClass)
+                ? !this.removeTargetClass(targetClass)
+                : this.addTargetClass(targetClass);
+    }
+
     public void setTargetClasses(List<String> targetClasses) {
         this.targetClasses.clear();
         if (targetClasses == null) {
@@ -190,9 +573,163 @@ public class TeitokuData {
         }
 
         for (String targetClass : targetClasses) {
-            if (targetClass != null && !targetClass.isBlank() && !this.targetClasses.contains(targetClass)) {
-                this.targetClasses.add(targetClass);
+            this.addTargetClass(targetClass);
+        }
+    }
+
+    public List<MorphProfile> getMorphProfiles() {
+        return List.copyOf(this.morphProfiles);
+    }
+
+    public int getMorphProfileCount() {
+        return this.morphProfiles.size();
+    }
+
+    public MorphRuntimeState getMorphRuntimeState() {
+        return this.morphRuntimeState;
+    }
+
+    public boolean hasActiveMorph() {
+        return this.morphRuntimeState.isActive() && this.getSelectedMorphProfile() != null;
+    }
+
+    public boolean hasUnlockedMorph(int legacyClassId) {
+        return this.findMorphProfile(legacyClassId) != null;
+    }
+
+    public boolean unlockMorph(int legacyClassId) {
+        if (legacyClassId <= 0 || this.hasUnlockedMorph(legacyClassId)) {
+            return false;
+        }
+
+        MorphProfile morphProfile = new MorphProfile(legacyClassId);
+        this.installMorphProfile(morphProfile);
+        if (this.morphRuntimeState.getSelectedClassId() <= 0) {
+            this.morphRuntimeState.setSelectedClassId(legacyClassId);
+        }
+        return true;
+    }
+
+    public MorphProfile findMorphProfile(int legacyClassId) {
+        if (legacyClassId <= 0) {
+            return null;
+        }
+
+        for (MorphProfile morphProfile : this.morphProfiles) {
+            if (morphProfile.getLegacyClassId() == legacyClassId) {
+                return morphProfile;
             }
         }
+
+        return null;
+    }
+
+    public MorphProfile getSelectedMorphProfile() {
+        return this.findMorphProfile(this.morphRuntimeState.getSelectedClassId());
+    }
+
+    public boolean setSelectedMorphProfile(int legacyClassId) {
+        if (legacyClassId <= 0) {
+            this.morphRuntimeState.setSelectedClassId(0);
+            this.morphRuntimeState.setActive(false);
+            return true;
+        }
+
+        if (!this.hasUnlockedMorph(legacyClassId)) {
+            return false;
+        }
+
+        this.morphRuntimeState.setSelectedClassId(legacyClassId);
+        return true;
+    }
+
+    public boolean cycleMorphProfile(boolean forward) {
+        if (this.morphProfiles.isEmpty()) {
+            this.morphRuntimeState.setSelectedClassId(0);
+            this.morphRuntimeState.setActive(false);
+            return false;
+        }
+
+        int currentClassId = this.morphRuntimeState.getSelectedClassId();
+        int currentIndex = -1;
+        for (int i = 0; i < this.morphProfiles.size(); i++) {
+            if (this.morphProfiles.get(i).getLegacyClassId() == currentClassId) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        } else {
+            currentIndex = forward
+                    ? (currentIndex + 1) % this.morphProfiles.size()
+                    : (currentIndex - 1 + this.morphProfiles.size()) % this.morphProfiles.size();
+        }
+
+        this.morphRuntimeState.setSelectedClassId(this.morphProfiles.get(currentIndex).getLegacyClassId());
+        return true;
+    }
+
+    public boolean setMorphActive(boolean active) {
+        if (active && this.getSelectedMorphProfile() == null) {
+            return false;
+        }
+
+        this.morphRuntimeState.setActive(active);
+        return true;
+    }
+
+    public boolean tickMorphRuntime() {
+        return this.morphRuntimeState.tick();
+    }
+
+    public void clearMorphSelectionIfMatches(int legacyClassId) {
+        if (legacyClassId <= 0 || this.morphRuntimeState.getSelectedClassId() != legacyClassId) {
+            return;
+        }
+
+        this.morphRuntimeState.setActive(false);
+        this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+    }
+
+    private static String normalizeTargetClass(String targetClass) {
+        return targetClass == null ? "" : targetClass.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void installMorphProfile(MorphProfile morphProfile) {
+        morphProfile.setDirtyCallback(() -> {
+        });
+        this.morphProfiles.add(morphProfile);
+        this.bindMorphDirtyCallbacks();
+    }
+
+    private void bindMorphDirtyCallbacks() {
+        for (MorphProfile morphProfile : this.morphProfiles) {
+            morphProfile.setDirtyCallback(() -> {
+            });
+        }
+    }
+
+    private static int normalizeFormationId(int formationId) {
+        return Mth.clamp(formationId, DEFAULT_FORMATION_ID, MAX_FORMATION_ID);
+    }
+
+    private static int normalizeTeamId(int teamId) {
+        return Mth.clamp(teamId, 0, TEAM_COUNT - 1);
+    }
+
+    private static int slotIndex(int teamId, int slot) {
+        int normalizedTeamId = normalizeTeamId(teamId);
+        int normalizedSlot = Mth.clamp(slot, 0, TEAM_SIZE - 1);
+        return normalizedTeamId * TEAM_SIZE + normalizedSlot;
+    }
+
+    private static byte[] toByteArray(boolean[] values) {
+        byte[] bytes = new byte[values.length];
+        for (int i = 0; i < values.length; i++) {
+            bytes[i] = values[i] ? (byte) 1 : (byte) 0;
+        }
+        return bytes;
     }
 }

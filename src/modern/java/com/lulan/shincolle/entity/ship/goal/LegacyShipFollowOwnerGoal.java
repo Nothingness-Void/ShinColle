@@ -35,11 +35,16 @@ public class LegacyShipFollowOwnerGoal extends Goal {
     public boolean canUse() {
         Player resolvedOwner = this.ship.getOwnerPlayer();
 
-        if (resolvedOwner == null || this.ship.isHostileVariant() || this.ship.isOrderedToSit() || resolvedOwner.isSpectator()) {
+        if (resolvedOwner == null
+                || this.ship.isHostileVariant()
+                || this.ship.isOrderedToSit()
+                || this.ship.shouldPreferAutonomousRoute()
+                || resolvedOwner.isSpectator()) {
             return false;
         }
 
-        if (this.ship.distanceToSqr(resolvedOwner) < (double) (this.startDistance * this.startDistance)) {
+        float start = this.dynamicStartDistance();
+        if (this.ship.distanceToSqr(resolvedOwner) < (double) (start * start)) {
             return false;
         }
 
@@ -49,13 +54,14 @@ public class LegacyShipFollowOwnerGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        if (this.owner == null || this.ship.isOrderedToSit() || this.ship.isHostileVariant()) {
+        if (this.owner == null || this.ship.isOrderedToSit() || this.ship.isHostileVariant() || this.ship.shouldPreferAutonomousRoute()) {
             return false;
         }
 
+        float stop = this.dynamicStopDistance();
         return this.owner.isAlive()
                 && !this.ship.getNavigation().isDone()
-                && this.ship.distanceToSqr(this.owner) > (double) (this.stopDistance * this.stopDistance);
+                && this.ship.distanceToSqr(this.owner) > (double) (stop * stop);
     }
 
     @Override
@@ -84,11 +90,12 @@ public class LegacyShipFollowOwnerGoal extends Goal {
         this.timeToRecalcPath = this.adjustedTickDelay(10);
         double distanceSqr = this.ship.distanceToSqr(this.owner);
 
-        if (distanceSqr >= (double) (this.teleportDistance * this.teleportDistance) && this.tryTeleportNearOwner()) {
+        float teleport = this.dynamicTeleportDistance();
+        if (distanceSqr >= (double) (teleport * teleport) && this.tryTeleportNearOwner()) {
             return;
         }
 
-        this.ship.getNavigation().moveTo(this.owner, this.speedModifier);
+        this.ship.getNavigation().moveTo(this.owner, this.speedModifier * this.ship.getFollowMovementSpeedModifier());
     }
 
     private boolean tryTeleportNearOwner() {
@@ -135,5 +142,17 @@ public class LegacyShipFollowOwnerGoal extends Goal {
                 pos.getX() + 0.5D - this.ship.getX(),
                 pos.getY() - this.ship.getY(),
                 pos.getZ() + 0.5D - this.ship.getZ()));
+    }
+
+    private float dynamicStartDistance() {
+        return Math.max(this.startDistance, this.ship.getAiFollowRange() * 0.5F);
+    }
+
+    private float dynamicStopDistance() {
+        return Math.max(this.stopDistance, this.dynamicStartDistance() * 0.4F);
+    }
+
+    private float dynamicTeleportDistance() {
+        return Math.max(this.teleportDistance, this.ship.getAiFollowRange() * (float) this.ship.getFollowMovementSpeedModifier());
     }
 }

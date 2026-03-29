@@ -107,6 +107,30 @@ public class SmallShipyardMenu extends AbstractContainerMenu {
         return this.getPowerRemained() > SmallShipyardBlockEntity.BUILD_SPEED;
     }
 
+    public boolean hasBuildMode() {
+        return this.getBuildType() != ShipyardBuildTypes.NONE;
+    }
+
+    public boolean isOutputBlocked() {
+        return this.slots.get(SmallShipyardRecipes.SLOT_OUTPUT).hasItem();
+    }
+
+    public Component getFailureMessage() {
+        if (this.isOutputBlocked()) {
+            return Component.translatable("gui.shincolle.shipyard.output_locked");
+        }
+        if (!this.hasBuildMode()) {
+            return Component.translatable("gui.shincolle.shipyard.select_mode");
+        }
+        if (this.getPowerGoal() <= 0) {
+            return Component.translatable("gui.shincolle.shipyard.nomaterial");
+        }
+        if (!this.hasRemainedPower()) {
+            return Component.translatable("gui.shincolle.shipyard.nofuel");
+        }
+        return Component.empty();
+    }
+
     public Component getBuildTypeLabel() {
         return ShipyardBuildTypes.label(this.getBuildType());
     }

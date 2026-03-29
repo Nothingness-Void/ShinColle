@@ -275,6 +275,39 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         return ((this.filterModeMask >> slot) & 1) == 1;
     }
 
+    public boolean matchesTransferFilter(ItemStack candidate, boolean loading) {
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        int start = loading ? 0 : 9;
+        int end = start + 9;
+        boolean hasPositiveFilter = false;
+        boolean matchesPositive = false;
+
+        for (int slot = start; slot < end; slot++) {
+            ItemStack filter = this.filterItems.getStackInSlot(slot);
+            if (filter.isEmpty()) {
+                continue;
+            }
+
+            boolean inverted = this.isFilterInverted(slot);
+            boolean matches = ItemStack.isSameItemSameTags(candidate, filter);
+            if (inverted && matches) {
+                return false;
+            }
+
+            if (!inverted) {
+                hasPositiveFilter = true;
+                if (matches) {
+                    matchesPositive = true;
+                }
+            }
+        }
+
+        return !hasPositiveFilter || matchesPositive;
+    }
+
     public void setFilter(int slot, ItemStack stack, boolean inverted) {
         if (slot < 0 || slot >= FILTER_SLOT_COUNT) {
             return;

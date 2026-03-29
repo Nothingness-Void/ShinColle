@@ -13,19 +13,21 @@ public final class LegacyShipStats {
     private final int level;
     private final float[] raw;
     private final float[] equip;
+    private final float[] marriage;
     private final float[] morale;
     private final float[] potion;
     private final float[] formation;
     private final float[] buffed;
 
     private LegacyShipStats(int legacyClassId, boolean hostileVariant, int level,
-                            float[] raw, float[] equip, float[] morale,
+                            float[] raw, float[] equip, float[] marriage, float[] morale,
                             float[] potion, float[] formation, float[] buffed) {
         this.legacyClassId = legacyClassId;
         this.hostileVariant = hostileVariant;
         this.level = level;
         this.raw = raw;
         this.equip = equip;
+        this.marriage = marriage;
         this.morale = morale;
         this.potion = potion;
         this.formation = formation;
@@ -35,6 +37,8 @@ public final class LegacyShipStats {
     public static LegacyShipStats create(int legacyClassId, ShipArchetype archetype, boolean hostileVariant,
                                          int level, int moraleValue,
                                          int healthBonus, int attackBonus, int moveBonus, int rangeBonus,
+                                         boolean married,
+                                         int formationId,
                                          ShipEquipmentProfile equipmentProfile,
                                          Collection<MobEffectInstance> activeEffects) {
         int resolvedLevel = Math.max(1, level);
@@ -42,14 +46,17 @@ public final class LegacyShipStats {
                 ? buildHostileRaw(legacyClassId, archetype)
                 : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, moveBonus, rangeBonus);
         float[] equip = equipmentProfile.toArray();
+        float[] marriage = LegacyShipStatTables.copyMarriageStats(married);
         float[] morale = LegacyShipStatTables.copyMoraleStats(moraleValue);
         float[] potion = buildPotionStats(activeEffects);
-        float[] formation = LegacyShipStatTables.copyResetFormation();
-        float[] buffed = calcBuffed(raw, equip, morale, potion, formation);
+        float[] formation = hostileVariant
+                ? LegacyShipStatTables.copyResetFormation()
+                : LegacyShipStatTables.copyFormationStats(formationId);
+        float[] buffed = calcBuffed(raw, equip, marriage, morale, potion, formation);
         LegacyShipStatTables.clamp(buffed);
 
         return new LegacyShipStats(legacyClassId, hostileVariant, resolvedLevel,
-                raw, equip, morale, potion, formation, buffed);
+                raw, equip, marriage, morale, potion, formation, buffed);
     }
 
     private static float[] buildFriendlyRaw(int legacyClassId, int level,
@@ -193,54 +200,58 @@ public final class LegacyShipStats {
         return potion;
     }
 
-    private static float[] calcBuffed(float[] raw, float[] equip, float[] morale, float[] potion, float[] formation) {
+    private static float[] calcBuffed(float[] raw, float[] equip, float[] marriage, float[] morale, float[] potion, float[] formation) {
         float[] buffed = new float[raw.length];
 
         int id = LegacyShipStatTables.Attr.HP;
-        buffed[id] = raw[id] + equip[id] + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HP];
+        buffed[id] = raw[id] + equip[id] + marriage[id]
+                + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HP];
         id = LegacyShipStatTables.Attr.HIT;
-        buffed[id] = raw[id] + equip[id] + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HIT];
+        buffed[id] = raw[id] + equip[id] + marriage[id]
+                + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HIT];
         id = LegacyShipStatTables.Attr.DODGE;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.XP;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.GRUDGE;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.AMMO;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.HPRES;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.KB;
-        buffed[id] = raw[id] + equip[id] + morale[id] + potion[id] + formation[id];
+        buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
 
         id = LegacyShipStatTables.Attr.MOV;
-        buffed[id] = raw[id] + equip[id] + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV];
+        buffed[id] = raw[id] + equip[id] + marriage[id]
+                + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV];
 
         id = LegacyShipStatTables.Attr.ATK_L;
-        buffed[id] = (raw[id] + equip[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_H;
-        buffed[id] = (raw[id] + equip[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_AL;
-        buffed[id] = (raw[id] + equip[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_AH;
-        buffed[id] = (raw[id] + equip[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.SPD;
-        buffed[id] = (raw[id] + equip[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.SPD]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.SPD]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.CRI;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.DHIT;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.THIT;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.MISS;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.AA;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ASM;
-        buffed[id] = (raw[id] + equip[id] + potion[id]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
 
         id = LegacyShipStatTables.Attr.DEF;
-        buffed[id] = (raw[id] + equip[id] + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.DEF]) * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id]
+                + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.DEF]) * formation[id];
 
         return buffed;
     }

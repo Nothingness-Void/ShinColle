@@ -1,11 +1,14 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
@@ -76,6 +79,10 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         }
 
         return this.ship;
+    }
+
+    public int getShipId() {
+        return this.shipId;
     }
 
     public boolean canEdit() {
@@ -196,6 +203,102 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         }
 
         return count;
+    }
+
+    public ShipEquipmentBehaviorState getBehaviorState() {
+        LegacyShipEntity ship = this.getShip();
+        return ship == null ? ShipEquipmentBehaviorState.EMPTY : ship.getEquipmentBehaviorState();
+    }
+
+    public Component getSensorBehaviorLabel() {
+        ShipEquipmentBehaviorState behaviorState = this.getBehaviorState();
+        return Component.translatable("gui.shincolle.ship_inventory.behavior.sensor",
+                behaviorState.airRadarLevel(),
+                behaviorState.surfaceRadarLevel(),
+                behaviorState.sonarLevel(),
+                behaviorState.fcsLevel());
+    }
+
+    public Component getUtilityBehaviorLabel() {
+        ShipEquipmentBehaviorState behaviorState = this.getBehaviorState();
+        return Component.translatable("gui.shincolle.ship_inventory.behavior.utility",
+                behaviorState.flareLevel(),
+                behaviorState.searchlightLevel(),
+                behaviorState.catapultLevel(),
+                behaviorState.turbineLevel(),
+                behaviorState.transportTier());
+    }
+
+    public Component getRouteBehaviorLabel() {
+        ShipEquipmentBehaviorState behaviorState = this.getBehaviorState();
+        return Component.translatable("gui.shincolle.ship_inventory.behavior.route",
+                Component.translatable(behaviorState.autonomousRoute()
+                        ? "gui.shincolle.ship_inventory.behavior.on"
+                        : "gui.shincolle.ship_inventory.behavior.off"));
+    }
+
+    public Component getTorpedoBehaviorLabel() {
+        return Component.translatable("gui.shincolle.ship_inventory.behavior.torpedo",
+                this.getBehaviorState().torpedoSpeedLevel());
+    }
+
+    public Component getMarriageBonusLabel() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship == null || !ship.isMarried()) {
+            return Component.translatable("gui.shincolle.ship_inventory.marriage.bonus.none");
+        }
+
+        return Component.translatable("gui.shincolle.ship_inventory.marriage.bonus.active");
+    }
+
+    public int getAiFlags() {
+        LegacyShipEntity ship = this.getShip();
+        return ship == null ? 0 : ship.getAiFlagsBitmask();
+    }
+
+    public int getAiFollowRange() {
+        LegacyShipEntity ship = this.getShip();
+        return ship == null ? 14 : ship.getAiFollowRange();
+    }
+
+    public String getRouteEnergyText() {
+        LegacyShipEntity ship = this.getShip();
+        return ship == null ? "- / -" : ship.getRouteEnergyText();
+    }
+
+    public int getCurrentTeamId() {
+        return TeitokuHelper.get(this.playerInventory.player)
+                .map(TeitokuData::getCurrentTeamId)
+                .orElse(0);
+    }
+
+    public int getCurrentFormationId() {
+        return TeitokuHelper.get(this.playerInventory.player)
+                .map(TeitokuData::getFormationId)
+                .orElse(TeitokuData.DEFAULT_FORMATION_ID);
+    }
+
+    public Component getCurrentTeamLabel() {
+        return Component.translatable("gui.shincolle.ship_inventory.team", this.getCurrentTeamId() + 1);
+    }
+
+    public Component getCurrentTeamShortLabel() {
+        return Component.literal("T" + (this.getCurrentTeamId() + 1));
+    }
+
+    public Component getCurrentFormationLabel() {
+        return Component.translatable("gui.shincolle.formation.format" + this.getCurrentFormationId());
+    }
+
+    public Component getCurrentFormationShortLabel() {
+        return Component.literal(switch (this.getCurrentFormationId()) {
+            case 1 -> "Ahead";
+            case 2 -> "Double";
+            case 3 -> "Diamond";
+            case 4 -> "Echelon";
+            case 5 -> "Abreast";
+            default -> "None";
+        });
     }
 
     public int getCargoUsedSlots() {

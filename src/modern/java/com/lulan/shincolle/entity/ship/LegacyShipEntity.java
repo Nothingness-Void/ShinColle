@@ -1,5 +1,10 @@
 package com.lulan.shincolle.entity.ship;
 
+import com.lulan.shincolle.blockentity.CraneBlockEntity;
+import com.lulan.shincolle.blockentity.RouteEnergyAccess;
+import com.lulan.shincolle.blockentity.RouteNode;
+import com.lulan.shincolle.blockentity.WaypointBlockEntity;
+import com.mojang.datafixers.util.Pair;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtByTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtTargetGoal;
@@ -9,13 +14,21 @@ import com.lulan.shincolle.item.CombatRationItem;
 import com.lulan.shincolle.item.OwnerPaperItem;
 import com.lulan.shincolle.item.PointerItem;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
+import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
+import com.lulan.shincolle.network.CombatFxDispatcher;
+import com.lulan.shincolle.network.CombatReactType;
+import com.lulan.shincolle.network.GameplayCommandHandler;
+import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -25,10 +38,13 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.BossEvent;
 import net.minecraft.util.Mth;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.DifficultyInstance;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
@@ -56,14 +72,24 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -71,6 +97,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class LegacyShipEntity extends PathfinderMob {
 
@@ -86,14 +113,30 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String MODERN_ATTACK_TAG = "ModernAttack";
     private static final String MODERN_SPEED_TAG = "ModernSpeed";
     private static final String MODERN_RANGE_TAG = "ModernRange";
+    private static final String SHIP_UID_TAG = "ShipUID";
+    private static final String COMMAND_POS_TAG = "CommandPos";
+    private static final String COMMAND_DIM_TAG = "CommandDim";
+    private static final String GUARD_ENTITY_TAG = "GuardEntity";
+    private static final String ROUTE_NODE_TAG = "RouteNode";
+    private static final String ROUTE_WAIT_TAG = "RouteWait";
+    private static final String ROUTE_ENERGY_TAG = "RouteEnergy";
+    private static final String AI_AUTO_TARGET_TAG = "AiAutoTarget";
+    private static final String AI_ALLOW_PVP_TAG = "AiAllowPvp";
+    private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
+    private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
+    private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
     private static final String SHIP_INVENTORY_TAG = "ShipInventory";
     private static final String SHIP_INVENTORY_SLOT_TAG = "Slot";
+    private static final String HOSTILE_RUNTIME_TAG = "HostileRuntime";
 
     private static final int DEFAULT_LEVEL = 1;
     private static final int DEFAULT_MORALE = 1600;
     private static final int MAX_MORALE = 16000;
+    private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
     private static final int MAX_MODERN_TOTAL_STEPS = 24;
     private static final int MAX_MODERN_STAT_STEPS = 12;
+    private static final int ROUTE_FLUID_TRANSFER_UNIT = 250;
+    private static final int ROUTE_ENERGY_TRANSFER_UNIT = 100;
 
     private static final EntityDataAccessor<Integer> DATA_VARIANT_EGG_META =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -111,6 +154,14 @@ public class LegacyShipEntity extends PathfinderMob {
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> DATA_MODERNIZATION_TOTAL =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FORMATION_ID =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_AI_FLAGS =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_AI_FOLLOW_RANGE =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_ROUTE_ENERGY =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
 
     public static final int EQUIPMENT_SLOT_COUNT = 6;
     public static final int CARGO_SLOT_COUNT = 18;
@@ -126,6 +177,7 @@ public class LegacyShipEntity extends PathfinderMob {
     };
 
     private ShipEquipmentProfile equipmentProfile = ShipEquipmentProfile.EMPTY;
+    private ShipEquipmentBehaviorState equipmentBehaviorState = ShipEquipmentBehaviorState.EMPTY;
     private LegacyShipAttackProfile attackProfile = LegacyShipAttackProfile.MELEE_ONLY;
     private LegacyShipStats legacyStats = LegacyShipStats.create(
             ShipEntitySpecs.DEFAULT.legacyClassId(),
@@ -134,6 +186,8 @@ public class LegacyShipEntity extends PathfinderMob {
             DEFAULT_LEVEL,
             DEFAULT_MORALE,
             0, 0, 0, 0,
+            false,
+            TeitokuData.DEFAULT_FORMATION_ID,
             ShipEquipmentProfile.EMPTY,
             List.of());
     private int modernHealthSteps;
@@ -147,6 +201,25 @@ public class LegacyShipEntity extends PathfinderMob {
     private int cachedEffectSignature;
     private boolean nextAirAttackLight = true;
     private int ownerUid;
+    private int shipUid;
+    @Nullable
+    private BlockPos commandedPos;
+    private String commandDimension = "";
+    @Nullable
+    private UUID guardEntityUuid;
+    @Nullable
+    private BlockPos routeNodePos;
+    private int routeWaitTicks;
+    private int routeTransferCooldown;
+    private boolean routePreferLoad = true;
+    private boolean aiAutoTarget = true;
+    private boolean aiAllowPvp;
+    private boolean aiAutoSupply = true;
+    private int aiFollowRange = DEFAULT_AI_FOLLOW_RANGE;
+    private boolean aiRespectRouteStay = true;
+    private final HostileRuntimeState hostileRuntimeState = new HostileRuntimeState();
+    @Nullable
+    private ServerBossEvent bossEvent;
 
     public LegacyShipEntity(EntityType<? extends LegacyShipEntity> entityType, Level level) {
         super(entityType, level);
@@ -175,6 +248,12 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_MORALE, DEFAULT_MORALE);
         this.entityData.define(DATA_MARRIED, false);
         this.entityData.define(DATA_MODERNIZATION_TOTAL, 0);
+        this.entityData.define(DATA_FORMATION_ID, TeitokuData.DEFAULT_FORMATION_ID);
+        this.entityData.define(DATA_AI_FLAGS, GameplayCommandHandler.AI_FLAG_AUTO_TARGET
+                | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
+                | GameplayCommandHandler.AI_FLAG_ROUTE_STAY);
+        this.entityData.define(DATA_AI_FOLLOW_RANGE, DEFAULT_AI_FOLLOW_RANGE);
+        this.entityData.define(DATA_ROUTE_ENERGY, 0);
     }
 
     @Override
@@ -293,8 +372,34 @@ public class LegacyShipEntity extends PathfinderMob {
         this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MAX_MODERN_STAT_STEPS);
         this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MAX_MODERN_STAT_STEPS);
         this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MAX_MODERN_STAT_STEPS);
+        this.shipUid = Math.max(0, tag.getInt(SHIP_UID_TAG));
+        this.commandedPos = tag.contains(COMMAND_POS_TAG, Tag.TAG_LONG)
+                ? BlockPos.of(tag.getLong(COMMAND_POS_TAG))
+                : null;
+        this.commandDimension = tag.getString(COMMAND_DIM_TAG);
+        this.guardEntityUuid = tag.hasUUID(GUARD_ENTITY_TAG) ? tag.getUUID(GUARD_ENTITY_TAG) : null;
+        this.routeNodePos = tag.contains(ROUTE_NODE_TAG, Tag.TAG_LONG)
+                ? BlockPos.of(tag.getLong(ROUTE_NODE_TAG))
+                : null;
+        this.routeWaitTicks = Math.max(0, tag.getInt(ROUTE_WAIT_TAG));
+        this.setRouteEnergyBuffer(tag.getInt(ROUTE_ENERGY_TAG));
+        this.aiAutoTarget = !tag.contains(AI_AUTO_TARGET_TAG) || tag.getBoolean(AI_AUTO_TARGET_TAG);
+        this.aiAllowPvp = tag.getBoolean(AI_ALLOW_PVP_TAG);
+        this.aiAutoSupply = !tag.contains(AI_AUTO_SUPPLY_TAG) || tag.getBoolean(AI_AUTO_SUPPLY_TAG);
+        this.aiFollowRange = tag.contains(AI_FOLLOW_RANGE_TAG)
+                ? Mth.clamp(tag.getInt(AI_FOLLOW_RANGE_TAG), 4, 64)
+                : DEFAULT_AI_FOLLOW_RANGE;
+        this.aiRespectRouteStay = !tag.contains(AI_ROUTE_STAY_TAG) || tag.getBoolean(AI_ROUTE_STAY_TAG);
+        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+        this.entityData.set(DATA_AI_FOLLOW_RANGE, this.aiFollowRange);
         this.entityData.set(DATA_MODERNIZATION_TOTAL, this.getModernizationCount());
         this.loadShipInventory(tag);
+        if (tag.contains(HOSTILE_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
+            this.hostileRuntimeState.loadFromTag(tag.getCompound(HOSTILE_RUNTIME_TAG));
+        } else {
+            this.initializeHostileRuntime(false, false, this.getSpec().archetype() == ShipArchetype.PRINCESS
+                    || this.getSpec().archetype() == ShipArchetype.INSTALLATION);
+        }
         this.refreshFromVariant(true);
     }
 
@@ -319,7 +424,30 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putInt(MODERN_ATTACK_TAG, this.modernAttackSteps);
         tag.putInt(MODERN_SPEED_TAG, this.modernSpeedSteps);
         tag.putInt(MODERN_RANGE_TAG, this.modernRangeSteps);
+        if (this.shipUid > 0) {
+            tag.putInt(SHIP_UID_TAG, this.shipUid);
+        }
+        if (this.commandedPos != null) {
+            tag.putLong(COMMAND_POS_TAG, this.commandedPos.asLong());
+            if (!this.commandDimension.isBlank()) {
+                tag.putString(COMMAND_DIM_TAG, this.commandDimension);
+            }
+        }
+        if (this.guardEntityUuid != null) {
+            tag.putUUID(GUARD_ENTITY_TAG, this.guardEntityUuid);
+        }
+        if (this.routeNodePos != null) {
+            tag.putLong(ROUTE_NODE_TAG, this.routeNodePos.asLong());
+            tag.putInt(ROUTE_WAIT_TAG, Math.max(0, this.routeWaitTicks));
+        }
+        tag.putInt(ROUTE_ENERGY_TAG, this.getRouteEnergyBuffer());
+        tag.putBoolean(AI_AUTO_TARGET_TAG, this.aiAutoTarget);
+        tag.putBoolean(AI_ALLOW_PVP_TAG, this.aiAllowPvp);
+        tag.putBoolean(AI_AUTO_SUPPLY_TAG, this.aiAutoSupply);
+        tag.putInt(AI_FOLLOW_RANGE_TAG, this.aiFollowRange);
+        tag.putBoolean(AI_ROUTE_STAY_TAG, this.aiRespectRouteStay);
         this.saveShipInventory(tag);
+        tag.put(HOSTILE_RUNTIME_TAG, this.hostileRuntimeState.saveToTag(new CompoundTag()));
     }
 
     @Override
@@ -345,6 +473,23 @@ public class LegacyShipEntity extends PathfinderMob {
             this.refreshFromVariant(true);
         }
 
+        if (!this.level().isClientSide()) {
+            this.ensureShipUid();
+            this.tickCommandState();
+            this.tickEquipmentBehaviors();
+            this.tickMarriageBond();
+            this.tickAutoSupportItems();
+            this.tickHostileRuntime();
+
+            if (this.tickCount % 20 == 0) {
+                int currentFormationId = this.resolveAppliedFormationId();
+                if (currentFormationId != this.entityData.get(DATA_FORMATION_ID)) {
+                    this.entityData.set(DATA_FORMATION_ID, currentFormationId);
+                    this.refreshFromVariant(true);
+                }
+            }
+        }
+
         if (this.isOrderedToSit()) {
             this.getNavigation().stop();
             this.setTarget(null);
@@ -359,8 +504,13 @@ public class LegacyShipEntity extends PathfinderMob {
                 || DATA_LEVEL.equals(key)
                 || DATA_MORALE.equals(key)
                 || DATA_MARRIED.equals(key)
-                || DATA_MODERNIZATION_TOTAL.equals(key)) {
+                || DATA_MODERNIZATION_TOTAL.equals(key)
+                || DATA_FORMATION_ID.equals(key)) {
             this.refreshFromVariant(true);
+        }
+
+        if (DATA_AI_FLAGS.equals(key) || DATA_AI_FOLLOW_RANGE.equals(key)) {
+            this.applySyncedAiData();
         }
     }
 
@@ -406,11 +556,32 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (entity instanceof Player player) {
-            return ownerUuid.get().equals(player.getUUID());
+            if (ownerUuid.get().equals(player.getUUID())) {
+                return true;
+            }
+
+            if (this.level() instanceof ServerLevel serverLevel) {
+                int targetOwnerUid = TeitokuHelper.getPlayerUid(player);
+                return this.ownerUid > 0 && targetOwnerUid > 0 && TeitokuHelper.isAlly(serverLevel, this.ownerUid, targetOwnerUid);
+            }
+            return false;
         }
 
         if (entity instanceof LegacyShipEntity otherShip) {
-            return !otherShip.isHostileVariant() && ownerUuid.equals(otherShip.getOwnerUuid());
+            if (otherShip.isHostileVariant()) {
+                return false;
+            }
+
+            if (ownerUuid.equals(otherShip.getOwnerUuid())) {
+                return true;
+            }
+
+            if (this.level() instanceof ServerLevel serverLevel) {
+                return this.ownerUid > 0
+                        && otherShip.ownerUid > 0
+                        && TeitokuHelper.isAlly(serverLevel, this.ownerUid, otherShip.ownerUid);
+            }
+            return false;
         }
 
         return false;
@@ -447,6 +618,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (roll.miss()) {
             this.setLastHurtMob(target);
+            this.emitAttackFx(livingTarget, LegacyShipAttackKind.MELEE, roll, true);
             return true;
         }
 
@@ -454,6 +626,7 @@ public class LegacyShipEntity extends PathfinderMob {
         if (attacked) {
             this.setLastHurtMob(target);
         }
+        this.emitAttackFx(livingTarget, LegacyShipAttackKind.MELEE, roll, attacked);
 
         return attacked;
     }
@@ -466,6 +639,11 @@ public class LegacyShipEntity extends PathfinderMob {
                 && attacker != null
                 && attacker != this
                 && LegacyShipCombatHelper.canDodge(this, attacker)) {
+            if (attacker instanceof LivingEntity livingAttacker) {
+                CombatFxDispatcher.sendCombatReact(livingAttacker, this, CombatReactType.DODGE, LegacyShipAttackKind.MELEE);
+                CombatFxDispatcher.sendParticle(this, GameplayParticleType.TEXT_DODGE,
+                        this.getX(), this.getY() + this.getBbHeight() * 0.8D, this.getZ());
+            }
             return false;
         }
 
@@ -504,7 +682,11 @@ public class LegacyShipEntity extends PathfinderMob {
         super.dropCustomDeathLoot(damageSource, looting, recentlyHit);
 
         if (!this.level().isClientSide()) {
+            this.dropHostileLoot(looting);
             this.dropShipInventoryContents();
+            if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
+                TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
+            }
         }
     }
 
@@ -576,8 +758,12 @@ public class LegacyShipEntity extends PathfinderMob {
         if (spec.hostile()) {
             this.clearOwner();
             this.setOrderedToSit(false);
+            this.initializeHostileRuntime(false,
+                    spec.archetype() == ShipArchetype.CARRIER || spec.archetype() == ShipArchetype.BATTLESHIP || spec.archetype() == ShipArchetype.CRUISER,
+                    spec.archetype() == ShipArchetype.PRINCESS || spec.archetype() == ShipArchetype.INSTALLATION);
         } else if (owner != null) {
             this.setOwner(owner);
+            this.initializeHostileRuntime(false, false, false);
         }
 
         this.refreshFromVariant(false);
@@ -602,6 +788,10 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public boolean isHostileVariant() {
         return this.getSpec().hostile();
+    }
+
+    public boolean isBossEncounter() {
+        return this.hostileRuntimeState.isBoss();
     }
 
     public boolean isOrderedToSit() {
@@ -690,6 +880,10 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.ownerUid;
     }
 
+    public int getShipUid() {
+        return this.shipUid;
+    }
+
     public String getOwnerName() {
         return this.entityData.get(DATA_OWNER_NAME);
     }
@@ -704,6 +898,10 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public ShipEquipmentProfile getEquipmentProfile() {
         return this.equipmentProfile;
+    }
+
+    public ShipEquipmentBehaviorState getEquipmentBehaviorState() {
+        return this.equipmentBehaviorState;
     }
 
     public LegacyShipStats getLegacyStats() {
@@ -722,6 +920,55 @@ public class LegacyShipEntity extends PathfinderMob {
         return ShipEquipmentProfile.canEquip(this.getSpec().archetype(), stack);
     }
 
+    public boolean isAiAutoTarget() {
+        return this.aiAutoTarget;
+    }
+
+    public void setAiAutoTarget(boolean aiAutoTarget) {
+        this.aiAutoTarget = aiAutoTarget;
+        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+    }
+
+    public boolean isAiAllowPvp() {
+        return this.aiAllowPvp;
+    }
+
+    public void setAiAllowPvp(boolean aiAllowPvp) {
+        this.aiAllowPvp = aiAllowPvp;
+        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+    }
+
+    public boolean isAiAutoSupply() {
+        return this.aiAutoSupply;
+    }
+
+    public void setAiAutoSupply(boolean aiAutoSupply) {
+        this.aiAutoSupply = aiAutoSupply;
+        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+    }
+
+    public int getAiFollowRange() {
+        return this.aiFollowRange;
+    }
+
+    public void setAiFollowRange(int aiFollowRange) {
+        this.aiFollowRange = Mth.clamp(aiFollowRange, 4, 64);
+        this.entityData.set(DATA_AI_FOLLOW_RANGE, this.aiFollowRange);
+    }
+
+    public boolean isAiRespectRouteStay() {
+        return this.aiRespectRouteStay;
+    }
+
+    public void setAiRespectRouteStay(boolean aiRespectRouteStay) {
+        this.aiRespectRouteStay = aiRespectRouteStay;
+        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+    }
+
+    public int getAiFlagsBitmask() {
+        return this.encodeAiFlags();
+    }
+
     public Component getEscortModeLabel() {
         return Component.translatable(this.isOrderedToSit()
                 ? "gui.shincolle.entity.mode.standby"
@@ -736,8 +983,52 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.getOwnerUuid().map(serverLevel::getPlayerByUUID).orElse(null);
     }
 
+    private int resolveAppliedFormationId() {
+        if (this.isHostileVariant()) {
+            return TeitokuData.DEFAULT_FORMATION_ID;
+        }
+
+        Player owner = this.getOwnerPlayer();
+        if (owner == null) {
+            return TeitokuData.DEFAULT_FORMATION_ID;
+        }
+
+        return LegacyShipStatTables.normalizeFormationId(TeitokuHelper.getFormationIdForShip(owner, this.shipUid));
+    }
+
     public boolean canCommanderEdit(Player player) {
         return !this.isHostileVariant() && this.isOwnedBy(player);
+    }
+
+    public void commandMoveTo(BlockPos pos, String dimensionId) {
+        this.commandedPos = pos.immutable();
+        this.commandDimension = dimensionId == null ? "" : dimensionId;
+        this.guardEntityUuid = null;
+        BlockEntity blockEntity = this.level().getBlockEntity(pos);
+        this.routeNodePos = blockEntity instanceof RouteNode ? pos.immutable() : null;
+        this.routeWaitTicks = 0;
+        this.routeTransferCooldown = 0;
+        this.routePreferLoad = true;
+    }
+
+    public void commandGuardEntity(UUID entityUuid) {
+        this.guardEntityUuid = entityUuid;
+        this.commandedPos = null;
+        this.commandDimension = "";
+        this.routeNodePos = null;
+        this.routeWaitTicks = 0;
+        this.routeTransferCooldown = 0;
+        this.routePreferLoad = true;
+    }
+
+    public void clearCommandState() {
+        this.commandedPos = null;
+        this.commandDimension = "";
+        this.guardEntityUuid = null;
+        this.routeNodePos = null;
+        this.routeWaitTicks = 0;
+        this.routeTransferCooldown = 0;
+        this.routePreferLoad = true;
     }
 
     public boolean canExecuteCombatGoal() {
@@ -750,11 +1041,28 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public int getCompatAttackAimTime() {
         int shipLevel = Math.min(150, this.getShipLevel());
-        return Mth.clamp((int) (20F * (150 - shipLevel) / 150F) + 10, 8, 30);
+        int baseAimTime = Mth.clamp((int) (20F * (150 - shipLevel) / 150F) + 10, 8, 30);
+        return Math.max(6, baseAimTime - this.equipmentBehaviorState.aimTimeReductionTicks(LegacyShipAttackKind.LIGHT));
     }
 
     public float getCompatAttackRange() {
-        return Math.max(3.0F, this.legacyStats.attackRange());
+        float behaviorBonus = this.equipmentBehaviorState.surfaceRadarLevel() * 1.1F
+                + this.equipmentBehaviorState.airRadarLevel() * 0.9F
+                + this.equipmentBehaviorState.fcsLevel() * 1.2F
+                + this.equipmentBehaviorState.searchlightLevel() * 0.4F;
+        return Math.max(3.0F, this.legacyStats.attackRange() + behaviorBonus);
+    }
+
+    public double getFollowMovementSpeedModifier() {
+        return this.equipmentBehaviorState.followSpeedMultiplier();
+    }
+
+    public double getCombatMovementSpeedModifier() {
+        return this.equipmentBehaviorState.commandSpeedMultiplier();
+    }
+
+    public boolean shouldPreferAutonomousRoute() {
+        return this.equipmentBehaviorState.autonomousRoute() && this.hasActiveCommandState();
     }
 
     public boolean tryCompatCannonAttack(LivingEntity target) {
@@ -796,15 +1104,48 @@ public class LegacyShipEntity extends PathfinderMob {
         if (target == null || !target.isAlive() || target == this || this.isAlliedTo(target)) {
             return false;
         }
+        if (this.level() instanceof ServerLevel serverLevel
+                && WorldCombatRulesSavedData.get(serverLevel).isUnattackable(TeitokuHelper.resolveTargetClass(target))) {
+            return false;
+        }
 
         Player owner = this.getOwnerPlayer();
 
         if (target instanceof Player player) {
-            return this.isHostileVariant() || !this.isOwnedBy(player);
+            if (this.isHostileVariant()) {
+                return true;
+            }
+
+            if (this.isOwnedBy(player)) {
+                return false;
+            }
+
+            if (!this.aiAllowPvp) {
+                return false;
+            }
+
+            if (this.level() instanceof ServerLevel serverLevel) {
+                int targetOwnerUid = TeitokuHelper.getPlayerUid(player);
+                return this.ownerUid > 0 && targetOwnerUid > 0 && TeitokuHelper.isBanned(serverLevel, this.ownerUid, targetOwnerUid);
+            }
+            return false;
         }
 
         if (target instanceof LegacyShipEntity otherShip) {
-            return this.isHostileVariant() != otherShip.isHostileVariant();
+            if (this.isHostileVariant() != otherShip.isHostileVariant()) {
+                return true;
+            }
+
+            if (this.isHostileVariant()) {
+                return false;
+            }
+
+            if (this.level() instanceof ServerLevel serverLevel) {
+                return this.ownerUid > 0
+                        && otherShip.ownerUid > 0
+                        && TeitokuHelper.isBanned(serverLevel, this.ownerUid, otherShip.ownerUid);
+            }
+            return false;
         }
 
         if (this.isHostileVariant()) {
@@ -833,24 +1174,38 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public boolean canAutoTargetEnemyMob(@Nullable LivingEntity target) {
+        if (!this.aiAutoTarget) {
+            return false;
+        }
+
         if (!(target instanceof Mob mob) || !target.isAlive() || !(target instanceof Enemy) || !this.canEngage(target)) {
             return false;
         }
 
-        double followRange = Math.max(16.0D, this.getAttributeValue(Attributes.FOLLOW_RANGE));
+        Player owner = this.getOwnerPlayer();
+        if (owner != null && !TeitokuHelper.isAutoTargetAllowed(owner, mob)) {
+            return false;
+        }
+
+        boolean flyingTarget = LegacyShipCombatHelper.isFlyingTarget(target);
+        boolean underseaTarget = LegacyShipCombatHelper.isUnderseaTarget(target);
+        double followRange = Math.max(16.0D, this.getAttributeValue(Attributes.FOLLOW_RANGE))
+                + this.equipmentBehaviorState.detectionRangeBonusForTarget(flyingTarget, underseaTarget);
         double shipRangeSqr = followRange * followRange;
         if (this.distanceToSqr(mob) <= shipRangeSqr) {
             return true;
         }
 
-        Player owner = this.getOwnerPlayer();
         return owner != null && owner.distanceToSqr(mob) <= shipRangeSqr;
     }
 
     public void setOwner(Player player) {
+        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.of(player.getUUID()));
         this.entityData.set(DATA_OWNER_NAME, player.getGameProfile().getName());
         this.ownerUid = Math.max(0, TeitokuHelper.getPlayerUid(player));
+        this.resetOwnershipBoundState();
+        this.refreshFromVariant(true);
     }
 
     public void setOwner(UUID ownerUuid, String ownerName) {
@@ -862,15 +1217,30 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setOwner(UUID ownerUuid, String ownerName, int ownerUid) {
+        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.of(ownerUuid));
         this.entityData.set(DATA_OWNER_NAME, ownerName);
         this.ownerUid = Math.max(0, ownerUid);
+        this.resetOwnershipBoundState();
+        this.refreshFromVariant(true);
     }
 
     public void clearOwner() {
+        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.empty());
         this.entityData.set(DATA_OWNER_NAME, "");
         this.ownerUid = 0;
+        this.resetOwnershipBoundState();
+        this.refreshFromVariant(true);
+    }
+
+    public void initializeHostileRuntime(boolean naturalSpawn, boolean elite, boolean boss) {
+        boolean installationBoss = boss && this.getSpec().archetype() == ShipArchetype.INSTALLATION;
+        this.hostileRuntimeState.reset(naturalSpawn, elite, boss, installationBoss);
+        if (!boss && this.bossEvent != null) {
+            this.bossEvent.removeAllPlayers();
+            this.bossEvent = null;
+        }
     }
 
     public boolean addRandomModernization() {
@@ -912,6 +1282,18 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.countItemInInventory(ModItems.REPAIRGODDESS.get());
     }
 
+    public int getRouteEnergyBuffer() {
+        return this.entityData.get(DATA_ROUTE_ENERGY);
+    }
+
+    public int getRouteEnergyCapacity() {
+        return this.getRouteTransferBudget() * 400;
+    }
+
+    public String getRouteEnergyText() {
+        return this.getRouteEnergyBuffer() + " / " + this.getRouteEnergyCapacity();
+    }
+
     public boolean storeSingleItem(ItemStack sourceStack) {
         if (sourceStack.isEmpty()) {
             return false;
@@ -948,6 +1330,10 @@ public class LegacyShipEntity extends PathfinderMob {
         this.dropShipInventoryContents();
         this.spawnAtLocation(new ItemStack(ModItems.GRUDGE.get(), 1 + this.random.nextInt(3)));
         this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL.get(), 1 + this.random.nextInt(2)));
+        if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
+            TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
+        }
+        this.resetOwnershipBoundState();
         this.playSound(ModSoundEvents.SHIP_KAITAI.get(), 0.8F, this.getVoicePitch());
         this.discard();
         return true;
@@ -956,6 +1342,11 @@ public class LegacyShipEntity extends PathfinderMob {
     private void refreshFromVariant(boolean preserveHealth) {
         ShipEntitySpec spec = this.getSpec();
         this.attackProfile = LegacyShipAttackProfile.resolve(spec);
+        int formationId = this.entityData.get(DATA_FORMATION_ID);
+        if (!this.level().isClientSide()) {
+            formationId = this.resolveAppliedFormationId();
+            this.entityData.set(DATA_FORMATION_ID, formationId);
+        }
         this.legacyStats = LegacyShipStats.create(
                 spec.legacyClassId(),
                 spec.archetype(),
@@ -966,6 +1357,8 @@ public class LegacyShipEntity extends PathfinderMob {
                 this.modernAttackSteps,
                 this.modernSpeedSteps,
                 this.modernRangeSteps,
+                this.isMarried(),
+                formationId,
                 this.equipmentProfile,
                 this.getActiveEffects());
         this.cachedEffectSignature = this.computeActiveEffectSignature();
@@ -974,7 +1367,8 @@ public class LegacyShipEntity extends PathfinderMob {
         this.applyBaseValue(Attributes.MAX_HEALTH, this.legacyStats.get(LegacyShipStatTables.Attr.HP));
         this.applyBaseValue(Attributes.MOVEMENT_SPEED, this.legacyStats.moveSpeed());
         this.applyBaseValue(Attributes.ATTACK_DAMAGE, this.legacyStats.meleeDamage());
-        this.applyBaseValue(Attributes.FOLLOW_RANGE, 64D);
+        this.applyBaseValue(Attributes.FOLLOW_RANGE, Math.max(28D,
+                16D + this.legacyStats.attackRange() + this.equipmentBehaviorState.detectionRangeBonus()));
         this.applyBaseValue(Attributes.KNOCKBACK_RESISTANCE, this.legacyStats.knockbackResistance());
 
         float maxHealth = this.getMaxHealth();
@@ -984,6 +1378,8 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void refreshEquipmentProfile(boolean preserveHealth) {
         this.equipmentProfile = ShipEquipmentProfile.fromInventory(this.shipInventory, this.getSpec().archetype());
+        this.equipmentBehaviorState = ShipEquipmentBehaviorState.fromInventory(this.shipInventory, this.getSpec().archetype());
+        this.setRouteEnergyBuffer(this.getRouteEnergyBuffer());
         this.refreshFromVariant(preserveHealth);
     }
 
@@ -1002,8 +1398,12 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
+        if (attackKind != LegacyShipAttackKind.MELEE && this.equipmentBehaviorState.flareLevel() > 0) {
+            this.applyIllumination(target, this.equipmentBehaviorState.flareDurationTicks());
+        }
+
         LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, attackKind);
-        int delay = LegacyShipCombatHelper.attackDelay(this.legacyStats, attackKind);
+        int delay = LegacyShipCombatHelper.attackDelay(this, attackKind);
 
         switch (attackKind) {
             case LIGHT -> this.lightAttackCooldown = delay;
@@ -1015,6 +1415,7 @@ public class LegacyShipEntity extends PathfinderMob {
         if (roll.miss()) {
             if (!attackKind.justLaunch()) {
                 this.setLastHurtMob(target);
+                this.emitAttackFx(target, attackKind, roll, true);
                 return true;
             }
         }
@@ -1022,6 +1423,9 @@ public class LegacyShipEntity extends PathfinderMob {
         if (attackKind.justLaunch()) {
             if (!this.level().isClientSide()) {
                 this.level().addFreshEntity(LegacyShipProjectileEntity.create(this.level(), this, target, attackKind, roll.damage(), roll.miss()));
+                CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.LAUNCH, attackKind);
+                CombatFxDispatcher.sendParticle(this, GameplayParticleType.LAUNCH_SMOKE,
+                        this.getX(), this.getY() + this.getBbHeight() * 0.7D, this.getZ());
             }
             this.setLastHurtMob(target);
             return true;
@@ -1031,8 +1435,42 @@ public class LegacyShipEntity extends PathfinderMob {
         if (attacked) {
             this.setLastHurtMob(target);
         }
+        this.emitAttackFx(target, attackKind, roll, attacked);
 
         return attacked;
+    }
+
+    private void emitAttackFx(LivingEntity target, LegacyShipAttackKind attackKind, LegacyShipCombatHelper.AttackRoll roll, boolean attacked) {
+        if (this.level().isClientSide()) {
+            return;
+        }
+
+        if (roll.miss()) {
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.MISS, attackKind);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_MISS,
+                    target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
+            return;
+        }
+
+        if (roll.crit()) {
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.CRIT, attackKind);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_CRIT,
+                    target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
+        } else if (roll.tripleHit()) {
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.TRIPLE_HIT, attackKind);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_TRIPLE,
+                    target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
+        } else if (roll.doubleHit()) {
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.DOUBLE_HIT, attackKind);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_DOUBLE,
+                    target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
+        }
+
+        if (attacked) {
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.HIT, attackKind);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.HIT_EXPLOSION,
+                    target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
+        }
     }
 
     private void applyBaseValue(Attribute attribute, double value) {
@@ -1041,6 +1479,1199 @@ public class LegacyShipEntity extends PathfinderMob {
         if (instance != null) {
             instance.setBaseValue(value);
         }
+    }
+
+    private void ensureShipUid() {
+        if (this.shipUid > 0 || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        this.shipUid = TeitokuHelper.resolveShipUid(serverLevel, this.getUUID());
+    }
+
+    private void cleanupShipTeamSlotsIfNeeded() {
+        if (this.shipUid <= 0 || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
+    }
+
+    private void tickHostileRuntime() {
+        if (!(this.level() instanceof ServerLevel serverLevel) || !this.isHostileVariant()) {
+            return;
+        }
+
+        this.hostileRuntimeState.tick();
+        LivingEntity target = this.getTarget();
+        if (target != null && (!target.isAlive() || !this.canEngage(target))) {
+            this.setTarget(null);
+            target = null;
+        }
+
+        if (target == null) {
+            target = this.findBossTarget();
+            if (target != null) {
+                this.setTarget(target);
+            }
+        }
+
+        if (this.hostileRuntimeState.isNaturalSpawn()) {
+            boolean playerNearby = serverLevel.getNearestPlayer(this, 96.0D) != null;
+            this.hostileRuntimeState.setDespawnTicks(playerNearby ? 0 : this.hostileRuntimeState.getDespawnTicks() + 1);
+            if (this.hostileRuntimeState.getDespawnTicks() > 20 * 45) {
+                this.discard();
+                return;
+            }
+        }
+
+        if (!this.hostileRuntimeState.isBoss()) {
+            return;
+        }
+
+        this.ensureBossEvent();
+        this.updateBossPhase();
+        if (this.bossEvent != null) {
+            this.bossEvent.setName(this.getName());
+            this.bossEvent.setProgress(Mth.clamp(this.getHealth() / this.getMaxHealth(), 0.0F, 1.0F));
+        }
+
+        if (target == null) {
+            return;
+        }
+
+        this.hostileRuntimeState.setEngagedTicks(this.hostileRuntimeState.getEngagedTicks() + 1);
+        if (this.hostileRuntimeState.getActionCooldown() <= 0) {
+            this.performBossAction(target);
+        }
+    }
+
+    private void ensureBossEvent() {
+        if (!this.hostileRuntimeState.isBoss() || this.level().isClientSide()) {
+            return;
+        }
+
+        if (this.bossEvent == null) {
+            BossEvent.BossBarColor color = this.hostileRuntimeState.isInstallationBoss()
+                    ? BossEvent.BossBarColor.YELLOW
+                    : BossEvent.BossBarColor.RED;
+            this.bossEvent = new ServerBossEvent(this.getName(), color, BossEvent.BossBarOverlay.NOTCHED_10);
+            this.bossEvent.setDarkenScreen(false);
+        }
+    }
+
+    private void updateBossPhase() {
+        float ratio = this.getHealth() / Math.max(1.0F, this.getMaxHealth());
+        int phase = ratio <= 0.25F ? 3 : ratio <= 0.5F ? 2 : ratio <= 0.75F ? 1 : 0;
+        if (phase == this.hostileRuntimeState.getPhase()) {
+            return;
+        }
+
+        this.hostileRuntimeState.setPhase(phase);
+        if (this.level() instanceof ServerLevel) {
+            CombatFxDispatcher.sendParticle(this, GameplayParticleType.HIT_EXPLOSION,
+                    this.getX(), this.getY() + this.getBbHeight() * 0.7D, this.getZ());
+        }
+    }
+
+    private void performBossAction(LivingEntity target) {
+        BossPhaseProfile phaseProfile = BossPhaseProfile.forSpec(this.getSpec());
+        int actionIndex = (this.hostileRuntimeState.getPhase() + this.tickCount / 40) % phaseProfile.actionCycle().size();
+        BossActionType actionType = phaseProfile.actionCycle().get(actionIndex);
+        boolean acted = false;
+
+        switch (actionType) {
+            case AIR_ASSAULT -> {
+                acted = this.tryCompatAirAttack(target) || this.tryCompatCannonAttack(target);
+                this.applyIllumination(target, 40 + this.hostileRuntimeState.getPhase() * 20);
+            }
+            case CANNON_BURST -> {
+                acted = this.tryCompatCannonAttack(target);
+                if (!acted) {
+                    acted = this.tryCompatAirAttack(target);
+                }
+            }
+            case CHARGE -> {
+                Vec3 dash = target.position().subtract(this.position());
+                if (dash.lengthSqr() > 0.01D) {
+                    Vec3 motion = dash.normalize().scale(0.55D + this.hostileRuntimeState.getPhase() * 0.08D);
+                    this.push(motion.x, 0.08D, motion.z);
+                    this.hurtMarked = true;
+                }
+                acted = this.doHurtTarget(target) || this.tryCompatCannonAttack(target);
+            }
+            case AREA_BOMBARD -> {
+                if (this.level() instanceof ServerLevel serverLevel) {
+                    for (int i = 0; i < 1 + this.hostileRuntimeState.getPhase(); i++) {
+                        double offX = (this.random.nextDouble() - 0.5D) * 4.0D;
+                        double offZ = (this.random.nextDouble() - 0.5D) * 4.0D;
+                        serverLevel.explode(this, target.getX() + offX, target.getY(), target.getZ() + offZ,
+                                1.6F + this.hostileRuntimeState.getPhase() * 0.3F, Level.ExplosionInteraction.NONE);
+                    }
+                    acted = true;
+                }
+            }
+            case SUMMON_ESCORT -> acted = this.summonBossEscort(phaseProfile.summonEggMeta());
+        }
+
+        if (!acted) {
+            this.hostileRuntimeState.setActionCooldown(20);
+            return;
+        }
+
+        int cooldown = Math.max(16, phaseProfile.baseActionCooldown() - this.hostileRuntimeState.getPhase() * 6);
+        this.hostileRuntimeState.setActionCooldown(cooldown);
+        if (actionType == BossActionType.SUMMON_ESCORT) {
+            this.hostileRuntimeState.setSummonCooldown(Math.max(80, phaseProfile.baseSummonCooldown() - this.hostileRuntimeState.getPhase() * 20));
+        }
+    }
+
+    private boolean summonBossEscort(int summonEggMeta) {
+        if (!(this.level() instanceof ServerLevel serverLevel) || this.hostileRuntimeState.getSummonCooldown() > 0) {
+            return false;
+        }
+
+        ShipEntitySpec summonSpec = ShipEntitySpecs.findByEggMeta(summonEggMeta);
+        if (summonSpec == null || !summonSpec.hostile()) {
+            return false;
+        }
+
+        int count = 1 + Math.min(2, this.hostileRuntimeState.getPhase());
+        boolean summoned = false;
+        for (int i = 0; i < count; i++) {
+            LegacyShipEntity escort = new LegacyShipEntity((EntityType<? extends LegacyShipEntity>) this.getType(), serverLevel);
+            if (escort == null) {
+                continue;
+            }
+
+            double spawnX = this.getX() + (this.random.nextDouble() - 0.5D) * 6.0D;
+            double spawnZ = this.getZ() + (this.random.nextDouble() - 0.5D) * 6.0D;
+            escort.moveTo(spawnX, this.getY(), spawnZ, this.random.nextFloat() * 360.0F, 0.0F);
+            escort.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(BlockPos.containing(spawnX, this.getY(), spawnZ)),
+                    MobSpawnType.MOB_SUMMONED, null, null);
+            escort.applySpawnSpec(summonSpec, null);
+            escort.initializeHostileRuntime(true, true, false);
+            if (this.getTarget() != null) {
+                escort.setTarget(this.getTarget());
+            }
+            if (!serverLevel.noCollision(escort, escort.getBoundingBox())) {
+                escort.discard();
+                continue;
+            }
+            serverLevel.addFreshEntity(escort);
+            summoned = true;
+        }
+
+        return summoned;
+    }
+
+    private @Nullable LivingEntity findBossTarget() {
+        LivingEntity closest = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (LivingEntity candidate : this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(40.0D, 12.0D, 40.0D))) {
+            if (!this.canEngage(candidate)) {
+                continue;
+            }
+
+            double distance = this.distanceToSqr(candidate);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                closest = candidate;
+            }
+        }
+        return closest;
+    }
+
+    private void dropHostileLoot(int looting) {
+        if (!this.isHostileVariant() || this.level().isClientSide()) {
+            return;
+        }
+
+        int grudgeCount = 1 + this.random.nextInt(2 + looting);
+        int ammoCount = 1 + this.random.nextInt(2 + looting);
+        this.spawnAtLocation(new ItemStack(ModItems.GRUDGE.get(), grudgeCount));
+        this.spawnAtLocation(new ItemStack(ModItems.AMMO.get(), ammoCount));
+
+        if (this.hostileRuntimeState.isElite() || this.getSpec().archetype() == ShipArchetype.CARRIER || this.getSpec().archetype() == ShipArchetype.BATTLESHIP) {
+            this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL.get(), 1 + this.random.nextInt(1 + looting)));
+        }
+
+        if (this.getSpec().archetype() == ShipArchetype.INSTALLATION || this.hostileRuntimeState.isBoss()) {
+            this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL1.get(), 1 + this.random.nextInt(2 + looting)));
+        }
+
+        if (this.hostileRuntimeState.isBoss()) {
+            this.spawnAtLocation(new ItemStack(ModItems.GRUDGE1.get(), 1 + this.random.nextInt(2)));
+            if (this.random.nextFloat() < 0.4F) {
+                this.spawnAtLocation(new ItemStack(ModItems.INSTANTCONMAT.get()));
+            }
+            if (this.random.nextFloat() < 0.25F) {
+                ItemStack eggDrop = this.resolveHostileEggDrop();
+                if (!eggDrop.isEmpty()) {
+                    this.spawnAtLocation(eggDrop);
+                }
+            }
+        }
+    }
+
+    private ItemStack resolveHostileEggDrop() {
+        ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath("shincolle", "shipegg" + this.getVariantEggMeta());
+        Item item = BuiltInRegistries.ITEM.get(itemId);
+        if (item == Items.AIR) {
+            return ItemStack.EMPTY;
+        }
+        return new ItemStack(item);
+    }
+
+    @Override
+    public void startSeenByPlayer(ServerPlayer player) {
+        super.startSeenByPlayer(player);
+        if (this.hostileRuntimeState.isBoss()) {
+            this.ensureBossEvent();
+            if (this.bossEvent != null) {
+                this.bossEvent.addPlayer(player);
+            }
+        }
+    }
+
+    @Override
+    public void stopSeenByPlayer(ServerPlayer player) {
+        super.stopSeenByPlayer(player);
+        if (this.bossEvent != null) {
+            this.bossEvent.removePlayer(player);
+        }
+    }
+
+    private void tickCommandState() {
+        if (this.isOrderedToSit() || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        double commandSpeed = this.getCombatMovementSpeedModifier();
+
+        if (this.guardEntityUuid != null) {
+            Entity guarded = serverLevel.getEntity(this.guardEntityUuid);
+            if (guarded instanceof LivingEntity living && living.isAlive()) {
+                this.getNavigation().moveTo(living, commandSpeed);
+                return;
+            }
+            this.guardEntityUuid = null;
+        }
+
+        if (this.routeNodePos != null) {
+            if (!this.dimensionMatchesCommand(serverLevel)) {
+                return;
+            }
+
+            this.getNavigation().moveTo(
+                    this.routeNodePos.getX() + 0.5D,
+                    this.routeNodePos.getY() + 0.1D,
+                    this.routeNodePos.getZ() + 0.5D,
+                    commandSpeed);
+
+            if (this.distanceToSqr(this.routeNodePos.getX() + 0.5D, this.routeNodePos.getY() + 0.1D, this.routeNodePos.getZ() + 0.5D) <= 4.0D) {
+                BlockEntity blockEntity = serverLevel.getBlockEntity(this.routeNodePos);
+                if (blockEntity instanceof WaypointBlockEntity waypoint) {
+                    if (this.handleWaypointRouteNode(serverLevel, waypoint)) {
+                        return;
+                    }
+                    BlockPos nextWaypoint = waypoint.getNextWaypoint();
+                    this.routeNodePos = nextWaypoint == null ? null : nextWaypoint.immutable();
+                    this.commandedPos = this.routeNodePos;
+                } else if (blockEntity instanceof CraneBlockEntity crane) {
+                    if (this.handleCraneRouteNode(serverLevel, crane)) {
+                        return;
+                    }
+                    BlockPos nextWaypoint = crane.getNextWaypoint();
+                    this.routeNodePos = nextWaypoint == null ? null : nextWaypoint.immutable();
+                    this.commandedPos = this.routeNodePos;
+                } else {
+                    this.routeNodePos = null;
+                }
+            }
+            return;
+        }
+
+        if (this.commandedPos == null || !this.dimensionMatchesCommand(serverLevel)) {
+            return;
+        }
+
+        this.getNavigation().moveTo(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D, commandSpeed);
+        if (this.distanceToSqr(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D) <= 2.0D) {
+            this.commandedPos = null;
+            this.commandDimension = "";
+        }
+    }
+
+    private boolean handleWaypointRouteNode(ServerLevel serverLevel, WaypointBlockEntity waypoint) {
+        this.trySupplyAtRouteNode(serverLevel, waypoint.getPairedChest());
+
+        if (!this.aiRespectRouteStay) {
+            return false;
+        }
+
+        int stayTicks = waypoint.getStayTicks();
+        if (stayTicks <= 0 && this.routeWaitTicks <= 0) {
+            return false;
+        }
+
+        if (this.routeWaitTicks <= 0) {
+            this.routeWaitTicks = stayTicks;
+        }
+
+        if (this.routeWaitTicks > 0) {
+            this.routeWaitTicks--;
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean handleCraneRouteNode(ServerLevel serverLevel, CraneBlockEntity crane) {
+        Container pairedContainer = this.getPairedRouteContainer(serverLevel, crane.getPairedChest());
+        IFluidHandler pairedFluidHandler = this.getPairedRouteFluidHandler(serverLevel, crane.getPairedChest());
+        RouteEnergyAccess pairedEnergyAccess = this.getPairedRouteEnergyAccess(serverLevel, crane.getPairedChest());
+        boolean canLoad = pairedContainer != null && crane.isLoadEnabled()
+                && this.hasContainerToShipTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true));
+        boolean canUnload = pairedContainer != null && crane.isUnloadEnabled()
+                && this.hasShipToContainerTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, false));
+        boolean canLoadLiquid = crane.getLiquidMode() == 1
+                && this.hasPairedFluidToShipTransfer(pairedFluidHandler, pairedContainer,
+                stack -> crane.matchesTransferFilter(stack, true),
+                this.getRouteFluidTransferBudget());
+        boolean canUnloadLiquid = crane.getLiquidMode() == 2
+                && this.hasShipFluidToPairedTransfer(pairedFluidHandler, pairedContainer,
+                stack -> crane.matchesTransferFilter(stack, false),
+                this.getRouteFluidTransferBudget());
+        boolean canLoadEnergy = crane.getEnergyMode() == 1
+                && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+        boolean canUnloadEnergy = crane.getEnergyMode() == 2
+                && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+        boolean hasPendingWork = canLoad || canUnload;
+        hasPendingWork = hasPendingWork || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
+
+        if (this.routeTransferCooldown > 0) {
+            this.routeTransferCooldown--;
+        }
+
+        if (hasPendingWork && this.routeTransferCooldown <= 0) {
+            int moved = 0;
+            if ((canLoad || canLoadLiquid || canLoadEnergy)
+                    && (!canUnload && !canUnloadLiquid && !canUnloadEnergy || this.routePreferLoad)) {
+                if (canLoadEnergy) {
+                    moved += this.transferPairedEnergyToShip(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+                }
+                if (canLoadLiquid) {
+                    moved += this.transferPairedFluidToShip(pairedFluidHandler, pairedContainer,
+                            stack -> crane.matchesTransferFilter(stack, true),
+                            this.getRouteFluidTransferBudget());
+                }
+                if (moved <= 0 && canLoad) {
+                    moved += this.transferContainerToShipCargo(pairedContainer,
+                            stack -> crane.matchesTransferFilter(stack, true),
+                            this.getRouteTransferBudget());
+                }
+            } else if (canUnload || canUnloadLiquid || canUnloadEnergy) {
+                if (canUnloadEnergy) {
+                    moved += this.transferShipEnergyToPaired(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+                }
+                if (canUnloadLiquid) {
+                    moved += this.transferShipFluidToPaired(pairedFluidHandler, pairedContainer,
+                            stack -> crane.matchesTransferFilter(stack, false),
+                            this.getRouteFluidTransferBudget());
+                }
+                if (moved <= 0 && canUnload) {
+                    moved += this.transferShipCargoToContainer(pairedContainer,
+                            stack -> crane.matchesTransferFilter(stack, false),
+                            this.getRouteTransferBudget());
+                }
+            }
+
+            if (moved > 0) {
+                this.routeTransferCooldown = this.getRouteTransferInterval();
+                this.routePreferLoad = !this.routePreferLoad;
+                canLoad = crane.isLoadEnabled()
+                        && this.hasContainerToShipTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true));
+                canUnload = crane.isUnloadEnabled()
+                        && this.hasShipToContainerTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, false));
+                canLoadLiquid = crane.getLiquidMode() == 1
+                        && this.hasPairedFluidToShipTransfer(pairedFluidHandler, pairedContainer,
+                        stack -> crane.matchesTransferFilter(stack, true),
+                        this.getRouteFluidTransferBudget());
+                canUnloadLiquid = crane.getLiquidMode() == 2
+                        && this.hasShipFluidToPairedTransfer(pairedFluidHandler, pairedContainer,
+                        stack -> crane.matchesTransferFilter(stack, false),
+                        this.getRouteFluidTransferBudget());
+                canLoadEnergy = crane.getEnergyMode() == 1
+                        && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+                canUnloadEnergy = crane.getEnergyMode() == 2
+                        && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
+                hasPendingWork = canLoad || canUnload || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
+            }
+        }
+
+        if (!this.aiRespectRouteStay) {
+            return false;
+        }
+
+        if (crane.getWaitMode() <= 4) {
+            return hasPendingWork;
+        }
+
+        int waitTicks = CraneBlockEntity.getWaitTime(crane.getWaitMode());
+        if (waitTicks <= 0 && this.routeWaitTicks <= 0) {
+            return false;
+        }
+
+        if (this.routeWaitTicks <= 0) {
+            this.routeWaitTicks = waitTicks;
+        }
+
+        if (this.routeWaitTicks > 0) {
+            this.routeWaitTicks--;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void trySupplyAtRouteNode(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
+        if (this.routeTransferCooldown > 0) {
+            this.routeTransferCooldown--;
+            return;
+        }
+
+        Container pairedContainer = this.getPairedRouteContainer(serverLevel, pairedChestPos);
+        if (pairedContainer == null) {
+            return;
+        }
+
+        int moved = this.transferContainerToShipCargo(pairedContainer, stack -> true, Math.max(4, this.getRouteTransferBudget() / 2));
+        if (moved > 0) {
+            this.routeTransferCooldown = this.getRouteTransferInterval();
+        }
+    }
+
+    private @Nullable BlockEntity getPairedRouteBlockEntity(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
+        if (pairedChestPos == null) {
+            return null;
+        }
+
+        return serverLevel.getBlockEntity(pairedChestPos);
+    }
+
+    private @Nullable Container getPairedRouteContainer(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
+        BlockEntity blockEntity = this.getPairedRouteBlockEntity(serverLevel, pairedChestPos);
+        return blockEntity instanceof Container container ? container : null;
+    }
+
+    private @Nullable IFluidHandler getPairedRouteFluidHandler(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
+        BlockEntity blockEntity = this.getPairedRouteBlockEntity(serverLevel, pairedChestPos);
+        if (blockEntity == null) {
+            return null;
+        }
+
+        return blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).resolve().orElse(null);
+    }
+
+    private @Nullable RouteEnergyAccess getPairedRouteEnergyAccess(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
+        BlockEntity blockEntity = this.getPairedRouteBlockEntity(serverLevel, pairedChestPos);
+        return blockEntity instanceof RouteEnergyAccess access ? access : null;
+    }
+
+    private boolean hasContainerToShipTransfer(Container source, Predicate<ItemStack> predicate) {
+        for (int slot = 0; slot < source.getContainerSize(); slot++) {
+            ItemStack stack = source.getItem(slot);
+            if (!stack.isEmpty() && predicate.test(stack) && this.canInsertIntoShipCargo(stack)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasShipToContainerTransfer(Container target, Predicate<ItemStack> predicate) {
+        for (int slot = CARGO_SLOT_COUNT > 0 ? EQUIPMENT_SLOT_COUNT : 0; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            if (!stack.isEmpty() && predicate.test(stack) && this.canInsertIntoContainer(target, stack)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasPairedFluidToShipTransfer(@Nullable IFluidHandler sourceHandler,
+                                                 @Nullable Container sourceContainer,
+                                                 Predicate<ItemStack> predicate,
+                                                 int budget) {
+        return (sourceHandler != null && this.hasBlockFluidToShipTransfer(sourceHandler, predicate, budget))
+                || (sourceContainer != null && this.hasContainerFluidToShipTransfer(sourceContainer, predicate, budget));
+    }
+
+    private boolean hasShipFluidToPairedTransfer(@Nullable IFluidHandler targetHandler,
+                                                 @Nullable Container targetContainer,
+                                                 Predicate<ItemStack> predicate,
+                                                 int budget) {
+        return (targetHandler != null && this.hasShipFluidToBlockTransfer(targetHandler, predicate, budget))
+                || (targetContainer != null && this.hasShipFluidToContainerTransfer(targetContainer, predicate, budget));
+    }
+
+    private int transferPairedFluidToShip(@Nullable IFluidHandler sourceHandler,
+                                          @Nullable Container sourceContainer,
+                                          Predicate<ItemStack> predicate,
+                                          int budget) {
+        int moved = 0;
+        if (sourceHandler != null) {
+            moved += this.transferBlockFluidToShip(sourceHandler, predicate, budget);
+        }
+        if (moved <= 0 && sourceContainer != null) {
+            moved += this.transferContainerFluidToShip(sourceContainer, predicate, budget);
+        }
+        return moved;
+    }
+
+    private int transferShipFluidToPaired(@Nullable IFluidHandler targetHandler,
+                                          @Nullable Container targetContainer,
+                                          Predicate<ItemStack> predicate,
+                                          int budget) {
+        int moved = 0;
+        if (targetHandler != null) {
+            moved += this.transferShipFluidToBlock(targetHandler, predicate, budget);
+        }
+        if (moved <= 0 && targetContainer != null) {
+            moved += this.transferShipFluidToContainer(targetContainer, predicate, budget);
+        }
+        return moved;
+    }
+
+    private boolean hasBlockFluidToShipTransfer(IFluidHandler source, Predicate<ItemStack> predicate, int budget) {
+        if (budget <= 0) {
+            return false;
+        }
+
+        FluidStack preview = source.drain(budget, IFluidHandler.FluidAction.SIMULATE);
+        if (preview.isEmpty()) {
+            return false;
+        }
+
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack tankStack = this.shipInventory.getItem(slot);
+            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+            if (tankHandler != null && tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasContainerFluidToShipTransfer(Container source, Predicate<ItemStack> predicate, int budget) {
+        if (budget <= 0) {
+            return false;
+        }
+
+        for (int sourceSlot = 0; sourceSlot < source.getContainerSize(); sourceSlot++) {
+            ItemStack sourceStack = source.getItem(sourceSlot);
+            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
+            if (sourceHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = sourceHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                continue;
+            }
+
+            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+                ItemStack tankStack = this.shipInventory.getItem(shipSlot);
+                if (!this.isRouteFluidContainer(tankStack)) {
+                    continue;
+                }
+
+                IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+                if (tankHandler != null && tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasShipFluidToBlockTransfer(IFluidHandler target, Predicate<ItemStack> predicate, int budget) {
+        if (budget <= 0) {
+            return false;
+        }
+
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
+            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+            if (tankHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = tankHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
+            if (!preview.isEmpty() && target.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasShipFluidToContainerTransfer(Container target, Predicate<ItemStack> predicate, int budget) {
+        if (budget <= 0) {
+            return false;
+        }
+
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+            ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
+            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
+            if (sourceHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = sourceHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                continue;
+            }
+
+            for (int targetSlot = 0; targetSlot < target.getContainerSize(); targetSlot++) {
+                ItemStack targetStack = target.getItem(targetSlot);
+                if (!this.isRouteFluidContainer(targetStack)) {
+                    continue;
+                }
+
+                IFluidHandlerItem targetHandler = this.createRouteFluidHandler(targetStack);
+                if (targetHandler != null && targetHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private int transferContainerToShipCargo(Container source, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int slot = 0; slot < source.getContainerSize() && moved < budget; slot++) {
+            ItemStack stack = source.getItem(slot);
+            if (stack.isEmpty() || !predicate.test(stack)) {
+                continue;
+            }
+
+            int inserted = this.insertIntoShipCargo(stack, budget - moved);
+            if (inserted <= 0) {
+                continue;
+            }
+
+            stack.shrink(inserted);
+            source.setChanged();
+            if (stack.isEmpty()) {
+                source.setItem(slot, ItemStack.EMPTY);
+            } else {
+                source.setItem(slot, stack);
+            }
+            moved += inserted;
+        }
+
+        return moved;
+    }
+
+    private int transferShipCargoToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && moved < budget; slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            if (stack.isEmpty() || !predicate.test(stack)) {
+                continue;
+            }
+
+            int inserted = this.insertIntoContainer(target, stack, budget - moved);
+            if (inserted <= 0) {
+                continue;
+            }
+
+            stack.shrink(inserted);
+            if (stack.isEmpty()) {
+                this.shipInventory.setItem(slot, ItemStack.EMPTY);
+            } else {
+                this.shipInventory.setItem(slot, stack);
+            }
+            moved += inserted;
+        }
+
+        return moved;
+    }
+
+    private int transferBlockFluidToShip(IFluidHandler source, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
+            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+            if (tankHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = source.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                break;
+            }
+
+            int accepted = tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
+            if (accepted <= 0) {
+                continue;
+            }
+
+            FluidStack extracted = source.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+            if (extracted.isEmpty()) {
+                continue;
+            }
+
+            int filled = tankHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+            if (filled <= 0) {
+                continue;
+            }
+
+            this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
+            moved += filled;
+        }
+
+        return moved;
+    }
+
+    private int transferContainerFluidToShip(Container source, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int sourceSlot = 0; sourceSlot < source.getContainerSize() && moved < budget; sourceSlot++) {
+            ItemStack sourceStack = source.getItem(sourceSlot);
+            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
+            if (sourceHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = sourceHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                continue;
+            }
+
+            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+                ItemStack tankStack = this.shipInventory.getItem(shipSlot);
+                if (!this.isRouteFluidContainer(tankStack)) {
+                    continue;
+                }
+
+                IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+                if (tankHandler == null) {
+                    continue;
+                }
+
+                int accepted = tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
+                if (accepted <= 0) {
+                    continue;
+                }
+
+                FluidStack extracted = sourceHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+                if (extracted.isEmpty()) {
+                    continue;
+                }
+
+                int filled = tankHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+                if (filled <= 0) {
+                    continue;
+                }
+
+                source.setItem(sourceSlot, sourceHandler.getContainer());
+                source.setChanged();
+                this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
+                moved += filled;
+                break;
+            }
+        }
+
+        return moved;
+    }
+
+    private int transferShipFluidToBlock(IFluidHandler target, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
+            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
+            if (tankHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = tankHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                continue;
+            }
+
+            int accepted = target.fill(preview, IFluidHandler.FluidAction.SIMULATE);
+            if (accepted <= 0) {
+                continue;
+            }
+
+            FluidStack extracted = tankHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+            if (extracted.isEmpty()) {
+                continue;
+            }
+
+            int filled = target.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+            if (filled <= 0) {
+                continue;
+            }
+
+            this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
+            moved += filled;
+        }
+
+        return moved;
+    }
+
+    private int transferShipFluidToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
+        int moved = 0;
+
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+            ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
+            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
+                continue;
+            }
+
+            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
+            if (sourceHandler == null) {
+                continue;
+            }
+
+            FluidStack preview = sourceHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
+            if (preview.isEmpty()) {
+                continue;
+            }
+
+            for (int targetSlot = 0; targetSlot < target.getContainerSize() && moved < budget; targetSlot++) {
+                ItemStack targetStack = target.getItem(targetSlot);
+                if (!this.isRouteFluidContainer(targetStack)) {
+                    continue;
+                }
+
+                IFluidHandlerItem targetHandler = this.createRouteFluidHandler(targetStack);
+                if (targetHandler == null) {
+                    continue;
+                }
+
+                int accepted = targetHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
+                if (accepted <= 0) {
+                    continue;
+                }
+
+                FluidStack extracted = sourceHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
+                if (extracted.isEmpty()) {
+                    continue;
+                }
+
+                int filled = targetHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+                if (filled <= 0) {
+                    continue;
+                }
+
+                this.shipInventory.setItem(shipSlot, sourceHandler.getContainer());
+                target.setItem(targetSlot, targetHandler.getContainer());
+                target.setChanged();
+                moved += filled;
+                break;
+            }
+        }
+
+        return moved;
+    }
+
+    private boolean hasPairedEnergyToShipTransfer(@Nullable RouteEnergyAccess source, int budget) {
+        return source != null
+                && budget > 0
+                && this.getRouteEnergyBuffer() < this.getRouteEnergyCapacity()
+                && source.extractRouteEnergy(Math.min(budget, this.getRouteEnergyCapacity() - this.getRouteEnergyBuffer()), true) > 0;
+    }
+
+    private boolean hasShipEnergyToPairedTransfer(@Nullable RouteEnergyAccess target, int budget) {
+        return target != null
+                && budget > 0
+                && this.getRouteEnergyBuffer() > 0
+                && target.receiveRouteEnergy(Math.min(budget, this.getRouteEnergyBuffer()), true) > 0;
+    }
+
+    private int transferPairedEnergyToShip(@Nullable RouteEnergyAccess source, int budget) {
+        if (source == null || budget <= 0) {
+            return 0;
+        }
+
+        int request = Math.min(budget, this.getRouteEnergyCapacity() - this.getRouteEnergyBuffer());
+        if (request <= 0) {
+            return 0;
+        }
+
+        int extracted = source.extractRouteEnergy(request, false);
+        if (extracted > 0) {
+            this.setRouteEnergyBuffer(this.getRouteEnergyBuffer() + extracted);
+        }
+        return extracted;
+    }
+
+    private int transferShipEnergyToPaired(@Nullable RouteEnergyAccess target, int budget) {
+        if (target == null || budget <= 0) {
+            return 0;
+        }
+
+        int request = Math.min(budget, this.getRouteEnergyBuffer());
+        if (request <= 0) {
+            return 0;
+        }
+
+        int accepted = target.receiveRouteEnergy(request, false);
+        if (accepted > 0) {
+            this.setRouteEnergyBuffer(this.getRouteEnergyBuffer() - accepted);
+        }
+        return accepted;
+    }
+
+    private int insertIntoShipCargo(ItemStack sourceStack, int maxItems) {
+        if (sourceStack.isEmpty() || maxItems <= 0) {
+            return 0;
+        }
+
+        int remaining = Math.min(maxItems, sourceStack.getCount());
+
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack current = this.shipInventory.getItem(slot);
+            if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
+                continue;
+            }
+
+            int insert = Math.min(remaining, current.getMaxStackSize() - current.getCount());
+            current.grow(insert);
+            this.shipInventory.setItem(slot, current);
+            remaining -= insert;
+        }
+
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack current = this.shipInventory.getItem(slot);
+            if (!current.isEmpty()) {
+                continue;
+            }
+
+            ItemStack inserted = sourceStack.copy();
+            inserted.setCount(remaining);
+            this.shipInventory.setItem(slot, inserted);
+            remaining = 0;
+        }
+
+        return Math.min(maxItems, sourceStack.getCount()) - remaining;
+    }
+
+    private int insertIntoContainer(Container target, ItemStack sourceStack, int maxItems) {
+        if (sourceStack.isEmpty() || maxItems <= 0) {
+            return 0;
+        }
+
+        int remaining = Math.min(maxItems, sourceStack.getCount());
+
+        for (int slot = 0; slot < target.getContainerSize() && remaining > 0; slot++) {
+            ItemStack current = target.getItem(slot);
+            if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
+                continue;
+            }
+
+            int insert = Math.min(remaining, current.getMaxStackSize() - current.getCount());
+            current.grow(insert);
+            target.setItem(slot, current);
+            remaining -= insert;
+        }
+
+        for (int slot = 0; slot < target.getContainerSize() && remaining > 0; slot++) {
+            ItemStack current = target.getItem(slot);
+            if (!current.isEmpty()) {
+                continue;
+            }
+
+            ItemStack inserted = sourceStack.copy();
+            inserted.setCount(remaining);
+            target.setItem(slot, inserted);
+            remaining = 0;
+        }
+
+        if (remaining != Math.min(maxItems, sourceStack.getCount())) {
+            target.setChanged();
+        }
+
+        return Math.min(maxItems, sourceStack.getCount()) - remaining;
+    }
+
+    private boolean canInsertIntoShipCargo(ItemStack sourceStack) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack current = this.shipInventory.getItem(slot);
+            if (current.isEmpty()) {
+                return true;
+            }
+
+            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean canInsertIntoContainer(Container target, ItemStack sourceStack) {
+        for (int slot = 0; slot < target.getContainerSize(); slot++) {
+            ItemStack current = target.getItem(slot);
+            if (current.isEmpty()) {
+                return true;
+            }
+
+            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int getRouteTransferBudget() {
+        return 8 + this.equipmentBehaviorState.transportTier() * 8;
+    }
+
+    private int getRouteFluidTransferBudget() {
+        return this.getRouteTransferBudget() * ROUTE_FLUID_TRANSFER_UNIT;
+    }
+
+    private int getRouteEnergyTransferBudget() {
+        return this.getRouteTransferBudget() * ROUTE_ENERGY_TRANSFER_UNIT;
+    }
+
+    private int getRouteTransferInterval() {
+        return Math.max(6, 20 - this.equipmentBehaviorState.transportTier() * 3);
+    }
+
+    private boolean isRouteFluidContainer(ItemStack stack) {
+        if (stack.isEmpty() || stack.getCount() != 1) {
+            return false;
+        }
+
+        return this.createRouteFluidHandler(stack) != null;
+    }
+
+    private @Nullable IFluidHandlerItem createRouteFluidHandler(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+
+        return stack.copyWithCount(1).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).resolve().orElse(null);
+    }
+
+    private void tickAutoSupportItems() {
+        if (!this.aiAutoSupply || this.isHostileVariant() || this.tickCount % this.equipmentBehaviorState.supportTickInterval() != 0) {
+            return;
+        }
+
+        if (this.getHealth() < this.getMaxHealth() * 0.55F && this.consumeFirstMatchingItem(ModItems.BUCKETREPAIR.get())) {
+            this.heal((float) ((this.getMaxHealth() * 0.08F + 6.0F) * this.getSupportEffectMultiplier()));
+            return;
+        }
+
+        if (this.hasNegativeEffects() && this.tryUseSupportItemFromInventory(action -> action.clearsNegativeStates())) {
+            return;
+        }
+
+        if (this.getHealth() < this.getMaxHealth() * 0.55F
+                && this.tryUseSupportItemFromInventory(action -> action.healRatio() > 0.0F || !action.effects().isEmpty())) {
+            return;
+        }
+
+        if (this.getMorale() >= 4200) {
+            return;
+        }
+
+        for (int slot = 0; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            if (!(stack.getItem() instanceof CombatRationItem ration)) {
+                continue;
+            }
+
+            this.addMorale(this.scaleSupportMorale(ration.getMoraleValue()));
+            this.heal((float) (Math.max(1.0F, this.getMaxHealth() * 0.01F) * this.getSupportEffectMultiplier()));
+            stack.shrink(1);
+            if (stack.isEmpty()) {
+                this.shipInventory.setItem(slot, ItemStack.EMPTY);
+            } else {
+                this.shipInventory.setItem(slot, stack);
+            }
+            return;
+        }
+
+        this.tryUseSupportItemFromInventory(action -> action.moraleGain() > 0);
+    }
+
+    private boolean dimensionMatchesCommand(ServerLevel serverLevel) {
+        if (this.commandDimension == null || this.commandDimension.isBlank()) {
+            return true;
+        }
+
+        return this.commandDimension.equals(serverLevel.dimension().location().toString());
+    }
+
+    private int encodeAiFlags() {
+        int flags = 0;
+        if (this.aiAutoTarget) {
+            flags |= GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
+        }
+        if (this.aiAllowPvp) {
+            flags |= GameplayCommandHandler.AI_FLAG_ALLOW_PVP;
+        }
+        if (this.aiAutoSupply) {
+            flags |= GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY;
+        }
+        if (this.aiRespectRouteStay) {
+            flags |= GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+        }
+        return flags;
+    }
+
+    private void applySyncedAiData() {
+        int flags = this.entityData.get(DATA_AI_FLAGS);
+        this.aiAutoTarget = (flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) != 0;
+        this.aiAllowPvp = (flags & GameplayCommandHandler.AI_FLAG_ALLOW_PVP) != 0;
+        this.aiAutoSupply = (flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0;
+        this.aiRespectRouteStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
+        this.aiFollowRange = Mth.clamp(this.entityData.get(DATA_AI_FOLLOW_RANGE), 4, 64);
     }
 
     private int computeActiveEffectSignature() {
@@ -1057,6 +2688,95 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private boolean canExecuteActiveGoal() {
         return !this.isOrderedToSit() && (this.isHostileVariant() || this.getOwnerUuid().isPresent());
+    }
+
+    private void setRouteEnergyBuffer(int amount) {
+        this.entityData.set(DATA_ROUTE_ENERGY, Mth.clamp(amount, 0, this.getRouteEnergyCapacity()));
+    }
+
+    private boolean hasActiveCommandState() {
+        return this.commandedPos != null || this.guardEntityUuid != null || this.routeNodePos != null;
+    }
+
+    private void tickEquipmentBehaviors() {
+        if (this.equipmentBehaviorState.searchlightLevel() <= 0 || this.tickCount % 20 != 0) {
+            return;
+        }
+
+        if (this.level().getMaxLocalRawBrightness(this.blockPosition()) > 7) {
+            return;
+        }
+
+        LivingEntity target = this.getTarget();
+        int searchRange = this.equipmentBehaviorState.searchlightRange();
+        if (target == null || !target.isAlive() || this.distanceToSqr(target) > searchRange * searchRange || !this.canEngage(target)) {
+            target = this.findSearchlightTarget(searchRange);
+        }
+
+        if (target != null) {
+            this.applyIllumination(target, this.equipmentBehaviorState.searchlightDurationTicks());
+        }
+    }
+
+    private @Nullable LivingEntity findSearchlightTarget(int range) {
+        LivingEntity closest = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (LivingEntity candidate : this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(range, 4.0D, range))) {
+            if (!this.canEngage(candidate)) {
+                continue;
+            }
+
+            double distance = this.distanceToSqr(candidate);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                closest = candidate;
+            }
+        }
+
+        return closest;
+    }
+
+    private void applyIllumination(LivingEntity target, int durationTicks) {
+        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, durationTicks, 0, false, true, true));
+    }
+
+    private void tickMarriageBond() {
+        if (!this.isMarried() || this.tickCount % 200 != 0) {
+            return;
+        }
+
+        if (this.getMorale() < 12000) {
+            this.addMorale(24);
+        }
+
+        if (this.getHealth() < this.getMaxHealth()) {
+            this.heal(Math.max(1.0F, this.getMaxHealth() * 0.01F));
+        }
+    }
+
+    private double getSupportEffectMultiplier() {
+        return this.equipmentBehaviorState.supportEffectMultiplier();
+    }
+
+    private int scaleSupportMorale(int baseValue) {
+        if (baseValue == 0) {
+            return 0;
+        }
+
+        if (baseValue < 0) {
+            return baseValue;
+        }
+
+        double scaled = baseValue * this.getSupportEffectMultiplier();
+        return Math.max(1, Mth.floor((float) scaled));
+    }
+
+    private void resetOwnershipBoundState() {
+        this.clearCommandState();
+        this.getNavigation().stop();
+        this.setTarget(null);
+        this.setOrderedToSit(false);
     }
 
     private InteractionResult handleShipItemInteraction(Player player, InteractionHand hand, ItemStack stack) {
@@ -1217,10 +2937,13 @@ public class LegacyShipEntity extends PathfinderMob {
                         ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.caress",
                         this.getName().copy().withStyle(ChatFormatting.AQUA), this.getMorale()), true);
-            } else {
-                player.displayClientMessage(Component.translatable("gui.shincolle.placeholder_command_item"), true);
+                return InteractionResult.CONSUME;
             }
 
+            return InteractionResult.PASS;
+        }
+
+        if (this.tryApplySupportItem(player, hand, stack)) {
             return InteractionResult.CONSUME;
         }
 
@@ -1235,7 +2958,8 @@ public class LegacyShipEntity extends PathfinderMob {
                 || stack.is(ModItems.MARRIAGERING.get())
                 || stack.is(ModItems.OWNERPAPER.get())
                 || stack.is(ModItems.REPAIRGODDESS.get())
-                || stack.is(ModItems.POINTERITEM.get());
+                || stack.is(ModItems.POINTERITEM.get())
+                || this.resolveSupportItemAction(stack) != null;
     }
 
     private void repairFromBucket(Player player, InteractionHand hand, ItemStack stack) {
@@ -1265,8 +2989,8 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        this.addMorale(ration.getMoraleValue());
-        this.heal(Math.max(1.0F, this.getMaxHealth() * 0.025F));
+        this.addMorale(this.scaleSupportMorale(ration.getMoraleValue()));
+        this.heal((float) (Math.max(1.0F, this.getMaxHealth() * 0.025F) * this.getSupportEffectMultiplier()));
 
         String itemPath = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         if ("combatration4".equals(itemPath) || "combatration5".equals(itemPath)) {
@@ -1278,6 +3002,213 @@ public class LegacyShipEntity extends PathfinderMob {
                 ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
         player.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
                 this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
+    }
+
+    private boolean tryApplySupportItem(Player player, InteractionHand hand, ItemStack stack) {
+        ShipSupportAction action = this.resolveSupportItemAction(stack);
+        if (action == null) {
+            return false;
+        }
+
+        return this.applySupportItemAction(action,
+                () -> this.consumeHeldItem(player, hand, 1),
+                player);
+    }
+
+    private boolean tryUseSupportItemFromInventory(java.util.function.Predicate<ShipSupportAction> predicate) {
+        for (int slot = 0; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            ShipSupportAction action = this.resolveSupportItemAction(stack);
+            if (action == null || !predicate.test(action)) {
+                continue;
+            }
+
+            int resolvedSlot = slot;
+            if (this.applySupportItemAction(action, () -> this.consumeInventorySlot(resolvedSlot), null)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean applySupportItemAction(ShipSupportAction action, @Nullable Runnable consumeAction, @Nullable Player feedbackPlayer) {
+        boolean canImproveMorale = action.moraleGain() > 0 && this.getMorale() < MAX_MORALE;
+        boolean canReduceMorale = action.moraleGain() < 0;
+        boolean canHeal = action.healRatio() > 0.0F && this.getHealth() < this.getMaxHealth();
+        boolean canClearAll = action.clearAllEffects() && !this.getActiveEffects().isEmpty();
+        boolean canClearNegative = action.clearNegativeEffects() && this.hasNegativeEffects();
+        boolean canApplyEffects = !action.effects().isEmpty();
+
+        if (!canImproveMorale && !canReduceMorale && !canHeal && !canClearAll && !canClearNegative && !canApplyEffects) {
+            if (feedbackPlayer != null && action.moraleGain() > 0) {
+                feedbackPlayer.displayClientMessage(Component.translatable("chat.shincolle.ship.feed_full",
+                        this.getName().copy().withStyle(ChatFormatting.GRAY)), true);
+            }
+            return false;
+        }
+
+        if (action.clearAllEffects()) {
+            this.removeAllEffects();
+        } else if (action.clearNegativeEffects()) {
+            this.clearNegativeEffects();
+        }
+
+        for (MobEffectInstance effect : action.effects()) {
+            this.applySupportEffect(effect);
+        }
+
+        if (action.healRatio() > 0.0F && this.getHealth() < this.getMaxHealth()) {
+            this.heal((float) Math.max(1.0F, this.getMaxHealth() * action.healRatio() * this.getSupportEffectMultiplier()));
+        }
+
+        if (action.moraleGain() != 0) {
+            this.addMorale(this.scaleSupportMorale(action.moraleGain()));
+        }
+
+        if (consumeAction != null) {
+            consumeAction.run();
+        }
+
+        if (feedbackPlayer != null) {
+            ShinColleSoundHelper.playShipVoice(this.level(), feedbackPlayer, ShipSoundType.FEED, 0.62F,
+                    ShinColleSoundHelper.variedPitch(feedbackPlayer, 1.0F, 0.08F));
+            feedbackPlayer.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
+                    this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
+        }
+
+        return true;
+    }
+
+    private @Nullable ShipSupportAction resolveSupportItemAction(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+
+        if (stack.is(ModItems.GRUDGE.get())) {
+            return new ShipSupportAction(240, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 25, 0)));
+        }
+        if (stack.is(ModItems.GRUDGE1.get())) {
+            return new ShipSupportAction(420, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 40, 1)));
+        }
+        if (stack.is(ModItems.AMMO.get())) {
+            return new ShipSupportAction(140, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 25, 0)));
+        }
+        if (stack.is(ModItems.AMMO1.get())) {
+            return new ShipSupportAction(220, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 40, 0)));
+        }
+        if (stack.is(ModItems.AMMO2.get())) {
+            return new ShipSupportAction(180, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 30, 1)));
+        }
+        if (stack.is(ModItems.AMMO3.get())) {
+            return new ShipSupportAction(280, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 50, 1)));
+        }
+        if (stack.is(ModItems.ABYSSMETAL.get())) {
+            return new ShipSupportAction(180, 0.08F, false, false, List.of());
+        }
+        if (stack.is(ModItems.ABYSSMETAL1.get())) {
+            return new ShipSupportAction(220, 0.04F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.ABSORPTION, 20 * 45, 0)));
+        }
+        if (stack.is(ModItems.TOYAIRPLANE.get())) {
+            return new ShipSupportAction(360, 0.0F, false, false,
+                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 50, 1),
+                            new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 20 * 40, 0)));
+        }
+        if (stack.is(Items.MILK_BUCKET)) {
+            return new ShipSupportAction(80, 0.02F, true, false, List.of());
+        }
+        if (stack.is(Items.HONEY_BOTTLE)) {
+            return new ShipSupportAction(120, 0.01F, false, true, List.of());
+        }
+        if (stack.is(Items.POTION) || stack.is(Items.SPLASH_POTION) || stack.is(Items.LINGERING_POTION)) {
+            List<MobEffectInstance> effects = copyEffectList(PotionUtils.getMobEffects(stack));
+            if (effects.isEmpty()) {
+                return null;
+            }
+
+            int beneficialEffects = 0;
+            int harmfulEffects = 0;
+            for (MobEffectInstance effect : effects) {
+                MobEffectCategory category = effect.getEffect().getCategory();
+                if (category == MobEffectCategory.BENEFICIAL) {
+                    beneficialEffects++;
+                } else if (category == MobEffectCategory.HARMFUL) {
+                    harmfulEffects++;
+                }
+            }
+
+            int moraleGain = beneficialEffects * 80 - harmfulEffects * 60;
+            return new ShipSupportAction(moraleGain, 0.0F, false, false, effects);
+        }
+
+        FoodProperties foodProperties = stack.getFoodProperties(this);
+        if (foodProperties == null) {
+            return null;
+        }
+
+        List<MobEffectInstance> foodEffects = new ArrayList<>();
+        for (Pair<MobEffectInstance, Float> effectEntry : foodProperties.getEffects()) {
+            if (this.random.nextFloat() <= effectEntry.getSecond()) {
+                foodEffects.add(new MobEffectInstance(effectEntry.getFirst()));
+            }
+        }
+
+        int moraleGain = Math.max(70, Math.round(foodProperties.getNutrition() * 18.0F
+                + foodProperties.getSaturationModifier() * 180.0F));
+        float healRatio = Mth.clamp(foodProperties.getNutrition() * 0.003F
+                + foodProperties.getSaturationModifier() * 0.015F, 0.01F, 0.05F);
+        return new ShipSupportAction(moraleGain, healRatio, false, false, foodEffects);
+    }
+
+    private void applySupportEffect(MobEffectInstance effect) {
+        MobEffect mobEffect = effect.getEffect();
+        if (mobEffect.isInstantenous()) {
+            mobEffect.applyInstantenousEffect(null, null, this, effect.getAmplifier(), 1.0D);
+            return;
+        }
+
+        this.addEffect(new MobEffectInstance(effect));
+    }
+
+    private boolean hasNegativeEffects() {
+        for (MobEffectInstance effect : this.getActiveEffects()) {
+            if (effect.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void clearNegativeEffects() {
+        List<MobEffect> harmfulEffects = new ArrayList<>();
+
+        for (MobEffectInstance effect : this.getActiveEffects()) {
+            if (effect.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
+                harmfulEffects.add(effect.getEffect());
+            }
+        }
+
+        for (MobEffect effect : harmfulEffects) {
+            this.removeEffect(effect);
+        }
+    }
+
+    private static List<MobEffectInstance> copyEffectList(List<MobEffectInstance> effects) {
+        List<MobEffectInstance> copiedEffects = new ArrayList<>(effects.size());
+
+        for (MobEffectInstance effect : effects) {
+            copiedEffects.add(new MobEffectInstance(effect));
+        }
+
+        return copiedEffects;
     }
 
     private void openInventory(ServerPlayer player) {
@@ -1298,7 +3229,63 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        player.getItemInHand(hand).shrink(amount);
+        ItemStack heldStack = player.getItemInHand(hand);
+        if (heldStack.isEmpty()) {
+            return;
+        }
+
+        ItemStack remainder = this.createUseRemainder(heldStack);
+        if (heldStack.getCount() <= amount) {
+            if (!remainder.isEmpty()) {
+                player.setItemInHand(hand, remainder);
+            } else {
+                heldStack.shrink(amount);
+                if (heldStack.isEmpty()) {
+                    player.setItemInHand(hand, ItemStack.EMPTY);
+                }
+            }
+            return;
+        }
+
+        heldStack.shrink(amount);
+        if (!remainder.isEmpty() && !player.getInventory().add(remainder)) {
+            player.drop(remainder, false);
+        }
+    }
+
+    private void consumeInventorySlot(int slot) {
+        ItemStack stack = this.shipInventory.getItem(slot);
+        if (stack.isEmpty()) {
+            return;
+        }
+
+        stack.shrink(1);
+        if (stack.isEmpty()) {
+            this.shipInventory.setItem(slot, ItemStack.EMPTY);
+            return;
+        }
+
+        this.shipInventory.setItem(slot, stack);
+    }
+
+    private ItemStack createUseRemainder(ItemStack stack) {
+        if (stack.is(Items.MILK_BUCKET)) {
+            return new ItemStack(Items.BUCKET);
+        }
+        if (stack.is(Items.HONEY_BOTTLE)
+                || stack.is(Items.POTION)
+                || stack.is(Items.SPLASH_POTION)
+                || stack.is(Items.LINGERING_POTION)) {
+            return new ItemStack(Items.GLASS_BOTTLE);
+        }
+        if (stack.is(Items.MUSHROOM_STEW)
+                || stack.is(Items.RABBIT_STEW)
+                || stack.is(Items.BEETROOT_SOUP)
+                || stack.is(Items.SUSPICIOUS_STEW)) {
+            return new ItemStack(Items.BOWL);
+        }
+
+        return ItemStack.EMPTY;
     }
 
     private int countItemInInventory(Item item) {
@@ -1382,5 +3369,17 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         tag.put(SHIP_INVENTORY_TAG, inventoryEntries);
+    }
+
+    private record ShipSupportAction(
+            int moraleGain,
+            float healRatio,
+            boolean clearAllEffects,
+            boolean clearNegativeEffects,
+            List<MobEffectInstance> effects) {
+
+        private boolean clearsNegativeStates() {
+            return this.clearAllEffects || this.clearNegativeEffects;
+        }
     }
 }

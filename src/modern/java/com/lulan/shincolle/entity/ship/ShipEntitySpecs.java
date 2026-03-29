@@ -14,72 +14,72 @@ public final class ShipEntitySpecs {
     private static final int[] PRIMARY_EGG_POOL = {2, 3, 4, 5, 11, 12, 18, 19, 20, 21};
     private static final int[] ADVANCED_EGG_POOL = {14, 15, 16, 17, 22, 23, 28, 29, 30, 31, 32, 33, 35, 46, 51, 74};
 
-    public static final ShipEntitySpec DEFAULT = register(2, "EntityDestroyerI", ShipArchetype.DESTROYER);
+    public static final ShipEntitySpec DEFAULT = register(2, "EntityDestroyerI", ShipArchetype.DESTROYER, true);
 
     static {
-        register(3, "EntityDestroyerRo", ShipArchetype.DESTROYER);
-        register(4, "EntityDestroyerHa", ShipArchetype.DESTROYER);
-        register(5, "EntityDestroyerNi", ShipArchetype.DESTROYER);
-        register(11, "EntityHeavyCruiserRi", ShipArchetype.CRUISER);
-        register(12, "EntityHeavyCruiserNe", ShipArchetype.CRUISER);
-        register(14, "EntityCarrierWo", ShipArchetype.CARRIER);
-        register(15, "EntityBattleshipRu", ShipArchetype.BATTLESHIP);
-        register(16, "EntityBattleshipTa", ShipArchetype.BATTLESHIP);
-        register(17, "EntityBattleshipRe", ShipArchetype.BATTLESHIP);
-        register(18, "EntityTransportWa", ShipArchetype.TRANSPORT);
-        register(19, "EntitySubmKa", ShipArchetype.SUBMARINE);
-        register(20, "EntitySubmYo", ShipArchetype.SUBMARINE);
-        register(21, "EntitySubmSo", ShipArchetype.SUBMARINE);
-        register(22, "EntityCarrierHime", ShipArchetype.PRINCESS);
-        register(23, "EntityAirfieldHime", ShipArchetype.INSTALLATION);
-        register(28, "EntityBattleshipHime", ShipArchetype.PRINCESS);
-        register(29, "EntityDestroyerHime", ShipArchetype.PRINCESS);
-        register(30, "EntityHarbourHime", ShipArchetype.INSTALLATION);
-        register(31, "EntityIsolatedHime", ShipArchetype.INSTALLATION);
-        register(32, "EntityMidwayHime", ShipArchetype.PRINCESS);
-        register(33, "EntityNorthernHime", ShipArchetype.PRINCESS);
-        register(35, "EntityCarrierWDemon", ShipArchetype.PRINCESS);
-        register(38, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER);
-        register(2038, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER);
-        register(39, "EntityBattleshipNagato", ShipArchetype.BATTLESHIP);
-        register(2039, "EntityBattleshipNagato", ShipArchetype.BATTLESHIP);
-        register(40, "EntitySubmU511", ShipArchetype.SUBMARINE);
-        register(2040, "EntitySubmU511", ShipArchetype.SUBMARINE);
-        register(41, "EntitySubmRo500", ShipArchetype.SUBMARINE);
-        register(2041, "EntitySubmRo500", ShipArchetype.SUBMARINE);
-        register(46, "EntitySubmHime", ShipArchetype.PRINCESS);
-        register(48, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP);
-        register(2048, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP);
-        register(49, "EntityCarrierKaga", ShipArchetype.CARRIER);
-        register(2049, "EntityCarrierKaga", ShipArchetype.CARRIER);
-        register(50, "EntityCarrierAkagi", ShipArchetype.CARRIER);
-        register(2050, "EntityCarrierAkagi", ShipArchetype.CARRIER);
-        register(51, "EntityCAHime", ShipArchetype.PRINCESS);
-        register(53, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER);
-        register(2053, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER);
-        register(54, "EntityDestroyerHibiki", ShipArchetype.DESTROYER);
-        register(2054, "EntityDestroyerHibiki", ShipArchetype.DESTROYER);
-        register(55, "EntityDestroyerIkazuchi", ShipArchetype.DESTROYER);
-        register(2055, "EntityDestroyerIkazuchi", ShipArchetype.DESTROYER);
-        register(56, "EntityDestroyerInazuma", ShipArchetype.DESTROYER);
-        register(2056, "EntityDestroyerInazuma", ShipArchetype.DESTROYER);
-        register(58, "EntityCruiserTenryuu", ShipArchetype.CRUISER);
-        register(2058, "EntityCruiserTenryuu", ShipArchetype.CRUISER);
-        register(59, "EntityCruiserTatsuta", ShipArchetype.CRUISER);
-        register(2059, "EntityCruiserTatsuta", ShipArchetype.CRUISER);
-        register(60, "EntityCruiserAtago", ShipArchetype.CRUISER);
-        register(2060, "EntityCruiserAtago", ShipArchetype.CRUISER);
-        register(61, "EntityCruiserTakao", ShipArchetype.CRUISER);
-        register(2061, "EntityCruiserTakao", ShipArchetype.CRUISER);
-        register(62, "EntityBBKongou", ShipArchetype.BATTLESHIP);
-        register(2062, "EntityBBKongou", ShipArchetype.BATTLESHIP);
-        register(63, "EntityBBHiei", ShipArchetype.BATTLESHIP);
-        register(2063, "EntityBBHiei", ShipArchetype.BATTLESHIP);
-        register(64, "EntityBBHaruna", ShipArchetype.BATTLESHIP);
-        register(2064, "EntityBBHaruna", ShipArchetype.BATTLESHIP);
-        register(65, "EntityBBKirishima", ShipArchetype.BATTLESHIP);
-        register(2065, "EntityBBKirishima", ShipArchetype.BATTLESHIP);
-        register(74, "EntitySubmHimeNew", ShipArchetype.PRINCESS);
+        register(3, "EntityDestroyerRo", ShipArchetype.DESTROYER, true);
+        register(4, "EntityDestroyerHa", ShipArchetype.DESTROYER, true);
+        register(5, "EntityDestroyerNi", ShipArchetype.DESTROYER, true);
+        register(11, "EntityHeavyCruiserRi", ShipArchetype.CRUISER, true);
+        register(12, "EntityHeavyCruiserNe", ShipArchetype.CRUISER, true);
+        register(14, "EntityCarrierWo", ShipArchetype.CARRIER, true);
+        register(15, "EntityBattleshipRu", ShipArchetype.BATTLESHIP, true);
+        register(16, "EntityBattleshipTa", ShipArchetype.BATTLESHIP, true);
+        register(17, "EntityBattleshipRe", ShipArchetype.BATTLESHIP, true);
+        register(18, "EntityTransportWa", ShipArchetype.TRANSPORT, true);
+        register(19, "EntitySubmKa", ShipArchetype.SUBMARINE, true);
+        register(20, "EntitySubmYo", ShipArchetype.SUBMARINE, true);
+        register(21, "EntitySubmSo", ShipArchetype.SUBMARINE, true);
+        register(22, "EntityCarrierHime", ShipArchetype.PRINCESS, true);
+        register(23, "EntityAirfieldHime", ShipArchetype.INSTALLATION, true);
+        register(28, "EntityBattleshipHime", ShipArchetype.PRINCESS, true);
+        register(29, "EntityDestroyerHime", ShipArchetype.PRINCESS, true);
+        register(30, "EntityHarbourHime", ShipArchetype.INSTALLATION, true);
+        register(31, "EntityIsolatedHime", ShipArchetype.INSTALLATION, true);
+        register(32, "EntityMidwayHime", ShipArchetype.PRINCESS, true);
+        register(33, "EntityNorthernHime", ShipArchetype.PRINCESS, true);
+        register(35, "EntityCarrierWDemon", ShipArchetype.PRINCESS, true);
+        register(38, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, false);
+        register(2038, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, true);
+        register(39, "EntityBattleshipNagato", ShipArchetype.BATTLESHIP, false);
+        register(2039, "EntityBattleshipNagato", ShipArchetype.BATTLESHIP, true);
+        register(40, "EntitySubmU511", ShipArchetype.SUBMARINE, false);
+        register(2040, "EntitySubmU511", ShipArchetype.SUBMARINE, true);
+        register(41, "EntitySubmRo500", ShipArchetype.SUBMARINE, false);
+        register(2041, "EntitySubmRo500", ShipArchetype.SUBMARINE, true);
+        register(46, "EntitySubmHime", ShipArchetype.PRINCESS, true);
+        register(48, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP, false);
+        register(2048, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP, true);
+        register(49, "EntityCarrierKaga", ShipArchetype.CARRIER, false);
+        register(2049, "EntityCarrierKaga", ShipArchetype.CARRIER, true);
+        register(50, "EntityCarrierAkagi", ShipArchetype.CARRIER, false);
+        register(2050, "EntityCarrierAkagi", ShipArchetype.CARRIER, true);
+        register(51, "EntityCAHime", ShipArchetype.PRINCESS, true);
+        register(53, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER, false);
+        register(2053, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER, true);
+        register(54, "EntityDestroyerHibiki", ShipArchetype.DESTROYER, false);
+        register(2054, "EntityDestroyerHibiki", ShipArchetype.DESTROYER, true);
+        register(55, "EntityDestroyerIkazuchi", ShipArchetype.DESTROYER, false);
+        register(2055, "EntityDestroyerIkazuchi", ShipArchetype.DESTROYER, true);
+        register(56, "EntityDestroyerInazuma", ShipArchetype.DESTROYER, false);
+        register(2056, "EntityDestroyerInazuma", ShipArchetype.DESTROYER, true);
+        register(58, "EntityCruiserTenryuu", ShipArchetype.CRUISER, false);
+        register(2058, "EntityCruiserTenryuu", ShipArchetype.CRUISER, true);
+        register(59, "EntityCruiserTatsuta", ShipArchetype.CRUISER, false);
+        register(2059, "EntityCruiserTatsuta", ShipArchetype.CRUISER, true);
+        register(60, "EntityCruiserAtago", ShipArchetype.CRUISER, false);
+        register(2060, "EntityCruiserAtago", ShipArchetype.CRUISER, true);
+        register(61, "EntityCruiserTakao", ShipArchetype.CRUISER, false);
+        register(2061, "EntityCruiserTakao", ShipArchetype.CRUISER, true);
+        register(62, "EntityBBKongou", ShipArchetype.BATTLESHIP, false);
+        register(2062, "EntityBBKongou", ShipArchetype.BATTLESHIP, true);
+        register(63, "EntityBBHiei", ShipArchetype.BATTLESHIP, false);
+        register(2063, "EntityBBHiei", ShipArchetype.BATTLESHIP, true);
+        register(64, "EntityBBHaruna", ShipArchetype.BATTLESHIP, false);
+        register(2064, "EntityBBHaruna", ShipArchetype.BATTLESHIP, true);
+        register(65, "EntityBBKirishima", ShipArchetype.BATTLESHIP, false);
+        register(2065, "EntityBBKirishima", ShipArchetype.BATTLESHIP, true);
+        register(74, "EntitySubmHimeNew", ShipArchetype.PRINCESS, true);
     }
 
     private ShipEntitySpecs() {
@@ -129,8 +129,8 @@ public final class ShipEntitySpecs {
         return Collections.unmodifiableCollection(SPECS.values());
     }
 
-    private static ShipEntitySpec register(int eggMeta, String textureStem, ShipArchetype archetype) {
-        ShipEntitySpec spec = new ShipEntitySpec(eggMeta, "item.shincolle.shipegg" + eggMeta, textureStem, archetype);
+    private static ShipEntitySpec register(int eggMeta, String textureStem, ShipArchetype archetype, boolean hostile) {
+        ShipEntitySpec spec = new ShipEntitySpec(eggMeta, "item.shincolle.shipegg" + eggMeta, textureStem, archetype, hostile);
         ShipEntitySpec previous = SPECS.put(eggMeta, spec);
 
         if (previous != null) {

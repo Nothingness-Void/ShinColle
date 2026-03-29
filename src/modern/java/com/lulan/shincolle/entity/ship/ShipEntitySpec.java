@@ -6,14 +6,10 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.Locale;
 
-public record ShipEntitySpec(int eggMeta, String translationKey, String textureStem, ShipArchetype archetype) {
+public record ShipEntitySpec(int eggMeta, String translationKey, String textureStem, ShipArchetype archetype, boolean hostile) {
 
     public int legacyClassId() {
         return this.eggMeta - 2;
-    }
-
-    public boolean hostile() {
-        return this.legacyClassId() >= 2000;
     }
 
     public Component displayName() {
