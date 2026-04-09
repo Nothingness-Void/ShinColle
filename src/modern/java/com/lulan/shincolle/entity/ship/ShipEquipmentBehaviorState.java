@@ -37,7 +37,7 @@ public record ShipEquipmentBehaviorState(
 
         for (int slot = 0; slot < Math.min(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, inventory.getContainerSize()); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (!(stack.getItem() instanceof LegacyEquipmentItem equipmentItem) || !ShipEquipmentProfile.canEquip(archetype, stack)) {
+            if (!(stack.getItem() instanceof LegacyEquipmentItem equipmentItem)) {
                 continue;
             }
 
