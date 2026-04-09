@@ -12,8 +12,12 @@ import com.lulan.shincolle.menu.MorphInventoryMenu;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.CombatReactType;
 import com.lulan.shincolle.network.GameplayParticleType;
+import com.lulan.shincolle.playerskill.PlayerSkillHostContext;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
+import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -34,8 +38,10 @@ import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public final class MorphHelper {
@@ -46,9 +52,27 @@ public final class MorphHelper {
     private static final UUID FOLLOW_RANGE_MODIFIER_ID = UUID.fromString("cc3950f8-72fe-4da1-9a57-45f3f2c9a004");
     private static final UUID KNOCKBACK_RESISTANCE_MODIFIER_ID = UUID.fromString("cc3950f8-72fe-4da1-9a57-45f3f2c9a005");
 
-    private static final MorphCompatBridge COMPAT_BRIDGE = MorphCompatBridge.NOOP;
+    private static final MorphCompatBridge COMPAT_BRIDGE = MorphCompatBridgeLoader.load();
+    private static final Map<Integer, MorphSpecialBehavior> SPECIAL_BEHAVIORS = createSpecialBehaviors();
 
     private MorphHelper() {
+    }
+
+    private static Map<Integer, MorphSpecialBehavior> createSpecialBehaviors() {
+        Map<Integer, MorphSpecialBehavior> behaviors = new HashMap<>();
+        registerSpecial(behaviors, MorphHelper::performTenryuuSpecialWithCooldown, 58, 2058);
+        registerSpecial(behaviors, MorphHelper::performTatsutaSpecialWithCooldown, 59, 2059);
+        registerSpecial(behaviors, MorphHelper::performHeavyCruiserSpecialWithCooldown, 60, 2060, 61, 2061);
+        registerSpecial(behaviors, MorphHelper::performKongouClassSpecialWithCooldown, 62, 2062, 63, 2063, 64, 2064, 65, 2065);
+        return Map.copyOf(behaviors);
+    }
+
+    private static void registerSpecial(Map<Integer, MorphSpecialBehavior> behaviors,
+                                        MorphSpecialBehavior behavior,
+                                        int... legacyClassIds) {
+        for (int legacyClassId : legacyClassIds) {
+            behaviors.put(legacyClassId, behavior);
+        }
     }
 
     public static @Nullable MorphProfile getSelectedProfile(Player player) {
@@ -101,14 +125,18 @@ public final class MorphHelper {
         return TeitokuHelper.get(player)
                 .map(data -> {
                     boolean next = !data.hasActiveMorph();
-                    if (!data.setMorphActive(next)) {
-                        return false;
-                    }
-                    applyOrResetPlayerMorphState(player, data.hasActiveMorph() ? data.getSelectedMorphProfile() : null);
-                    COMPAT_BRIDGE.syncActiveMorph(player, data.getSelectedMorphProfile(), data.hasActiveMorph());
-                    TeitokuHelper.syncGameplayState(player);
-                    return true;
-                })
+                if (!data.setMorphActive(next)) {
+                    return false;
+                }
+                applyOrResetPlayerMorphState(player, data.hasActiveMorph() ? data.getSelectedMorphProfile() : null);
+                if (data.hasActiveMorph()) {
+                    COMPAT_BRIDGE.syncActiveMorph(player, data.getSelectedMorphProfile(), true);
+                } else {
+                    COMPAT_BRIDGE.reset(player);
+                }
+                TeitokuHelper.syncGameplayState(player);
+                return true;
+            })
                 .orElse(false);
     }
 
@@ -161,8 +189,59 @@ public final class MorphHelper {
             }
 
             applyOrResetPlayerMorphState(player, data.hasActiveMorph() ? data.getSelectedMorphProfile() : null);
+            if (refreshPlayerSkillRuntimeState(player, data)) {
+                changed[0] = true;
+            }
         });
         return changed[0];
+    }
+
+    public static PlayerSkillRuntimeState getPlayerSkillRuntimeState(Player player) {
+        return TeitokuHelper.get(player)
+                .map(TeitokuData::getPlayerSkillRuntimeState)
+                .orElseGet(PlayerSkillRuntimeState::new);
+    }
+
+    public static Component getPlayerSkillTitle(Player player) {
+        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
+        if (host.ship() != null) {
+            return host.ship().getName().copy();
+        }
+        if (host.profile() != null) {
+            return host.profile().getSpec().displayName().copy().append(Component.literal(" Lv" + host.profile().getLevel()));
+        }
+        return Component.empty();
+    }
+
+    public static Component getPlayerSkillResourceLine(Player player) {
+        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
+        if (host.ship() != null) {
+            LegacyShipEntity ship = host.ship();
+            return Component.literal("HP " + Mth.ceil(ship.getHealth()) + "/" + Mth.ceil(ship.getMaxHealth())
+                    + "  Morale " + ship.getMorale());
+        }
+        if (host.profile() != null) {
+            MorphProfile profile = host.profile();
+            return Component.literal("L " + profile.getAmmoLight()
+                    + "  H " + profile.getAmmoHeavy()
+                    + "  G " + profile.getGrudge());
+        }
+        return Component.empty();
+    }
+
+    public static boolean performPlayerSkill(ServerPlayer player, int skillSlot, int targetId, @Nullable BlockPos blockPos) {
+        int normalizedSlot = Mth.clamp(skillSlot, 1, PlayerSkillRuntimeState.SLOT_COUNT) - 1;
+        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
+        if (!host.visible()) {
+            return false;
+        }
+
+        LivingEntity target = player.level().getEntity(targetId) instanceof LivingEntity living ? living : null;
+        return switch (host.mode()) {
+            case RIDER -> host.ship() != null && performShipSlotSkill(player, host.ship(), normalizedSlot, target, blockPos);
+            case MORPH, MOUNT -> host.profile() != null && performMorphSlotSkill(player, host.profile(), normalizedSlot, target);
+            default -> false;
+        };
     }
 
     public static boolean performCompatAttack(ServerPlayer player, LegacyShipAttackKind attackKind, int targetId) {
@@ -192,21 +271,26 @@ public final class MorphHelper {
         if (runtimeState.getAttackCooldown(attackKind) > 0) {
             return false;
         }
+
+        LegacyShipStats stats = profile.buildStats(player.getActiveEffects());
+        ShipEquipmentBehaviorState behaviorState = profile.buildBehaviorState();
+        if (!isWithinMorphAttackRange(player, stats, behaviorState, attackKind, target)) {
+            return false;
+        }
         if (!consumeAttackCost(profile, attackKind)) {
             return false;
         }
-
-        LegacyShipStats stats = profile.buildStats(player.getActiveEffects());
-        if (attackKind != LegacyShipAttackKind.MELEE && profile.buildBehaviorState().flareLevel() > 0) {
+        if (attackKind != LegacyShipAttackKind.MELEE && behaviorState.flareLevel() > 0) {
             target.setGlowingTag(true);
         }
 
         LegacyShipCombatHelper.AttackRoll roll = rollMorphAttack(player, profile, stats, target, attackKind);
-        int delay = LegacyShipCombatHelper.attackDelay(stats, profile.buildBehaviorState(), attackKind);
+        int delay = LegacyShipCombatHelper.attackDelay(stats, behaviorState, attackKind);
         runtimeState.setAttackCooldown(attackKind, delay);
 
         if (roll.miss()) {
             emitAttackFx(player, target, attackKind, roll, !attackKind.justLaunch());
+            TeitokuHelper.syncGameplayState(player);
             return true;
         }
 
@@ -216,7 +300,7 @@ public final class MorphHelper {
         }
         emitAttackFx(player, target, attackKind, roll, attacked);
         TeitokuHelper.syncGameplayState(player);
-        return attacked;
+        return true;
     }
 
     public static boolean performCompatSpecial(ServerPlayer player, int targetId) {
@@ -246,19 +330,18 @@ public final class MorphHelper {
             return false;
         }
 
-        int specialCooldown = 120;
-        boolean triggered = switch (profile.getLegacyClassId()) {
-            case 58, 2058 -> performTenryuuSpecial(player, profile, target);
-            case 59, 2059 -> performTatsutaSpecial(player, profile, target);
-            default -> false;
-        };
+        MorphSpecialBehavior behavior = resolveSpecialBehavior(profile);
+        if (behavior == null) {
+            return false;
+        }
 
-        if (!triggered) {
+        MorphSpecialResult result = behavior.cast(player, profile, target);
+        if (!result.triggered()) {
             return false;
         }
 
         profile.addGrudge(-4);
-        runtimeState.setSpecialCooldown(specialCooldown);
+        runtimeState.setSpecialCooldown(result.cooldown());
         TeitokuHelper.syncGameplayState(player);
         return true;
     }
@@ -295,14 +378,168 @@ public final class MorphHelper {
     }
 
     public static boolean hasSpecialSkill(@Nullable MorphProfile profile) {
-        if (profile == null) {
+        return resolveSpecialBehavior(profile) != null;
+    }
+
+    private static boolean refreshPlayerSkillRuntimeState(ServerPlayer player, TeitokuData data) {
+        PlayerSkillRuntimeState current = data.getPlayerSkillRuntimeState();
+        PlayerSkillRuntimeState snapshot = buildPlayerSkillRuntimeState(player, data);
+        if (current.sameAs(snapshot)) {
             return false;
         }
 
+        current.copyFrom(snapshot);
+        return true;
+    }
+
+    private static PlayerSkillRuntimeState buildPlayerSkillRuntimeState(Player player, TeitokuData data) {
+        PlayerSkillRuntimeState snapshot = new PlayerSkillRuntimeState();
+        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
+        snapshot.setVisible(host.visible());
+        snapshot.setHostMode(host.mode());
+        snapshot.setHostShipUid(host.hostShipUid());
+        snapshot.setHostClassId(host.hostClassId());
+        if (!host.visible()) {
+            return snapshot;
+        }
+
+        if (host.ship() != null) {
+            fillShipPlayerSkillState(snapshot, host.ship());
+        } else if (host.profile() != null) {
+            fillMorphPlayerSkillState(snapshot, data.getMorphRuntimeState(), host.profile());
+        }
+
+        return snapshot;
+    }
+
+    private static void fillShipPlayerSkillState(PlayerSkillRuntimeState state, LegacyShipEntity ship) {
+        fillPlayerSkillSlot(state, 0, ship.supportsCompatAttack(LegacyShipAttackKind.LIGHT),
+                ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT),
+                ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.LIGHT));
+        fillPlayerSkillSlot(state, 1, ship.supportsCompatAttack(LegacyShipAttackKind.HEAVY),
+                ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY),
+                ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.HEAVY));
+        fillPlayerSkillSlot(state, 2, ship.supportsCompatAttack(LegacyShipAttackKind.AIR_LIGHT),
+                ship.getCompatAttackCooldown(LegacyShipAttackKind.AIR_LIGHT),
+                ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.AIR_LIGHT));
+        fillPlayerSkillSlot(state, 3, ship.supportsCompatAttack(LegacyShipAttackKind.AIR_HEAVY),
+                ship.getCompatAttackCooldown(LegacyShipAttackKind.AIR_HEAVY),
+                ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.AIR_HEAVY));
+        fillPlayerSkillSlot(state, 4, false, 0, 0);
+    }
+
+    private static void fillMorphPlayerSkillState(PlayerSkillRuntimeState state,
+                                                  MorphRuntimeState runtimeState,
+                                                  MorphProfile profile) {
+        LegacyShipAttackProfile attackProfile = profile.buildAttackProfile();
+        fillPlayerSkillSlot(state, 0, attackProfile.light(),
+                runtimeState.getAttackCooldown(LegacyShipAttackKind.LIGHT),
+                morphAttackDelay(profile, LegacyShipAttackKind.LIGHT));
+        fillPlayerSkillSlot(state, 1, attackProfile.heavy(),
+                runtimeState.getAttackCooldown(LegacyShipAttackKind.HEAVY),
+                morphAttackDelay(profile, LegacyShipAttackKind.HEAVY));
+        fillPlayerSkillSlot(state, 2, attackProfile.airLight(),
+                runtimeState.getAttackCooldown(LegacyShipAttackKind.AIR_LIGHT),
+                morphAttackDelay(profile, LegacyShipAttackKind.AIR_LIGHT));
+        fillPlayerSkillSlot(state, 3, attackProfile.airHeavy(),
+                runtimeState.getAttackCooldown(LegacyShipAttackKind.AIR_HEAVY),
+                morphAttackDelay(profile, LegacyShipAttackKind.AIR_HEAVY));
+        boolean hasSpecial = hasSpecialSkill(profile);
+        fillPlayerSkillSlot(state, 4, hasSpecial || attackProfile.melee(),
+                hasSpecial ? runtimeState.getSpecialCooldown() : runtimeState.getAttackCooldown(LegacyShipAttackKind.MELEE),
+                hasSpecial ? morphSpecialPreviewCooldown(profile) : morphAttackDelay(profile, LegacyShipAttackKind.MELEE));
+    }
+
+    private static void fillPlayerSkillSlot(PlayerSkillRuntimeState state, int slot, boolean enabled, int cooldown, int maxCooldown) {
+        state.setSlotEnabled(slot, enabled);
+        state.setSlotCooldown(slot, enabled ? cooldown : 0);
+        state.setSlotMaxCooldown(slot, enabled ? maxCooldown : 0);
+    }
+
+    private static int morphAttackDelay(MorphProfile profile, LegacyShipAttackKind attackKind) {
+        return LegacyShipCombatHelper.attackDelay(profile.buildStats(List.of()), profile.buildBehaviorState(), attackKind);
+    }
+
+    private static int morphSpecialPreviewCooldown(MorphProfile profile) {
+        MorphSpecialBehavior behavior = resolveSpecialBehavior(profile);
+        if (behavior == null) {
+            return 0;
+        }
         return switch (profile.getLegacyClassId()) {
-            case 58, 2058, 59, 2059 -> true;
+            case 60, 2060, 61, 2061 -> 140;
+            case 62, 2062, 63, 2063, 64, 2064, 65, 2065 -> 150;
+            default -> behavior.previewCooldown(profile);
+        };
+    }
+
+    private static boolean performShipSlotSkill(ServerPlayer player,
+                                                LegacyShipEntity ship,
+                                                int slot,
+                                                @Nullable LivingEntity target,
+                                                @Nullable BlockPos blockPos) {
+        LegacyShipAttackKind attackKind = switch (slot) {
+            case 0 -> LegacyShipAttackKind.LIGHT;
+            case 1 -> LegacyShipAttackKind.HEAVY;
+            case 2 -> LegacyShipAttackKind.AIR_LIGHT;
+            case 3 -> LegacyShipAttackKind.AIR_HEAVY;
+            default -> null;
+        };
+        if (attackKind == null || target == null) {
+            return false;
+        }
+        if (!ship.supportsCompatAttack(attackKind)
+                || ship.getCompatAttackCooldown(attackKind) > 0
+                || !ship.canEngage(target)
+                || !ship.isTargetInCompatRange(target, attackKind)) {
+            return false;
+        }
+        if (!ship.performPlayerCompatAttack(target, attackKind)) {
+            return false;
+        }
+
+        TeitokuHelper.syncGameplayState(player);
+        return true;
+    }
+
+    private static boolean performMorphSlotSkill(ServerPlayer player,
+                                                 MorphProfile profile,
+                                                 int slot,
+                                                 @Nullable LivingEntity target) {
+        return switch (slot) {
+            case 0 -> target != null && performCompatAttack(player, LegacyShipAttackKind.LIGHT, target.getId());
+            case 1 -> target != null && performCompatAttack(player, LegacyShipAttackKind.HEAVY, target.getId());
+            case 2 -> target != null && performCompatAttack(player, LegacyShipAttackKind.AIR_LIGHT, target.getId());
+            case 3 -> target != null && performCompatAttack(player, LegacyShipAttackKind.AIR_HEAVY, target.getId());
+            case 4 -> hasSpecialSkill(profile)
+                    ? performCompatSpecial(player, target != null ? target.getId() : -1)
+                    : target != null && performCompatAttack(player, LegacyShipAttackKind.MELEE, target.getId());
             default -> false;
         };
+    }
+
+    private static boolean isWithinMorphAttackRange(ServerPlayer player,
+                                                    LegacyShipStats stats,
+                                                    ShipEquipmentBehaviorState behaviorState,
+                                                    LegacyShipAttackKind attackKind,
+                                                    LivingEntity target) {
+        double maxRange;
+        if (attackKind == LegacyShipAttackKind.MELEE) {
+            maxRange = 3.25D;
+        } else {
+            double behaviorBonus = behaviorState.surfaceRadarLevel() * 1.1F
+                    + behaviorState.airRadarLevel() * 0.9F
+                    + behaviorState.fcsLevel() * 1.2F
+                    + behaviorState.searchlightLevel() * 0.4F;
+            maxRange = Math.max(3.0D, stats.attackRange() + behaviorBonus);
+        }
+        return player.distanceToSqr(target) <= maxRange * maxRange;
+    }
+
+    private static @Nullable MorphSpecialBehavior resolveSpecialBehavior(@Nullable MorphProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        return SPECIAL_BEHAVIORS.get(profile.getLegacyClassId());
     }
 
     private static boolean canEngage(Player player, MorphProfile profile, LivingEntity target) {
@@ -532,6 +769,22 @@ public final class MorphHelper {
         }
     }
 
+    private static MorphSpecialResult performTenryuuSpecialWithCooldown(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        return new MorphSpecialResult(performTenryuuSpecial(player, profile, primaryTarget), 120);
+    }
+
+    private static MorphSpecialResult performTatsutaSpecialWithCooldown(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        return new MorphSpecialResult(performTatsutaSpecial(player, profile, primaryTarget), 120);
+    }
+
+    private static MorphSpecialResult performHeavyCruiserSpecialWithCooldown(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        return new MorphSpecialResult(performHeavyCruiserSpecial(player, profile, primaryTarget), 140);
+    }
+
+    private static MorphSpecialResult performKongouClassSpecialWithCooldown(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        return new MorphSpecialResult(performKongouClassSpecial(player, profile, primaryTarget), 150);
+    }
+
     private static boolean performTenryuuSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
         Vec3 dash = primaryTarget.position().subtract(player.position());
         if (dash.lengthSqr() > 1.0E-4D) {
@@ -564,6 +817,40 @@ public final class MorphHelper {
 
         CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.HIT_EXPLOSION,
                 primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.5D, primaryTarget.getZ());
+        return hit;
+    }
+
+    private static boolean performHeavyCruiserSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        List<LivingEntity> targets = collectSpecialTargets(player, profile, primaryTarget, 5.5D, 4);
+        boolean hit = false;
+        for (LivingEntity target : targets) {
+            if (applySpecialAttack(player, profile, target, LegacyShipAttackKind.HEAVY, target == primaryTarget ? 1.55F : 1.15F, true)) {
+                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true, true));
+                hit = true;
+            }
+        }
+
+        CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.MISSILE_IMPACT,
+                primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.5D, primaryTarget.getZ());
+        return hit;
+    }
+
+    private static boolean performKongouClassSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
+        List<LivingEntity> targets = collectSpecialTargets(player, profile, primaryTarget, 7.0D, 5);
+        boolean hit = false;
+        for (int index = 0; index < targets.size(); index++) {
+            LivingEntity target = targets.get(index);
+            boolean heavyHit = applySpecialAttack(player, profile, target, LegacyShipAttackKind.HEAVY,
+                    index == 0 ? 1.7F : 1.25F, true);
+            boolean lightHit = applySpecialAttack(player, profile, target, LegacyShipAttackKind.LIGHT,
+                    index == 0 ? 1.2F : 0.95F, false);
+            hit |= heavyHit || lightHit;
+        }
+
+        CombatFxDispatcher.sendParticle(player, GameplayParticleType.LAUNCH_SMOKE,
+                player.getX(), player.getY() + player.getBbHeight() * 0.7D, player.getZ());
+        CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.MISSILE_IMPACT,
+                primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.55D, primaryTarget.getZ());
         return hit;
     }
 
@@ -660,5 +947,17 @@ public final class MorphHelper {
         return TeitokuHelper.get(player)
                 .map(data -> data.getMorphRuntimeState().getSelectedClassId())
                 .orElse(0);
+    }
+
+    private interface MorphSpecialBehavior {
+
+        MorphSpecialResult cast(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget);
+
+        default int previewCooldown(MorphProfile profile) {
+            return 120;
+        }
+    }
+
+    private record MorphSpecialResult(boolean triggered, int cooldown) {
     }
 }

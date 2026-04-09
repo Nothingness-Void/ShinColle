@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
@@ -11,6 +12,13 @@ import com.lulan.shincolle.blockentity.LargeShipyardStructureHelper;
 import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
+import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
+import com.lulan.shincolle.crafting.SmallShipyardRecipes;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
+import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -18,19 +26,32 @@ import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
+import com.lulan.shincolle.morph.MorphHelper;
+import com.lulan.shincolle.morph.MorphHostMode;
+import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
 import com.lulan.shincolle.registry.ModBlocks;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.team.TeamSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.world.HostileEncounterSpawner;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.items.IItemHandler;
@@ -498,7 +519,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void legacyLargeShipyardPatternMatches(GameTestHelper helper) {
-        BlockPos master = new BlockPos(1, 4, 1);
+        BlockPos master = helper.absolutePos(new BlockPos(1, 4, 1));
         helper.getLevel().setBlock(master, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
         for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(master)) {
             helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -520,7 +541,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void heavyGrudgeSwitchesFromCoreToShipyard(GameTestHelper helper) {
-        BlockPos master = new BlockPos(1, 4, 1);
+        BlockPos master = helper.absolutePos(new BlockPos(1, 4, 1));
         helper.getLevel().setBlock(master, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
 
         if (!(helper.getLevel().getBlockEntity(master) instanceof HeavyGrudgeBlockEntity heavy)) {
@@ -554,7 +575,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void polymetalServantProxiesMasterInventory(GameTestHelper helper) {
-        BlockPos master = new BlockPos(1, 4, 1);
+        BlockPos master = helper.absolutePos(new BlockPos(1, 4, 1));
         helper.getLevel().setBlock(master, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
         for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(master)) {
             helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -662,6 +683,274 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void projectileProfilesMatchShipRoles(GameTestHelper helper) {
+        LegacyShipAttackProfile kongou = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(62));
+        LegacyShipAttackProfile kongouHostileMirror = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(2062));
+        LegacyShipAttackProfile akagi = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(50));
+        LegacyShipAttackProfile wo = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(14));
+        LegacyShipAttackProfile airfield = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(23));
+
+        if (kongou.projectileProfile(LegacyShipAttackKind.HEAVY).visual() != LegacyShipProjectileVisual.MISSILE
+                || kongou.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.ARC) {
+            helper.fail("friendly battleships should keep the legacy heavy missile barrage arc");
+            return;
+        }
+        if (kongouHostileMirror.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
+            helper.fail("hostile mirror battleships should override the default heavy launch into guided barrages");
+            return;
+        }
+        if (akagi.projectileProfile(LegacyShipAttackKind.AIR_HEAVY).visual() != LegacyShipProjectileVisual.TORPEDO) {
+            helper.fail("friendly carriers should use torpedo-family visuals for heavy air strikes");
+            return;
+        }
+        if (wo.projectileProfile(LegacyShipAttackKind.AIR_HEAVY).visual() != LegacyShipProjectileVisual.BOMB
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
+            helper.fail("abyssal carriers and installations should use bomber or guided installation overrides");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void projectileEntitySaveLoadKeepsFlavor(GameTestHelper helper) {
+        LegacyShipEntity owner = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity target = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (owner == null || target == null) {
+            helper.fail("legacy ship entities should be creatable for projectile tests");
+            return;
+        }
+
+        owner.setVariantEggMeta(50);
+        target.setVariantEggMeta(23);
+        owner.setPos(1.0D, 2.0D, 1.0D);
+        target.setPos(10.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(owner);
+        helper.getLevel().addFreshEntity(target);
+
+        owner.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPFLARE.get()));
+        owner.getShipInventory().setItem(1, new ItemStack(ModItems.EQUIPSEARCHLIGHT.get()));
+        owner.getShipInventory().setItem(2, new ItemStack(ModItems.EQUIPCATAPULT_ITEMS.get(3).get()));
+
+        LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(helper.getLevel(), owner, target,
+                LegacyShipAttackKind.AIR_HEAVY, 12.0F, false);
+        CompoundTag tag = new CompoundTag();
+        projectile.addAdditionalSaveData(tag);
+
+        LegacyShipProjectileEntity loaded = new LegacyShipProjectileEntity(ModEntityTypes.LEGACY_SHIP_PROJECTILE.get(), helper.getLevel());
+        loaded.readAdditionalSaveData(tag);
+
+        if (loaded.getAttackKind() != LegacyShipAttackKind.AIR_HEAVY
+                || loaded.getProjectileVisual() != LegacyShipProjectileVisual.TORPEDO
+                || loaded.getMoveType() != LegacyShipProjectileMoveType.DIRECT
+                || loaded.getIntendedTargetId() != target.getId()
+                || !loaded.hasFlarePayload()
+                || !loaded.hasSearchlightPayload()) {
+            helper.fail("projectile save/load should preserve legacy launch flavor, target, and illumination flags");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void playerSkillRuntimeStateSaveLoadKeepsFiveSlotSnapshot(GameTestHelper helper) {
+        PlayerSkillRuntimeState runtimeState = new PlayerSkillRuntimeState();
+        runtimeState.setVisible(true);
+        runtimeState.setHostMode(MorphHostMode.MOUNT);
+        runtimeState.setHostShipUid(345);
+        runtimeState.setHostClassId(62);
+        runtimeState.setSlotEnabled(0, true);
+        runtimeState.setSlotEnabled(1, true);
+        runtimeState.setSlotEnabled(4, true);
+        runtimeState.setSlotCooldown(0, 17);
+        runtimeState.setSlotCooldown(4, 90);
+        runtimeState.setSlotMaxCooldown(0, 45);
+        runtimeState.setSlotMaxCooldown(4, 150);
+
+        CompoundTag tag = runtimeState.saveToTag(new CompoundTag());
+        PlayerSkillRuntimeState loaded = new PlayerSkillRuntimeState();
+        loaded.loadFromTag(tag);
+
+        if (!loaded.isVisible()
+                || loaded.getHostMode() != MorphHostMode.MOUNT
+                || loaded.getHostShipUid() != 345
+                || loaded.getHostClassId() != 62
+                || !loaded.isSlotEnabled(0)
+                || loaded.isSlotEnabled(3)
+                || loaded.getSlotCooldown(0) != 17
+                || loaded.getSlotCooldown(4) != 90
+                || loaded.getSlotMaxCooldown(4) != 150) {
+            helper.fail("player skill runtime state should preserve host mode, enabled mask, and five-slot cooldown snapshots");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void morphSpecialDispatchCoversCruiserAndKongouClasses(GameTestHelper helper) {
+        if (!MorphHelper.hasSpecialSkill(new MorphProfile(58))
+                || !MorphHelper.hasSpecialSkill(new MorphProfile(59))
+                || !MorphHelper.hasSpecialSkill(new MorphProfile(60))
+                || !MorphHelper.hasSpecialSkill(new MorphProfile(61))
+                || !MorphHelper.hasSpecialSkill(new MorphProfile(62))
+                || !MorphHelper.hasSpecialSkill(new MorphProfile(65))
+                || MorphHelper.hasSpecialSkill(new MorphProfile(49))) {
+            helper.fail("morph special dispatch should include Tenryuu, Tatsuta, Takao-class, and Kongou-class profiles without granting carriers a false special");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void growthEntryRecipesResolveAndCraft(GameTestHelper helper) {
+        assertCrafts(helper, "deskitembook", new ItemStack(ModItems.DESKITEMBOOK.get()),
+                stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()),
+                stack(ModItems.GRUDGE.get()), stack(Items.WRITABLE_BOOK), stack(ModItems.GRUDGE.get()),
+                stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()));
+        assertCrafts(helper, "deskitemradar", new ItemStack(ModItems.DESKITEMRADAR.get()),
+                stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()),
+                stack(ModItems.GRUDGE.get()), stack(Items.COMPASS), stack(ModItems.GRUDGE.get()),
+                stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()));
+        assertCrafts(helper, "blockdesk", new ItemStack(ModBlocks.BLOCK_DESK.get()),
+                stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.WHITE_WOOL),
+                stack(Items.OBSIDIAN), stack(Items.OBSIDIAN), stack(Items.OBSIDIAN),
+                stack(Items.OBSIDIAN), ItemStack.EMPTY, stack(Items.OBSIDIAN));
+        assertCrafts(helper, "blocksmallshipyard", new ItemStack(ModBlocks.BLOCK_SMALL_SHIPYARD.get()),
+                stack(ModItems.GRUDGE.get()), stack(Items.LAVA_BUCKET), stack(ModItems.GRUDGE.get()),
+                stack(Items.LAVA_BUCKET), stack(Items.OBSIDIAN), stack(Items.LAVA_BUCKET),
+                stack(Items.OBSIDIAN), stack(Items.OBSIDIAN), stack(Items.OBSIDIAN));
+        assertCrafts(helper, "pointeritem", new ItemStack(ModItems.POINTERITEM.get()),
+                ItemStack.EMPTY, ItemStack.EMPTY, stack(ModBlocks.BLOCK_GRUDGE.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL1.get()), ItemStack.EMPTY,
+                stack(ModItems.ABYSSMETAL1.get()), ItemStack.EMPTY, ItemStack.EMPTY);
+        assertCrafts(helper, "targetwrench", new ItemStack(ModItems.TARGETWRENCH.get()),
+                stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()),
+                stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY);
+        assertCrafts(helper, "blockwaypoint", new ItemStack(ModBlocks.BLOCK_WAYPOINT.get(), 16),
+                stack(ModItems.GRUDGE.get()), stack(Items.STICK));
+        assertCrafts(helper, "ownerpaper", new ItemStack(ModItems.OWNERPAPER.get()),
+                stack(ModItems.GRUDGE.get()), stack(Items.PAPER));
+        assertCrafts(helper, "recipepaper", new ItemStack(ModItems.RECIPEPAPER.get()),
+                stack(ModItems.GRUDGE.get()), stack(Items.PAPER), stack(Items.LAPIS_LAZULI));
+        assertCrafts(helper, "bucketrepair", new ItemStack(ModItems.BUCKETREPAIR.get()),
+                stack(Items.LAVA_BUCKET), stack(ModItems.GRUDGE.get()));
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void combatRationCookedMeatTagOnlyAcceptsCookedInputs(GameTestHelper helper) {
+        assertCrafts(helper, "combatration2", new ItemStack(ModItems.COMBATRATION2.get()),
+                stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT),
+                stack(Items.COOKED_BEEF), stack(ModItems.GRUDGE.get()), stack(Items.GOLDEN_CARROT),
+                stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT));
+
+        TransientCraftingContainer rawBeefInput = craftingGrid(
+                stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT),
+                stack(Items.BEEF), stack(ModItems.GRUDGE.get()), stack(Items.GOLDEN_CARROT),
+                stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT));
+        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, rawBeefInput, helper.getLevel()).isPresent()) {
+            helper.fail("combatration2 should reject raw meat inputs");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void growthLoopBuildsSmallEggAndBossGate(GameTestHelper helper) {
+        int[] materials = {SmallShipyardRecipes.MIN_AMOUNT, SmallShipyardRecipes.MIN_AMOUNT,
+                SmallShipyardRecipes.MIN_AMOUNT, SmallShipyardRecipes.MIN_AMOUNT};
+        if (!SmallShipyardRecipes.canRecipeBuild(materials)) {
+            helper.fail("minimum growth-loop materials should satisfy small shipyard requirements");
+            return;
+        }
+
+        ItemStack egg = SmallShipyardRecipes.createShipEgg(materials);
+        if (!egg.is(ModItems.SHIPSPAWNEGG_ITEMS.get(0).get())) {
+            helper.fail("small shipyard should output the small ship egg");
+            return;
+        }
+        if (!LegacyShipConstructionHelper.hasConstructionRecipe(egg)) {
+            helper.fail("small shipyard egg should carry construction material tags");
+            return;
+        }
+        int[] stored = LegacyShipConstructionHelper.readMaterialAmounts(egg);
+        for (int i = 0; i < materials.length; i++) {
+            if (stored[i] != materials[i]) {
+                helper.fail("small egg should preserve construction material amounts");
+                return;
+            }
+        }
+
+        TeitokuData data = new TeitokuData();
+        if (HostileEncounterSpawner.canRollBossEncounter(data)) {
+            helper.fail("boss encounters should stay locked before the admiral deploys a ship");
+            return;
+        }
+        data.addCollectedShip(2);
+        if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
+            helper.fail("boss encounters should unlock after the first friendly ship is collected");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hostileEncounterTableHonorsBossFlag(GameTestHelper helper) {
+        RandomSource noBossRandom = RandomSource.create(911L);
+        for (int i = 0; i < 64; i++) {
+            var profile = com.lulan.shincolle.world.HostileEncounterTable.pick(
+                    noBossRandom, net.minecraft.world.Difficulty.HARD, true, false);
+            if (profile.boss()) {
+                helper.fail("encounter table should not produce boss profiles when boss rolls are disabled");
+                return;
+            }
+        }
+
+        RandomSource bossRandom = RandomSource.create(37L);
+        boolean foundBoss = false;
+        for (int i = 0; i < 128; i++) {
+            if (com.lulan.shincolle.world.HostileEncounterTable.pick(
+                    bossRandom, net.minecraft.world.Difficulty.HARD, true, true).boss()) {
+                foundBoss = true;
+                break;
+            }
+        }
+        if (!foundBoss) {
+            helper.fail("encounter table should still be able to produce boss profiles after the growth gate unlocks");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void progressionAdvancementsLoadAndFriendlyShipTriggerAwards(GameTestHelper helper) {
+        Advancement deployAdvancement = helper.getLevel().getServer().getAdvancements()
+                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/deploy_first_ship"));
+        Advancement bossAdvancement = helper.getLevel().getServer().getAdvancements()
+                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/ocean_boss_encounter"));
+        if (deployAdvancement == null || bossAdvancement == null) {
+            helper.fail("expected progression advancements to load into the server advancement manager");
+            return;
+        }
+
+        var trigger = CriteriaTriggers.getCriterion(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId());
+        if (trigger == null || !trigger.getId().equals(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId())) {
+            helper.fail("friendly ship deployment trigger should be registered in the vanilla criterion registry");
+            return;
+        }
+
+        helper.succeed();
+    }
+
     private static JsonObject loadJsonResource(String resourcePath) {
         try (InputStream stream = GameplayParityGameTests.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (stream == null) {
@@ -672,6 +961,54 @@ public final class GameplayParityGameTests {
             }
         } catch (Exception exception) {
             return null;
+        }
+    }
+
+    private static void assertCrafts(GameTestHelper helper, String recipePath, ItemStack expected, ItemStack... inputs) {
+        TransientCraftingContainer grid = craftingGrid(inputs);
+        ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, recipePath);
+        var recipe = helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, grid, helper.getLevel());
+        if (recipe.isEmpty()) {
+            helper.fail("expected recipe to resolve: " + recipeId);
+            return;
+        }
+        if (!recipe.get().getId().equals(recipeId)) {
+            helper.fail("resolved wrong recipe for " + recipeId + ": " + recipe.get().getId());
+            return;
+        }
+
+        ItemStack result = recipe.get().assemble(grid, helper.getLevel().registryAccess());
+        if (!ItemStack.isSameItemSameTags(result, expected) || result.getCount() != expected.getCount()) {
+            helper.fail("recipe " + recipeId + " returned " + result + " instead of " + expected);
+        }
+    }
+
+    private static TransientCraftingContainer craftingGrid(ItemStack... inputs) {
+        TransientCraftingContainer grid = new TransientCraftingContainer(new DummyCraftingMenu(), 3, 3);
+        for (int slot = 0; slot < Math.min(9, inputs.length); slot++) {
+            grid.setItem(slot, inputs[slot].copy());
+        }
+        return grid;
+    }
+
+    private static ItemStack stack(net.minecraft.world.level.ItemLike item) {
+        return new ItemStack(item);
+    }
+
+    private static final class DummyCraftingMenu extends AbstractContainerMenu {
+
+        private DummyCraftingMenu() {
+            super(MenuType.GENERIC_9x1, -1);
+        }
+
+        @Override
+        public ItemStack quickMoveStack(Player player, int index) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public boolean stillValid(Player player) {
+            return true;
         }
     }
 }

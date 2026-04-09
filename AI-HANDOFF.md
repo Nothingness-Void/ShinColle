@@ -1,147 +1,126 @@
 # ShinColle AI Handoff
 
-这份文档给新的 AI 快速接手当前 1.20.1 迁移进度用。
+更新时间：2026-04-10
 
 先读：
 - `PORTING-MISTAKES.md`
 - `PORTING-1.20.1.md`
 - `MIGRATION-FLOW-CHECKLIST.md`
 
-## 当前总原则
+## 当前基线
 
-- 优先参考旧版 `src/main/java`，不要闭门造车。
-- 新功能迁移顺序要沿旧版依赖链走，先补基础框架，再补上层 GUI / AI / 玩法。
-- 对小贴图、小姿态问题不要反复打断大框架迁移，除非会阻塞验证。
-
-## 当前已经立住的大框架
-
-- 现代注册层、资源复用、声音层已经可用。
-- `desk`、`waypoint`、`crane`、`small shipyard` 已有现代 block entity / menu / screen / 持久化基线。
-- 舰娘实体已经有现代通用实体、生成蛋、归属、GUI、装备槽、基础战斗与第一批旧版数值链。
-- 小型船坞已经恢复旧式 `4 材料 + 1 燃料 + 1 输出` 建造主循环。
-
-## 这一批最新完成的关键点
-
-- 新增旧版驱动的提督能力基线：
-  - `src/modern/java/com/lulan/shincolle/teitoku/TeitokuData.java`
-  - `src/modern/java/com/lulan/shincolle/teitoku/TeitokuDataProvider.java`
-  - `src/modern/java/com/lulan/shincolle/teitoku/TeitokuSavedData.java`
-  - `src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java`
-  - `src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java`
-- 新增现代网络骨架：
-  - `src/modern/java/com/lulan/shincolle/network/ModNetwork.java`
-  - `src/modern/java/com/lulan/shincolle/network/ClientboundSyncTeitokuDataPacket.java`
-- 这批 Teitoku 已恢复的旧版字段：
-  - `playerName`
-  - `playerUID`
-  - `hasRing`
-  - `ringActive`
-  - `ringFlying`
-  - `marriageNum`
-  - `bossCooldown`
-  - `teamCooldown`
-  - `collectedShips`
-  - `collectedEquipment`
-  - `targetClasses`
-- 已接入同步时机：
-  - 登录
-  - 重生
-  - 切维度
-- 已接入玩法入口：
-  - `MarriageRingItem` 会回写提督戒指状态
-  - `LegacyShipEntity` 婚舰时会增加 marriage count 并登记 ship collection
-  - `LegacyShipSpawnEggItem` 生成友方舰娘时会登记 ship collection
-
-## owner / UID 迁移现状
-
-- 旧版很多系统不是只靠 `UUID`，而是靠 `playerUID` 跑：
-  - 队伍
-  - 编队
-  - target class
-  - 舰娘/航点/起重机/船坞归属
-- 当前现代 owner 基线已经从 `UUID + name` 扩到 `UUID + name + playerUID`：
-  - `src/modern/java/com/lulan/shincolle/ownership/PlayerOwnerData.java`
-- 已接回 `OwnerUID` 持久化的现代对象：
-  - `src/modern/java/com/lulan/shincolle/blockentity/WaypointBlockEntity.java`
-  - `src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java`
-  - `src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java`
-  - `src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java`
-
-## 下一步最应该继续啃的主线
-
-不要回去修零碎表现问题，优先继续旧版框架链：
-
-1. `team data`
-- 参考旧版：
-  - `src/main/java/com/lulan/shincolle/proxy/ServerProxy.java`
-  - `src/main/java/com/lulan/shincolle/utility/TeamHelper.java`
-  - `src/main/java/com/lulan/shincolle/reference/dataclass/TeamData.java`
-- 目标：
-  - 把基于 `playerUID` 的队伍数据重新挂回现代 saved data / capability 体系
-
-2. `formation`
-- 参考旧版：
-  - `src/main/java/com/lulan/shincolle/utility/FormationHelper.java`
-  - `src/main/java/com/lulan/shincolle/client/gui/GuiFormation.java`
-- 目标：
-  - 让当前舰娘旧式数值链真正能消费 formation，而不是只有 placeholder
-
-3. `target class`
-- 参考旧版：
-  - `src/main/java/com/lulan/shincolle/capability/CapaTeitoku.java`
-  - `src/main/java/com/lulan/shincolle/proxy/ServerProxy.java`
-  - `src/main/java/com/lulan/shincolle/utility/TargetHelper.java`
-  - `src/main/java/com/lulan/shincolle/client/gui/GuiDesk.java`
-- 目标：
-  - 先补 server-side target-class 数据操作与同步
-  - 再补 desk / ship GUI 上层编辑入口
-
-4. `ship GUI command packets`
-- 参考旧版：
-  - `src/main/java/com/lulan/shincolle/utility/PacketHelper.java`
-  - `src/main/java/com/lulan/shincolle/network/*`
-  - `src/main/java/com/lulan/shincolle/client/gui/GuiShipInventory.java`
-  - `src/main/java/com/lulan/shincolle/client/gui/inventory/ContainerMorphInventory.java`
-- 目标：
-  - 在现在已有的 `SimpleChannel` 上继续补 serverbound ship command / desk command 这类包
-
-## 现在不要误判的几件事
-
-- 现代 `SimpleChannel` 已经不是未开始，而是 `Partial`。
-- 提督 / Admiral 数据已经不是未开始，而是 `Partial`。
-- owner 体系已经不是单纯 `UUID-only` 了，`playerUID` 已经开始回来了。
-- 当前舰娘实体和战斗仍然是“旧版主链的第一批恢复”，不是最终完整实现。
-
-## 构建与验证
-
-- Java 必须用 JDK 17：
-  - `C:\Program Files\Java\jdk-17.0.3.1`
-- 最低编译验证：
+- 实际参与构建的是 `src/modern/java` 和 `src/modern/resources`。
+- `src/main/java` 继续作为 legacy 参考实现，不是当前构建主线。
+- 已验证 JDK 17 构建与 GameTest 基线：
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Java\jdk-17.0.3.1'
+$env:JAVA_HOME='C:\Program Files\Java\jdk-17'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
-./gradlew compileJava processResources
+.\gradlew.bat compileJava processResources runGameTestServer
 ```
 
-- 当前这批代码已经通过上面的编译验证。
-- 这次提交前没有重新做客户端运行冒烟；重点是先把大框架落盘并提交。
+- 结果：
+  - `BUILD SUCCESSFUL`
+  - `All 30 required tests passed`
+- 还没有重新做一轮客户端手工冒烟，所以“测试已绿”不等于“所有 HUD / 粒子 / 交互都已实机确认”。
 
-## 交接时优先看的现代文件
+## 已经落地并接线的主线
 
-- 模组入口：
-  - `src/modern/java/com/lulan/shincolle/ShinColle.java`
-- 提督数据：
-  - `src/modern/java/com/lulan/shincolle/teitoku/*`
-  - `src/modern/java/com/lulan/shincolle/network/*`
-- owner/UID：
-  - `src/modern/java/com/lulan/shincolle/ownership/PlayerOwnerData.java`
-- 舰娘实体：
-  - `src/modern/java/com/lulan/shincolle/entity/ship/*`
-- 船坞：
-  - `src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java`
-  - `src/modern/java/com/lulan/shincolle/crafting/SmallShipyardRecipes.java`
+- `Teitoku + playerUID + owner UID`
+- `TeamSavedData / formation runtime / target-class sync`
+- `gameplay command/state packets`
+- `desk / formation / ship inventory` 控制闭环
+- `large shipyard / heavy grudge` 结构与能量基线
+- `hostile encounter / chest loot / world combat rules`
+- `growth loop` 生存链：关键配方、宝箱入口、boss 首舰门槛
+- `advancement` 新手链：从 polymetal / grudge 一直到 first ship 与 boss unlock
+- `projectile parity`：heavy / air attack 的投射物语义、视觉、粒子、reaction
+- `GameplayParityGameTests` 已覆盖 team、morph、shipyard、growth loop、advancement、projectile、playerskill runtime 等关键链路
 
-## 交接一句话总结
+## 这一批新增确认
 
-当前仓库已经过了“能启动、能放几个物品”的阶段，正在把旧版 `playerUID -> team/formation/target class -> ship/desk GUI -> combat/runtime` 这条真正的大依赖链一段段接回 1.20.1。
+- 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
+- `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
+  - visible
+  - host mode
+  - 5 槽 enabled mask
+  - 5 槽 cooldown / max cooldown snapshot
+  - host ship uid / class id
+- 客户端玩家技能输入恢复为旧热栏思路：
+  - `1~5` 为主技能槽
+  - `Z / X / C` 保留为快捷键
+  - `G` 继续开 morph inventory
+  - `Shift + G` 继续切换 morph mount
+- HUD 已从旧的文字行改成 5 槽技能条。
+- 宿主解析已经统一：
+  - `rider host`：玩家骑乘自家 ship，直接走 ship 自己的攻击和 cooldown
+  - `morph host`
+  - `mount host`
+- morph slot 语义：
+  - `1=light`
+  - `2=heavy`
+  - `3=air light`
+  - `4=air heavy`
+  - `5=special；没有 special 时回退 melee`
+- rider slot 语义：
+  - `1=light`
+  - `2=heavy`
+  - `3=air light`
+  - `4=air heavy`
+  - `5=disabled`
+- morph special 分发表不再只剩天龙 / 龙田：
+  - `58 / 2058` Tenryuu
+  - `59 / 2059` Tatsuta
+  - `60 / 2060 / 61 / 2061` Takao-class heavy cruiser group
+  - `62 / 2062 / 63 / 2063 / 64 / 2064 / 65 / 2065` Kongou-class group
+- intermod 现在有 soft bridge 骨架：
+  - mod presence 检测
+  - bridge loader
+  - sync / reset / future attack delegation hook 点
+  - 还没有真实 Metamorph API 接入
+
+## 已验证事实
+
+- `compileJava`
+- `processResources`
+- `runGameTestServer`
+- advancement 资源加载正常
+- `friendly_ship_deployed` trigger 已注册
+- 5 槽 playerskill runtime state 的 save/load 已有回归测试
+- extended morph special dispatch 已有回归测试
+
+## 仍未完成的内容
+
+- 客户端手工冒烟还没重跑：
+  - rider host 技能条
+  - morph / mount host 技能条
+  - 1~5 与 `Z/X/C` 输入体验
+  - projectile FX + reaction presentation
+- `recipe` 仍是可玩优先的 vanilla-first 基线，不是 full legacy ore-dict parity。
+- `DeskReference` 已补说明，但还不是 full legacy 文档深度。
+- `playerskill / morph special` 已恢复主体，不等于所有 legacy 舰种 special 全回来了。
+- `MorphCompatBridge` 只是骨架，没有真实外部 API 绑定。
+
+## 下一步建议顺序
+
+1. 跑客户端手工冒烟，确认 hotbar、rider/morph/mount 切换、projectile FX、boss gate。
+2. 继续补 playerskill / morph special 的尾部舰种 parity。
+3. 继续补 recipe / reference / balance 的尾巴，但保持单人友好，不开单人专属数值分支。
+4. 如果后续真的要做 intermod，再把 soft bridge 接到真实 Metamorph API。
+
+## 关键现代文件
+
+- `src/modern/java/com/lulan/shincolle/ShinColle.java`
+- `src/modern/java/com/lulan/shincolle/teitoku/*`
+- `src/modern/java/com/lulan/shincolle/network/*`
+- `src/modern/java/com/lulan/shincolle/morph/*`
+- `src/modern/java/com/lulan/shincolle/playerskill/*`
+- `src/modern/java/com/lulan/shincolle/entity/ship/*`
+- `src/modern/java/com/lulan/shincolle/entity/projectile/*`
+- `src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java`
+- `src/modern/java/com/lulan/shincolle/client/screen/*`
+- `src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java`
+
+## 一句话总结
+
+项目现在已经从“growth loop 能跑”推进到“playerskill / morph 主体也能跑”的阶段；当前最需要的不是继续堆大迁移面，而是做一轮客户端实机确认，然后再慢慢补完剩余 special、reference 深度和真实 intermod 对接。

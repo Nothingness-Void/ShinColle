@@ -420,6 +420,13 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
         return data.isRingActive() ? "ACTIVE" : "IDLE";
     }
 
+    private String bossPatrolState(@Nullable TeitokuData data) {
+        if (data == null) {
+            return "LOCKED";
+        }
+        return data.getCollectedShips().isEmpty() ? "LOCKED" : "UNLOCKED";
+    }
+
     private String getCurrentTeamLabel(@Nullable TeitokuData data) {
         if (data == null) {
             return "-";
@@ -482,36 +489,36 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                             "Ring: " + this.ringState(data),
                             "Marriage Count: " + (data != null ? data.getMarriageNum() : 0),
                             "Collected Ships: " + (data != null ? data.getCollectedShips().size() : 0),
-                            "Unlocked Morphs: " + (data != null ? data.getMorphProfileCount() : 0)),
+                            "Unlocked Morphs: " + (data != null ? data.getMorphProfileCount() : 0),
+                            "Boss Patrols: " + this.bossPatrolState(data)),
                     List.of(
-                            "Front-page admiral record with current save progress.",
-                            "Use later chapters for fleet, diplomacy, logistics, and morph runtime summaries."))
-                    : new BookPageData("Status Ledger",
+                            "Start by mining polymetal ore/gravel and clearing ocean loot for grudge, ammo, and abyss nuggets.",
+                            "Boss encounters stay locked until you deploy your first friendly ship from a shipyard egg."))
+                    : new BookPageData("Growth Loop",
                     List.of(
-                            "Current Team: " + this.getCurrentTeamLabel(data),
-                            "Current Formation: " + this.getCurrentFormationShort(data),
-                            "Team Cooldown: " + (data != null ? data.getTeamCooldown() : 0),
-                            "Own Team: " + (data != null && data.hasTeam() ? "YES" : "NO"),
-                            "Targets: " + (data != null ? data.getTargetClassCount() : 0),
-                            "World Shield: " + this.getWorldBlockedClasses().size()),
+                            "1. Mine blockpolymetalore and gather blockpolymetalgravel for abyssmetal1.",
+                            "2. Hunt common abyssals or loot ruins for grudge, ammo, and abyss nuggets.",
+                            "3. Craft desk book + radar, then assemble blockdesk for command access.",
+                            "4. Craft blocksmallshipyard and load grudge, abyssmetal, ammo, abyssmetal1, and fuel.",
+                            "5. Build smallegg, deploy your first ship, then boss patrols can start appearing."),
                     List.of(
-                            "This page mirrors the old desk summary ledger in a compact form.",
-                            "The live terminal remains the editing surface for team operations."));
+                            "Pointer, target wrench, and waypoint become the next control layer after first deployment.",
+                            "Combat rations, ammo tiers, and ship tanks are the follow-up loop for longer sorties."));
             case 1 -> this.bookPage == 0
                     ? new BookPageData("Fleet Sheet",
                     this.buildFleetBookLines(data),
                     List.of(
                             "Teams still preserve 9 fleets x 6 slots.",
                             "Formation bonuses only apply when a fleet fields more than 4 ships."))
-                    : new BookPageData("Command Chain",
+                    : new BookPageData("Field Control",
                     List.of(
-                            "Pointer and formation UI now drive server-side command state.",
-                            "Ships remember move, guard, stop, and route assignments.",
-                            "Per-ship AI stores follow range, target, supply, and route stay toggles.",
-                            "Target classes and diplomacy feed automatic engagement filtering."),
+                            "Pointer drives single-target orders, group commands, and target-class editing.",
+                            "Target Wrench pairs waypoint, crane, chest, tank, core, and shipyard endpoints.",
+                            "Ships remember move, guard, stop, supply, and route stay assignments.",
+                            "Deploying a ship records it in your admiral collection and unlocks later world pressure."),
                     List.of(
-                            "Use the ship GUI for direct control hints.",
-                            "Use the terminal when you need to edit whole-fleet state."));
+                            "Use ship GUI buttons for per-ship toggles, but use desk and pointer for fleet-scale setup.",
+                            "Once routes exist, logistics chapter tools keep morale, ammo, and fuel stable."));
             case 2 -> this.bookPage == 0
                     ? new BookPageData("Diplomacy",
                     List.of(
@@ -533,13 +540,14 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                             "Use them to exempt friendly or protected entities globally."));
             case 3 -> new BookPageData("Route Logistics",
                     List.of(
-                            "Waypoint supplies cargo from linked storage.",
-                            "Crane moves item cargo with per-row load/unload filters.",
-                            "Liquid mode transfers between tanks or ship tank items.",
-                            "Energy mode transfers native ShinColle charge or shipyard power.",
-                            "Transport tier affects budget, cadence, and ship energy capacity."),
+                            "Waypoint supplies cargo from linked storage and marks route staging points.",
+                            "Crane moves item cargo with per-row load/unload filters for ship upkeep loops.",
+                            "Combat ration tiers restore morale and feed longer sorties after first deployment.",
+                            "Ship tanks, liquid mode, and energy mode keep routes alive without manual babysitting.",
+                            "Vol core and heavy grudge networks become the late-game backbone for large facilities.",
+                            "Early solo flow stays on common encounters until your first friendly ship is deployed."),
                     List.of(
-                            "Target Wrench can now pair route nodes with containers, tanks, cores, or shipyards.",
+                            "Target Wrench can pair route nodes with containers, tanks, cores, or shipyards.",
                             "Energy mode 1 loads to ship, mode 2 unloads to facility."));
             case 4 -> new BookPageData("Morph Runtime",
                     List.of(
@@ -552,7 +560,9 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                     List.of(
                             "Target Wrench right click opens morph inventory.",
                             "Left click your own ship unlocks or selects its morph.",
-                            "Tenryuu and Tatsuta currently carry the restored special skills."));
+                            "Player skills now use the old 1~5 hotbar layout, with Z/X/C kept as quick shortcuts.",
+                            "Rider host uses ship cooldowns; morph and mount hosts use morph cooldowns.",
+                            "Tenryuu, Tatsuta, Takao-class, and Kongou-class now carry restored special variants."));
             default -> new BookPageData("Appendix", List.of("No page."), List.of("-"));
         };
     }
