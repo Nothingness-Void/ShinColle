@@ -1,0 +1,32 @@
+{
+  "parent": "shincolle:progression/place_desk",
+  "display": {
+    "icon": {
+      "item": "shincolle:blocksmallshipyard"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.build_small_shipyard.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.build_small_shipyard.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "place_small_shipyard": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:blocksmallshipyard"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

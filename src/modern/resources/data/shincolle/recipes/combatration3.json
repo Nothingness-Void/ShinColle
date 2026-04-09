@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "food",
+  "group": "shincolle_rations",
+  "ingredients": [
+    {
+      "item": "shincolle:combatration2"
+    },
+    {
+      "item": "shincolle:blockgrudge"
+    },
+    {
+      "item": "shincolle:blockpolymetalgravel"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:combatration3"
+  }
+}

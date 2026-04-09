@@ -1,6 +1,7 @@
 package com.lulan.shincolle;
 
 import com.mojang.logging.LogUtils;
+import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.client.renderer.blockentity.DeskBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.blockentity.SmallShipyardBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipProjectileRenderer;
@@ -66,6 +67,7 @@ public class ShinColle {
         ModMenus.MENUS.register(modEventBus);
         ModSoundEvents.SOUND_EVENTS.register(modEventBus);
         ModCreativeModeTabs.TABS.register(modEventBus);
+        ModCriteriaTriggers.init();
         ModNetwork.register();
         MinecraftForge.EVENT_BUS.register(this);
     }

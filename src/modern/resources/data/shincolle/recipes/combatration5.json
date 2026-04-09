@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "food",
+  "group": "shincolle_rations",
+  "ingredients": [
+    {
+      "item": "shincolle:combatration4"
+    },
+    {
+      "item": "shincolle:blockgrudge"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:combatration5"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_entry",
+  "key": {
+    "g": {
+      "item": "shincolle:blockgrudge"
+    },
+    "p": {
+      "item": "shincolle:abyssmetal1"
+    }
+  },
+  "pattern": [
+    "  g",
+    " p ",
+    "p  "
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:pointeritem"
+  }
+}

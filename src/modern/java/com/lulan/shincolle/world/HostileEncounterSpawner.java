@@ -4,6 +4,7 @@ import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
+import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -71,9 +72,11 @@ public final class HostileEncounterSpawner {
         }
 
         boolean bossNearby = nearby.stream().anyMatch(LegacyShipEntity::isBossEncounter);
-        int bossCooldown = TeitokuHelper.get(player).map(data -> data.getBossCooldown()).orElse(0);
+        TeitokuData teitokuData = TeitokuHelper.get(player).resolve().orElse(null);
+        int bossCooldown = teitokuData != null ? teitokuData.getBossCooldown() : 0;
         boolean deepOcean = level.getBiome(player.blockPosition()).is(BiomeTags.IS_DEEP_OCEAN);
-        HostileSpawnProfile profile = HostileEncounterTable.pick(level.getRandom(), level.getDifficulty(), deepOcean, !bossNearby && bossCooldown <= 0);
+        boolean allowBoss = !bossNearby && bossCooldown <= 0 && canRollBossEncounter(teitokuData);
+        HostileSpawnProfile profile = HostileEncounterTable.pick(level.getRandom(), level.getDifficulty(), deepOcean, allowBoss);
         if (profile.boss() && bossNearby) {
             return;
         }
@@ -88,9 +91,15 @@ public final class HostileEncounterSpawner {
 
         spawnEncounterGroup(level, spawnCenter, player, profile);
         if (profile.boss()) {
-            TeitokuHelper.get(player).ifPresent(data -> data.setBossCooldown(20 * 60 * 8));
+            if (teitokuData != null) {
+                teitokuData.setBossCooldown(20 * 60 * 8);
+            }
             TeitokuHelper.syncGameplayState(player);
         }
+    }
+
+    public static boolean canRollBossEncounter(@Nullable TeitokuData teitokuData) {
+        return teitokuData != null && !teitokuData.getCollectedShips().isEmpty();
     }
 
     private static void spawnEncounterGroup(ServerLevel level, BlockPos anchor, ServerPlayer targetPlayer, HostileSpawnProfile profile) {
