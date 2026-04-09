@@ -9,6 +9,8 @@ import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtByTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangedAttackGoal;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.item.CombatRationItem;
 import com.lulan.shincolle.item.OwnerPaperItem;
@@ -1100,6 +1102,36 @@ public class LegacyShipEntity extends PathfinderMob {
         return false;
     }
 
+    public boolean supportsCompatAttack(LegacyShipAttackKind attackKind) {
+        return this.canUseCompatAttack(attackKind);
+    }
+
+    public int getCompatAttackCooldown(LegacyShipAttackKind attackKind) {
+        return switch (attackKind) {
+            case LIGHT -> this.lightAttackCooldown;
+            case HEAVY -> this.heavyAttackCooldown;
+            case AIR_LIGHT, AIR_HEAVY -> this.airAttackCooldown;
+            case MELEE -> this.meleeAttackCooldown;
+        };
+    }
+
+    public int getCompatAttackMaxCooldown(LegacyShipAttackKind attackKind) {
+        return LegacyShipCombatHelper.attackDelay(this, attackKind);
+    }
+
+    public boolean isTargetInCompatRange(@Nullable LivingEntity target, LegacyShipAttackKind attackKind) {
+        if (target == null) {
+            return false;
+        }
+
+        double maxRange = attackKind == LegacyShipAttackKind.MELEE ? 3.25D : this.getCompatAttackRange();
+        return this.distanceToSqr(target) <= maxRange * maxRange;
+    }
+
+    public boolean performPlayerCompatAttack(LivingEntity target, LegacyShipAttackKind attackKind) {
+        return this.performCompatAttack(target, attackKind);
+    }
+
     public boolean canEngage(@Nullable LivingEntity target) {
         if (target == null || !target.isAlive() || target == this || this.isAlliedTo(target)) {
             return false;
@@ -1398,8 +1430,13 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
+        LegacyShipProjectileProfile projectileProfile = this.attackProfile.projectileProfile(attackKind);
+        if (attackKind.justLaunch() && !projectileProfile.isPresent()) {
+            return false;
+        }
         if (attackKind != LegacyShipAttackKind.MELEE && this.equipmentBehaviorState.flareLevel() > 0) {
             this.applyIllumination(target, this.equipmentBehaviorState.flareDurationTicks());
+            this.emitIlluminationFx(target, true);
         }
 
         LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, attackKind);
@@ -1422,9 +1459,12 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (attackKind.justLaunch()) {
             if (!this.level().isClientSide()) {
-                this.level().addFreshEntity(LegacyShipProjectileEntity.create(this.level(), this, target, attackKind, roll.damage(), roll.miss()));
-                CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.LAUNCH, attackKind);
-                CombatFxDispatcher.sendParticle(this, GameplayParticleType.LAUNCH_SMOKE,
+                LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(this.level(), this, target,
+                        attackKind, roll.damage(), roll.miss());
+                this.level().addFreshEntity(projectile);
+                CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.LAUNCH, attackKind,
+                        projectile.getProjectileVisual());
+                CombatFxDispatcher.sendParticle(this, projectile.getLaunchParticleType(),
                         this.getX(), this.getY() + this.getBbHeight() * 0.7D, this.getZ());
             }
             this.setLastHurtMob(target);
@@ -1445,29 +1485,30 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
+        LegacyShipProjectileVisual projectileVisual = this.attackProfile.projectileProfile(attackKind).visual();
         if (roll.miss()) {
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.MISS, attackKind);
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.MISS, attackKind, projectileVisual);
             CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_MISS,
                     target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
             return;
         }
 
         if (roll.crit()) {
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.CRIT, attackKind);
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.CRIT, attackKind, projectileVisual);
             CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_CRIT,
                     target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
         } else if (roll.tripleHit()) {
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.TRIPLE_HIT, attackKind);
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.TRIPLE_HIT, attackKind, projectileVisual);
             CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_TRIPLE,
                     target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
         } else if (roll.doubleHit()) {
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.DOUBLE_HIT, attackKind);
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.DOUBLE_HIT, attackKind, projectileVisual);
             CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_DOUBLE,
                     target.getX(), target.getY() + target.getBbHeight() * 0.8D, target.getZ());
         }
 
         if (attacked) {
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.HIT, attackKind);
+            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.HIT, attackKind, projectileVisual);
             CombatFxDispatcher.sendParticle(target, GameplayParticleType.HIT_EXPLOSION,
                     target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
         }
@@ -2715,6 +2756,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (target != null) {
             this.applyIllumination(target, this.equipmentBehaviorState.searchlightDurationTicks());
+            this.emitIlluminationFx(target, false);
         }
     }
 
@@ -2739,6 +2781,16 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void applyIllumination(LivingEntity target, int durationTicks) {
         target.addEffect(new MobEffectInstance(MobEffects.GLOWING, durationTicks, 0, false, true, true));
+    }
+
+    private void emitIlluminationFx(LivingEntity target, boolean flareSource) {
+        if (this.level().isClientSide()) {
+            return;
+        }
+
+        CombatFxDispatcher.sendParticle(target,
+                flareSource ? GameplayParticleType.FLARE_BURST : GameplayParticleType.SEARCHLIGHT_MARK,
+                target.getX(), target.getY() + target.getBbHeight() * 0.85D, target.getZ());
     }
 
     private void tickMarriageBond() {

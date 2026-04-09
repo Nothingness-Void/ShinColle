@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_entry",
+  "key": {
+    "a": {
+      "item": "shincolle:deskitemradar"
+    },
+    "b": {
+      "item": "shincolle:deskitembook"
+    },
+    "c": {
+      "tag": "minecraft:wool"
+    },
+    "o": {
+      "item": "minecraft:obsidian"
+    }
+  },
+  "pattern": [
+    "abc",
+    "ooo",
+    "o o"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockdesk"
+  }
+}

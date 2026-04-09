@@ -1,5 +1,6 @@
 package com.lulan.shincolle.network;
 
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.client.GameplayClientEffects;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import net.minecraft.network.FriendlyByteBuf;
@@ -7,13 +8,15 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-public record ClientboundCombatReactPacket(CombatReactType reactType, int attackerId, int targetId, LegacyShipAttackKind attackKind) {
+public record ClientboundCombatReactPacket(CombatReactType reactType, int attackerId, int targetId,
+                                           LegacyShipAttackKind attackKind, LegacyShipProjectileVisual projectileVisual) {
 
     public static void encode(ClientboundCombatReactPacket packet, FriendlyByteBuf buffer) {
         buffer.writeVarInt(packet.reactType.ordinal());
         buffer.writeVarInt(packet.attackerId);
         buffer.writeVarInt(packet.targetId);
         buffer.writeVarInt(packet.attackKind.ordinal());
+        buffer.writeVarInt(packet.projectileVisual.ordinal());
     }
 
     public static ClientboundCombatReactPacket decode(FriendlyByteBuf buffer) {
@@ -21,7 +24,8 @@ public record ClientboundCombatReactPacket(CombatReactType reactType, int attack
         int attackerId = buffer.readVarInt();
         int targetId = buffer.readVarInt();
         LegacyShipAttackKind attackKind = LegacyShipAttackKind.byOrdinal(buffer.readVarInt());
-        return new ClientboundCombatReactPacket(reactType, attackerId, targetId, attackKind);
+        LegacyShipProjectileVisual projectileVisual = LegacyShipProjectileVisual.byOrdinal(buffer.readVarInt());
+        return new ClientboundCombatReactPacket(reactType, attackerId, targetId, attackKind, projectileVisual);
     }
 
     public static void handle(ClientboundCombatReactPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {

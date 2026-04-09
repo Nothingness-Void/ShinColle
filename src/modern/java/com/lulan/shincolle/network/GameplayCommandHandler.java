@@ -49,6 +49,7 @@ public final class GameplayCommandHandler {
     public static final String TAG_AI_FLAGS = "AiFlags";
     public static final String TAG_FOLLOW_RANGE = "FollowRange";
     public static final String TAG_ATTACK_KIND = "AttackKind";
+    public static final String TAG_SKILL_SLOT = "SkillSlot";
 
     public static final int AI_FLAG_AUTO_TARGET = 1;
     public static final int AI_FLAG_ALLOW_PVP = 1 << 1;
@@ -106,6 +107,7 @@ public final class GameplayCommandHandler {
             case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
             case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);
             case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
+            case PLAYER_CAST_SKILL -> handlePlayerCastSkill(player, payload);
             case MORPH_CAST_ATTACK -> handleMorphAttack(player, payload);
             case MORPH_CAST_SPECIAL -> handleMorphSpecial(player, payload);
             case DESK_CREATE_TEAM -> {
@@ -387,6 +389,16 @@ public final class GameplayCommandHandler {
         if (MorphHelper.toggleMount(player)) {
             TeitokuHelper.syncGameplayState(player);
         }
+    }
+
+    private static void handlePlayerCastSkill(ServerPlayer player, CompoundTag payload) {
+        BlockPos blockPos = payload.contains(TAG_X) && payload.contains(TAG_Y) && payload.contains(TAG_Z)
+                ? new BlockPos(payload.getInt(TAG_X), payload.getInt(TAG_Y), payload.getInt(TAG_Z))
+                : null;
+        MorphHelper.performPlayerSkill(player,
+                payload.contains(TAG_SKILL_SLOT) ? payload.getInt(TAG_SKILL_SLOT) : payload.getInt(TAG_SLOT),
+                payload.contains(TAG_TARGET_ID) ? payload.getInt(TAG_TARGET_ID) : -1,
+                blockPos);
     }
 
     private static void handleMorphAttack(ServerPlayer player, CompoundTag payload) {

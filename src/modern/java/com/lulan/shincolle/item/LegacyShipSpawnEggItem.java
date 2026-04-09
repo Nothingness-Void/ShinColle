@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -138,6 +139,7 @@ public class LegacyShipSpawnEggItem extends Item {
 
         if (!spec.hostile() && player instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.addCollectedShip(serverPlayer, spec.legacyClassId());
+            ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.trigger(serverPlayer);
         }
 
         if (!player.getAbilities().instabuild) {

@@ -105,6 +105,9 @@ public final class ChestLootInjector {
                 entry(ModItems.ABYSSNUGGET.get(), 5, 1, 3, 0.45F),
                 entry(ModItems.ABYSSNUGGET1.get(), 4, 1, 2, 0.30F),
                 entry(ModItems.BUCKETREPAIR.get(), 3, 1, 1, 0.22F),
+                entry(ModItems.DESKITEMBOOK.get(), 1, 1, 1, 0.05F),
+                entry(ModItems.RECIPEPAPER.get(), 1, 1, 1, 0.05F),
+                entry(ModItems.OWNERPAPER.get(), 1, 1, 1, 0.04F),
                 entry(ModItems.TARGETWRENCH.get(), 1, 1, 1, 0.06F),
                 entry(ModItems.POINTERITEM.get(), 1, 1, 1, 0.06F));
     }
@@ -127,6 +130,11 @@ public final class ChestLootInjector {
                 entry(ModItems.AMMO.get(), 10, 1, 3, 0.75F),
                 entry(ModItems.ABYSSNUGGET.get(), 8, 1, 4, 0.50F),
                 entry(ModItems.ABYSSMETAL.get(), 6, 1, 2, 0.28F),
+                entry(ModItems.DESKITEMBOOK.get(), 2, 1, 1, 0.16F),
+                entry(ModItems.DESKITEMRADAR.get(), 2, 1, 1, 0.12F),
+                entry(ModItems.RECIPEPAPER.get(), 2, 1, 1, 0.12F),
+                entry(ModItems.OWNERPAPER.get(), 2, 1, 1, 0.10F),
+                entry(ModItems.TOYAIRPLANE.get(), 2, 1, 1, 0.10F),
                 entry(ModItems.MODERNKIT.get(), 3, 1, 1, 0.12F),
                 entry(ModItems.TRAININGBOOK.get(), 3, 1, 1, 0.12F),
                 entry(ModItems.EQUIPTURBINE_DISPLAY_ITEMS.get(0).get(), 2, 1, 1, 0.10F),

@@ -101,6 +101,17 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
+tasks.register('syncGameTestStructures', Copy) {
+    group = 'verification'
+    description = 'Copies source-controlled SNBT game test templates into the run directory used by Forge.'
+    from('src/modern/resources/gameteststructures')
+    into(layout.projectDirectory.dir('run/gameteststructures'))
+}
+
+tasks.matching { it.name in ['runGameTestServer', 'runClient', 'runServer'] }.configureEach {
+    dependsOn tasks.named('syncGameTestStructures')
+}
+
 tasks.register('verifyItemModelCoverage') {
     group = 'verification'
     description = 'Ensures every registered modern item id has a lowercase item model json.'

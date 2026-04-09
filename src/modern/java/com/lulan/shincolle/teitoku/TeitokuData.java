@@ -2,6 +2,7 @@ package com.lulan.shincolle.teitoku;
 
 import com.lulan.shincolle.morph.MorphProfile;
 import com.lulan.shincolle.morph.MorphRuntimeState;
+import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -35,6 +36,7 @@ public class TeitokuData {
     private static final String TEAM_NAMES_TAG = "TeamNames";
     private static final String MORPH_PROFILES_TAG = "MorphProfiles";
     private static final String MORPH_RUNTIME_TAG = "MorphRuntime";
+    private static final String PLAYER_SKILL_RUNTIME_TAG = "PlayerSkillRuntime";
 
     public static final int DEFAULT_BOSS_COOLDOWN = 4800;
     public static final int DEFAULT_TEAM_COOLDOWN = 6000;
@@ -63,6 +65,7 @@ public class TeitokuData {
     private final List<String> targetClasses = new ArrayList<>();
     private final List<MorphProfile> morphProfiles = new ArrayList<>();
     private final MorphRuntimeState morphRuntimeState = new MorphRuntimeState();
+    private final PlayerSkillRuntimeState playerSkillRuntimeState = new PlayerSkillRuntimeState();
 
     public TeitokuData() {
         Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
@@ -107,6 +110,7 @@ public class TeitokuData {
         }
         tag.put(MORPH_PROFILES_TAG, morphProfileList);
         tag.put(MORPH_RUNTIME_TAG, this.morphRuntimeState.saveToTag(new CompoundTag()));
+        tag.put(PLAYER_SKILL_RUNTIME_TAG, this.playerSkillRuntimeState.saveToTag(new CompoundTag()));
         return tag;
     }
 
@@ -191,6 +195,11 @@ public class TeitokuData {
         } else {
             this.morphRuntimeState.setActive(false);
             this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+        }
+        if (tag.contains(PLAYER_SKILL_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
+            this.playerSkillRuntimeState.loadFromTag(tag.getCompound(PLAYER_SKILL_RUNTIME_TAG));
+        } else {
+            this.playerSkillRuntimeState.clear();
         }
 
         if (this.getSelectedMorphProfile() == null) {
@@ -591,6 +600,10 @@ public class TeitokuData {
 
     public boolean hasActiveMorph() {
         return this.morphRuntimeState.isActive() && this.getSelectedMorphProfile() != null;
+    }
+
+    public PlayerSkillRuntimeState getPlayerSkillRuntimeState() {
+        return this.playerSkillRuntimeState;
     }
 
     public boolean hasUnlockedMorph(int legacyClassId) {

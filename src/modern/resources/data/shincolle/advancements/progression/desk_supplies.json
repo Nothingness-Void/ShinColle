@@ -1,0 +1,50 @@
+{
+  "parent": "shincolle:progression/first_grudge_and_ammo",
+  "display": {
+    "icon": {
+      "item": "shincolle:deskitembook"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.desk_supplies.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.desk_supplies.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "desk_book": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:deskitembook"
+            ]
+          }
+        ]
+      }
+    },
+    "desk_radar": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:deskitemradar"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "desk_book",
+      "desk_radar"
+    ]
+  ]
+}

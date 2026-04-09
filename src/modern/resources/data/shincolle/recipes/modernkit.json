@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "ingredients": [
+    {
+      "item": "shincolle:kaitaihammer"
+    },
+    {
+      "item": "shincolle:targetwrench"
+    },
+    {
+      "item": "shincolle:blockgrudgexp"
+    },
+    {
+      "item": "shincolle:blockgrudgexp"
+    },
+    {
+      "item": "shincolle:blockgrudgexp"
+    },
+    {
+      "item": "shincolle:blockgrudgexp"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:modernkit"
+  }
+}
