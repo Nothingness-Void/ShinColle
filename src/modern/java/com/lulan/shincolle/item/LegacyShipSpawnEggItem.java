@@ -169,7 +169,7 @@ public class LegacyShipSpawnEggItem extends Item {
             if (tag.contains(LEGACY_CLASS_ID_TAG)) {
                 ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(tag.getInt(LEGACY_CLASS_ID_TAG));
                 if (spec != null) {
-                    return spec;
+                    return spec.hostile() ? ShipEntitySpecs.friendlyCounterpart(spec) : spec;
                 }
             }
 

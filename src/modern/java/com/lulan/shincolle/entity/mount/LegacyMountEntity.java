@@ -1,6 +1,9 @@
 package com.lulan.shincolle.entity.mount;
 
 import com.lulan.shincolle.morph.MorphHelper;
+import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.entity.ship.ShipArchetype;
+import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -26,20 +29,34 @@ public class LegacyMountEntity extends Entity {
 
     private static final String OWNER_UUID_TAG = "OwnerUuid";
     private static final String OWNER_NAME_TAG = "OwnerName";
+    private static final String MOUNT_STYLE_TAG = "MountStyle";
     private static final EntityDataAccessor<Optional<UUID>> DATA_OWNER_UUID =
             SynchedEntityData.defineId(LegacyMountEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<String> DATA_OWNER_NAME =
             SynchedEntityData.defineId(LegacyMountEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Integer> DATA_MOUNT_STYLE =
+            SynchedEntityData.defineId(LegacyMountEntity.class, EntityDataSerializers.INT);
+
+    public static final int STYLE_AIRFIELD = 0;
+    public static final int STYLE_BATTLESHIP = 1;
+    public static final int STYLE_CARRIER = 2;
+    public static final int STYLE_CARRIER_WD = 3;
+    public static final int STYLE_HARBOUR = 4;
+    public static final int STYLE_ISOLATED = 5;
+    public static final int STYLE_MIDWAY = 6;
+    public static final int STYLE_SUBMARINE = 7;
 
     public LegacyMountEntity(EntityType<? extends LegacyMountEntity> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = false;
+        this.noCulling = true;
     }
 
     public static LegacyMountEntity create(ServerLevel level, ServerPlayer owner) {
         LegacyMountEntity mount = ModEntityTypes.LEGACY_MOUNT.get().create(level);
         if (mount != null) {
             mount.setOwner(owner);
+            mount.setMountStyle(resolveMountStyle(owner));
             mount.moveTo(owner.getX(), owner.getY(), owner.getZ(), owner.getYRot(), owner.getXRot());
         }
         return mount;
@@ -49,6 +66,7 @@ public class LegacyMountEntity extends Entity {
     protected void defineSynchedData() {
         this.entityData.define(DATA_OWNER_UUID, Optional.empty());
         this.entityData.define(DATA_OWNER_NAME, "");
+        this.entityData.define(DATA_MOUNT_STYLE, STYLE_BATTLESHIP);
     }
 
     @Override
@@ -59,6 +77,7 @@ public class LegacyMountEntity extends Entity {
             this.entityData.set(DATA_OWNER_UUID, Optional.empty());
         }
         this.entityData.set(DATA_OWNER_NAME, tag.getString(OWNER_NAME_TAG));
+        this.entityData.set(DATA_MOUNT_STYLE, tag.contains(MOUNT_STYLE_TAG) ? tag.getInt(MOUNT_STYLE_TAG) : STYLE_BATTLESHIP);
     }
 
     @Override
@@ -67,6 +86,7 @@ public class LegacyMountEntity extends Entity {
         if (!this.getOwnerName().isBlank()) {
             tag.putString(OWNER_NAME_TAG, this.getOwnerName());
         }
+        tag.putInt(MOUNT_STYLE_TAG, this.getMountStyle());
     }
 
     @Override
@@ -129,7 +149,7 @@ public class LegacyMountEntity extends Entity {
 
     @Override
     public boolean isInvisible() {
-        return true;
+        return false;
     }
 
     @Override
@@ -194,6 +214,10 @@ public class LegacyMountEntity extends Entity {
         return this.getOwnerUuid().map(player.getUUID()::equals).orElse(false);
     }
 
+    public int getMountStyle() {
+        return this.entityData.get(DATA_MOUNT_STYLE);
+    }
+
     public @Nullable ServerPlayer getOwnerPlayer() {
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return null;
@@ -204,6 +228,37 @@ public class LegacyMountEntity extends Entity {
                 .filter(ServerPlayer.class::isInstance)
                 .map(ServerPlayer.class::cast)
                 .orElse(null);
+    }
+
+    public static int styleForSpec(@Nullable ShipEntitySpec spec) {
+        if (spec == null) {
+            return STYLE_BATTLESHIP;
+        }
+
+        return switch (spec.textureStem()) {
+            case "EntityAirfieldHime" -> STYLE_AIRFIELD;
+            case "EntityCarrierHime", "EntityCarrierAkagi", "EntityCarrierKaga", "EntityCarrierWo" -> STYLE_CARRIER;
+            case "EntityCarrierWDemon" -> STYLE_CARRIER_WD;
+            case "EntityHarbourHime" -> STYLE_HARBOUR;
+            case "EntityIsolatedHime" -> STYLE_ISOLATED;
+            case "EntityMidwayHime", "EntityNorthernHime" -> STYLE_MIDWAY;
+            case "EntitySubmHime", "EntitySubmHimeNew" -> STYLE_SUBMARINE;
+            default -> switch (spec.archetype()) {
+                case SUBMARINE -> STYLE_SUBMARINE;
+                case CARRIER -> STYLE_CARRIER;
+                case INSTALLATION -> STYLE_AIRFIELD;
+                case DESTROYER, CRUISER, BATTLESHIP, TRANSPORT, PRINCESS -> STYLE_BATTLESHIP;
+            };
+        };
+    }
+
+    private void setMountStyle(int mountStyle) {
+        this.entityData.set(DATA_MOUNT_STYLE, mountStyle);
+    }
+
+    private static int resolveMountStyle(ServerPlayer owner) {
+        MorphProfile profile = MorphHelper.getActiveProfile(owner);
+        return styleForSpec(profile == null ? null : profile.getSpec());
     }
 
     private static Vec3 resolveMovement(Player rider) {

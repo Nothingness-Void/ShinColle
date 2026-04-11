@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "shincolle_instant_construction",
+  "ingredients": [
+    {
+      "item": "shincolle:largeegg"
+    },
+    {
+      "item": "shincolle:kaitaihammer"
+    }
+  ],
+  "result": {
+    "count": 64,
+    "item": "shincolle:instantconmat"
+  }
+}
