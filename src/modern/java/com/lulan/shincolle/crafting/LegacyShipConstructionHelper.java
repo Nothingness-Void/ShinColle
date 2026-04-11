@@ -17,34 +17,28 @@ public final class LegacyShipConstructionHelper {
     public static final String TAG_POLYMETAL = "Polymetal";
 
     private static final List<RollEntry> SMALL_ROLLS = List.of(
-            new RollEntry(2, 80, 0),
-            new RollEntry(3, 90, 0),
-            new RollEntry(4, 100, 0),
-            new RollEntry(5, 110, 0),
-            new RollEntry(18, 120, 1),
-            new RollEntry(19, 140, 2),
-            new RollEntry(20, 160, 2),
-            new RollEntry(21, 180, 2),
-            new RollEntry(11, 200, 2),
-            new RollEntry(12, 256, 2));
+            new RollEntry(53, 80, 0),
+            new RollEntry(54, 90, 0),
+            new RollEntry(55, 100, 0),
+            new RollEntry(56, 110, 0),
+            new RollEntry(58, 120, 1),
+            new RollEntry(59, 140, 1),
+            new RollEntry(40, 160, 2),
+            new RollEntry(41, 180, 2),
+            new RollEntry(60, 220, 2),
+            new RollEntry(61, 256, 2));
 
     private static final List<RollEntry> LARGE_ROLLS = List.of(
-            new RollEntry(29, 500, 0),
-            new RollEntry(14, 650, 3),
-            new RollEntry(16, 800, 2),
-            new RollEntry(15, 800, 2),
-            new RollEntry(51, 2000, 2),
-            new RollEntry(33, 2600, 1),
-            new RollEntry(74, 2600, 2),
-            new RollEntry(31, 2700, 1),
-            new RollEntry(30, 2800, 1),
-            new RollEntry(23, 3000, 1),
-            new RollEntry(22, 3000, 3),
-            new RollEntry(46, 3500, 2),
-            new RollEntry(17, 3800, 2),
-            new RollEntry(28, 4600, 2),
-            new RollEntry(32, 4800, 1),
-            new RollEntry(35, 5000, 3));
+            new RollEntry(39, 650, 2),
+            new RollEntry(62, 800, 2),
+            new RollEntry(63, 900, 2),
+            new RollEntry(64, 1000, 2),
+            new RollEntry(65, 1100, 2),
+            new RollEntry(49, 1400, 3),
+            new RollEntry(50, 1500, 3),
+            new RollEntry(48, 1800, 2),
+            new RollEntry(60, 2000, 1),
+            new RollEntry(61, 2200, 1));
 
     private LegacyShipConstructionHelper() {
     }
@@ -132,7 +126,7 @@ public final class LegacyShipConstructionHelper {
             }
         }
 
-        return ShipEntitySpecs.DEFAULT;
+        return smallBuild ? ShipEntitySpecs.randomConstructionSmall(random) : ShipEntitySpecs.randomConstructionLarge(random);
     }
 
     private static int safeAt(int[] values, int index) {

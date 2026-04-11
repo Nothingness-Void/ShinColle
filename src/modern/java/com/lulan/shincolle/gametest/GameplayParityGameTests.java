@@ -17,8 +17,10 @@ import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
+import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -26,6 +28,7 @@ import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.morph.MorphProfile;
@@ -35,6 +38,9 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.team.TeamSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.ShipCacheSavedData;
+import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
+import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.CriteriaTriggers;
@@ -45,6 +51,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -53,6 +60,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
@@ -60,6 +68,8 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 
 @GameTestHolder(ShinColle.MOD_ID)
@@ -684,6 +694,52 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipWorldCachePreservesLegacySnapshotFields(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable for cache tests");
+            return;
+        }
+
+        ship.setVariantEggMeta(62);
+        ship.setOwner(UUID.randomUUID(), "CacheAdmiral", 77);
+        ship.setCustomName(Component.literal("Cache Kongou"));
+        ship.setPos(12.8D, 5.2D, -3.7D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.tick();
+
+        ShipCacheSavedData data = new ShipCacheSavedData();
+        data.updateFromShip(ship, false);
+        ShipWorldCacheEntry liveEntry = data.getShip(ship.getShipUid());
+
+        if (liveEntry == null
+                || liveEntry.legacyClassId() != ship.getShipClassId()
+                || liveEntry.variantEggMeta() != 62
+                || liveEntry.ownerUid() != 77
+                || liveEntry.dead()
+                || !"Cache Kongou".equals(liveEntry.resolveDisplayName().getString())) {
+            helper.fail("live ship cache entries should preserve class, owner, and display name state");
+            return;
+        }
+
+        data.updateFromShip(ship, true);
+        CompoundTag saved = data.save(new CompoundTag());
+        ShipCacheSavedData loaded = ShipCacheSavedData.load(saved);
+        ShipWorldCacheEntry deadEntry = loaded.getShip(ship.getShipUid());
+
+        if (deadEntry == null
+                || !deadEntry.dead()
+                || deadEntry.entityId() != ship.getId()
+                || !deadEntry.dimensionId().equals(helper.getLevel().dimension().location().toString())
+                || deadEntry.entityTag().isEmpty()) {
+            helper.fail("ship cache save/load should preserve dead-state snapshots, entity id, dimension, and entity NBT");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void projectileProfilesMatchShipRoles(GameTestHelper helper) {
         LegacyShipAttackProfile kongou = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(62));
         LegacyShipAttackProfile kongouHostileMirror = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(2062));
@@ -734,20 +790,63 @@ public final class GameplayParityGameTests {
         owner.getShipInventory().setItem(2, new ItemStack(ModItems.EQUIPCATAPULT_ITEMS.get(3).get()));
 
         LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(helper.getLevel(), owner, target,
-                LegacyShipAttackKind.AIR_HEAVY, 12.0F, false);
+                LegacyShipAttackKind.HEAVY, 12.0F, false);
         CompoundTag tag = new CompoundTag();
         projectile.addAdditionalSaveData(tag);
 
         LegacyShipProjectileEntity loaded = new LegacyShipProjectileEntity(ModEntityTypes.LEGACY_SHIP_PROJECTILE.get(), helper.getLevel());
         loaded.readAdditionalSaveData(tag);
 
-        if (loaded.getAttackKind() != LegacyShipAttackKind.AIR_HEAVY
-                || loaded.getProjectileVisual() != LegacyShipProjectileVisual.TORPEDO
-                || loaded.getMoveType() != LegacyShipProjectileMoveType.DIRECT
+        if (loaded.getAttackKind() != LegacyShipAttackKind.HEAVY
+                || loaded.getProjectileVisual() != LegacyShipProjectileVisual.MISSILE
+                || loaded.getMoveType() != LegacyShipProjectileMoveType.ARC
                 || loaded.getIntendedTargetId() != target.getId()
                 || !loaded.hasFlarePayload()
                 || !loaded.hasSearchlightPayload()) {
             helper.fail("projectile save/load should preserve legacy launch flavor, target, and illumination flags");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void airAttacksLaunchAircraftEntities(GameTestHelper helper) {
+        LegacyShipEntity owner = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity target = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (owner == null || target == null) {
+            helper.fail("legacy ship entities should be creatable for aircraft launch tests");
+            return;
+        }
+
+        owner.setVariantEggMeta(50);
+        target.setVariantEggMeta(23);
+        owner.setPos(1.0D, 2.0D, 1.0D);
+        target.setPos(8.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(owner);
+        helper.getLevel().addFreshEntity(target);
+
+        if (!owner.performPlayerCompatAttack(target, LegacyShipAttackKind.AIR_HEAVY)) {
+            helper.fail("carrier air attacks should launch an aircraft entity");
+            return;
+        }
+
+        List<LegacyShipAircraftEntity> aircraft = helper.getLevel().getEntitiesOfClass(LegacyShipAircraftEntity.class,
+                owner.getBoundingBox().inflate(20.0D));
+        if (aircraft.isEmpty()) {
+            helper.fail("air attacks should spawn aircraft entities into the world");
+            return;
+        }
+        if (!helper.getLevel().getEntitiesOfClass(LegacyShipProjectileEntity.class,
+                owner.getBoundingBox().inflate(20.0D),
+                projectile -> projectile.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY).isEmpty()) {
+            helper.fail("air attacks should no longer spawn heavy air projectiles");
+            return;
+        }
+
+        LegacyShipAircraftEntity launched = aircraft.get(0);
+        if (launched.getAttackKind() != LegacyShipAttackKind.AIR_HEAVY || launched.getTargetId() != target.getId()) {
+            helper.fail("launched aircraft should keep the requested air attack kind and target");
             return;
         }
 
@@ -887,6 +986,11 @@ public final class GameplayParityGameTests {
                 return;
             }
         }
+        ShipEntitySpec resolved = LegacyShipConstructionHelper.resolveConstructionEgg(egg, "smallegg", RandomSource.create(24L));
+        if (resolved == null || resolved.hostile()) {
+            helper.fail("small shipyard eggs should resolve into friendly construction ships");
+            return;
+        }
 
         TeitokuData data = new TeitokuData();
         if (HostileEncounterSpawner.canRollBossEncounter(data)) {
@@ -896,6 +1000,22 @@ public final class GameplayParityGameTests {
         data.addCollectedShip(2);
         if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
             helper.fail("boss encounters should unlock after the first friendly ship is collected");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void friendlyCounterpartsResolveForConstructionAndLoot(GameTestHelper helper) {
+        ShipEntitySpec smallEgg = ShipEntitySpecs.resolveEggItem("smallegg", RandomSource.create(7L));
+        ShipEntitySpec largeEgg = ShipEntitySpecs.resolveEggItem("largeegg", RandomSource.create(17L));
+        ShipEntitySpec abyssDestroyerCounterpart = ShipEntitySpecs.friendlyCounterpart(2);
+        ShipEntitySpec airfieldCounterpart = ShipEntitySpecs.friendlyCounterpart(23);
+
+        if (smallEgg.hostile() || largeEgg.hostile()
+                || abyssDestroyerCounterpart.hostile() || airfieldCounterpart.hostile()) {
+            helper.fail("construction eggs and hostile loot counterparts should always resolve to friendly ship specs");
             return;
         }
 
@@ -951,6 +1071,139 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void mountStyleResolutionMatchesLegacyPrincessFamilies(GameTestHelper helper) {
+        if (LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(23)) != LegacyMountEntity.STYLE_AIRFIELD
+                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(35)) != LegacyMountEntity.STYLE_CARRIER_WD
+                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(32)) != LegacyMountEntity.STYLE_MIDWAY
+                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(40)) != LegacyMountEntity.STYLE_SUBMARINE
+                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(62)) != LegacyMountEntity.STYLE_BATTLESHIP) {
+            helper.fail("mount host rendering should map legacy ship families to the original mount model groups");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void lateGameRecipesResolveAndCraft(GameTestHelper helper) {
+        assertCrafts(helper, "kaitaihammer", new ItemStack(ModItems.KAITAIHAMMER.get()),
+                stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY,
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY);
+        assertCrafts(helper, "instantconmat", new ItemStack(ModItems.INSTANTCONMAT.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY,
+                stack(ModItems.ABYSSMETAL.get()), stack(ModBlocks.BLOCK_GRUDGE.get()), stack(ModItems.ABYSSMETAL.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY);
+        assertCrafts(helper, "instantconmat8", new ItemStack(ModItems.INSTANTCONMAT.get(), 8),
+                stack(ModItems.SHIPSPAWNEGG_ITEMS.get(0).get()), stack(ModItems.KAITAIHAMMER.get()));
+        assertCrafts(helper, "instantconmat64", new ItemStack(ModItems.INSTANTCONMAT.get(), 64),
+                stack(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get()), stack(ModItems.KAITAIHAMMER.get()));
+        assertCrafts(helper, "blocklargeshipyard", new ItemStack(ModBlocks.BLOCK_LARGE_SHIPYARD.get()),
+                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()),
+                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()),
+                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()));
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void reachableShipVisualAssetsExist(GameTestHelper helper) {
+        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
+        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
+        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
+
+        for (ShipEntitySpec spec : reachableSpecs) {
+            if (!resourceExists(spec.modelSourceLocation()) || !resourceExists(spec.textureLocation())) {
+                helper.fail("reachable ship spec is missing a legacy model source or texture: egg="
+                        + spec.eggMeta() + " stem=" + spec.textureStem());
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void summonAndMountAssetsExist(GameTestHelper helper) {
+        ResourceLocation[] requiredResources = {
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanezero.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanet.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modeltakoyaki.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountafh.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountbah.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcah.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcawd.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmounthbh.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountish.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountmih.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountsuh.java"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityairplanezero.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityairplanet.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityaircrafttakoyaki.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountafh.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountbah.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountcah.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountcawd.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymounthbh.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountish.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountmih.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountsuh.png")
+        };
+
+        for (ResourceLocation resource : requiredResources) {
+            if (!resourceExists(resource)) {
+                helper.fail("expected summon or mount asset to exist: " + resource);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipPickupGoalStoresNearbyDrops(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship should be creatable for pickup goal tests");
+            return;
+        }
+
+        ship.setVariantEggMeta(58);
+        ship.setOwner(UUID.randomUUID(), "PickupTester");
+        ship.setPos(1.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(ship);
+
+        ItemEntity grudgeDrop = new ItemEntity(helper.getLevel(), 2.1D, 2.0D, 1.1D, new ItemStack(ModItems.GRUDGE.get(), 3));
+        helper.getLevel().addFreshEntity(grudgeDrop);
+
+        LegacyShipPickItemGoal goal = new LegacyShipPickItemGoal(ship, 1.0D);
+        if (!goal.canUse()) {
+            helper.fail("pickup goal should activate when a nearby drop fits in cargo");
+            return;
+        }
+
+        goal.start();
+        for (int i = 0; i < 6; i++) {
+            goal.tick();
+        }
+
+        boolean stored = false;
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < ship.getShipInventory().getContainerSize(); slot++) {
+            if (ship.getShipInventory().getItem(slot).is(ModItems.GRUDGE.get())) {
+                stored = true;
+                break;
+            }
+        }
+
+        if (!stored) {
+            helper.fail("pickup goal should move nearby drops into ship cargo");
+            return;
+        }
+
+        helper.succeed();
+    }
+
     private static JsonObject loadJsonResource(String resourcePath) {
         try (InputStream stream = GameplayParityGameTests.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (stream == null) {
@@ -961,6 +1214,15 @@ public final class GameplayParityGameTests {
             }
         } catch (Exception exception) {
             return null;
+        }
+    }
+
+    private static boolean resourceExists(ResourceLocation resourceLocation) {
+        try (InputStream stream = GameplayParityGameTests.class.getClassLoader()
+                .getResourceAsStream("assets/" + resourceLocation.getNamespace() + "/" + resourceLocation.getPath())) {
+            return stream != null;
+        } catch (Exception exception) {
+            return false;
         }
     }
 

@@ -3,9 +3,13 @@ package com.lulan.shincolle.entity.ship;
 import net.minecraft.util.RandomSource;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 
 public final class ShipEntitySpecs {
@@ -13,6 +17,9 @@ public final class ShipEntitySpecs {
     private static final Map<Integer, ShipEntitySpec> SPECS = new LinkedHashMap<>();
     private static final int[] PRIMARY_EGG_POOL = {2, 3, 4, 5, 11, 12, 18, 19, 20, 21};
     private static final int[] ADVANCED_EGG_POOL = {14, 15, 16, 17, 22, 23, 28, 29, 30, 31, 32, 33, 35, 46, 51, 74};
+    private static final int[] CONSTRUCTION_SMALL_EGG_POOL = {53, 54, 55, 56, 38, 58, 59, 60, 61, 40, 41};
+    private static final int[] CONSTRUCTION_LARGE_EGG_POOL = {39, 48, 49, 50, 62, 63, 64, 65, 60, 61};
+    private static final Map<Integer, Integer> FRIENDLY_COUNTERPARTS = new HashMap<>();
 
     public static final ShipEntitySpec DEFAULT = register(2, "EntityDestroyerI", ShipArchetype.DESTROYER, true);
 
@@ -80,6 +87,7 @@ public final class ShipEntitySpecs {
         register(65, "EntityBBKirishima", ShipArchetype.BATTLESHIP, false);
         register(2065, "EntityBBKirishima", ShipArchetype.BATTLESHIP, true);
         register(74, "EntitySubmHimeNew", ShipArchetype.PRINCESS, true);
+        registerFriendlyCounterparts();
     }
 
     private ShipEntitySpecs() {
@@ -97,13 +105,26 @@ public final class ShipEntitySpecs {
         return SPECS.get(classId + 2);
     }
 
+    public static ShipEntitySpec friendlyCounterpart(int eggMeta) {
+        Integer friendlyMeta = FRIENDLY_COUNTERPARTS.get(eggMeta);
+        if (friendlyMeta != null) {
+            return getByEggMeta(friendlyMeta);
+        }
+
+        return fallbackFriendlySpec(getByEggMeta(eggMeta).archetype());
+    }
+
+    public static ShipEntitySpec friendlyCounterpart(ShipEntitySpec spec) {
+        return friendlyCounterpart(spec.eggMeta());
+    }
+
     public static ShipEntitySpec resolveEggItem(String itemPath, RandomSource random) {
         if ("smallegg".equals(itemPath)) {
-            return randomPrimary(random);
+            return randomConstructionSmall(random);
         }
 
         if ("largeegg".equals(itemPath)) {
-            return randomAdvanced(random);
+            return randomConstructionLarge(random);
         }
 
         if (itemPath.startsWith("shipegg")) {
@@ -125,8 +146,110 @@ public final class ShipEntitySpecs {
         return getByEggMeta(ADVANCED_EGG_POOL[random.nextInt(ADVANCED_EGG_POOL.length)]);
     }
 
+    public static ShipEntitySpec randomConstructionSmall(RandomSource random) {
+        return getByEggMeta(CONSTRUCTION_SMALL_EGG_POOL[random.nextInt(CONSTRUCTION_SMALL_EGG_POOL.length)]);
+    }
+
+    public static ShipEntitySpec randomConstructionLarge(RandomSource random) {
+        return getByEggMeta(CONSTRUCTION_LARGE_EGG_POOL[random.nextInt(CONSTRUCTION_LARGE_EGG_POOL.length)]);
+    }
+
+    public static List<ShipEntitySpec> primaryPool() {
+        return resolvePool(PRIMARY_EGG_POOL);
+    }
+
+    public static List<ShipEntitySpec> advancedPool() {
+        return resolvePool(ADVANCED_EGG_POOL);
+    }
+
+    public static List<ShipEntitySpec> constructionSmallPool() {
+        return resolvePool(CONSTRUCTION_SMALL_EGG_POOL);
+    }
+
+    public static List<ShipEntitySpec> constructionLargePool() {
+        return resolvePool(CONSTRUCTION_LARGE_EGG_POOL);
+    }
+
+    public static List<ShipEntitySpec> currentPlayableFriendlyRoster() {
+        LinkedHashSet<ShipEntitySpec> roster = new LinkedHashSet<>();
+        roster.addAll(constructionSmallPool());
+        roster.addAll(constructionLargePool());
+        return List.copyOf(roster);
+    }
+
     public static Collection<ShipEntitySpec> values() {
         return Collections.unmodifiableCollection(SPECS.values());
+    }
+
+    private static ShipEntitySpec fallbackFriendlySpec(ShipArchetype archetype) {
+        return switch (archetype) {
+            case DESTROYER -> getByEggMeta(38);
+            case CRUISER, TRANSPORT -> getByEggMeta(58);
+            case SUBMARINE -> getByEggMeta(40);
+            case CARRIER, INSTALLATION -> getByEggMeta(49);
+            case BATTLESHIP, PRINCESS -> getByEggMeta(39);
+        };
+    }
+
+    private static void registerFriendlyCounterparts() {
+        mapCounterpart(2, 53);
+        mapCounterpart(3, 54);
+        mapCounterpart(4, 55);
+        mapCounterpart(5, 56);
+        mapCounterpart(11, 60);
+        mapCounterpart(12, 61);
+        mapCounterpart(14, 49);
+        mapCounterpart(15, 39);
+        mapCounterpart(16, 62);
+        mapCounterpart(17, 48);
+        mapCounterpart(18, 58);
+        mapCounterpart(19, 40);
+        mapCounterpart(20, 41);
+        mapCounterpart(21, 40);
+        mapCounterpart(22, 50);
+        mapCounterpart(23, 49);
+        mapCounterpart(28, 48);
+        mapCounterpart(29, 38);
+        mapCounterpart(30, 49);
+        mapCounterpart(31, 50);
+        mapCounterpart(32, 48);
+        mapCounterpart(33, 39);
+        mapCounterpart(35, 50);
+        mapCounterpart(46, 41);
+        mapCounterpart(51, 60);
+        mapCounterpart(74, 40);
+
+        mapCounterpart(2038, 38);
+        mapCounterpart(2039, 39);
+        mapCounterpart(2040, 40);
+        mapCounterpart(2041, 41);
+        mapCounterpart(2048, 48);
+        mapCounterpart(2049, 49);
+        mapCounterpart(2050, 50);
+        mapCounterpart(2053, 53);
+        mapCounterpart(2054, 54);
+        mapCounterpart(2055, 55);
+        mapCounterpart(2056, 56);
+        mapCounterpart(2058, 58);
+        mapCounterpart(2059, 59);
+        mapCounterpart(2060, 60);
+        mapCounterpart(2061, 61);
+        mapCounterpart(2062, 62);
+        mapCounterpart(2063, 63);
+        mapCounterpart(2064, 64);
+        mapCounterpart(2065, 65);
+    }
+
+    private static void mapCounterpart(int hostileEggMeta, int friendlyEggMeta) {
+        FRIENDLY_COUNTERPARTS.put(hostileEggMeta, friendlyEggMeta);
+    }
+
+    private static List<ShipEntitySpec> resolvePool(int[] pool) {
+        List<ShipEntitySpec> specs = new ArrayList<>(pool.length);
+        for (int eggMeta : pool) {
+            specs.add(getByEggMeta(eggMeta));
+        }
+        return List.copyOf(specs);
     }
 
     private static ShipEntitySpec register(int eggMeta, String textureStem, ShipArchetype archetype, boolean hostile) {

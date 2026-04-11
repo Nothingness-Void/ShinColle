@@ -3,6 +3,8 @@ package com.lulan.shincolle.registry;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipAirplaneEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipTakoyakiEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -28,6 +30,20 @@ public final class ModEntityTypes {
                             .clientTrackingRange(8)
                             .updateInterval(1)
                             .build("legacy_ship_projectile"));
+    public static final RegistryObject<EntityType<LegacyShipAirplaneEntity>> LEGACY_SHIP_AIRCRAFT =
+            ENTITY_TYPES.register("legacy_ship_aircraft",
+                    () -> EntityType.Builder.<LegacyShipAirplaneEntity>of(LegacyShipAirplaneEntity::new, MobCategory.MISC)
+                            .sized(0.85F, 0.38F)
+                            .clientTrackingRange(10)
+                            .updateInterval(1)
+                            .build("legacy_ship_aircraft"));
+    public static final RegistryObject<EntityType<LegacyShipTakoyakiEntity>> LEGACY_SHIP_TAKOYAKI =
+            ENTITY_TYPES.register("legacy_ship_takoyaki",
+                    () -> EntityType.Builder.<LegacyShipTakoyakiEntity>of(LegacyShipTakoyakiEntity::new, MobCategory.MISC)
+                            .sized(0.95F, 0.42F)
+                            .clientTrackingRange(10)
+                            .updateInterval(1)
+                            .build("legacy_ship_takoyaki"));
     public static final RegistryObject<EntityType<LegacyMountEntity>> LEGACY_MOUNT =
             ENTITY_TYPES.register("legacy_mount",
                     () -> EntityType.Builder.<LegacyMountEntity>of(LegacyMountEntity::new, MobCategory.MISC)

@@ -76,7 +76,7 @@ public final class HostileEncounterSpawner {
         int bossCooldown = teitokuData != null ? teitokuData.getBossCooldown() : 0;
         boolean deepOcean = level.getBiome(player.blockPosition()).is(BiomeTags.IS_DEEP_OCEAN);
         boolean allowBoss = !bossNearby && bossCooldown <= 0 && canRollBossEncounter(teitokuData);
-        HostileSpawnProfile profile = HostileEncounterTable.pick(level.getRandom(), level.getDifficulty(), deepOcean, allowBoss);
+        HostileSpawnProfile profile = pickEncounterProfile(level, nearby, deepOcean, allowBoss);
         if (profile.boss() && bossNearby) {
             return;
         }
@@ -89,7 +89,7 @@ public final class HostileEncounterSpawner {
             return;
         }
 
-        spawnEncounterGroup(level, spawnCenter, player, profile);
+        spawnEncounter(level, spawnCenter, player, profile);
         if (profile.boss()) {
             if (teitokuData != null) {
                 teitokuData.setBossCooldown(20 * 60 * 8);
@@ -102,30 +102,43 @@ public final class HostileEncounterSpawner {
         return teitokuData != null && !teitokuData.getCollectedShips().isEmpty();
     }
 
-    private static void spawnEncounterGroup(ServerLevel level, BlockPos anchor, ServerPlayer targetPlayer, HostileSpawnProfile profile) {
+    private static HostileSpawnProfile pickEncounterProfile(ServerLevel level, List<LegacyShipEntity> nearby, boolean deepOcean, boolean allowBoss) {
+        HostileSpawnProfile fallback = HostileEncounterTable.pick(level.getRandom(), level.getDifficulty(), deepOcean, allowBoss);
+        HostileSpawnProfile selected = fallback;
+        for (int attempt = 0; attempt < 6; attempt++) {
+            HostileSpawnProfile candidate = HostileEncounterTable.pick(level.getRandom(), level.getDifficulty(), deepOcean, allowBoss);
+            if (candidate.boss()) {
+                return candidate;
+            }
+
+            ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(candidate.eggMeta());
+            boolean duplicateNearby = nearby.stream().anyMatch(ship ->
+                    ship.getVariantEggMeta() == candidate.eggMeta()
+                            || ship.getSpec().textureStem().equals(spec.textureStem()));
+            if (!duplicateNearby) {
+                selected = candidate;
+                break;
+            }
+        }
+        return selected;
+    }
+
+    private static void spawnEncounter(ServerLevel level, BlockPos anchor, ServerPlayer targetPlayer, HostileSpawnProfile profile) {
         RandomSource random = level.getRandom();
         ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(profile.eggMeta());
-        int groupCount = profile.minGroup() >= profile.maxGroup()
-                ? profile.minGroup()
-                : random.nextInt(profile.maxGroup() - profile.minGroup() + 1) + profile.minGroup();
-        if (profile.boss()) {
-            groupCount = 1;
-        }
 
-        for (int index = 0; index < groupCount; index++) {
-            BlockPos spawnPos = anchor.offset(random.nextInt(9) - 4, 0, random.nextInt(9) - 4);
-            LegacyShipEntity ship = new LegacyShipEntity(com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get(), level);
-            ship.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D, random.nextFloat() * 360.0F, 0.0F);
-            ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null, null);
-            ship.applySpawnSpec(spec, null);
-            ship.initializeHostileRuntime(true, profile.elite(), profile.boss());
-            ship.setTarget(targetPlayer);
-            if (!level.noCollision(ship, ship.getBoundingBox())) {
-                ship.discard();
-                continue;
-            }
-            level.addFreshEntity(ship);
+        BlockPos spawnPos = anchor.offset(random.nextInt(9) - 4, 0, random.nextInt(9) - 4);
+        LegacyShipEntity ship = new LegacyShipEntity(com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get(), level);
+        ship.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D, random.nextFloat() * 360.0F, 0.0F);
+        ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null, null);
+        ship.applySpawnSpec(spec, null);
+        ship.initializeHostileRuntime(true, profile.elite(), profile.boss());
+        ship.setTarget(targetPlayer);
+        if (!level.noCollision(ship, ship.getBoundingBox())) {
+            ship.discard();
+            return;
         }
+        level.addFreshEntity(ship);
     }
 
     private static @Nullable BlockPos findSpawnAnchor(ServerLevel level, ServerPlayer player) {

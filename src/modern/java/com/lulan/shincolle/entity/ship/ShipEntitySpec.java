@@ -21,6 +21,11 @@ public record ShipEntitySpec(int eggMeta, String translationKey, String textureS
                 "textures/entity/modern/" + this.textureStem.toLowerCase(Locale.ROOT) + ".png");
     }
 
+    public ResourceLocation modelSourceLocation() {
+        return ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID,
+                "legacy_model_sources/" + this.modelSourceStem().toLowerCase(Locale.ROOT) + ".java");
+    }
+
     public String modelSourceStem() {
         return switch (this.textureStem) {
             case "EntityHeavyCruiserRi" -> "ModelHeavyCruiserRi";

@@ -1,0 +1,124 @@
+package com.lulan.shincolle.teitoku;
+
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.ShipEntitySpec;
+import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+
+public record ShipWorldCacheEntry(
+        int shipUid,
+        int entityId,
+        String dimensionId,
+        int legacyClassId,
+        int variantEggMeta,
+        int ownerUid,
+        String ownerName,
+        boolean dead,
+        int posX,
+        int posY,
+        int posZ,
+        CompoundTag entityTag
+) {
+
+    private static final String SHIP_UID_TAG = "ShipUID";
+    private static final String ENTITY_ID_TAG = "EntityID";
+    private static final String DIMENSION_TAG = "Dimension";
+    private static final String LEGACY_CLASS_ID_TAG = "LegacyClassId";
+    private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
+    private static final String OWNER_UID_TAG = "OwnerUID";
+    private static final String OWNER_NAME_TAG = "OwnerName";
+    private static final String DEAD_TAG = "Dead";
+    private static final String POS_X_TAG = "PosX";
+    private static final String POS_Y_TAG = "PosY";
+    private static final String POS_Z_TAG = "PosZ";
+    private static final String ENTITY_TAG = "EntityTag";
+    private static final String CUSTOM_NAME_TAG = "CustomName";
+
+    public ShipWorldCacheEntry {
+        dimensionId = dimensionId == null || dimensionId.isBlank()
+                ? "minecraft:overworld"
+                : dimensionId;
+        ownerName = ownerName == null ? "" : ownerName;
+        entityTag = entityTag == null ? new CompoundTag() : entityTag.copy();
+    }
+
+    public static ShipWorldCacheEntry fromShip(LegacyShipEntity ship, boolean dead) {
+        ResourceLocation dimensionKey = ship.level().dimension().location();
+        CompoundTag entityTag = ship.saveWithoutId(new CompoundTag());
+        return new ShipWorldCacheEntry(
+                ship.getShipUid(),
+                ship.getId(),
+                dimensionKey == null ? "minecraft:overworld" : dimensionKey.toString(),
+                ship.getShipClassId(),
+                ship.getVariantEggMeta(),
+                ship.getOwnerUid(),
+                ship.getOwnerName(),
+                dead,
+                (int) Math.floor(ship.getX()),
+                (int) Math.floor(ship.getY()),
+                (int) Math.floor(ship.getZ()),
+                entityTag);
+    }
+
+    public CompoundTag saveToTag(CompoundTag tag) {
+        tag.putInt(SHIP_UID_TAG, this.shipUid);
+        tag.putInt(ENTITY_ID_TAG, this.entityId);
+        tag.putString(DIMENSION_TAG, this.dimensionId);
+        tag.putInt(LEGACY_CLASS_ID_TAG, this.legacyClassId);
+        tag.putInt(VARIANT_EGG_META_TAG, this.variantEggMeta);
+        tag.putInt(OWNER_UID_TAG, this.ownerUid);
+        if (!this.ownerName.isBlank()) {
+            tag.putString(OWNER_NAME_TAG, this.ownerName);
+        }
+        tag.putBoolean(DEAD_TAG, this.dead);
+        tag.putInt(POS_X_TAG, this.posX);
+        tag.putInt(POS_Y_TAG, this.posY);
+        tag.putInt(POS_Z_TAG, this.posZ);
+        tag.put(ENTITY_TAG, this.entityTag.copy());
+        return tag;
+    }
+
+    public static ShipWorldCacheEntry load(CompoundTag tag) {
+        CompoundTag entityTag = tag.contains(ENTITY_TAG, Tag.TAG_COMPOUND)
+                ? tag.getCompound(ENTITY_TAG).copy()
+                : new CompoundTag();
+        return new ShipWorldCacheEntry(
+                Math.max(0, tag.getInt(SHIP_UID_TAG)),
+                tag.getInt(ENTITY_ID_TAG),
+                tag.getString(DIMENSION_TAG),
+                tag.getInt(LEGACY_CLASS_ID_TAG),
+                tag.contains(VARIANT_EGG_META_TAG) ? tag.getInt(VARIANT_EGG_META_TAG) : 0,
+                Math.max(0, tag.getInt(OWNER_UID_TAG)),
+                tag.getString(OWNER_NAME_TAG),
+                tag.getBoolean(DEAD_TAG),
+                tag.getInt(POS_X_TAG),
+                tag.getInt(POS_Y_TAG),
+                tag.getInt(POS_Z_TAG),
+                entityTag);
+    }
+
+    public Component resolveDisplayName() {
+        if (this.entityTag.contains(CUSTOM_NAME_TAG, Tag.TAG_STRING)) {
+            String serialized = this.entityTag.getString(CUSTOM_NAME_TAG);
+            if (!serialized.isBlank()) {
+                try {
+                    Component component = Component.Serializer.fromJson(serialized);
+                    if (component != null) {
+                        return component;
+                    }
+                } catch (Exception ignored) {
+                    return Component.literal(serialized);
+                }
+            }
+        }
+
+        ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(this.legacyClassId);
+        if (spec == null) {
+            spec = ShipEntitySpecs.findByEggMeta(this.variantEggMeta);
+        }
+        return spec != null ? spec.displayName() : Component.literal("Ship UID " + this.shipUid);
+    }
+}

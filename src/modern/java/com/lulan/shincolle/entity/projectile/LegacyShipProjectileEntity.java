@@ -213,8 +213,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             return false;
         }
 
-        if (this.targetId >= 0) {
-            return entity.getId() == this.targetId;
+        Entity owner = this.getOwner();
+        if (owner instanceof LegacyShipEntity ship) {
+            return ship.canEngage((LivingEntity) entity);
         }
 
         return true;
@@ -371,8 +372,17 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             return;
         }
 
+        if (this.tickCount > 14) {
+            return;
+        }
+
         LivingEntity target = this.getIntendedTarget();
         if (target == null || !target.isAlive()) {
+            return;
+        }
+
+        Entity owner = this.getOwner();
+        if (owner instanceof LegacyShipEntity ship && !ship.getSensing().hasLineOfSight(target)) {
             return;
         }
 
@@ -394,30 +404,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     private void updateBombDropFlight() {
-        if (this.missedShot) {
-            return;
-        }
-
-        LivingEntity target = this.getIntendedTarget();
-        if (target == null || !target.isAlive()) {
-            return;
-        }
-
-        Vec3 desired = target.position().add(0.0D, target.getBbHeight() * this.targetHeightFactor, 0.0D).subtract(this.position());
-        Vec3 horizontalDesired = new Vec3(desired.x, 0.0D, desired.z);
-        if (horizontalDesired.lengthSqr() < 1.0E-4D) {
-            return;
-        }
-
-        Vec3 current = this.getDeltaMovement();
-        double horizontalSpeed = Math.max(0.18D, Math.sqrt(current.x * current.x + current.z * current.z));
-        Vec3 horizontalCurrent = new Vec3(current.x, 0.0D, current.z);
-        Vec3 redirected = horizontalCurrent.scale(0.9D).add(horizontalDesired.normalize().scale(horizontalSpeed * 0.1D));
-        if (redirected.lengthSqr() < 1.0E-6D) {
-            redirected = horizontalDesired.normalize().scale(horizontalSpeed);
-        }
-
-        this.setDeltaMovement(redirected.x, current.y, redirected.z);
+        // Legacy bomb drops keep their initial release vector after launch instead of steering into the target.
     }
 
     private void spawnTrailParticles() {
