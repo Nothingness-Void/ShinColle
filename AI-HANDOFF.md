@@ -1,6 +1,6 @@
 # ShinColle AI Handoff
 
-更新时间：2026-04-10
+更新时间：2026-04-16
 
 先读：
 - `PORTING-MISTAKES.md`
@@ -14,14 +14,14 @@
 - 已验证 JDK 17 构建与 GameTest 基线：
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Java\jdk-17'
+$env:JAVA_HOME='C:\Program Files\Java\jdk-17.0.3.1'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat compileJava processResources runGameTestServer
 ```
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 30 required tests passed`
+  - `All 44 required tests passed`
 - 还没有重新做一轮客户端手工冒烟，所以“测试已绿”不等于“所有 HUD / 粒子 / 交互都已实机确认”。
 
 ## 已经落地并接线的主线
@@ -68,11 +68,32 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `3=air light`
   - `4=air heavy`
   - `5=disabled`
-- morph special 分发表不再只剩天龙 / 龙田：
-  - `58 / 2058` Tenryuu
-  - `59 / 2059` Tatsuta
-  - `60 / 2060 / 61 / 2061` Takao-class heavy cruiser group
-  - `62 / 2062 / 63 / 2063 / 64 / 2064 / 65 / 2065` Kongou-class group
+- morph special 由包内 `MorphSpecialCatalog` 统一分发，分发表使用 legacy class id，不使用 eggMeta：
+  - `36 / 2036` Shimakaze，五连装鱼雷风格多段 heavy strike
+  - `37 / 2037` Nagato，Type 91 AP fist 风格主目标重击加小范围 AoE
+  - `46 / 2046` Yamato，beam 风格线性重击
+  - `56 / 2056` Tenryuu
+  - `57 / 2057` Tatsuta
+  - `58 / 2058 / 59 / 2059` Atago / Takao heavy cruiser group
+  - `60 / 2060 / 61 / 2061 / 62 / 2062 / 63 / 2063` Kongou-class group
+- morph special cooldown preview 读取行为 catalog 自身的 cooldown，不再维护第二份 class-id switch。
+- 已复核本轮容易误判的 legacy 类：
+  - Kaga / Akagi 是舰载机普通攻击与婚戒跳跃 buff，没有发现可迁移的 slot-5 special。
+  - U511 / Ro500 是潜艇普通轻攻击重写与隐身/婚戒效果，没有发现可迁移的 slot-5 special。
+  - Akatsuki / Hibiki / Ikazuchi / Inazuma 是第六驱逐队合体、骑乘、婚戒 buff 逻辑，不应直接登记为 morph special。
+- 第一批非 special 的 legacy ring/marriage passive 已迁移到现代 `LegacyShipEntity`：
+  - U511 / Ro500：已婚友方每 128 tick 给自身隐身；owner 在线且 16 格内时同步给 owner 隐身。
+  - Kaga / Akagi：已婚友方每 128 tick 给 16 格内同 owner / allied ship 施加 jump boost。
+  - Akatsuki / Hibiki / Ikazuchi / Inazuma：已婚友方每 128 tick 给 16 格内 owner 施加对应 Haste / Jump / Strength / Speed。
+  - 现代没有 legacy `UseRingEffect` 与 `NumGrudge` 状态，本批用现有 `isMarried()` + friendly/non-hostile gate 承接这类被动；未新增 packet 或存档字段。
+- 单人游戏性优先的 shipyard 燃料切片已迁移：
+  - small / large shipyard 与 heavy grudge 结构的 fuel slot 统一走 `SmallShipyardRecipes.consumeFuelItem`。
+  - `shiptank` 等 lava fluid container 现在按 1000mB 一次提供 20000 power，并保留 drain 后的容器。
+  - lava bucket 继续提供 20000 power，并正确返还 empty bucket。
+- 单人自动路线补给继续收口：
+  - crane route 现在覆盖“只连接 route-energy block、没有 paired item container”的能量转移路径。
+  - 修正 ship 在 crane 能量转移成功后重算 load/unload 状态时错误访问空物品容器的风险。
+  - crane route 现在有 `shiptank` 液体转移回归：paired chest 中的 lava tank 可以向舰船 cargo 中的 empty tank 输液。
 - intermod 现在有 soft bridge 骨架：
   - mod presence 检测
   - bridge loader
@@ -88,6 +109,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `friendly_ship_deployed` trigger 已注册
 - 5 槽 playerskill runtime state 的 save/load 已有回归测试
 - extended morph special dispatch 已有回归测试
+- morph special legacy class-id 解析、dispatch true/false 集合、cooldown preview 已有回归测试
+- class-id 解析测试已覆盖 special 与易混淆非 special 舰种的 friendly/mirror eggMeta 映射。
+- legacy ring passive 已有实体级回归测试，覆盖 U511/Ro500 自隐与 Kaga/Akagi 近旁同 owner 舰船 jump boost。
+- shipyard fuel 已有纯逻辑回归测试，覆盖 `shiptank` lava 分桶消耗与 lava bucket 容器返还。
+- crane route energy 已有实体级回归测试，覆盖 ship 从 paired large shipyard route-energy pool 装载能量且 paired block 不是物品容器的情况。
+- crane route liquid 已有实体级回归测试，覆盖 paired chest `shiptank` -> ship cargo `shiptank` 的 lava 转移。
 
 ## 仍未完成的内容
 
@@ -123,4 +150,4 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 一句话总结
 
-项目现在已经从“growth loop 能跑”推进到“playerskill / morph 主体也能跑”的阶段；当前最需要的不是继续堆大迁移面，而是做一轮客户端实机确认，然后再慢慢补完剩余 special、reference 深度和真实 intermod 对接。
+项目现在已经从“growth loop 能跑”推进到“playerskill / morph 主体也能跑”，并开始补单人实际游玩中的 shipyard 细节；当前最需要的是做一轮客户端实机确认，然后再慢慢补完剩余 special、reference 深度和真实 intermod 对接。

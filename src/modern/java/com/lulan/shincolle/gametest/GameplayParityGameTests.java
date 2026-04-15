@@ -50,7 +50,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -60,8 +62,13 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 
@@ -189,6 +196,46 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipEntitySpecsResolveLegacyClassIds(GameTestHelper helper) {
+        int[][] expectedMappings = {
+                {36, 38},
+                {37, 39},
+                {38, 40},
+                {39, 41},
+                {46, 48},
+                {47, 49},
+                {48, 50},
+                {51, 53},
+                {52, 54},
+                {53, 55},
+                {54, 56},
+                {56, 58},
+                {57, 59},
+                {58, 60},
+                {59, 61},
+                {60, 62},
+                {61, 63},
+                {62, 64},
+                {63, 65}
+        };
+
+        for (int[] mapping : expectedMappings) {
+            int legacyClassId = mapping[0];
+            int expectedEggMeta = mapping[1];
+            ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(legacyClassId);
+            ShipEntitySpec mirrorSpec = ShipEntitySpecs.findByLegacyClassId(legacyClassId + 2000);
+            if (spec == null || spec.eggMeta() != expectedEggMeta
+                    || mirrorSpec == null || mirrorSpec.eggMeta() != expectedEggMeta + 2000) {
+                helper.fail("legacy class id lookup mismatch for class " + legacyClassId
+                        + ": expected egg " + expectedEggMeta + " and mirror " + (expectedEggMeta + 2000));
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void hostileEncounterTableOnlyReturnsHostileProfiles(GameTestHelper helper) {
         RandomSource random = RandomSource.create(3412L);
         for (int i = 0; i < 64; i++) {
@@ -305,6 +352,53 @@ public final class GameplayParityGameTests {
         ship.setMarried(false);
         if (ship.getShipLevel() != 100 || ship.getLevelCap() != 100) {
             helper.fail("removing marriage should clamp the ship back to the normal level cap");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void legacyRingPassivesApplyFirstMigratedShipEffects(GameTestHelper helper) {
+        LegacyShipEntity submarine = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity carrier = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity escort = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (submarine == null || carrier == null || escort == null) {
+            helper.fail("legacy ship entities should be creatable for ring passive tests");
+            return;
+        }
+
+        submarine.setVariantEggMeta(40);
+        submarine.setMarried(true);
+        submarine.setShipLevel(60);
+        submarine.setPos(1.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(submarine);
+
+        UUID ownerUuid = UUID.randomUUID();
+        carrier.setVariantEggMeta(49);
+        carrier.setOwner(ownerUuid, "PassiveTester", 91);
+        carrier.setMarried(true);
+        carrier.setShipLevel(85);
+        carrier.setPos(3.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(carrier);
+
+        escort.setVariantEggMeta(58);
+        escort.setOwner(ownerUuid, "PassiveTester", 91);
+        escort.setPos(4.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(escort);
+
+        for (int i = 0; i < 128; i++) {
+            submarine.tick();
+            carrier.tick();
+        }
+
+        if (!submarine.hasEffect(MobEffects.INVISIBILITY)) {
+            helper.fail("U511/Ro500 migrated ring passive should apply invisibility to the ship");
+            return;
+        }
+
+        if (!escort.hasEffect(MobEffects.JUMP) || escort.getEffect(MobEffects.JUMP).getAmplifier() != 1) {
+            helper.fail("Kaga/Akagi migrated ring passive should apply jump boost to nearby allied ships");
             return;
         }
 
@@ -464,6 +558,47 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipyardFuelConsumesShipTankLavaByBucket(GameTestHelper helper) {
+        ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
+        var handler = FluidUtil.getFluidHandler(tank).resolve();
+        if (handler.isEmpty()) {
+            helper.fail("ship tank should expose a fluid handler for lava fuel tests");
+            return;
+        }
+
+        int filled = handler.get().fill(new FluidStack(Fluids.LAVA, 2000), IFluidHandler.FluidAction.EXECUTE);
+        ItemStack filledTank = handler.get().getContainer();
+        if (filled != 2000 || SmallShipyardRecipes.getFuelValue(filledTank) != 20000) {
+            helper.fail("ship tank with at least one bucket of lava should be accepted as shipyard fuel");
+            return;
+        }
+
+        var firstUse = SmallShipyardRecipes.consumeFuelItem(filledTank);
+        if (firstUse.isEmpty() || firstUse.get().power() != 20000
+                || !firstUse.get().remainder().is(ModItems.SHIPTANK.get())
+                || FluidUtil.getFluidContained(firstUse.get().remainder()).map(FluidStack::getAmount).orElse(0) != 1000) {
+            helper.fail("shipyard fuel should drain one lava bucket from the tank and keep the tank item");
+            return;
+        }
+
+        var secondUse = SmallShipyardRecipes.consumeFuelItem(firstUse.get().remainder());
+        if (secondUse.isEmpty() || secondUse.get().power() != 20000
+                || FluidUtil.getFluidContained(secondUse.get().remainder()).map(FluidStack::getAmount).orElse(0) != 0) {
+            helper.fail("second ship tank fuel use should drain the remaining lava bucket");
+            return;
+        }
+
+        var lavaBucketUse = SmallShipyardRecipes.consumeFuelItem(new ItemStack(Items.LAVA_BUCKET));
+        if (lavaBucketUse.isEmpty() || lavaBucketUse.get().power() != 20000
+                || !lavaBucketUse.get().remainder().is(Items.BUCKET)) {
+            helper.fail("lava bucket fuel should still return an empty bucket");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void craneFilterMatching(GameTestHelper helper) {
         CraneBlockEntity crane = new CraneBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
         crane.setFilter(0, new ItemStack(Items.APPLE), false);
@@ -488,6 +623,111 @@ public final class GameplayParityGameTests {
         if (!crane.matchesTransferFilter(new ItemStack(Items.COBBLESTONE), false)
                 || crane.matchesTransferFilter(new ItemStack(Items.DIRT), false)) {
             helper.fail("unloading filters should use the unload row independently");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void craneRouteTransfersEnergyWithoutItemContainer(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+
+        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for route transfer");
+            return;
+        }
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
+            helper.fail("large shipyard should expose route energy for crane transfer");
+            return;
+        }
+
+        crane.setPairedChest(shipyardPos);
+        crane.cycleEnergyMode();
+        shipyard.getContainerData().set(2, 1600);
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable in tests");
+            return;
+        }
+
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(cranePos, "");
+
+        for (int i = 0; i < 3; i++) {
+            ship.tick();
+        }
+
+        if (ship.getRouteEnergyBuffer() <= 0 || shipyard.getRouteEnergyStored() >= 1600) {
+            helper.fail("crane route should transfer energy from a route-energy block even when no paired item container exists");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void craneRouteTransfersShipTankLavaFromChestToShip(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+
+        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for route fluid transfer");
+            return;
+        }
+        if (!(helper.getLevel().getBlockEntity(chestPos) instanceof Container chest)) {
+            helper.fail("paired chest should expose a container for route fluid transfer");
+            return;
+        }
+
+        ItemStack sourceTank = new ItemStack(ModItems.SHIPTANK.get());
+        var sourceHandler = FluidUtil.getFluidHandler(sourceTank).resolve();
+        if (sourceHandler.isEmpty()) {
+            helper.fail("ship tank should expose a fluid handler for crane transfer tests");
+            return;
+        }
+
+        int filled = sourceHandler.get().fill(new FluidStack(Fluids.LAVA, 2000), IFluidHandler.FluidAction.EXECUTE);
+        if (filled != 2000) {
+            helper.fail("source ship tank should accept lava for crane transfer tests");
+            return;
+        }
+
+        chest.setItem(0, sourceHandler.get().getContainer());
+        crane.setPairedChest(chestPos);
+        crane.cycleLiquidMode();
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable in tests");
+            return;
+        }
+
+        int shipTankSlot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
+        ship.getShipInventory().setItem(shipTankSlot, new ItemStack(ModItems.SHIPTANK.get()));
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(cranePos, "");
+
+        for (int i = 0; i < 3; i++) {
+            ship.tick();
+        }
+
+        int shipTankAmount = FluidUtil.getFluidContained(ship.getShipInventory().getItem(shipTankSlot))
+                .map(FluidStack::getAmount)
+                .orElse(0);
+        int chestTankAmount = FluidUtil.getFluidContained(chest.getItem(0))
+                .map(FluidStack::getAmount)
+                .orElse(0);
+        if (shipTankAmount <= 0 || chestTankAmount >= 2000) {
+            helper.fail("crane route should move lava from a paired chest tank into a ship cargo tank");
             return;
         }
 
@@ -889,15 +1129,58 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void morphSpecialDispatchCoversCruiserAndKongouClasses(GameTestHelper helper) {
-        if (!MorphHelper.hasSpecialSkill(new MorphProfile(58))
-                || !MorphHelper.hasSpecialSkill(new MorphProfile(59))
-                || !MorphHelper.hasSpecialSkill(new MorphProfile(60))
-                || !MorphHelper.hasSpecialSkill(new MorphProfile(61))
-                || !MorphHelper.hasSpecialSkill(new MorphProfile(62))
-                || !MorphHelper.hasSpecialSkill(new MorphProfile(65))
-                || MorphHelper.hasSpecialSkill(new MorphProfile(49))) {
-            helper.fail("morph special dispatch should include Tenryuu, Tatsuta, Takao-class, and Kongou-class profiles without granting carriers a false special");
+    public static void morphSpecialDispatchUsesLegacyClassIds(GameTestHelper helper) {
+        int[] specialClassIds = {36, 37, 46, 56, 57, 58, 59, 60, 61, 62, 63};
+        for (int classId : specialClassIds) {
+            if (!MorphHelper.hasSpecialSkill(new MorphProfile(classId))
+                    || !MorphHelper.hasSpecialSkill(new MorphProfile(classId + 2000))) {
+                helper.fail("morph special dispatch should include legacy class id " + classId + " and its hostile mirror");
+                return;
+            }
+        }
+
+        int[] nonSpecialClassIds = {38, 39, 47, 48, 51, 52, 53, 54};
+        for (int classId : nonSpecialClassIds) {
+            if (MorphHelper.hasSpecialSkill(new MorphProfile(classId))
+                    || MorphHelper.hasSpecialSkill(new MorphProfile(classId + 2000))) {
+                helper.fail("morph special dispatch should not grant a first-batch special to legacy class id " + classId);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void morphSpecialPreviewCooldownUsesBehaviorCatalog(GameTestHelper helper) {
+        int[][] cooldownCases = {
+                {56, 120},
+                {57, 120},
+                {58, 140},
+                {59, 140},
+                {60, 150},
+                {63, 150},
+                {36, 130},
+                {37, 170},
+                {46, 200}
+        };
+
+        for (int[] cooldownCase : cooldownCases) {
+            int classId = cooldownCase[0];
+            int expectedCooldown = cooldownCase[1];
+            int actualCooldown = MorphHelper.getSpecialPreviewCooldown(new MorphProfile(classId));
+            int mirrorCooldown = MorphHelper.getSpecialPreviewCooldown(new MorphProfile(classId + 2000));
+            if (actualCooldown != expectedCooldown || mirrorCooldown != expectedCooldown) {
+                helper.fail("morph special cooldown preview mismatch for class " + classId
+                        + ": expected " + expectedCooldown + ", got " + actualCooldown
+                        + " / mirror " + mirrorCooldown);
+                return;
+            }
+        }
+
+        if (MorphHelper.getSpecialPreviewCooldown(new MorphProfile(47)) != 0
+                || MorphHelper.getSpecialPreviewCooldown(new MorphProfile(2047)) != 0) {
+            helper.fail("non-special morph classes should preview zero special cooldown");
             return;
         }
 

@@ -411,23 +411,18 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LegacyCoreAcc
             return false;
         }
 
-        int fuelValue = SmallShipyardRecipes.getFuelValue(fuelStack);
+        var fuelUse = SmallShipyardRecipes.consumeFuelItem(fuelStack);
+        if (fuelUse.isEmpty()) {
+            return false;
+        }
+
+        int fuelValue = fuelUse.get().power();
         if (fuelValue <= 0) {
             return false;
         }
 
-        ItemStack remainder = fuelStack.hasCraftingRemainingItem() ? fuelStack.getCraftingRemainingItem() : ItemStack.EMPTY;
-        if (!remainder.isEmpty() && fuelStack.getCount() > 1) {
-            return false;
-        }
-
         this.powerRemained = Math.min(POWER_MAX, this.powerRemained + fuelValue);
-        if (remainder.isEmpty()) {
-            fuelStack.shrink(1);
-            this.shipyardItems.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, fuelStack.isEmpty() ? ItemStack.EMPTY : fuelStack);
-        } else {
-            this.shipyardItems.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, remainder.copy());
-        }
+        this.shipyardItems.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, fuelUse.get().remainder().copy());
 
         return true;
     }
