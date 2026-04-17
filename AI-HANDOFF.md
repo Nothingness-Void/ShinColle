@@ -1,6 +1,6 @@
 # ShinColle AI Handoff
 
-更新时间：2026-04-17
+更新时间：2026-04-18
 
 先读：
 - `PORTING-MISTAKES.md`
@@ -21,7 +21,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 58 required tests passed`
+  - `All 60 required tests passed`
 - 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮 Phase 5-6 主要是服务端/网络/持久化闭环，typed ship command 的客户端输入路径仍建议后续再做一次短冒烟。
 
 ## 已经落地并接线的主线
@@ -30,6 +30,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `TeamSavedData / formation runtime / target-class sync`
 - `gameplay command/state packets`
 - `dedicated ship command packet + shared command service`
+- `per-ship behavior catalog baseline`
 - `desk / formation / ship inventory` 控制闭环
 - `large shipyard / heavy grudge` 结构与能量基线
 - `hostile encounter / chest loot / world combat rules`
@@ -53,6 +54,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `ShipInventoryScreen` 的 stop、AI flag、follow range 控制改走专用 ship command packet，team/formation 按钮继续沿用现有总线。
   - `ShipCommandService` 集中处理 owner/UID 解析、存活检查、距离限制、`canEngage`、team slot、formation offset、standby 解除、目标清理与状态同步。
   - `LegacyShipEntity` 的 command pos/dimension、guard UUID、route wait、AI flags、follow range 等运行时状态已有 NBT 回归；修正了读档时 `DATA_AI_FLAGS` 与 `DATA_AI_FOLLOW_RANGE` 同步回调互相覆盖的问题。
+- Phase 7 第一切片已完成到 code + GameTest 基线：
+  - 新增 `LegacyShipBehaviorCatalog`，作为 legacy class id / hostile flag / runtime state 的舰种行为分发入口。
+  - `LegacyShipEntity` 的攻击 profile 初始化现在经由 behavior catalog，后续 per-ship combat hook 不再继续堆在实体主类里。
+  - 已婚友方舰的 legacy ring passive 分发已移入 behavior catalog，现有 U511/Ro500 隐身、Kaga/Akagi jump aura、第六驱逐队 owner buff 语义保持不变。
+  - 新增 GameTest 覆盖婚戒被动 class-id dispatch 与攻击 profile catalog routing。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -119,6 +125,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `compileJava`
 - `processResources`
 - `runGameTestServer`
+- Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
 - advancement 资源加载正常
 - `friendly_ship_deployed` trigger 已注册
 - 5 槽 playerskill runtime state 的 save/load 已有回归测试
@@ -146,7 +153,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线；用户已做过一轮客户端验收且未发现明显问题，但 typed ship command 本轮刚接线，后续仍建议做短客户端冒烟确认输入体验和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog 第一切片已接线；用户已做过一轮客户端验收且未发现明显问题，但 typed ship command 与 Phase 7 catalog 后续仍建议做短客户端冒烟确认输入体验和失败反馈。
 
 ### P0 立即验收项
 
@@ -235,8 +242,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 ### Phase 7: 实体类型 / 生成
 
 - 当前用单一 `LegacyShipEntity` 承载 legacy eggMeta / class id 变体，spawn egg 和 shipyard 输出已能生成实体。
+- 已新增 `LegacyShipBehaviorCatalog` 作为 per-ship runtime hook 入口；攻击 profile 与已婚友方舰 ring passive 已从实体主类分发到 catalog，并有 2 个 GameTest 锁住 dispatch。
 - 待补：
-  - 每艘舰专属运行时逻辑和 per-ship combat hooks，不要长期只靠通用 `LegacyShipEntity`。
+  - 继续把每艘舰专属运行时逻辑和 per-ship combat hooks 分批迁入 catalog，不要长期只靠通用 `LegacyShipEntity`。
   - 更完整的 hostile / boss / hime / abyssal spawn 规则与掉落。
   - 舰船 AI route、escort、standby、combat targeting 的复杂边界测试。
   - 生成蛋、shipyard-built egg、hostile mirror、owner claim、first collection 的客户端实机确认。

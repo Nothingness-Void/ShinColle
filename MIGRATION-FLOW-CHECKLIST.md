@@ -2,7 +2,7 @@
 
 For the newest implementation handoff, read `AI-HANDOFF.md`.
 
-Audit date: 2026-04-17
+Audit date: 2026-04-18
 
 This file tracks the port in dependency order and checks what is genuinely migrated today.
 It is stricter than `PORTING-1.20.1.md`: code that is only registered as a placeholder is not marked as fully migrated.
@@ -28,7 +28,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 | 4 | Menus and screens | Phases 1-3 | Done | `Code`, `Compile` | `recipepaper`, desk reference items, desk terminal, crane terminal, waypoint terminal, small/large shipyard, legacy core, and ship inventory menus/screens have a Phase 4 server-button/readout baseline. |
 | 5 | Networking (`SimpleChannel`) | Phases 1-4 | Partial | `Code`, `Compile` | `SimpleChannel` now carries Teitoku sync, gameplay command/state sync, combat FX, and a dedicated `ServerboundShipCommandPacket` family for single-player ship commands. Old gameplay ship commands and the new typed packet share `ShipCommandService`; deeper legacy GUI packet families and multiplayer ally UI are still pending. |
 | 6 | Saved data, attachments, capabilities | Phases 1-5 | Partial | `Code`, `Compile` | Teitoku/team/formation data plus ship runtime command state now persist the single-player command loop: AI flags, follow range, route energy/wait, command pos, guard target, current team slots, selected slots, formation id, and ship UID lookup are GameTest-covered. Broader old `CapaTeitoku`, migration edge cases, and deeper ship task/combat state are still pending. |
-| 7 | Entity types and spawn logic | Phases 1-6 | Partial | `Code`, `Compile` | A modern generic ship entity and real spawn-egg deployment path now exist. The first persistent ship inventory/menu slice is back, but legacy per-ship classes and combat logic are still pending. |
+| 7 | Entity types and spawn logic | Phases 1-6 | Partial | `Code`, `Compile` | A modern generic ship entity and real spawn-egg deployment path now exist. `LegacyShipBehaviorCatalog` now owns the first per-ship dispatch layer for attack profile routing and marriage/ring passives; deeper per-ship combat hooks and spawn depth are still pending. |
 | 8 | Client renderers and visual glue | Phases 2-7 | Partial | `Code`, `Compile`, `Runtime` | Basic item property/render-layer hooks exist, several blocks use custom JSON models, and the first generic ship renderer can now draw legacy ship textures. No BER or per-ship renderer migration yet. |
 | 9 | AI, combat, reactions | Phases 2-8 | Partial | `Code`, `Compile` | Ships now have escort / standby behavior, owner assist targeting, hostile-vs-friendly combat targeting, restored legacy stat rebuilding, legacy-style melee / light / heavy / air attack routing, and a first compatibility projectile layer for heavy / air attacks. Full projectile systems, per-ship weapon specials, and reaction pages are still missing. |
 | 10 | Worldgen, advanced recipes, inter-mod | Phases 1-9 | Not started | none | Only basic resource/data reuse exists today. |
@@ -62,7 +62,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 | Combat ration | Food/item-side morale baseline | Partial | `Code`, `Compile` | `item/CombatRationItem.java` | Standalone consumption works; ship-specific legacy hooks remain missing. |
 | Repair goddess | Simple rescue item | Partial | `Code`, `Compile` | `item/RepairGoddessItem.java` | Minimal standalone behavior only. |
 | Legacy equipment lines | Equipment stats, ordering, tooltip data, and models | Done | `Code`, `Compile` | `item/equipment/LegacyEquipmentItem.java`, `item/equipment/LegacyEquipmentStatsRepository.java`, `registry/ModItems.java` | All legacy equipment variants now use modern item classes backed by extracted legacy stat tables, restored tooltip data, and modern item models. Tooltip-side equipment restoration is no longer isolated from ship gameplay. |
-| Ship entity baseline | Generic ship entity + legacy variant mapping + ownership baseline | Partial | `Code`, `Compile` | `entity/ship/LegacyShipEntity.java`, `entity/ship/ShipEntitySpecs.java`, `registry/ModEntityTypes.java` | One modern entity type now carries legacy egg-meta / class-id variants, basic owner claim / standby interaction, shared texture routing, first escort-follow behavior, owner-assist / faction targeting, active escort-vs-`Enemy` mob targeting, a persistent 6+18 slot ship inventory, runtime state (`level`, `morale`, `marriage`, `modernization`, `rescue`), restored legacy stats, the first legacy-style ranged attack routing layer, and a compatibility projectile entity for heavy / air attacks. Friendly death now locks interaction, prevents accidental revival, keeps cargo inside a recovered egg, and removes the ship from online teams. Full per-ship combat/runtime logic is still absent. |
+| Ship entity baseline | Generic ship entity + legacy variant mapping + ownership baseline | Partial | `Code`, `Compile` | `entity/ship/LegacyShipEntity.java`, `entity/ship/LegacyShipBehaviorCatalog.java`, `entity/ship/ShipEntitySpecs.java`, `registry/ModEntityTypes.java` | One modern entity type now carries legacy egg-meta / class-id variants, basic owner claim / standby interaction, shared texture routing, first escort-follow behavior, owner-assist / faction targeting, active escort-vs-`Enemy` mob targeting, a persistent 6+18 slot ship inventory, runtime state (`level`, `morale`, `marriage`, `modernization`, `rescue`), restored legacy stats, the first catalog-routed legacy-style ranged attack layer, and a compatibility projectile entity for heavy / air attacks. Friendly death now locks interaction, prevents accidental revival, keeps cargo inside a recovered egg, and removes the ship from online teams. Full per-ship combat/runtime logic is still absent. |
 | Ship inventory GUI | Owned ship menu + entity-backed slots + status screen | Partial | `Code`, `Compile` | `menu/ShipInventoryMenu.java`, `menu/ShipEquipmentSlot.java`, `client/screen/ShipInventoryScreen.java`, `network/ServerboundShipCommandPacket.java` | Sneak-right-click opens a real ship-side GUI backed by entity NBT inventory. Equipment slots enforce restored carrier restriction rules, the Phase 4 baseline exposes AI flags, route energy, combat stats, and server mode through menu data, and stop / AI flags / follow range now use the dedicated Phase 5 ship command packet. The full old GUI page set is still pending. |
 | Ship equipment integration | Equipment-slot stat application and restored attack math | Partial | `Code`, `Compile` | `entity/ship/ShipEquipmentProfile.java`, `entity/ship/LegacyShipEntity.java`, `entity/ship/LegacyShipStats.java`, `menu/ShipEquipmentSlot.java` | Mounted legacy equipment now feeds back into the restored 1.12.2 stat flow instead of a custom modern approximation. Equipment, morale, potion, and formation placeholders are combined in legacy order, ship UI now reads buffed legacy values, and ranged attack routing consumes the restored light / heavy / air damage families. Full projectile and per-weapon behavior parity is still pending. |
 | Ship support items | Direct item-to-ship interactions for recovery, growth, and ownership flows | Partial | `Code`, `Compile` | `entity/ship/LegacyShipEntity.java`, `item/BucketRepairItem.java`, `item/CombatRationItem.java`, `item/MarriageRingItem.java`, `item/ModernKitItem.java`, `item/OwnerPaperItem.java`, `item/RepairGoddessItem.java`, `item/TrainingBookItem.java`, `item/PointerItem.java`, `item/KaitaiHammerItem.java` | Friendly ships now respond again to repair buckets, combat rations, training books, modernization kits, wedding rings, ownership papers, repair goddess storage, pointer caress mode, and kaitai dismantle. This is a focused support slice, not full legacy item parity. |
@@ -74,13 +74,14 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 ## What Is Fully Checked Right Now
 
 - `compileJava`, `processResources`, and `runGameTestServer` pass on Java 17.
-- Current GameTest baseline: `All 58 required tests passed`.
+- Current GameTest baseline: `All 60 required tests passed`.
 - Phase 1 registered blockstate/model/item-model/menu texture/sound resource coverage is locked by tests.
 - Phase 2 ship sound routing is locked by tests for friendly/hostile sound source semantics and combat event resolution.
 - Phase 3 waypoint wait, crane route item/fluid/energy transfer, and large shipyard structure/fuel/energy/output loops are locked by tests.
 - Phase 4 Crane, Waypoint, Large Shipyard, LegacyCore, and ShipInventory menu button/data paths are locked by tests.
 - Phase 5 ship command packet encode/decode, old/new command equivalence, owner/distance/dead-target gates, single-ship command loop, selected/current team dispatch, and formation offsets are locked by tests.
 - Phase 6 AI flags, follow range, team slots, slot selection, formation id, and ship command runtime NBT persistence are locked by tests.
+- Phase 7 per-ship behavior catalog baseline is locked by tests for marriage/ring passive class-id dispatch and attack profile routing.
 - Friendly ship death recovery is locked by tests: dead/dying ships do not open ShipInventory, cargo stays inside the recovered egg, the dropped egg is owner-targeted, and redeploy restores owner/variant/cargo/health.
 - Dev client can launch, Desk block interaction path has previously been smoke-tested in client, and the user reported the latest manual client pass found no obvious issues after the death/recovery fixes.
 
@@ -97,12 +98,12 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 ## Immediate Next Targets
 
 1. Run a short client smoke pass focused on the new Phase 5 typed ship commands from Pointer and ShipInventory.
-2. Move into Phase 7 single-player gameplay depth: per-ship combat hooks, hostile/boss spawn, route/escort/standby edge cases.
+2. Continue Phase 7 single-player gameplay depth: migrate more per-ship combat hooks into `LegacyShipBehaviorCatalog`, then deepen hostile/boss spawn and route/escort/standby edge cases.
 3. Continue Phase 8/9 depth: model-accurate ship renderers, reaction pages, full projectile families, and remaining morph/player-skill special parity.
 
 ## Modern Source Snapshot
 
-- Modern Java files: `171`
+- Modern Java files: `172`
 - Major slices:
   - `advancement`: 2
   - `registry`: 7

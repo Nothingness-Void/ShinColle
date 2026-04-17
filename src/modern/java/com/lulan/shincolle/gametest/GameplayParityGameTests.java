@@ -23,6 +23,7 @@ import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
@@ -1820,12 +1821,56 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void perShipBehaviorCatalogKeepsLegacyMarriagePassiveDispatch(GameTestHelper helper) {
+        assertMarriagePassive(helper, 40, LegacyShipBehaviorCatalog.MarriagePassive.SELF_AND_OWNER_INVISIBILITY);
+        assertMarriagePassive(helper, 41, LegacyShipBehaviorCatalog.MarriagePassive.SELF_AND_OWNER_INVISIBILITY);
+        assertMarriagePassive(helper, 49, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_JUMP_AURA);
+        assertMarriagePassive(helper, 50, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_JUMP_AURA);
+        assertMarriagePassive(helper, 53, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_HASTE);
+        assertMarriagePassive(helper, 54, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_JUMP);
+        assertMarriagePassive(helper, 55, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_STRENGTH);
+        assertMarriagePassive(helper, 56, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_SPEED);
+        assertMarriagePassive(helper, 58, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+        assertMarriagePassive(helper, 2040, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void perShipBehaviorCatalogRoutesAttackProfiles(GameTestHelper helper) {
+        LegacyShipAttackProfile transport = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(18));
+        LegacyShipAttackProfile tenryuu = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(58));
+        LegacyShipAttackProfile kaga = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(49));
+        LegacyShipAttackProfile airfield = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(23));
+
+        if (transport.hasRangedAttack()) {
+            helper.fail("transport ships should stay melee-only through the behavior catalog");
+            return;
+        }
+        if (!tenryuu.light() || !tenryuu.heavy() || tenryuu.hasAirAttack()) {
+            helper.fail("cruiser behavior should expose light/heavy gun attacks without carrier air strikes");
+            return;
+        }
+        if (!kaga.hasAirAttack() || kaga.light() || kaga.heavy()) {
+            helper.fail("carrier behavior should expose air strikes without gun attacks");
+            return;
+        }
+        if (!airfield.light() || !airfield.heavy() || !airfield.hasAirAttack()
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
+            helper.fail("installation behavior should keep mixed gun/air attacks and guided heavy fire");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void projectileProfilesMatchShipRoles(GameTestHelper helper) {
-        LegacyShipAttackProfile kongou = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(62));
-        LegacyShipAttackProfile kongouHostileMirror = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(2062));
-        LegacyShipAttackProfile akagi = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(50));
-        LegacyShipAttackProfile wo = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(14));
-        LegacyShipAttackProfile airfield = LegacyShipAttackProfile.resolve(ShipEntitySpecs.getByEggMeta(23));
+        LegacyShipAttackProfile kongou = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(62));
+        LegacyShipAttackProfile kongouHostileMirror = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(2062));
+        LegacyShipAttackProfile akagi = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(50));
+        LegacyShipAttackProfile wo = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(14));
+        LegacyShipAttackProfile airfield = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(23));
 
         if (kongou.projectileProfile(LegacyShipAttackKind.HEAVY).visual() != LegacyShipProjectileVisual.MISSILE
                 || kongou.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.ARC) {
@@ -2386,6 +2431,18 @@ public final class GameplayParityGameTests {
         }
 
         return true;
+    }
+
+    private static void assertMarriagePassive(GameTestHelper helper,
+                                              int eggMeta,
+                                              LegacyShipBehaviorCatalog.MarriagePassive expectedPassive) {
+        ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(eggMeta);
+        LegacyShipBehaviorCatalog.Behavior behavior = LegacyShipBehaviorCatalog.behaviorFor(spec);
+        if (behavior.marriagePassive() != expectedPassive) {
+            helper.fail("unexpected marriage passive for eggMeta " + eggMeta
+                    + " / classId " + spec.legacyClassId()
+                    + ": expected " + expectedPassive + " but got " + behavior.marriagePassive());
+        }
     }
 
     private static int countItems(Container container, net.minecraft.world.level.ItemLike item) {

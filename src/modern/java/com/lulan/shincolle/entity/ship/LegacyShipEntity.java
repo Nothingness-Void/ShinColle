@@ -1494,7 +1494,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void refreshFromVariant(boolean preserveHealth) {
         ShipEntitySpec spec = this.getSpec();
-        this.attackProfile = LegacyShipAttackProfile.resolve(spec);
+        this.attackProfile = LegacyShipBehaviorCatalog.attackProfile(spec);
         int formationId = this.entityData.get(DATA_FORMATION_ID);
         if (!this.level().isClientSide()) {
             formationId = this.resolveAppliedFormationId();
@@ -3082,24 +3082,10 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        int shipLevel = this.getShipLevel();
-        switch (this.getShipClassId()) {
-            case 38, 39 -> this.applyLegacyRingEffect(this, MobEffects.INVISIBILITY, 40 + shipLevel, 0);
-            case 47, 48 -> this.applyCarrierRingAura(50 + shipLevel, shipLevel / 85);
-            case 51 -> this.applyOwnerRingEffect(MobEffects.DIG_SPEED, 80 + shipLevel, shipLevel / 30);
-            case 52 -> this.applyOwnerRingEffect(MobEffects.JUMP, 80 + shipLevel, shipLevel / 45 + 1);
-            case 53 -> this.applyOwnerRingEffect(MobEffects.DAMAGE_BOOST, 80 + shipLevel, shipLevel / 50);
-            case 54 -> this.applyOwnerRingEffect(MobEffects.MOVEMENT_SPEED, 80 + shipLevel, shipLevel / 45);
-            default -> {
-            }
-        }
-
-        if (this.getShipClassId() == 38 || this.getShipClassId() == 39) {
-            this.applyOwnerRingEffect(MobEffects.INVISIBILITY, 40 + shipLevel, 0);
-        }
+        LegacyShipBehaviorCatalog.tickMarriagePassive(this);
     }
 
-    private void applyCarrierRingAura(int durationTicks, int amplifier) {
+    void applyCarrierRingAura(int durationTicks, int amplifier) {
         for (LegacyShipEntity ship : this.level().getEntitiesOfClass(LegacyShipEntity.class, this.getBoundingBox().inflate(16.0D))) {
             if (!ship.isHostileVariant() && (ship == this || this.isAlliedTo(ship))) {
                 this.applyLegacyRingEffect(ship, MobEffects.JUMP, durationTicks, amplifier);
@@ -3107,14 +3093,14 @@ public class LegacyShipEntity extends PathfinderMob {
         }
     }
 
-    private void applyOwnerRingEffect(MobEffect effect, int durationTicks, int amplifier) {
+    void applyOwnerRingEffect(MobEffect effect, int durationTicks, int amplifier) {
         Player owner = this.getOwnerPlayer();
         if (owner != null && this.distanceToSqr(owner) < 256.0D) {
             this.applyLegacyRingEffect(owner, effect, durationTicks, amplifier);
         }
     }
 
-    private void applyLegacyRingEffect(LivingEntity target, MobEffect effect, int durationTicks, int amplifier) {
+    void applyLegacyRingEffect(LivingEntity target, MobEffect effect, int durationTicks, int amplifier) {
         target.addEffect(new MobEffectInstance(effect, durationTicks, amplifier, false, false));
     }
 
