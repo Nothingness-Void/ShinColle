@@ -1086,6 +1086,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.commandedPos = pos.immutable();
         this.commandDimension = dimensionId == null ? "" : dimensionId;
         this.guardEntityUuid = null;
+        this.setTarget(null);
         BlockEntity blockEntity = this.level().getBlockEntity(pos);
         this.routeNodePos = blockEntity instanceof RouteNode ? pos.immutable() : null;
         this.routeWaitTicks = 0;
@@ -1118,6 +1119,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.commandedPos = null;
         this.commandDimension = "";
         this.routeNodePos = null;
+        this.setTarget(null);
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
         this.routePreferLoad = true;

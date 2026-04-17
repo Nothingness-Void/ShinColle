@@ -28,7 +28,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 | 4 | Menus and screens | Phases 1-3 | Done | `Code`, `Compile` | `recipepaper`, desk reference items, desk terminal, crane terminal, waypoint terminal, small/large shipyard, legacy core, and ship inventory menus/screens have a Phase 4 server-button/readout baseline. |
 | 5 | Networking (`SimpleChannel`) | Phases 1-4 | Partial | `Code`, `Compile` | `SimpleChannel` now carries Teitoku sync, gameplay command/state sync, combat FX, and a dedicated `ServerboundShipCommandPacket` family for single-player ship commands. Old gameplay ship commands and the new typed packet share `ShipCommandService`; deeper legacy GUI packet families and multiplayer ally UI are still pending. |
 | 6 | Saved data, attachments, capabilities | Phases 1-5 | Partial | `Code`, `Compile` | Teitoku/team/formation data plus ship runtime command state now persist the single-player command loop: AI flags, follow range, route energy/wait, command pos, guard target, current team slots, selected slots, formation id, and ship UID lookup are GameTest-covered. Broader old `CapaTeitoku`, migration edge cases, and deeper ship task/combat state are still pending. |
-| 7 | Entity types and spawn logic | Phases 1-6 | Partial | `Code`, `Compile` | A modern generic ship entity and real spawn-egg deployment path now exist. `LegacyShipBehaviorCatalog` now owns the first per-ship dispatch layer for attack profile routing and marriage/ring passives; deeper per-ship combat hooks and spawn depth are still pending. |
+| 7 | Entity types and spawn logic | Phases 1-6 | Partial | `Code`, `Compile` | A modern generic ship entity and real spawn-egg deployment path now exist. `LegacyShipBehaviorCatalog` owns the first per-ship dispatch layer for attack profile routing and marriage/ring passives. Hostile boss spawn runtime and route/guard command boundaries now have GameTest coverage; deeper per-ship combat hooks and spawn depth are still pending. |
 | 8 | Client renderers and visual glue | Phases 2-7 | Partial | `Code`, `Compile`, `Runtime` | Basic item property/render-layer hooks exist, several blocks use custom JSON models, and the first generic ship renderer can now draw legacy ship textures. No BER or per-ship renderer migration yet. |
 | 9 | AI, combat, reactions | Phases 2-8 | Partial | `Code`, `Compile` | Ships now have escort / standby behavior, owner assist targeting, hostile-vs-friendly combat targeting, restored legacy stat rebuilding, legacy-style melee / light / heavy / air attack routing, and a first compatibility projectile layer for heavy / air attacks. Full projectile systems, per-ship weapon specials, and reaction pages are still missing. |
 | 10 | Worldgen, advanced recipes, inter-mod | Phases 1-9 | Not started | none | Only basic resource/data reuse exists today. |
@@ -74,7 +74,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 ## What Is Fully Checked Right Now
 
 - `compileJava`, `processResources`, and `runGameTestServer` pass on Java 17.
-- Current GameTest baseline: `All 60 required tests passed`.
+- Current GameTest baseline: `All 62 required tests passed`.
 - Phase 1 registered blockstate/model/item-model/menu texture/sound resource coverage is locked by tests.
 - Phase 2 ship sound routing is locked by tests for friendly/hostile sound source semantics and combat event resolution.
 - Phase 3 waypoint wait, crane route item/fluid/energy transfer, and large shipyard structure/fuel/energy/output loops are locked by tests.
@@ -82,6 +82,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 - Phase 5 ship command packet encode/decode, old/new command equivalence, owner/distance/dead-target gates, single-ship command loop, selected/current team dispatch, and formation offsets are locked by tests.
 - Phase 6 AI flags, follow range, team slots, slot selection, formation id, and ship command runtime NBT persistence are locked by tests.
 - Phase 7 per-ship behavior catalog baseline is locked by tests for marriage/ring passive class-id dispatch and attack profile routing.
+- Phase 7 hostile boss spawn runtime and route/guard command boundary behavior are locked by tests.
 - Friendly ship death recovery is locked by tests: dead/dying ships do not open ShipInventory, cargo stays inside the recovered egg, the dropped egg is owner-targeted, and redeploy restores owner/variant/cargo/health.
 - Dev client can launch, Desk block interaction path has previously been smoke-tested in client, and the user reported the latest manual client pass found no obvious issues after the death/recovery fixes.
 

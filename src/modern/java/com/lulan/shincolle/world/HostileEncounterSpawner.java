@@ -89,7 +89,10 @@ public final class HostileEncounterSpawner {
             return;
         }
 
-        spawnEncounter(level, spawnCenter, player, profile);
+        LegacyShipEntity spawned = spawnEncounterAt(level, spawnCenter, player, profile);
+        if (spawned == null) {
+            return;
+        }
         if (profile.boss()) {
             if (teitokuData != null) {
                 teitokuData.setBossCooldown(20 * 60 * 8);
@@ -123,7 +126,10 @@ public final class HostileEncounterSpawner {
         return selected;
     }
 
-    private static void spawnEncounter(ServerLevel level, BlockPos anchor, ServerPlayer targetPlayer, HostileSpawnProfile profile) {
+    public static @Nullable LegacyShipEntity spawnEncounterAt(ServerLevel level,
+                                                              BlockPos anchor,
+                                                              @Nullable ServerPlayer targetPlayer,
+                                                              HostileSpawnProfile profile) {
         RandomSource random = level.getRandom();
         ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(profile.eggMeta());
 
@@ -136,9 +142,10 @@ public final class HostileEncounterSpawner {
         ship.setTarget(targetPlayer);
         if (!level.noCollision(ship, ship.getBoundingBox())) {
             ship.discard();
-            return;
+            return null;
         }
         level.addFreshEntity(ship);
+        return ship;
     }
 
     private static @Nullable BlockPos findSpawnAnchor(ServerLevel level, ServerPlayer player) {

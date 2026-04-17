@@ -977,6 +977,38 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipRouteAndGuardCommandsClearCombatTarget(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            return;
+        }
+
+        Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
+        target.setPos(4.5D, 2.0D, 2.5D);
+        helper.getLevel().addFreshEntity(target);
+
+        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
+        helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
+        ship.setTarget(target);
+        ship.commandMoveTo(waypointPos, helper.getLevel().dimension().location().toString());
+        if (ship.getTarget() != null || !waypointPos.equals(ship.getRouteNodePos())) {
+            helper.fail("move/route commands should clear combat target while preserving route state");
+            return;
+        }
+
+        ship.setTarget(target);
+        ship.commandGuardEntity(target.getUUID());
+        if (ship.getTarget() != null || ship.getRouteNodePos() != null
+                || !target.getUUID().equals(ship.getGuardEntityUuid())) {
+            helper.fail("guard commands should clear combat target and route state while keeping guard UUID");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void legacyCoreFuelChargesAndDischarges(GameTestHelper helper) {
         LegacyCoreBlockEntity core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
         ItemStack fuel = new ItemStack(ModItems.GRUDGE.get(), 1);
@@ -2213,6 +2245,28 @@ public final class GameplayParityGameTests {
         }
         if (!foundBoss) {
             helper.fail("encounter table should still be able to produce boss profiles after the growth gate unlocks");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hostileEncounterSpawnInitializesRuntime(GameTestHelper helper) {
+        BlockPos anchor = helper.absolutePos(new BlockPos(5, 2, 5));
+        var profile = new com.lulan.shincolle.world.HostileSpawnProfile(23, 1, true, true);
+        LegacyShipEntity spawned = HostileEncounterSpawner.spawnEncounterAt(helper.getLevel(), anchor, null, profile);
+        if (spawned == null) {
+            helper.fail("hostile encounter helper should spawn into an open game-test area");
+            return;
+        }
+
+        if (spawned.getVariantEggMeta() != 23
+                || !spawned.isHostileVariant()
+                || !spawned.isBossEncounter()
+                || spawned.getSoundSource() != SoundSource.HOSTILE
+                || !spawned.getAttackProfile().hasAirAttack()) {
+            helper.fail("hostile encounter spawn should initialize hostile boss runtime, sound source, and attack profile");
             return;
         }
 
