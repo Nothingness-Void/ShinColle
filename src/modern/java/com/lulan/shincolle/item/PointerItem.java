@@ -5,6 +5,7 @@ import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
+import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
@@ -72,10 +73,10 @@ public class PointerItem extends Item {
         }
 
         if (player.isSprinting() && mode != 2) {
-            sendGameplayCommand(player, GameplayCommandType.STOP_COMMAND, payload -> {
-                payload.putInt(GameplayCommandHandler.TAG_MODE, mode == 0 ? 1 : 2);
-                payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, -1);
-            });
+            sendShipCommand(player, ServerboundShipCommandPacket.stop(
+                    mode == 0 ? 1 : 2,
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID));
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
@@ -122,13 +123,11 @@ public class PointerItem extends Item {
             return InteractionResult.sidedSuccess(player.level().isClientSide());
         }
 
-        sendGameplayCommand(player, GameplayCommandType.MOVE_TO_POS, payload -> {
-            payload.putInt(GameplayCommandHandler.TAG_MODE, mode == 0 ? 1 : 2);
-            payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, -1);
-            payload.putInt(GameplayCommandHandler.TAG_X, context.getClickedPos().getX());
-            payload.putInt(GameplayCommandHandler.TAG_Y, context.getClickedPos().getY());
-            payload.putInt(GameplayCommandHandler.TAG_Z, context.getClickedPos().getZ());
-        });
+        sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
+                mode == 0 ? 1 : 2,
+                ServerboundShipCommandPacket.NO_ENTITY,
+                ServerboundShipCommandPacket.NO_UID,
+                context.getClickedPos()));
         return InteractionResult.sidedSuccess(player.level().isClientSide());
     }
 
@@ -141,8 +140,7 @@ public class PointerItem extends Item {
         }
 
         if (player.isShiftKeyDown() && interactionTarget instanceof LegacyShipEntity ship && ship.canCommanderEdit(player)) {
-            sendGameplayCommand(player, GameplayCommandType.OPEN_SHIP_INVENTORY,
-                    payload -> payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship.getId()));
+            sendShipCommand(player, ServerboundShipCommandPacket.openInventory(ship.getId(), ship.getShipUid()));
             return InteractionResult.CONSUME;
         }
 
@@ -164,20 +162,23 @@ public class PointerItem extends Item {
                 && !player.isSprinting()
                 && interactionTarget instanceof LegacyShipEntity ship
                 && ship.canCommanderEdit(player)) {
-            GameplayCommandType commandType = mode == 0
-                    ? GameplayCommandType.TOGGLE_SIT_SINGLE
-                    : GameplayCommandType.TOGGLE_SIT_GROUP;
-            sendGameplayCommand(player, commandType, payload -> payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship.getId()));
+            sendShipCommand(player, ServerboundShipCommandPacket.toggleSit(
+                    mode == 0 ? 0 : 2,
+                    ship.getId(),
+                    ship.getShipUid()));
             return InteractionResult.CONSUME;
         }
 
-        sendGameplayCommand(player,
-                player.isSprinting() ? GameplayCommandType.GUARD_ENTITY : GameplayCommandType.ATTACK_ENTITY,
-                payload -> {
-                    payload.putInt(GameplayCommandHandler.TAG_MODE, mode == 0 ? 1 : 2);
-                    payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, -1);
-                    payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, interactionTarget.getId());
-                });
+        int commandMode = mode == 0 ? 1 : 2;
+        sendShipCommand(player, player.isSprinting()
+                ? ServerboundShipCommandPacket.guard(commandMode,
+                ServerboundShipCommandPacket.NO_ENTITY,
+                ServerboundShipCommandPacket.NO_UID,
+                interactionTarget.getId())
+                : ServerboundShipCommandPacket.attack(commandMode,
+                ServerboundShipCommandPacket.NO_ENTITY,
+                ServerboundShipCommandPacket.NO_UID,
+                interactionTarget.getId()));
         return InteractionResult.CONSUME;
     }
 
@@ -187,6 +188,12 @@ public class PointerItem extends Item {
 
         if (player.level().isClientSide()) {
             ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(commandType, payload));
+        }
+    }
+
+    private static void sendShipCommand(Player player, ServerboundShipCommandPacket packet) {
+        if (player.level().isClientSide()) {
+            ModNetwork.sendToServer(packet);
         }
     }
 

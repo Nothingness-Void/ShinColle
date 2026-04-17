@@ -399,7 +399,7 @@ public final class TeitokuHelper {
         }
     }
 
-    public static void collectCurrentTeamShips(ServerPlayer player, boolean selectedOnly, List<LegacyShipEntity> output) {
+    public static void collectCurrentTeamShips(Player player, boolean selectedOnly, List<LegacyShipEntity> output) {
         get(player).ifPresent(teitokuData -> {
             for (int shipUid : teitokuData.getCurrentTeamShipUids(selectedOnly)) {
                 LegacyShipEntity ship = findOwnedShipByUid(player, shipUid);
@@ -410,24 +410,26 @@ public final class TeitokuHelper {
         });
     }
 
-    public static LegacyShipEntity findOwnedShipByUid(ServerPlayer player, int shipUid) {
+    public static LegacyShipEntity findOwnedShipByUid(Player player, int shipUid) {
         if (shipUid <= 0) {
             return null;
         }
 
-        ShipWorldCacheEntry cached = ShipCacheSavedData.get(player.serverLevel()).getShip(shipUid);
-        if (cached != null && !cached.dead() && player.server != null) {
-            ResourceLocation dimensionId = ResourceLocation.tryParse(cached.dimensionId());
-            if (dimensionId != null) {
-                ServerLevel cachedLevel = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-                if (cachedLevel != null && cachedLevel.getEntity(cached.entityId()) instanceof LegacyShipEntity ship
-                        && ship.getShipUid() == shipUid && ship.canCommanderEdit(player)) {
-                    return ship;
+        if (player instanceof ServerPlayer serverPlayer) {
+            ShipWorldCacheEntry cached = ShipCacheSavedData.get(serverPlayer.serverLevel()).getShip(shipUid);
+            if (cached != null && !cached.dead() && serverPlayer.server != null) {
+                ResourceLocation dimensionId = ResourceLocation.tryParse(cached.dimensionId());
+                if (dimensionId != null) {
+                    ServerLevel cachedLevel = serverPlayer.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
+                    if (cachedLevel != null && cachedLevel.getEntity(cached.entityId()) instanceof LegacyShipEntity ship
+                            && ship.getShipUid() == shipUid && ship.canCommanderEdit(player)) {
+                        return ship;
+                    }
                 }
             }
         }
 
-        List<LegacyShipEntity> nearby = player.serverLevel().getEntitiesOfClass(
+        List<LegacyShipEntity> nearby = player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
                 player.getBoundingBox().inflate(512.0D),
                 ship -> ship.getShipUid() == shipUid && ship.canCommanderEdit(player));

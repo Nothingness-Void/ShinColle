@@ -51,14 +51,14 @@ public final class MorphHelper {
 
     public static @Nullable MorphProfile getSelectedProfile(Player player) {
         return TeitokuHelper.get(player)
+                .resolve()
                 .map(TeitokuData::getSelectedMorphProfile)
                 .orElse(null);
     }
 
     public static @Nullable MorphProfile getActiveProfile(Player player) {
-        return TeitokuHelper.get(player)
-                .map(data -> data.hasActiveMorph() ? data.getSelectedMorphProfile() : null)
-                .orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        return data != null && data.hasActiveMorph() ? data.getSelectedMorphProfile() : null;
     }
 
     public static boolean unlockMorph(ServerPlayer player, int legacyClassId) {

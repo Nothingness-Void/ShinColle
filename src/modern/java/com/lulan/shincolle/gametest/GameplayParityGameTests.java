@@ -12,7 +12,10 @@ import com.lulan.shincolle.blockentity.LargeShipyardStructureHelper;
 import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
+import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
+import com.lulan.shincolle.crafting.LargeShipyardRecipes;
+import com.lulan.shincolle.crafting.ShipyardBuildTypes;
 import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
@@ -29,31 +32,53 @@ import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
+import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.network.GameplayCommandHandler;
+import com.lulan.shincolle.network.GameplayCommandType;
+import com.lulan.shincolle.network.ServerboundShipCommandPacket;
+import com.lulan.shincolle.network.ShipCommandAction;
+import com.lulan.shincolle.network.ShipCommandService;
+import com.lulan.shincolle.menu.CraneTerminalMenu;
+import com.lulan.shincolle.menu.LargeShipyardMenu;
+import com.lulan.shincolle.menu.LegacyCoreMenu;
+import com.lulan.shincolle.menu.ShipInventoryMenu;
+import com.lulan.shincolle.menu.WaypointTerminalMenu;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
 import com.lulan.shincolle.registry.ModBlocks;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.registry.ModSoundEvents;
+import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.team.TeamSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
+import io.netty.buffer.Unpooled;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -65,6 +90,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
@@ -478,6 +505,111 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void inactiveMorphRightClickFallsThroughWithoutError(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(20).get()));
+
+        if (MorphHelper.getSelectedProfile(player) != null || MorphHelper.getActiveProfile(player) != null) {
+            helper.fail("fresh player should expose no selected or active morph profile to item right-click handlers");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void friendlyShipDeathDropsOwnerLockedRecoveryEgg(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable for death-state coverage");
+            return;
+        }
+
+        ship.setPos(1.5D, 2.0D, 1.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(60), player);
+        for (ItemEntity itemEntity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(8.0D))) {
+            itemEntity.discard();
+        }
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, new ItemStack(Items.APPLE, 3));
+
+        if (LegacyShipSpawnEggItem.createRecoveredShipStack(ship).isEmpty()) {
+            helper.fail("friendly ship recovery stack should resolve to the matching shipegg item");
+            return;
+        }
+
+        if (!ship.hurt(ship.damageSources().generic(), 10000.0F)) {
+            helper.fail("lethal test damage should be accepted by the ship");
+            return;
+        }
+        if (!ship.isDeadOrDying() || ship.getHealth() > 0.0F) {
+            helper.fail("lethal friendly damage should leave the ship in the vanilla death path before recovery egg pickup");
+            return;
+        }
+
+        ship.setMorale(ship.getMorale() + 1);
+        if (!ship.isDeadOrDying() || ship.getHealth() > 0.0F) {
+            helper.fail("variant refresh must not revive a dead ship after inventory drops");
+            return;
+        }
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.PASS) {
+            helper.fail("dead or dying ships must not open inventory or accept command interactions");
+            return;
+        }
+
+        ItemEntity recoveryEgg = null;
+        boolean droppedCargo = false;
+        StringBuilder nearbyItems = new StringBuilder();
+        for (ItemEntity itemEntity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(4.0D))) {
+            ItemStack stack = itemEntity.getItem();
+            if (!nearbyItems.isEmpty()) {
+                nearbyItems.append(", ");
+            }
+            nearbyItems.append(stack.getItem()).append(" x").append(stack.getCount()).append(" tag=").append(stack.hasTag());
+            if (LegacyShipSpawnEggItem.isRecoveredShipStack(stack)) {
+                recoveryEgg = itemEntity;
+            }
+            if (stack.is(Items.APPLE)) {
+                droppedCargo = true;
+            }
+        }
+        if (droppedCargo) {
+            helper.fail("friendly ship death must keep ship inventory inside the recovered egg instead of dropping cargo; nearby=" + nearbyItems);
+            return;
+        }
+        if (recoveryEgg == null) {
+            helper.fail("friendly ship death should spawn a recovered ship egg item");
+            return;
+        }
+        CompoundTag itemEntityData = recoveryEgg.saveWithoutId(new CompoundTag());
+        boolean ownerLocked = itemEntityData.hasUUID("Target") && player.getUUID().equals(itemEntityData.getUUID("Target"));
+        ownerLocked = ownerLocked || itemEntityData.hasUUID("Owner") && player.getUUID().equals(itemEntityData.getUUID("Owner"));
+        if (!ownerLocked) {
+            helper.fail("recovered ship egg item should be owner-locked");
+            return;
+        }
+
+        CompoundTag recoveredData = LegacyShipSpawnEggItem.getRecoveredShipData(recoveryEgg.getItem());
+        LegacyShipEntity restored = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (restored == null || recoveredData == null) {
+            helper.fail("recovered egg should carry restorable ship data");
+            return;
+        }
+        restored.readAdditionalSaveData(recoveredData);
+        restored.restoreRecoveredDeployment(player);
+        if (!restored.isOwnedBy(player)
+                || restored.getVariantEggMeta() != 60
+                || !restored.getShipInventory().getItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT).is(Items.APPLE)
+                || restored.getHealth() <= 0.0F) {
+            helper.fail("recovered egg should restore owner, variant, cargo, and living health on redeploy");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void worldCombatRulesNormalizeAndToggle(GameTestHelper helper) {
         WorldCombatRulesSavedData data = new WorldCombatRulesSavedData();
         if (!data.toggleUnattackable(" Minecraft:Villager ")) {
@@ -735,6 +867,115 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void craneRouteTransfersFilteredItemsBetweenChestAndShip(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+
+        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for item route transfer");
+            return;
+        }
+        if (!(helper.getLevel().getBlockEntity(chestPos) instanceof Container chest)) {
+            helper.fail("paired chest should expose a container for item route transfer");
+            return;
+        }
+
+        crane.setPairedChest(chestPos);
+        crane.setFilter(0, new ItemStack(Items.APPLE), false);
+        chest.setItem(0, new ItemStack(Items.APPLE, 6));
+        chest.setItem(1, new ItemStack(Items.BREAD, 6));
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable in item route tests");
+            return;
+        }
+
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(cranePos, "");
+        for (int i = 0; i < 3; i++) {
+            ship.tick();
+        }
+
+        if (countItems(ship.getShipInventory(), Items.APPLE) <= 0
+                || countItems(chest, Items.APPLE) >= 6
+                || countItems(chest, Items.BREAD) != 6) {
+            helper.fail("crane load row should move only matching chest items into ship cargo");
+            return;
+        }
+
+        clearContainer(chest);
+        crane.toggleLoadEnabled();
+        crane.setFilter(9, new ItemStack(Items.COBBLESTONE), false);
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1, new ItemStack(Items.COBBLESTONE, 5));
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 2, new ItemStack(Items.DIRT, 5));
+        ship.commandMoveTo(cranePos, "");
+        for (int i = 0; i < 3; i++) {
+            ship.tick();
+        }
+
+        if (countItems(chest, Items.COBBLESTONE) <= 0
+                || countItems(chest, Items.DIRT) != 0
+                || countItems(ship.getShipInventory(), Items.DIRT) != 5) {
+            helper.fail("crane unload row should move only matching ship cargo into the paired chest");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void waypointRouteWaitsOnceThenAdvances(GameTestHelper helper) {
+        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 2, 1));
+        helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
+        helper.getLevel().setBlock(nextWaypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                helper.getLevel().setBlock(waypointPos.offset(dx, -1, dz), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+
+        if (!(helper.getLevel().getBlockEntity(waypointPos) instanceof WaypointBlockEntity waypoint)) {
+            helper.fail("waypoint block entity should exist for route wait test");
+            return;
+        }
+
+        waypoint.setNextWaypoint(nextWaypointPos);
+        waypoint.cycleStayMode();
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable for waypoint route tests");
+            return;
+        }
+
+        ship.setPos(waypointPos.getX() + 0.5D, waypointPos.getY() + 0.1D, waypointPos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(waypointPos, "");
+        ship.tick();
+        if (!waypointPos.equals(ship.getRouteNodePos())) {
+            helper.fail("ship should keep the current waypoint while route stay ticks are active");
+            return;
+        }
+
+        for (int i = 0; i < WaypointBlockEntity.stayModeToTicks(1); i++) {
+            ship.tick();
+        }
+
+        if (!nextWaypointPos.equals(ship.getRouteNodePos())) {
+            helper.fail("ship should advance to the next route node after waiting once at the waypoint; current="
+                    + ship.getRouteNodePos() + ", expected=" + nextWaypointPos + ", shipPos=" + ship.blockPosition());
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void legacyCoreFuelChargesAndDischarges(GameTestHelper helper) {
         LegacyCoreBlockEntity core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
         ItemStack fuel = new ItemStack(ModItems.GRUDGE.get(), 1);
@@ -783,6 +1024,496 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlock(master.below(), ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
         if (LargeShipyardStructureHelper.isValidMaster(helper.getLevel(), master)) {
             helper.fail("extra polymetal in the middle layer should invalidate the legacy structure");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void largeShipyardBuildsLargeShipEggFromCompleteRing(GameTestHelper helper) {
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 2, 4));
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                helper.getLevel().setBlock(shipyardPos.offset(dx, 0, dz),
+                        ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get().defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
+            helper.fail("large shipyard block entity should exist for build-loop test");
+            return;
+        }
+
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_GRUDGE_A, new ItemStack(ModItems.GRUDGE.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_GRUDGE_B, new ItemStack(ModItems.GRUDGE.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_ABYSSIUM_A, new ItemStack(ModItems.ABYSSMETAL.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_ABYSSIUM_B, new ItemStack(ModItems.ABYSSMETAL.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_AMMO_A, new ItemStack(ModItems.AMMO.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_AMMO_B, new ItemStack(ModItems.AMMO.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_POLYMETAL_A, new ItemStack(ModItems.ABYSSMETAL1.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_POLYMETAL_B, new ItemStack(ModItems.ABYSSMETAL1.get(), 50));
+        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, new ItemStack(Items.LAVA_BUCKET));
+
+        LargeShipyardBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        if (!shipyard.isStructureComplete() || shipyard.getPowerRemained() <= 0) {
+            helper.fail("complete ring and fuel slot should make the large shipyard ready with stored power");
+            return;
+        }
+
+        shipyard.receiveRouteEnergy(LargeShipyardBlockEntity.POWER_MAX, false);
+        shipyard.setBuildType(ShipyardBuildTypes.SHIP);
+        if (shipyard.getPowerGoal() <= 0) {
+            helper.fail("large shipyard should calculate a ship build goal from inserted materials");
+            return;
+        }
+
+        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - LargeShipyardBlockEntity.BUILD_SPEED);
+        LargeShipyardBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        ItemStack output = shipyard.getItems().getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT);
+        if (!output.is(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get())
+                || shipyard.getBuildType() != ShipyardBuildTypes.NONE
+                || LargeShipyardRecipes.getMaterialAmounts(shipyard.getItems())[0] != 0) {
+            helper.fail("large shipyard should spend materials and output a large ship egg when the build completes");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void phaseFourMenusMutateServerStateAndExposeData(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for menu button coverage");
+            return;
+        }
+        CraneTerminalMenu craneMenu = new CraneTerminalMenu(1, player.getInventory(), cranePos);
+        if (!craneMenu.clickMenuButton(player, CraneTerminalMenu.BUTTON_TOGGLE_LOAD)
+                || crane.isLoadEnabled()
+                || craneMenu.isLoadEnabled()) {
+            helper.fail("crane menu button should mutate and expose load state");
+            return;
+        }
+
+        BlockPos waypointPos = helper.absolutePos(new BlockPos(2, 2, 1));
+        helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(waypointPos) instanceof WaypointBlockEntity waypoint)) {
+            helper.fail("waypoint block entity should exist for menu button coverage");
+            return;
+        }
+        WaypointTerminalMenu waypointMenu = new WaypointTerminalMenu(2, player.getInventory(), waypointPos);
+        if (!waypointMenu.clickMenuButton(player, WaypointTerminalMenu.BUTTON_CYCLE_STAY)
+                || waypoint.getStayMode() != 1
+                || !waypointMenu.getStayLabel().getString().equals(waypoint.getStayLabel().getString())) {
+            helper.fail("waypoint menu button should mutate and expose stay state");
+            return;
+        }
+
+        BlockPos corePos = helper.absolutePos(new BlockPos(3, 2, 1));
+        helper.getLevel().setBlock(corePos, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(corePos) instanceof LegacyCoreBlockEntity core)) {
+            helper.fail("legacy core block entity should exist for menu data coverage");
+            return;
+        }
+        LegacyCoreMenu coreMenu = new LegacyCoreMenu(3, player.getInventory(), core);
+        if (!coreMenu.clickMenuButton(player, LegacyCoreMenu.BUTTON_CYCLE_MODE)
+                || core.getCoreContainerData().get(0) != 1
+                || coreMenu.getMode() != 1) {
+            helper.fail("legacy core menu button and ContainerData should reflect mode changes");
+            return;
+        }
+
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 2, 1));
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
+            helper.fail("large shipyard block entity should exist for menu data coverage");
+            return;
+        }
+        LargeShipyardMenu shipyardMenu = new LargeShipyardMenu(4, player.getInventory(), shipyard);
+        if (!shipyardMenu.clickMenuButton(player, LargeShipyardMenu.BUTTON_SHIP_MODE)
+                || shipyard.getBuildType() != ShipyardBuildTypes.SHIP
+                || shipyardMenu.getBuildType() != ShipyardBuildTypes.SHIP) {
+            helper.fail("large shipyard menu button and ContainerData should reflect build mode changes");
+            return;
+        }
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable for ship inventory menu coverage");
+            return;
+        }
+        ship.setVariantEggMeta(58);
+        ship.setOwner(player);
+        ship.setPos(2.5D, 2.0D, 2.5D);
+        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(2).get()));
+        helper.getLevel().addFreshEntity(ship);
+
+        ShipInventoryMenu shipMenu = new ShipInventoryMenu(5, player.getInventory(), ship.getId());
+        if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
+                || "- / -".equals(shipMenu.getRouteEnergyText())
+                || "-".equals(shipMenu.getAttackText())
+                || !shipMenu.clickMenuButton(player, ShipInventoryMenu.BUTTON_TOGGLE_MODE)
+                || !ship.isOrderedToSit()) {
+            helper.fail("ship inventory menu should expose combat/AI route data and mutate escort mode through the server button");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipCommandPacketRoundTripsTypedFields(GameTestHelper helper) {
+        ServerboundShipCommandPacket[] packets = {
+                ServerboundShipCommandPacket.moveTo(2, 11, 101, new BlockPos(4, 5, 6)),
+                ServerboundShipCommandPacket.guard(1, 12, 102, 44),
+                ServerboundShipCommandPacket.attack(1, 13, 103, 45),
+                ServerboundShipCommandPacket.stop(2, 14, 104),
+                ServerboundShipCommandPacket.setAiFlags(15, 105,
+                        GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY),
+                ServerboundShipCommandPacket.setFollowRange(16, 106, 42),
+                ServerboundShipCommandPacket.toggleSit(0, 17, 107),
+                ServerboundShipCommandPacket.openInventory(18, 108)
+        };
+
+        for (ServerboundShipCommandPacket packet : packets) {
+            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+            ServerboundShipCommandPacket.encode(packet, buffer);
+            ServerboundShipCommandPacket decoded = ServerboundShipCommandPacket.decode(buffer);
+            if (decoded.action() != packet.action()
+                    || decoded.mode() != packet.mode()
+                    || decoded.shipId() != packet.shipId()
+                    || decoded.shipUid() != packet.shipUid()
+                    || decoded.targetId() != packet.targetId()
+                    || decoded.value() != packet.value()
+                    || (decoded.pos() == null ? packet.pos() != null : !decoded.pos().equals(packet.pos()))) {
+                helper.fail("typed ship command packet should round-trip all fields for " + packet.action());
+                return;
+            }
+        }
+
+        if (ShipCommandAction.fromOrdinal(999) != ShipCommandAction.STOP_COMMAND) {
+            helper.fail("invalid ship command action ordinal should decode to STOP_COMMAND");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void legacyAndTypedShipCommandsShareServerBehavior(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8101))) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity legacyShip = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        LegacyShipEntity typedShip = createOwnedShip(helper, player, 59, 3.5D, 2.0D, 2.5D);
+        if (legacyShip == null || typedShip == null) {
+            return;
+        }
+
+        BlockPos moveTarget = new BlockPos(6, 2, 6);
+        CompoundTag legacyMove = new CompoundTag();
+        legacyMove.putInt(GameplayCommandHandler.TAG_MODE, 0);
+        legacyMove.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
+        legacyMove.putInt(GameplayCommandHandler.TAG_X, moveTarget.getX());
+        legacyMove.putInt(GameplayCommandHandler.TAG_Y, moveTarget.getY());
+        legacyMove.putInt(GameplayCommandHandler.TAG_Z, moveTarget.getZ());
+        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.MOVE_TO_POS, legacyMove)
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, typedShip.getId(), typedShip.getShipUid(), moveTarget))
+                || !moveTarget.equals(legacyShip.getCommandedPos())
+                || !moveTarget.equals(typedShip.getCommandedPos())) {
+            helper.fail("legacy and typed move commands should write the same command position");
+            return;
+        }
+
+        int flags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+        CompoundTag legacyFlags = new CompoundTag();
+        legacyFlags.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
+        legacyFlags.putInt(GameplayCommandHandler.TAG_AI_FLAGS, flags);
+        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_AI_FLAGS, legacyFlags)
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(typedShip.getId(), typedShip.getShipUid(), flags))
+                || legacyShip.getAiFlagsBitmask() != typedShip.getAiFlagsBitmask()) {
+            helper.fail("legacy and typed AI flag commands should share behavior");
+            return;
+        }
+
+        CompoundTag legacyFollow = new CompoundTag();
+        legacyFollow.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
+        legacyFollow.putInt(GameplayCommandHandler.TAG_FOLLOW_RANGE, 28);
+        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_FOLLOW_RANGE, legacyFollow)
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(typedShip.getId(), typedShip.getShipUid(), 28))
+                || legacyShip.getAiFollowRange() != typedShip.getAiFollowRange()) {
+            helper.fail("legacy and typed follow-range commands should share behavior");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipCommandServiceRejectsUnauthorizedFarAndDeadShips(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8102))) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity owned = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        LegacyShipEntity otherOwner = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity dead = createOwnedShip(helper, player, 60, 4.5D, 2.0D, 2.5D);
+        if (owned == null || otherOwner == null || dead == null) {
+            helper.fail("legacy ships should be creatable for command gate tests");
+            return;
+        }
+
+        otherOwner.setVariantEggMeta(59);
+        otherOwner.setPos(3.5D, 2.0D, 2.5D);
+        helper.getLevel().addFreshEntity(otherOwner);
+        otherOwner.setOwner(UUID.randomUUID(), "OtherAdmiral", 9999);
+        dead.setHealth(0.0F);
+
+        if (ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, owned.getId(), owned.getShipUid(), new BlockPos(1000, 2, 1000)))
+                || owned.getCommandedPos() != null) {
+            helper.fail("far move commands should be ignored");
+            return;
+        }
+        if (ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, otherOwner.getId(), otherOwner.getShipUid(), new BlockPos(6, 2, 6)))
+                || otherOwner.getCommandedPos() != null) {
+            helper.fail("non-owner ship commands should be ignored");
+            return;
+        }
+        if (ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, dead.getId(), dead.getShipUid(), new BlockPos(6, 2, 6)))
+                || dead.getCommandedPos() != null) {
+            helper.fail("dead or dying ships should reject commands");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void singleShipCommandLoopMovesGuardsAttacksAndStops(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8103))) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        if (ship == null || target == null) {
+            helper.fail("ship and target should be creatable for command loop test");
+            return;
+        }
+        target.setPos(5.0D, 2.0D, 5.0D);
+        helper.getLevel().addFreshEntity(target);
+
+        ship.setOrderedToSit(true);
+        BlockPos moveTarget = new BlockPos(6, 2, 6);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, ship.getId(), ship.getShipUid(), moveTarget))
+                || !moveTarget.equals(ship.getCommandedPos())
+                || ship.isOrderedToSit()) {
+            helper.fail("move command should set command position and leave standby");
+            return;
+        }
+
+        ship.setOrderedToSit(true);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guard(0, ship.getId(), ship.getShipUid(), target.getId()))
+                || !target.getUUID().equals(ship.getGuardEntityUuid())
+                || ship.isOrderedToSit()) {
+            helper.fail("guard command should write target UUID and leave standby");
+            return;
+        }
+
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.attack(0, ship.getId(), ship.getShipUid(), target.getId()))
+                || ship.getTarget() != target
+                || ship.getGuardEntityUuid() != null) {
+            helper.fail("attack command should set combat target and clear command state");
+            return;
+        }
+
+        ship.commandMoveTo(moveTarget, helper.getLevel().dimension().location().toString());
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.stop(0, ship.getId(), ship.getShipUid()))
+                || ship.getTarget() != null
+                || ship.getCommandedPos() != null
+                || ship.getGuardEntityUuid() != null) {
+            helper.fail("stop command should clear target and command state");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void selectedAndCurrentTeamCommandsRespectFormationOffsets(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8104);
+            data.setCurrentTeamId(0);
+            data.setFormationId(0, 1);
+        })) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity[] ships = new LegacyShipEntity[5];
+        for (int index = 0; index < ships.length; index++) {
+            ships[index] = createOwnedShip(helper, player, 58 + index, 2.5D + index, 2.0D, 2.5D);
+            if (ships[index] == null || ships[index].getShipUid() <= 0) {
+                helper.fail("owned team ship should have a ship UID");
+                return;
+            }
+        }
+
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8104);
+            data.setCurrentTeamId(0);
+            data.setFormationId(0, 1);
+            for (int index = 0; index < ships.length; index++) {
+                data.assignCurrentTeamSlot(index, ships[index].getShipUid());
+            }
+            data.setCurrentTeamSelection(0, true);
+            data.setCurrentTeamSelection(2, true);
+        })) {
+            return;
+        }
+
+        BlockPos selectedTarget = new BlockPos(10, 2, 10);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(1,
+                ServerboundShipCommandPacket.NO_ENTITY,
+                ServerboundShipCommandPacket.NO_UID,
+                selectedTarget))) {
+            helper.fail("selected-team move command should affect selected ships");
+            return;
+        }
+        if (ships[0].getCommandedPos() == null
+                || ships[2].getCommandedPos() == null
+                || ships[1].getCommandedPos() != null
+                || ships[3].getCommandedPos() != null
+                || ships[4].getCommandedPos() != null) {
+            helper.fail("selected-team command should only affect selected slots");
+            return;
+        }
+        if (selectedTarget.equals(ships[0].getCommandedPos())) {
+            helper.fail("formation move should offset non-center slots when team size exceeds four");
+            return;
+        }
+
+        BlockPos currentTeamTarget = new BlockPos(14, 2, 14);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(2,
+                ServerboundShipCommandPacket.NO_ENTITY,
+                ServerboundShipCommandPacket.NO_UID,
+                currentTeamTarget))) {
+            helper.fail("current-team move command should affect the whole current team");
+            return;
+        }
+        for (LegacyShipEntity ship : ships) {
+            if (ship.getCommandedPos() == null) {
+                helper.fail("current-team command should write a command position to every team ship");
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void commandRuntimeAndTeamStatePersistThroughNbt(GameTestHelper helper) {
+        TeitokuData data = new TeitokuData();
+        data.setPlayerUid(9001);
+        data.setCurrentTeamId(3);
+        data.setFormationId(3, 4);
+        data.assignCurrentTeamSlot(0, 111);
+        data.assignCurrentTeamSlot(1, 222);
+        data.setCurrentTeamSelection(1, true);
+        data.setTeamName(3, "Sortie");
+
+        TeitokuData loadedData = new TeitokuData();
+        loadedData.loadFromTag(data.saveToTag(new CompoundTag()));
+        if (loadedData.getPlayerUid() != 9001
+                || loadedData.getCurrentTeamId() != 3
+                || loadedData.getFormationId(3) != 4
+                || loadedData.getShipUid(3, 0) != 111
+                || loadedData.getShipUid(3, 1) != 222
+                || !loadedData.isShipSelected(3, 1)
+                || !"Sortie".equals(loadedData.getTeamName(3))) {
+            helper.fail("Teitoku team, formation, and selection state should persist through NBT");
+            return;
+        }
+
+        LegacyShipEntity movingShip = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity guardShip = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (movingShip == null || guardShip == null) {
+            helper.fail("ships should be creatable for runtime persistence tests");
+            return;
+        }
+
+        UUID owner = UUID.randomUUID();
+        UUID guardTarget = UUID.randomUUID();
+        BlockPos commandTarget = new BlockPos(8, 2, 8);
+        movingShip.setVariantEggMeta(58);
+        movingShip.setOwner(owner, "PersistAdmiral", 9001);
+        movingShip.setOrderedToSit(true);
+        movingShip.setAiAutoTarget(false);
+        movingShip.setAiAllowPvp(true);
+        movingShip.setAiAutoSupply(false);
+        movingShip.setAiRespectRouteStay(false);
+        movingShip.setAiFollowRange(36);
+        movingShip.commandMoveTo(commandTarget, "minecraft:overworld");
+
+        CompoundTag movingTag = new CompoundTag();
+        movingShip.addAdditionalSaveData(movingTag);
+        LegacyShipEntity loadedMovingShip = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (loadedMovingShip == null) {
+            helper.fail("loaded moving ship should be creatable");
+            return;
+        }
+        loadedMovingShip.readAdditionalSaveData(movingTag);
+        if (!commandTarget.equals(loadedMovingShip.getCommandedPos())
+                || !"minecraft:overworld".equals(loadedMovingShip.getCommandDimension())
+                || !loadedMovingShip.isOrderedToSit()
+                || loadedMovingShip.getAiFollowRange() != 36
+                || loadedMovingShip.isAiAutoTarget()
+                || !loadedMovingShip.isAiAllowPvp()
+                || loadedMovingShip.isAiAutoSupply()
+                || loadedMovingShip.isAiRespectRouteStay()) {
+            helper.fail("ship command, standby, and AI runtime state should persist through NBT: pos="
+                    + loadedMovingShip.getCommandedPos()
+                    + " dim=" + loadedMovingShip.getCommandDimension()
+                    + " sit=" + loadedMovingShip.isOrderedToSit()
+                    + " flags=" + loadedMovingShip.getAiFlagsBitmask()
+                    + " follow=" + loadedMovingShip.getAiFollowRange()
+                    + " autoTarget=" + loadedMovingShip.isAiAutoTarget()
+                    + " allowPvp=" + loadedMovingShip.isAiAllowPvp()
+                    + " autoSupply=" + loadedMovingShip.isAiAutoSupply()
+                    + " routeStay=" + loadedMovingShip.isAiRespectRouteStay());
+            return;
+        }
+
+        guardShip.setVariantEggMeta(59);
+        guardShip.setOwner(owner, "PersistAdmiral", 9001);
+        guardShip.commandGuardEntity(guardTarget);
+        CompoundTag guardTag = new CompoundTag();
+        guardShip.addAdditionalSaveData(guardTag);
+        LegacyShipEntity loadedGuardShip = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (loadedGuardShip == null) {
+            helper.fail("loaded guard ship should be creatable");
+            return;
+        }
+        loadedGuardShip.readAdditionalSaveData(guardTag);
+        if (!guardTarget.equals(loadedGuardShip.getGuardEntityUuid())) {
+            helper.fail("ship guard target should persist through NBT");
             return;
         }
 
@@ -927,6 +1658,115 @@ public final class GameplayParityGameTests {
                     helper.fail("failed to read packaged sound: " + resourcePath + " (" + exception.getMessage() + ")");
                     return;
                 }
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void registeredPhaseOneResourcesResolve(GameTestHelper helper) {
+        for (var blockRegistration : ModBlocks.BLOCKS.getEntries()) {
+            ResourceLocation id = blockRegistration.getId();
+            if (!id.getPath().equals(id.getPath().toLowerCase(java.util.Locale.ROOT))) {
+                helper.fail("registered block id must use a lowercase resource path: " + id);
+                return;
+            }
+
+            String blockStatePath = "assets/" + id.getNamespace() + "/blockstates/" + id.getPath() + ".json";
+            JsonObject blockState = loadJsonResource(blockStatePath);
+            if (blockState == null) {
+                helper.fail("registered block is missing blockstate json: " + blockStatePath);
+                return;
+            }
+            if (!referencedModelsExist(helper, blockState, blockStatePath)) {
+                return;
+            }
+
+            ResourceLocation itemModel = ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "models/item/" + id.getPath() + ".json");
+            if (!resourceExists(itemModel)) {
+                helper.fail("registered block item is missing item model: " + itemModel);
+                return;
+            }
+        }
+
+        for (var itemRegistration : ModItems.ITEMS.getEntries()) {
+            ResourceLocation id = itemRegistration.getId();
+            if (!id.getPath().equals(id.getPath().toLowerCase(java.util.Locale.ROOT))) {
+                helper.fail("registered item id must use a lowercase resource path: " + id);
+                return;
+            }
+
+            ResourceLocation itemModel = ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "models/item/" + id.getPath() + ".json");
+            if (!resourceExists(itemModel)) {
+                helper.fail("registered item is missing item model: " + itemModel);
+                return;
+            }
+        }
+
+        ResourceLocation[] menuTextures = {
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_crane.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_large_shipyard.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_ship_inventory.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_small_shipyard.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_vol_core.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/recipe_paper.png")
+        };
+        for (ResourceLocation texture : menuTextures) {
+            if (!resourceExists(texture)) {
+                helper.fail("phase 4 menu texture should be packaged at lowercase runtime path: " + texture);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipSoundLayerResolvesFriendlyAndHostileEvents(GameTestHelper helper) {
+        JsonObject sounds = loadJsonResource("assets/shincolle/sounds.json");
+        if (sounds == null) {
+            helper.fail("expected sounds.json resource to be present for sound layer coverage");
+            return;
+        }
+
+        LegacyShipEntity friendly = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity hostile = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (friendly == null || hostile == null) {
+            helper.fail("legacy ship entities should be creatable for sound source tests");
+            return;
+        }
+
+        friendly.setVariantEggMeta(58);
+        hostile.setVariantEggMeta(2058);
+        if (friendly.getSoundSource() != SoundSource.NEUTRAL || hostile.getSoundSource() != SoundSource.HOSTILE) {
+            helper.fail("friendly ships should use NEUTRAL sounds and hostile mirrors should use HOSTILE sounds");
+            return;
+        }
+
+        ShipSoundType[] voiceTypes = {ShipSoundType.IDLE, ShipSoundType.HURT, ShipSoundType.DEAD, ShipSoundType.HIT};
+        for (ShipSoundType type : voiceTypes) {
+            if (!soundEventIsBackedBySoundsJson(helper, sounds,
+                    ShinColleSoundHelper.getShipVoice(type, friendly.getShipClassId()),
+                    "friendly " + type.registryName())) {
+                return;
+            }
+            if (!soundEventIsBackedBySoundsJson(helper, sounds,
+                    ShinColleSoundHelper.getShipVoice(type, hostile.getShipClassId()),
+                    "hostile " + type.registryName())) {
+                return;
+            }
+        }
+
+        SoundEvent[] combatSounds = {
+                ModSoundEvents.SHIP_FIRELIGHT.get(),
+                ModSoundEvents.SHIP_FIREHEAVY.get(),
+                ModSoundEvents.SHIP_AIRCRAFT.get(),
+                ModSoundEvents.SHIP_HITMETAL.get()
+        };
+        for (SoundEvent sound : combatSounds) {
+            if (!soundEventIsBackedBySoundsJson(helper, sounds, sound, "combat " + sound.getLocation())) {
+                return;
             }
         }
 
@@ -1485,6 +2325,118 @@ public final class GameplayParityGameTests {
         }
 
         helper.succeed();
+    }
+
+    private static boolean referencedModelsExist(GameTestHelper helper, JsonElement element, String ownerPath) {
+        if (element == null || element.isJsonNull()) {
+            return true;
+        }
+
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            if (object.has("model")) {
+                String modelName = object.get("model").getAsString();
+                ResourceLocation modelId = modelName.contains(":")
+                        ? ResourceLocation.tryParse(modelName)
+                        : ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, modelName);
+                if (modelId == null) {
+                    helper.fail("invalid model reference in " + ownerPath + ": " + modelName);
+                    return false;
+                }
+
+                if (ShinColle.MOD_ID.equals(modelId.getNamespace())) {
+                    ResourceLocation modelResource = ResourceLocation.fromNamespaceAndPath(
+                            modelId.getNamespace(), "models/" + modelId.getPath() + ".json");
+                    if (!resourceExists(modelResource)) {
+                        helper.fail("missing model referenced by " + ownerPath + ": " + modelResource);
+                        return false;
+                    }
+                }
+            }
+
+            for (String key : object.keySet()) {
+                if (!referencedModelsExist(helper, object.get(key), ownerPath)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                if (!referencedModelsExist(helper, child, ownerPath)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean soundEventIsBackedBySoundsJson(GameTestHelper helper, JsonObject sounds, SoundEvent sound, String label) {
+        if (sound == null) {
+            helper.fail("expected sound event to resolve: " + label);
+            return false;
+        }
+
+        ResourceLocation id = sound.getLocation();
+        if (!ShinColle.MOD_ID.equals(id.getNamespace()) || !sounds.has(id.getPath())) {
+            helper.fail("sound event should be registered and backed by sounds.json: " + label + " -> " + id);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static int countItems(Container container, net.minecraft.world.level.ItemLike item) {
+        int count = 0;
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack stack = container.getItem(slot);
+            if (stack.is(item.asItem())) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    private static void clearContainer(Container container) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            container.setItem(slot, ItemStack.EMPTY);
+        }
+        container.setChanged();
+    }
+
+    private static boolean configureTeitoku(GameTestHelper helper,
+                                            Player player,
+                                            java.util.function.Consumer<TeitokuData> consumer) {
+        boolean[] configured = { false };
+        TeitokuHelper.get(player).ifPresent(data -> {
+            consumer.accept(data);
+            configured[0] = true;
+        });
+        if (!configured[0]) {
+            helper.fail("mock player should expose Teitoku capability for command service tests");
+        }
+        return configured[0];
+    }
+
+    private static LegacyShipEntity createOwnedShip(GameTestHelper helper,
+                                                    Player player,
+                                                    int eggMeta,
+                                                    double x,
+                                                    double y,
+                                                    double z) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship should be creatable for command service tests");
+            return null;
+        }
+
+        ship.setVariantEggMeta(eggMeta);
+        ship.setPos(x, y, z);
+        helper.getLevel().addFreshEntity(ship);
+        ship.setOwner(player);
+        return ship;
     }
 
     private static JsonObject loadJsonResource(String resourcePath) {

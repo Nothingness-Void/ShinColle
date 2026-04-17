@@ -7,6 +7,7 @@ import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
+import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -147,14 +148,8 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                 })) {
             return true;
         }
-        if (this.sendGameplayCommandOnClick(mouseX, mouseY, STOP_BUTTON_X, STOP_BUTTON_Y, STOP_BUTTON_W, STOP_BUTTON_H,
-                GameplayCommandType.STOP_COMMAND, tag -> {
-                    LegacyShipEntity ship = this.menu.getShip();
-                    if (ship != null) {
-                        tag.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship.getId());
-                    }
-                    tag.putInt(GameplayCommandHandler.TAG_MODE, 2);
-                })) {
+        if (this.sendShipCommandOnClick(mouseX, mouseY, STOP_BUTTON_X, STOP_BUTTON_Y, STOP_BUTTON_W, STOP_BUTTON_H,
+                ServerboundShipCommandPacket.stop(2, this.menu.getShipId(), this.resolveShipUid()))) {
             return true;
         }
 
@@ -317,6 +312,23 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         return true;
     }
 
+    private boolean sendShipCommandOnClick(double mouseX, double mouseY,
+                                           int relX, int relY, int width, int height,
+                                           ServerboundShipCommandPacket packet) {
+        if (!this.menu.canEdit()) {
+            return false;
+        }
+
+        double localX = mouseX - this.leftPos;
+        double localY = mouseY - this.topPos;
+        if (localX < relX || localX > relX + width || localY < relY || localY > relY + height) {
+            return false;
+        }
+
+        ModNetwork.sendToServer(packet);
+        return true;
+    }
+
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (this.menu.canEdit()) {
@@ -370,21 +382,16 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
 
     private void adjustFollowRange(int delta) {
         int next = Mth.clamp(this.menu.getAiFollowRange() + delta, 4, 64);
-        LegacyShipEntity ship = this.menu.getShip();
-        CompoundTag payload = new CompoundTag();
-        payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship != null ? ship.getId() : this.menu.getShipId());
-        payload.putInt(GameplayCommandHandler.TAG_SHIP_UID, ship != null ? ship.getShipUid() : -1);
-        payload.putInt(GameplayCommandHandler.TAG_FOLLOW_RANGE, next);
-        ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.SET_SHIP_FOLLOW_RANGE, payload));
+        ModNetwork.sendToServer(ServerboundShipCommandPacket.setFollowRange(this.menu.getShipId(), this.resolveShipUid(), next));
     }
 
     private void sendAiFlags(int flags) {
+        ModNetwork.sendToServer(ServerboundShipCommandPacket.setAiFlags(this.menu.getShipId(), this.resolveShipUid(), flags));
+    }
+
+    private int resolveShipUid() {
         LegacyShipEntity ship = this.menu.getShip();
-        CompoundTag payload = new CompoundTag();
-        payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship != null ? ship.getId() : this.menu.getShipId());
-        payload.putInt(GameplayCommandHandler.TAG_SHIP_UID, ship != null ? ship.getShipUid() : -1);
-        payload.putInt(GameplayCommandHandler.TAG_AI_FLAGS, flags);
-        ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.SET_SHIP_AI_FLAGS, payload));
+        return ship != null ? ship.getShipUid() : ServerboundShipCommandPacket.NO_UID;
     }
 
     private static String onOff(boolean enabled) {
