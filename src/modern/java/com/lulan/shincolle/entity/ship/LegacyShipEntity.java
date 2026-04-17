@@ -1392,6 +1392,18 @@ public class LegacyShipEntity extends PathfinderMob {
     public void initializeHostileRuntime(boolean naturalSpawn, boolean elite, boolean boss) {
         boolean installationBoss = boss && this.getSpec().archetype() == ShipArchetype.INSTALLATION;
         this.hostileRuntimeState.reset(naturalSpawn, elite, boss, installationBoss);
+        if (this.isHostileVariant()) {
+            int targetLevel = LegacyShipBehaviorCatalog.hostileSpawnLevel(this.getSpec(), elite, boss);
+            int targetMorale = LegacyShipBehaviorCatalog.hostileSpawnMorale(elite, boss);
+            if (this.getShipLevel() < targetLevel) {
+                this.entityData.set(DATA_LEVEL, targetLevel);
+            }
+            if (this.getMorale() < targetMorale) {
+                this.entityData.set(DATA_MORALE, targetMorale);
+            }
+            this.refreshFromVariant(true);
+            this.setHealth(this.getMaxHealth());
+        }
         if (!boss && this.bossEvent != null) {
             this.bossEvent.removeAllPlayers();
             this.bossEvent = null;

@@ -63,6 +63,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `HostileEncounterSpawner.spawnEncounterAt` 现在返回实际生成的 hostile entity；boss cooldown 只会在生成成功后消耗，避免碰撞失败仍进入冷却。
   - hostile boss 生成路径已有 GameTest 覆盖，确认 boss runtime、hostile sound source、attack profile 初始化正确。
   - 舰船 move/route 与 guard 命令现在会清掉旧 combat target，避免攻击目标和路线/护卫状态互相拖住；对应边界已有 GameTest 覆盖。
+- Phase 7 第三切片已完成到 code + GameTest 基线：
+  - `LegacyShipBehaviorCatalog` 现在集中给 hostile / elite / boss spawn 提供等级与士气基线。
+  - `LegacyShipEntity.initializeHostileRuntime(...)` 会按 catalog 拉起敌舰等级/士气并刷新满血，避免 boss 和 elite 只改变行为/掉落、不改变单人战斗强度。
+  - hostile boss spawn GameTest 已扩展检查等级、士气、满血初始化。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -131,6 +135,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `runGameTestServer`
 - Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
 - Phase 7 hostile spawn 与 command boundary 已有 GameTest 覆盖，确认 hostile boss runtime 初始化、move/route 清 target、guard 清 route/target。
+- Phase 7 hostile scaling 已有 GameTest 覆盖，确认 hostile boss 生成时按 catalog 初始化等级、士气与满血。
 - advancement 资源加载正常
 - `friendly_ship_deployed` trigger 已注册
 - 5 槽 playerskill runtime state 的 save/load 已有回归测试
@@ -249,6 +254,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - 当前用单一 `LegacyShipEntity` 承载 legacy eggMeta / class id 变体，spawn egg 和 shipyard 输出已能生成实体。
 - 已新增 `LegacyShipBehaviorCatalog` 作为 per-ship runtime hook 入口；攻击 profile 与已婚友方舰 ring passive 已从实体主类分发到 catalog，并有 2 个 GameTest 锁住 dispatch。
 - hostile encounter 生成现在可测试且返回实体；boss cooldown 只在 spawn 成功后消耗。路线/护卫命令会清理旧 combat target，减少单人指挥中“还在追旧目标”的边界问题。
+- hostile / elite / boss spawn 等级与士气现在也由 behavior catalog 提供，生成后会刷新满血。
 - 待补：
   - 继续把每艘舰专属运行时逻辑和 per-ship combat hooks 分批迁入 catalog，不要长期只靠通用 `LegacyShipEntity`。
   - 更完整的 hostile / boss / hime / abyssal spawn 规则与掉落。

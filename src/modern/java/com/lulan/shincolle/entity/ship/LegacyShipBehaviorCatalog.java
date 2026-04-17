@@ -40,6 +40,40 @@ public final class LegacyShipBehaviorCatalog {
         return LegacyShipAttackProfile.resolve(spec);
     }
 
+    public static int hostileSpawnLevel(ShipEntitySpec spec, boolean elite, boolean boss) {
+        if (!spec.hostile()) {
+            return 1;
+        }
+
+        int base = switch (spec.archetype()) {
+            case DESTROYER, SUBMARINE -> 18;
+            case TRANSPORT, CRUISER -> 24;
+            case CARRIER, BATTLESHIP -> 32;
+            case PRINCESS -> 48;
+            case INSTALLATION -> 52;
+        };
+        if (elite) {
+            base += 12;
+        }
+        if (boss) {
+            base += 28;
+        }
+        if (spec.eggMeta() >= 2000) {
+            base += 8;
+        }
+        return Math.max(1, Math.min(100, base));
+    }
+
+    public static int hostileSpawnMorale(boolean elite, boolean boss) {
+        if (boss) {
+            return 9000;
+        }
+        if (elite) {
+            return 7000;
+        }
+        return 5200;
+    }
+
     public static void tickMarriagePassive(LegacyShipEntity ship) {
         Behavior behavior = behaviorFor(ship.getSpec());
         if (!behavior.hasMarriagePassive()) {

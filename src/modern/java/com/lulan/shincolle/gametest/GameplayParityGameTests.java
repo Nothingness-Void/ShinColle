@@ -2265,8 +2265,11 @@ public final class GameplayParityGameTests {
                 || !spawned.isHostileVariant()
                 || !spawned.isBossEncounter()
                 || spawned.getSoundSource() != SoundSource.HOSTILE
-                || !spawned.getAttackProfile().hasAirAttack()) {
-            helper.fail("hostile encounter spawn should initialize hostile boss runtime, sound source, and attack profile");
+                || !spawned.getAttackProfile().hasAirAttack()
+                || spawned.getShipLevel() != LegacyShipBehaviorCatalog.hostileSpawnLevel(spawned.getSpec(), true, true)
+                || spawned.getMorale() != LegacyShipBehaviorCatalog.hostileSpawnMorale(true, true)
+                || spawned.getHealth() < spawned.getMaxHealth()) {
+            helper.fail("hostile encounter spawn should initialize hostile boss runtime, sound source, stats, and attack profile");
             return;
         }
 
