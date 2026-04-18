@@ -157,22 +157,11 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     }
 
     private boolean handleRegionClick(double mouseX, double mouseY, int relX, int relY, int width, int height, int buttonId) {
-        if (!this.menu.canEdit()) {
-            return false;
-        }
-
-        double localX = mouseX - this.leftPos;
-        double localY = mouseY - this.topPos;
-        if (localX < relX || localX > relX + width || localY < relY || localY > relY + height) {
-            return false;
-        }
-
-        if (this.minecraft != null && this.minecraft.gameMode != null) {
-            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, buttonId);
-            return true;
-        }
-
-        return false;
+        return this.sendShipCommandOnClick(mouseX, mouseY, relX, relY, width, height, switch (buttonId) {
+            case ShipInventoryMenu.BUTTON_TOGGLE_MODE ->
+                    ServerboundShipCommandPacket.toggleSit(0, this.menu.getShipId(), this.resolveShipUid());
+            default -> null;
+        });
     }
 
     private void renderExtraTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
@@ -315,6 +304,9 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     private boolean sendShipCommandOnClick(double mouseX, double mouseY,
                                            int relX, int relY, int width, int height,
                                            ServerboundShipCommandPacket packet) {
+        if (packet == null) {
+            return false;
+        }
         if (!this.menu.canEdit()) {
             return false;
         }
@@ -390,8 +382,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     }
 
     private int resolveShipUid() {
-        LegacyShipEntity ship = this.menu.getShip();
-        return ship != null ? ship.getShipUid() : ServerboundShipCommandPacket.NO_UID;
+        return this.menu.getShipUid();
     }
 
     private static String onOff(boolean enabled) {

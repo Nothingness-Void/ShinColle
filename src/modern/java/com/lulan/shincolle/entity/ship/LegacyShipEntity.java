@@ -744,7 +744,7 @@ public class LegacyShipEntity extends PathfinderMob {
             boolean dead = removalReason == Entity.RemovalReason.KILLED
                     || removalReason == Entity.RemovalReason.DISCARDED
                     || !this.isAlive();
-            this.cacheShipState(dead);
+            this.cacheShipState(dead, false);
         }
         super.remove(removalReason);
     }
@@ -1791,8 +1791,12 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void cacheShipState(boolean dead) {
+        this.cacheShipState(dead, !dead);
+    }
+
+    private void cacheShipState(boolean dead, boolean online) {
         this.ensureShipUid();
-        TeitokuHelper.refreshShipCache(this, dead);
+        TeitokuHelper.refreshShipCache(this, dead, online);
     }
 
     private void cleanupShipTeamSlotsIfNeeded() {
@@ -3577,9 +3581,12 @@ public class LegacyShipEntity extends PathfinderMob {
     private void openInventory(ServerPlayer player) {
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
-                        (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, this.getId()),
+                        (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, this.getId(), this.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", this.getName())),
-                buffer -> buffer.writeVarInt(this.getId()));
+                buffer -> {
+                    buffer.writeVarInt(this.getId());
+                    buffer.writeVarInt(this.getShipUid());
+                });
     }
 
     private void displayOwnerLocked(Player player) {

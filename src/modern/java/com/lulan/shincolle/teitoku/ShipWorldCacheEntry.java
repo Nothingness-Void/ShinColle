@@ -16,6 +16,7 @@ public record ShipWorldCacheEntry(
         int variantEggMeta,
         int ownerUid,
         String ownerName,
+        boolean online,
         boolean dead,
         int posX,
         int posY,
@@ -30,6 +31,7 @@ public record ShipWorldCacheEntry(
     private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String OWNER_UID_TAG = "OwnerUID";
     private static final String OWNER_NAME_TAG = "OwnerName";
+    private static final String ONLINE_TAG = "Online";
     private static final String DEAD_TAG = "Dead";
     private static final String POS_X_TAG = "PosX";
     private static final String POS_Y_TAG = "PosY";
@@ -46,6 +48,10 @@ public record ShipWorldCacheEntry(
     }
 
     public static ShipWorldCacheEntry fromShip(LegacyShipEntity ship, boolean dead) {
+        return fromShip(ship, dead, !dead);
+    }
+
+    public static ShipWorldCacheEntry fromShip(LegacyShipEntity ship, boolean dead, boolean online) {
         ResourceLocation dimensionKey = ship.level().dimension().location();
         CompoundTag entityTag = ship.saveWithoutId(new CompoundTag());
         return new ShipWorldCacheEntry(
@@ -56,6 +62,7 @@ public record ShipWorldCacheEntry(
                 ship.getVariantEggMeta(),
                 ship.getOwnerUid(),
                 ship.getOwnerName(),
+                online && !dead,
                 dead,
                 (int) Math.floor(ship.getX()),
                 (int) Math.floor(ship.getY()),
@@ -73,6 +80,7 @@ public record ShipWorldCacheEntry(
         if (!this.ownerName.isBlank()) {
             tag.putString(OWNER_NAME_TAG, this.ownerName);
         }
+        tag.putBoolean(ONLINE_TAG, this.online && !this.dead);
         tag.putBoolean(DEAD_TAG, this.dead);
         tag.putInt(POS_X_TAG, this.posX);
         tag.putInt(POS_Y_TAG, this.posY);
@@ -93,6 +101,7 @@ public record ShipWorldCacheEntry(
                 tag.contains(VARIANT_EGG_META_TAG) ? tag.getInt(VARIANT_EGG_META_TAG) : 0,
                 Math.max(0, tag.getInt(OWNER_UID_TAG)),
                 tag.getString(OWNER_NAME_TAG),
+                tag.contains(ONLINE_TAG) && tag.getBoolean(ONLINE_TAG),
                 tag.getBoolean(DEAD_TAG),
                 tag.getInt(POS_X_TAG),
                 tag.getInt(POS_Y_TAG),
