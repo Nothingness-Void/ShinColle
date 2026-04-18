@@ -2,6 +2,8 @@ Shin Colle
 ==========
 Shinkeiseikan Collection
 
+Branch note: `mc-1.12.2` is a read-only legacy reference branch. Please do not port, develop, or merge modern-version work into this branch.
+
 Add cute ship girls for battle and decoration.
 
 
