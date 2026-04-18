@@ -11,6 +11,7 @@ public class LegacyShipRangedAttackGoal extends Goal {
     private final LegacyShipEntity ship;
     private final double speedModifier;
     private int onSightTime;
+    private int lostSightTime;
     private int timeToRecalcPath;
 
     public LegacyShipRangedAttackGoal(LegacyShipEntity ship, double speedModifier) {
@@ -41,12 +42,14 @@ public class LegacyShipRangedAttackGoal extends Goal {
     @Override
     public void start() {
         this.onSightTime = 0;
+        this.lostSightTime = 0;
         this.timeToRecalcPath = 0;
     }
 
     @Override
     public void stop() {
         this.onSightTime = 0;
+        this.lostSightTime = 0;
         this.ship.getNavigation().stop();
     }
 
@@ -68,7 +71,14 @@ public class LegacyShipRangedAttackGoal extends Goal {
         boolean onSight = this.ship.getSensing().hasLineOfSight(target);
 
         this.onSightTime = onSight ? this.onSightTime + 1 : 0;
+        this.lostSightTime = onSight ? 0 : this.lostSightTime + 1;
         this.ship.getLookControl().setLookAt(target, 30.0F, 30.0F);
+
+        if (!onSight && this.ship.isHostileVariant() && this.lostSightTime >= this.adjustedTickDelay(40)) {
+            this.ship.setTarget(null);
+            this.ship.getNavigation().stop();
+            return;
+        }
 
         if (--this.timeToRecalcPath <= 0) {
             this.timeToRecalcPath = this.adjustedTickDelay(16);

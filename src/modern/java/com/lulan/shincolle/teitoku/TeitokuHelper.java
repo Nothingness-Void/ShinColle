@@ -1,14 +1,18 @@
 package com.lulan.shincolle.teitoku;
 
+import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.team.TeamSavedData;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +27,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,10 +35,15 @@ public final class TeitokuHelper {
 
     private static final String TEITOKU_PAYLOAD_TAG = "Teitoku";
     private static final String TEAM_LIST_PAYLOAD_TAG = "TeamList";
+    private static final String WORLD_RULES_PAYLOAD_TAG = "WorldCombatRules";
+    private static final String WORLD_UNATTACKABLE_TAG = "UnattackableClasses";
+    private static final String SHIP_CACHE_PAYLOAD_TAG = "ShipCache";
 
     public static final Capability<TeitokuData> TEITOKU_CAPABILITY =
             CapabilityManager.get(new CapabilityToken<>() {});
     private static final Map<Integer, TeamData> CLIENT_TEAM_DATA = new ConcurrentHashMap<>();
+    private static final Map<Integer, ShipWorldCacheEntry> CLIENT_SHIP_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> CLIENT_WORLD_UNATTACKABLE_CLASSES = ConcurrentHashMap.newKeySet();
 
     private TeitokuHelper() {
     }
@@ -87,6 +97,21 @@ public final class TeitokuHelper {
             teamList.add(teamData.saveToTag(new CompoundTag()));
         }
         payload.put(TEAM_LIST_PAYLOAD_TAG, teamList);
+
+        CompoundTag worldRulesTag = new CompoundTag();
+        ListTag unattackable = new ListTag();
+        for (String targetClass : WorldCombatRulesSavedData.get(player.serverLevel()).getAllUnattackableClasses()) {
+            unattackable.add(StringTag.valueOf(targetClass));
+        }
+        worldRulesTag.put(WORLD_UNATTACKABLE_TAG, unattackable);
+        payload.put(WORLD_RULES_PAYLOAD_TAG, worldRulesTag);
+
+        ListTag shipCache = new ListTag();
+        int playerUid = getPlayerUid(player);
+        for (ShipWorldCacheEntry entry : ShipCacheSavedData.get(player.serverLevel()).getShipsOwnedBy(playerUid)) {
+            shipCache.add(entry.saveToTag(new CompoundTag()));
+        }
+        payload.put(SHIP_CACHE_PAYLOAD_TAG, shipCache);
         return payload;
     }
 
@@ -103,10 +128,42 @@ public final class TeitokuHelper {
                 CLIENT_TEAM_DATA.put(teamData.getTeamId(), teamData);
             }
         }
+
+        CLIENT_WORLD_UNATTACKABLE_CLASSES.clear();
+        if (payload.contains(WORLD_RULES_PAYLOAD_TAG, Tag.TAG_COMPOUND)) {
+            ListTag worldRules = payload.getCompound(WORLD_RULES_PAYLOAD_TAG).getList(WORLD_UNATTACKABLE_TAG, Tag.TAG_STRING);
+            for (int i = 0; i < worldRules.size(); i++) {
+                String targetClass = normalizeTargetClass(worldRules.getString(i));
+                if (!targetClass.isBlank()) {
+                    CLIENT_WORLD_UNATTACKABLE_CLASSES.add(targetClass);
+                }
+            }
+        }
+
+        CLIENT_SHIP_CACHE.clear();
+        ListTag shipCache = payload.getList(SHIP_CACHE_PAYLOAD_TAG, Tag.TAG_COMPOUND);
+        for (int i = 0; i < shipCache.size(); i++) {
+            ShipWorldCacheEntry entry = ShipWorldCacheEntry.load(shipCache.getCompound(i));
+            if (entry.shipUid() > 0) {
+                CLIENT_SHIP_CACHE.put(entry.shipUid(), entry);
+            }
+        }
     }
 
     public static Map<Integer, TeamData> getClientTeamData() {
         return Map.copyOf(CLIENT_TEAM_DATA);
+    }
+
+    public static Map<Integer, ShipWorldCacheEntry> getClientShipCache() {
+        return Map.copyOf(CLIENT_SHIP_CACHE);
+    }
+
+    public static ShipWorldCacheEntry getClientShipCacheEntry(int shipUid) {
+        return CLIENT_SHIP_CACHE.get(shipUid);
+    }
+
+    public static Set<String> getClientWorldUnattackableClasses() {
+        return Set.copyOf(CLIENT_WORLD_UNATTACKABLE_CLASSES);
     }
 
     public static int getPlayerUid(Player player) {
@@ -342,7 +399,7 @@ public final class TeitokuHelper {
         }
     }
 
-    public static void collectCurrentTeamShips(ServerPlayer player, boolean selectedOnly, List<LegacyShipEntity> output) {
+    public static void collectCurrentTeamShips(Player player, boolean selectedOnly, List<LegacyShipEntity> output) {
         get(player).ifPresent(teitokuData -> {
             for (int shipUid : teitokuData.getCurrentTeamShipUids(selectedOnly)) {
                 LegacyShipEntity ship = findOwnedShipByUid(player, shipUid);
@@ -353,16 +410,38 @@ public final class TeitokuHelper {
         });
     }
 
-    public static LegacyShipEntity findOwnedShipByUid(ServerPlayer player, int shipUid) {
+    public static LegacyShipEntity findOwnedShipByUid(Player player, int shipUid) {
         if (shipUid <= 0) {
             return null;
         }
 
-        List<LegacyShipEntity> nearby = player.serverLevel().getEntitiesOfClass(
+        if (player instanceof ServerPlayer serverPlayer) {
+            ShipWorldCacheEntry cached = ShipCacheSavedData.get(serverPlayer.serverLevel()).getShip(shipUid);
+            if (cached != null && !cached.dead() && serverPlayer.server != null) {
+                ResourceLocation dimensionId = ResourceLocation.tryParse(cached.dimensionId());
+                if (dimensionId != null) {
+                    ServerLevel cachedLevel = serverPlayer.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
+                    if (cachedLevel != null && cachedLevel.getEntity(cached.entityId()) instanceof LegacyShipEntity ship
+                            && ship.getShipUid() == shipUid && ship.canCommanderEdit(player)) {
+                        return ship;
+                    }
+                }
+            }
+        }
+
+        List<LegacyShipEntity> nearby = player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
                 player.getBoundingBox().inflate(512.0D),
                 ship -> ship.getShipUid() == shipUid && ship.canCommanderEdit(player));
         return nearby.isEmpty() ? null : nearby.get(0);
+    }
+
+    public static void refreshShipCache(LegacyShipEntity ship, boolean dead) {
+        if (ship == null || ship.getShipUid() <= 0 || !(ship.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        ShipCacheSavedData.get(serverLevel).updateFromShip(ship, dead);
     }
 
     public static void renameOwnTeam(ServerPlayer player, String teamName) {

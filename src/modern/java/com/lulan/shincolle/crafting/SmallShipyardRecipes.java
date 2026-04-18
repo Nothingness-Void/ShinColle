@@ -9,6 +9,8 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.Optional;
@@ -25,6 +27,11 @@ public final class SmallShipyardRecipes {
     public static final int MIN_AMOUNT = 16;
     private static final int BASE_POWER = 57600;
     private static final int POWER_PER_MATERIAL = 2100;
+    private static final int LAVA_FUEL_AMOUNT = 1000;
+    private static final int LAVA_FUEL_POWER = 20000;
+
+    public record FuelUse(int power, ItemStack remainder) {
+    }
 
     private SmallShipyardRecipes() {
     }
@@ -78,20 +85,70 @@ public final class SmallShipyardRecipes {
             return 0;
         }
 
+        int lavaValue = getLavaFuelValue(stack);
+        if (lavaValue > 0) {
+            return lavaValue;
+        }
+
         int burnTime = ForgeHooks.getBurnTime(stack, RecipeType.SMELTING);
         if (burnTime > 0) {
             return burnTime;
         }
 
-        Optional<FluidStack> containedFluid = FluidUtil.getFluidContained(stack);
-        if (containedFluid.isPresent()) {
-            FluidStack fluidStack = containedFluid.get();
-            if (fluidStack.getFluid().isSame(Fluids.LAVA) && fluidStack.getAmount() == 1000) {
-                return 20000;
-            }
+        return 0;
+    }
+
+    public static Optional<FuelUse> consumeFuelItem(ItemStack stack) {
+        if (stack.isEmpty() || stack.is(ModItems.INSTANTCONMAT.get())) {
+            return Optional.empty();
         }
 
-        return 0;
+        Optional<FuelUse> lavaFuel = consumeLavaFuel(stack);
+        if (lavaFuel.isPresent()) {
+            return lavaFuel;
+        }
+
+        int burnTime = ForgeHooks.getBurnTime(stack, RecipeType.SMELTING);
+        if (burnTime <= 0) {
+            return Optional.empty();
+        }
+
+        ItemStack remainder = stack.hasCraftingRemainingItem() ? stack.getCraftingRemainingItem().copy() : ItemStack.EMPTY;
+        if (!remainder.isEmpty() && stack.getCount() > 1) {
+            return Optional.empty();
+        }
+
+        if (remainder.isEmpty()) {
+            remainder = stack.copy();
+            remainder.shrink(1);
+        }
+
+        return Optional.of(new FuelUse(burnTime, remainder.isEmpty() ? ItemStack.EMPTY : remainder));
+    }
+
+    private static int getLavaFuelValue(ItemStack stack) {
+        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        if (handler.isEmpty()) {
+            return 0;
+        }
+
+        FluidStack drained = handler.get().drain(new FluidStack(Fluids.LAVA, LAVA_FUEL_AMOUNT), IFluidHandler.FluidAction.SIMULATE);
+        return drained.getFluid().isSame(Fluids.LAVA) && drained.getAmount() >= LAVA_FUEL_AMOUNT ? LAVA_FUEL_POWER : 0;
+    }
+
+    private static Optional<FuelUse> consumeLavaFuel(ItemStack stack) {
+        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        if (handler.isEmpty()) {
+            return Optional.empty();
+        }
+
+        FluidStack simulated = handler.get().drain(new FluidStack(Fluids.LAVA, LAVA_FUEL_AMOUNT), IFluidHandler.FluidAction.SIMULATE);
+        if (!simulated.getFluid().isSame(Fluids.LAVA) || simulated.getAmount() < LAVA_FUEL_AMOUNT) {
+            return Optional.empty();
+        }
+
+        handler.get().drain(new FluidStack(Fluids.LAVA, LAVA_FUEL_AMOUNT), IFluidHandler.FluidAction.EXECUTE);
+        return Optional.of(new FuelUse(LAVA_FUEL_POWER, handler.get().getContainer()));
     }
 
     public static int[] getMaterialAmounts(ItemStackHandler items) {

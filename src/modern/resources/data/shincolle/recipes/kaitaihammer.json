@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "shincolle_late_game_tool",
+  "key": {
+    "a": {
+      "item": "shincolle:abyssmetal"
+    }
+  },
+  "pattern": [
+    "aaa",
+    " a ",
+    " a "
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:kaitaihammer"
+  }
+}

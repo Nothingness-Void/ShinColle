@@ -345,25 +345,18 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return false;
         }
 
-        int fuelValue = Math.round(SmallShipyardRecipes.getFuelValue(fuelStack) * FUEL_MAGNIFICATION);
-        if (fuelValue <= 0 || fuelValue + this.powerRemained >= POWER_MAX) {
+        var fuelUse = SmallShipyardRecipes.consumeFuelItem(fuelStack);
+        if (fuelUse.isEmpty()) {
             return false;
         }
 
-        ItemStack remainder = fuelStack.hasCraftingRemainingItem() ? fuelStack.getCraftingRemainingItem() : ItemStack.EMPTY;
-        if (!remainder.isEmpty() && fuelStack.getCount() > 1) {
+        int fuelValue = Math.round(fuelUse.get().power() * FUEL_MAGNIFICATION);
+        if (fuelValue <= 0 || fuelValue + this.powerRemained > POWER_MAX) {
             return false;
         }
 
         this.powerRemained += fuelValue;
-        if (remainder.isEmpty()) {
-            fuelStack.shrink(1);
-            if (fuelStack.isEmpty()) {
-                this.items.setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, ItemStack.EMPTY);
-            }
-        } else {
-            this.items.setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, remainder.copy());
-        }
+        this.items.setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, fuelUse.get().remainder().copy());
 
         return true;
     }

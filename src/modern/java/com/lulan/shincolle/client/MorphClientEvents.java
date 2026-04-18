@@ -1,16 +1,13 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.ShinColle;
-import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
-import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
-import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
 import com.lulan.shincolle.morph.MorphHelper;
-import com.lulan.shincolle.morph.MorphProfile;
-import com.lulan.shincolle.morph.MorphRuntimeState;
+import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
+import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -18,10 +15,14 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
@@ -29,6 +30,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.Locale;
 
 @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class MorphClientEvents {
@@ -58,6 +61,9 @@ public final class MorphClientEvents {
     @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
     public static final class ForgeEvents {
 
+        private static final int SLOT_SIZE = 20;
+        private static final int SLOT_GAP = 2;
+
         private ForgeEvents() {
         }
 
@@ -79,16 +85,23 @@ public final class MorphClientEvents {
                         : GameplayCommandType.OPEN_MORPH_SCREEN);
             }
 
+            PlayerSkillRuntimeState runtimeState = TeitokuHelper.get(player)
+                    .map(TeitokuData::getPlayerSkillRuntimeState)
+                    .orElse(null);
+            if (runtimeState != null && runtimeState.isVisible()) {
+                handleHotbarSkillInput(player, minecraft, runtimeState);
+            }
+
             while (PRIMARY_ATTACK.consumeClick()) {
-                sendAttackCommand(resolvePrimaryAttack(player));
+                sendPlayerSkillCommand(1);
             }
 
             while (SECONDARY_ATTACK.consumeClick()) {
-                sendAttackCommand(resolveSecondaryAttack(player));
+                sendPlayerSkillCommand(2);
             }
 
             while (SPECIAL_ATTACK.consumeClick()) {
-                sendSpecialCommand();
+                sendPlayerSkillCommand(5);
             }
 
             while (OPTOOL_TOGGLE.consumeClick()) {
@@ -108,124 +121,147 @@ public final class MorphClientEvents {
         public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer player = minecraft.player;
-            if (player == null) {
+            if (player == null || minecraft.screen != null) {
                 return;
             }
 
-            MorphProfile profile = MorphHelper.getActiveProfile(player);
-            if (profile == null) {
-                return;
-            }
-
-            MorphRuntimeState runtimeState = TeitokuHelper.get(player)
-                    .map(TeitokuData::getMorphRuntimeState)
+            PlayerSkillRuntimeState runtimeState = TeitokuHelper.get(player)
+                    .map(TeitokuData::getPlayerSkillRuntimeState)
                     .orElse(null);
-            if (runtimeState == null) {
+            if (runtimeState == null || !runtimeState.isVisible()) {
                 return;
             }
 
             GuiGraphics guiGraphics = event.getGuiGraphics();
-            int left = 8;
-            int top = event.getWindow().getGuiScaledHeight() - 58;
+            int centerX = event.getWindow().getGuiScaledWidth() / 2;
+            int baseY = event.getWindow().getGuiScaledHeight() - 78;
+            int totalWidth = PlayerSkillRuntimeState.SLOT_COUNT * SLOT_SIZE + (PlayerSkillRuntimeState.SLOT_COUNT - 1) * SLOT_GAP;
+            int left = centerX - totalWidth / 2;
 
-            guiGraphics.drawString(minecraft.font, profile.getSpec().displayName(), left, top, 0xF4E7C2, false);
+            Component title = MorphHelper.getPlayerSkillTitle(player);
+            Component resources = MorphHelper.getPlayerSkillResourceLine(player);
+            Component mode = Component.literal(runtimeState.getHostMode().name());
+            int titleWidth = minecraft.font.width(title);
+            int resourceWidth = minecraft.font.width(resources);
+            guiGraphics.drawString(minecraft.font, title, centerX - titleWidth / 2, baseY - 22, 0xF3E7BF, false);
+            guiGraphics.drawString(minecraft.font, resources, centerX - resourceWidth / 2, baseY - 12, 0xCDD7DF, false);
+            guiGraphics.drawString(minecraft.font, mode, left - 42, baseY + 6, hostModeColor(runtimeState.getHostMode()), false);
+
+            for (int slot = 0; slot < PlayerSkillRuntimeState.SLOT_COUNT; slot++) {
+                int slotX = left + slot * (SLOT_SIZE + SLOT_GAP);
+                boolean enabled = runtimeState.isSlotEnabled(slot);
+                int cooldown = runtimeState.getSlotCooldown(slot);
+                int maxCooldown = runtimeState.getSlotMaxCooldown(slot);
+
+                guiGraphics.fill(slotX, baseY, slotX + SLOT_SIZE, baseY + SLOT_SIZE, 0xCC11161A);
+                guiGraphics.fill(slotX + 1, baseY + 1, slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1,
+                        enabled ? 0xCC294048 : 0xAA22262B);
+                guiGraphics.fill(slotX, baseY, slotX + SLOT_SIZE, baseY + 1, enabled ? 0xFFE4D4A2 : 0xFF555C60);
+                guiGraphics.fill(slotX, baseY + SLOT_SIZE - 1, slotX + SLOT_SIZE, baseY + SLOT_SIZE, enabled ? 0xFF6B7B82 : 0xFF44484C);
+
+                if (maxCooldown > 0 && cooldown > 0) {
+                    int overlayHeight = Math.max(1, Math.round((cooldown / (float) maxCooldown) * (SLOT_SIZE - 2)));
+                    guiGraphics.fill(slotX + 1, baseY + SLOT_SIZE - 1 - overlayHeight,
+                            slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1, 0x99232A2F);
+                }
+
+                if (minecraft.options.keyHotbarSlots[slot].isDown() || (slot == 4 && SPECIAL_ATTACK.isDown())) {
+                    guiGraphics.fill(slotX + 1, baseY + 1, slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1, 0x55FFF3C2);
+                }
+
+                guiGraphics.drawString(minecraft.font, String.valueOf(slot + 1), slotX + 2, baseY + 2, 0xFFF7E6AD, false);
+                drawCentered(guiGraphics, getSlotLabel(player, runtimeState, slot), slotX + SLOT_SIZE / 2, baseY + 7,
+                        enabled ? 0xFFF0F4F7 : 0xFF7B858D);
+                if (cooldown > 0) {
+                    String seconds = String.format(Locale.ROOT, "%.1f", cooldown / 20.0F);
+                    drawCentered(guiGraphics, seconds, slotX + SLOT_SIZE / 2, baseY + 13, 0xFFECD990);
+                }
+            }
+
             guiGraphics.drawString(minecraft.font,
-                    Component.literal("L " + profile.getAmmoLight()
-                            + "  H " + profile.getAmmoHeavy()
-                            + "  G " + profile.getGrudge()),
-                    left, top + 10, 0xF1F1F1, false);
-            guiGraphics.drawString(minecraft.font,
-                    Component.literal("P:" + runtimeState.getAttackCooldown(resolvePrimaryAttack(player))
-                            + "  S:" + runtimeState.getAttackCooldown(resolveSecondaryAttack(player))
-                            + (MorphHelper.hasSpecialSkill(profile) ? "  C:" + runtimeState.getSpecialCooldown() : "")),
-                    left, top + 20, 0xD0D0D0, false);
-            guiGraphics.drawString(minecraft.font,
-                    Component.literal("[G] Morph  [Shift+G] Mount  [Z/X] Attack  [C] Skill"),
-                    left, top + 30, 0xAFAFAF, false);
-            guiGraphics.drawString(minecraft.font, MorphHelper.getSkillBarLabel(player), left, top + 40, 0x8FE3FF, false);
+                    Component.literal("[1-5] Skills  [G] Morph  [Shift+G] Mount  [Z/X/C] Quick"),
+                    centerX - 108, baseY + 24, 0x8FD7DDEA, false);
         }
 
-        private static LegacyShipAttackKind resolvePrimaryAttack(LocalPlayer player) {
-            MorphProfile profile = MorphHelper.getActiveProfile(player);
-            if (profile == null) {
-                return LegacyShipAttackKind.MELEE;
+        private static void handleHotbarSkillInput(LocalPlayer player, Minecraft minecraft, PlayerSkillRuntimeState runtimeState) {
+            int selectedSlot = player.getInventory().selected;
+            boolean usedSkillKey = false;
+
+            for (int slot = 0; slot < PlayerSkillRuntimeState.SLOT_COUNT; slot++) {
+                while (minecraft.options.keyHotbarSlots[slot].consumeClick()) {
+                    sendPlayerSkillCommand(slot + 1);
+                    usedSkillKey = true;
+                }
             }
 
-            LivingEntity target = resolveCrosshairTarget();
-            LegacyShipAttackProfile attackProfile = profile.buildAttackProfile();
-            boolean flyingTarget = target != null && LegacyShipCombatHelper.isFlyingTarget(target);
-
-            if (flyingTarget && attackProfile.airLight()) {
-                return LegacyShipAttackKind.AIR_LIGHT;
+            if (usedSkillKey) {
+                player.getInventory().selected = selectedSlot;
             }
-            if (attackProfile.light()) {
-                return LegacyShipAttackKind.LIGHT;
-            }
-            if (attackProfile.heavy()) {
-                return LegacyShipAttackKind.HEAVY;
-            }
-            if (attackProfile.airHeavy()) {
-                return LegacyShipAttackKind.AIR_HEAVY;
-            }
-            if (attackProfile.airLight()) {
-                return LegacyShipAttackKind.AIR_LIGHT;
-            }
-            return LegacyShipAttackKind.MELEE;
         }
 
-        private static LegacyShipAttackKind resolveSecondaryAttack(LocalPlayer player) {
-            MorphProfile profile = MorphHelper.getActiveProfile(player);
-            if (profile == null) {
-                return LegacyShipAttackKind.MELEE;
-            }
-
-            LivingEntity target = resolveCrosshairTarget();
-            LegacyShipAttackProfile attackProfile = profile.buildAttackProfile();
-            boolean flyingTarget = target != null && LegacyShipCombatHelper.isFlyingTarget(target);
-
-            if (attackProfile.heavy()) {
-                return LegacyShipAttackKind.HEAVY;
-            }
-            if (flyingTarget && attackProfile.airHeavy()) {
-                return LegacyShipAttackKind.AIR_HEAVY;
-            }
-            if (attackProfile.airHeavy()) {
-                return LegacyShipAttackKind.AIR_HEAVY;
-            }
-            if (attackProfile.light()) {
-                return LegacyShipAttackKind.LIGHT;
-            }
-            if (attackProfile.airLight()) {
-                return LegacyShipAttackKind.AIR_LIGHT;
-            }
-            return LegacyShipAttackKind.MELEE;
-        }
-
-        private static @org.jetbrains.annotations.Nullable LivingEntity resolveCrosshairTarget() {
+        private static void drawCentered(GuiGraphics guiGraphics, String text, int centerX, int y, int color) {
             Minecraft minecraft = Minecraft.getInstance();
+            guiGraphics.drawString(minecraft.font, text, centerX - minecraft.font.width(text) / 2, y, color, false);
+        }
+
+        private static int hostModeColor(MorphHostMode mode) {
+            return switch (mode) {
+                case MORPH -> 0x8FE3FF;
+                case MOUNT -> 0xA6F2C1;
+                case RIDER -> 0xF3C88B;
+                default -> 0x90979C;
+            };
+        }
+
+        private static String getSlotLabel(LocalPlayer player, PlayerSkillRuntimeState runtimeState, int slot) {
+            return switch (slot) {
+                case 0 -> "L";
+                case 1 -> "H";
+                case 2 -> "AL";
+                case 3 -> "AH";
+                case 4 -> runtimeState.getHostMode() == MorphHostMode.RIDER
+                        ? "--"
+                        : (MorphHelper.hasSpecialSkill(player) ? "SP" : "M");
+                default -> "-";
+            };
+        }
+
+        private static LivingEntity resolveCrosshairTarget() {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.hitResult instanceof EntityHitResult entityHitResult
+                    && entityHitResult.getEntity() instanceof LivingEntity living) {
+                return living;
+            }
+
             Entity target = minecraft.crosshairPickEntity;
             return target instanceof LivingEntity living ? living : null;
         }
 
-        private static void sendAttackCommand(LegacyShipAttackKind attackKind) {
-            LivingEntity target = resolveCrosshairTarget();
-            if (target == null) {
-                return;
+        private static BlockPos resolveCrosshairBlockPos() {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.hitResult instanceof BlockHitResult blockHitResult && blockHitResult.getType() == HitResult.Type.BLOCK) {
+                return blockHitResult.getBlockPos();
             }
-
-            CompoundTag payload = new CompoundTag();
-            payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, target.getId());
-            payload.putInt(GameplayCommandHandler.TAG_ATTACK_KIND, attackKind.ordinal());
-            ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.MORPH_CAST_ATTACK, payload));
+            return null;
         }
 
-        private static void sendSpecialCommand() {
+        private static void sendPlayerSkillCommand(int slot) {
             CompoundTag payload = new CompoundTag();
+            payload.putInt(GameplayCommandHandler.TAG_SKILL_SLOT, slot);
+
             LivingEntity target = resolveCrosshairTarget();
             if (target != null) {
                 payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, target.getId());
+            } else {
+                BlockPos blockPos = resolveCrosshairBlockPos();
+                if (blockPos != null) {
+                    payload.putInt(GameplayCommandHandler.TAG_X, blockPos.getX());
+                    payload.putInt(GameplayCommandHandler.TAG_Y, blockPos.getY());
+                    payload.putInt(GameplayCommandHandler.TAG_Z, blockPos.getZ());
+                }
             }
-            ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.MORPH_CAST_SPECIAL, payload));
+
+            ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.PLAYER_CAST_SKILL, payload));
         }
 
         private static void sendOpToolToggle() {

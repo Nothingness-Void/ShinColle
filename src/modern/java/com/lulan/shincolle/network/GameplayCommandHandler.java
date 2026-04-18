@@ -49,6 +49,7 @@ public final class GameplayCommandHandler {
     public static final String TAG_AI_FLAGS = "AiFlags";
     public static final String TAG_FOLLOW_RANGE = "FollowRange";
     public static final String TAG_ATTACK_KIND = "AttackKind";
+    public static final String TAG_SKILL_SLOT = "SkillSlot";
 
     public static final int AI_FLAG_AUTO_TARGET = 1;
     public static final int AI_FLAG_ALLOW_PVP = 1 << 1;
@@ -62,8 +63,7 @@ public final class GameplayCommandHandler {
         boolean broadcastTeamState = false;
 
         switch (type) {
-            case TOGGLE_SIT_SINGLE -> handleToggleSitSingle(player, payload.getInt(TAG_SHIP_ID));
-            case TOGGLE_SIT_GROUP -> handleToggleSitGroup(player, payload.getInt(TAG_SHIP_ID));
+            case TOGGLE_SIT_SINGLE, TOGGLE_SIT_GROUP -> ShipCommandService.handleLegacy(player, type, payload);
             case CYCLE_FORMATION -> {
                 TeitokuHelper.cycleFormationId(player);
                 player.displayClientMessage(Component.translatable("chat.shincolle.pointer.formation_changed",
@@ -80,10 +80,7 @@ public final class GameplayCommandHandler {
             case TOGGLE_SHIP_SELECT -> handleToggleShipSelect(player, payload);
             case SET_SLOT_SELECTION -> handleSetSlotSelection(player, payload);
             case CLEAR_CURRENT_TEAM -> handleClearCurrentTeam(player);
-            case MOVE_TO_POS -> handleMoveToPos(player, payload);
-            case GUARD_ENTITY -> handleGuardEntity(player, payload);
-            case ATTACK_ENTITY -> handleAttackEntity(player, payload);
-            case STOP_COMMAND -> handleStop(player, payload);
+            case MOVE_TO_POS, GUARD_ENTITY, ATTACK_ENTITY, STOP_COMMAND -> ShipCommandService.handleLegacy(player, type, payload);
             case TOGGLE_TARGET_CLASS -> {
                 handleToggleTargetClass(player, payload);
                 broadcastTeamState = true;
@@ -96,16 +93,16 @@ public final class GameplayCommandHandler {
                 handleTargetClassAddRemove(player, payload, false);
                 broadcastTeamState = true;
             }
-            case OPEN_SHIP_INVENTORY -> handleOpenShipInventory(player, payload);
+            case OPEN_SHIP_INVENTORY -> ShipCommandService.handleLegacy(player, type, payload);
             case OPEN_FORMATION_SCREEN -> handleOpenFormationScreen(player);
             case OPEN_DESK_SCREEN -> handleOpenDeskScreen(player, payload);
             case OPEN_MORPH_SCREEN -> MorphHelper.openMorphScreen(player);
-            case SET_SHIP_AI_FLAGS -> handleSetShipAiFlags(player, payload);
-            case SET_SHIP_FOLLOW_RANGE -> handleSetShipFollowRange(player, payload);
+            case SET_SHIP_AI_FLAGS, SET_SHIP_FOLLOW_RANGE -> ShipCommandService.handleLegacy(player, type, payload);
             case MORPH_CYCLE_PROFILE_PREV -> handleMorphCycle(player, false);
             case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
             case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);
             case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
+            case PLAYER_CAST_SKILL -> handlePlayerCastSkill(player, payload);
             case MORPH_CAST_ATTACK -> handleMorphAttack(player, payload);
             case MORPH_CAST_SPECIAL -> handleMorphSpecial(player, payload);
             case DESK_CREATE_TEAM -> {
@@ -387,6 +384,16 @@ public final class GameplayCommandHandler {
         if (MorphHelper.toggleMount(player)) {
             TeitokuHelper.syncGameplayState(player);
         }
+    }
+
+    private static void handlePlayerCastSkill(ServerPlayer player, CompoundTag payload) {
+        BlockPos blockPos = payload.contains(TAG_X) && payload.contains(TAG_Y) && payload.contains(TAG_Z)
+                ? new BlockPos(payload.getInt(TAG_X), payload.getInt(TAG_Y), payload.getInt(TAG_Z))
+                : null;
+        MorphHelper.performPlayerSkill(player,
+                payload.contains(TAG_SKILL_SLOT) ? payload.getInt(TAG_SKILL_SLOT) : payload.getInt(TAG_SLOT),
+                payload.contains(TAG_TARGET_ID) ? payload.getInt(TAG_TARGET_ID) : -1,
+                blockPos);
     }
 
     private static void handleMorphAttack(ServerPlayer player, CompoundTag payload) {

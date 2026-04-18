@@ -62,6 +62,8 @@ sourceSets {
             exclude 'assets/shincolle/blockstates/*[A-Z]*.json'
             exclude 'assets/shincolle/models/block/*[A-Z]*.json'
             exclude 'assets/shincolle/models/item/*[A-Z]*.json'
+            exclude 'assets/shincolle/textures/entity/Entity*.png'
+            exclude 'assets/shincolle/textures/entity/Model*.png'
         }
     }
 }
@@ -99,6 +101,26 @@ tasks.named('processResources', ProcessResources).configure {
         into 'assets/shincolle/legacy_model_sources'
         rename { fileName -> fileName.toLowerCase() }
     }
+
+    // Legacy top-level entity textures still live in their original mixed-case filenames.
+    // Mirror them into lowercase paths so 1.20 ResourceLocations resolve them reliably.
+    from('src/modern/resources/assets/shincolle/textures/entity') {
+        include 'Entity*.png'
+        include 'Model*.png'
+        into 'assets/shincolle/textures/entity'
+        rename { fileName -> fileName.toLowerCase() }
+    }
+}
+
+tasks.register('syncGameTestStructures', Copy) {
+    group = 'verification'
+    description = 'Copies source-controlled SNBT game test templates into the run directory used by Forge.'
+    from('src/modern/resources/gameteststructures')
+    into(layout.projectDirectory.dir('run/gameteststructures'))
+}
+
+tasks.matching { it.name in ['runGameTestServer', 'runClient', 'runServer'] }.configureEach {
+    dependsOn tasks.named('syncGameTestStructures')
 }
 
 tasks.register('verifyItemModelCoverage') {

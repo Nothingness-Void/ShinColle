@@ -1,9 +1,11 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -55,6 +57,15 @@ public class FormationMenu extends AbstractContainerMenu {
         LegacyShipEntity ship = this.findShipByUid(shipUid);
         if (ship != null) {
             return Component.translatable("gui.shincolle.formation.slot.filled", slot + 1, ship.getName());
+        }
+
+        ShipWorldCacheEntry cached = TeitokuHelper.getClientShipCacheEntry(shipUid);
+        if (cached != null) {
+            Component name = cached.resolveDisplayName();
+            if (cached.dead()) {
+                name = name.copy().withStyle(ChatFormatting.DARK_GRAY);
+            }
+            return Component.translatable("gui.shincolle.formation.slot.filled", slot + 1, name);
         }
 
         return Component.translatable("gui.shincolle.formation.slot.uid", slot + 1, shipUid);

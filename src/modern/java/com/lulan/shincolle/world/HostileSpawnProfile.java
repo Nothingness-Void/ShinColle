@@ -1,4 +1,4 @@
 package com.lulan.shincolle.world;
 
-public record HostileSpawnProfile(int eggMeta, int weight, int minGroup, int maxGroup, boolean elite, boolean boss) {
+public record HostileSpawnProfile(int eggMeta, int weight, boolean elite, boolean boss) {
 }

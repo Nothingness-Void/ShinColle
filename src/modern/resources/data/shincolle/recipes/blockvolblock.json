@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "g": {
+      "item": "minecraft:magma_block"
+    },
+    "l": {
+      "item": "shincolle:blockgrudge"
+    },
+    "o": {
+      "item": "minecraft:obsidian"
+    }
+  },
+  "pattern": [
+    "gog",
+    "olo",
+    "gog"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockvolblock"
+  }
+}

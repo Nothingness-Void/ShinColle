@@ -1,0 +1,52 @@
+{
+  "parent": "shincolle:progression/root",
+  "display": {
+    "icon": {
+      "item": "shincolle:grudge"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.first_grudge_and_ammo.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.first_grudge_and_ammo.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "grudge": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:grudge"
+            ]
+          }
+        ]
+      }
+    },
+    "ammo": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:ammo"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "grudge"
+    ],
+    [
+      "ammo"
+    ]
+  ]
+}

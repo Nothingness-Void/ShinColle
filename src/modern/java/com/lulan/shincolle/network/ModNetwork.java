@@ -41,6 +41,11 @@ public final class ModNetwork {
                 .decoder(ServerboundGameplayCommandPacket::decode)
                 .consumerMainThread(ServerboundGameplayCommandPacket::handle)
                 .add();
+        CHANNEL.messageBuilder(ServerboundShipCommandPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(ServerboundShipCommandPacket::encode)
+                .decoder(ServerboundShipCommandPacket::decode)
+                .consumerMainThread(ServerboundShipCommandPacket::handle)
+                .add();
         CHANNEL.messageBuilder(ClientboundGameplayStatePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(ClientboundGameplayStatePacket::encode)
                 .decoder(ClientboundGameplayStatePacket::decode)
@@ -61,12 +66,18 @@ public final class ModNetwork {
     }
 
     public static void syncTeitoku(ServerPlayer player) {
+        if (player.connection == null) {
+            return;
+        }
         TeitokuHelper.get(player).ifPresent(teitokuData ->
                 CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                         new ClientboundSyncTeitokuDataPacket(teitokuData.saveToTag(new CompoundTag()))));
     }
 
     public static void syncGameplayState(ServerPlayer player, CompoundTag payload) {
+        if (player.connection == null) {
+            return;
+        }
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientboundGameplayStatePacket(payload));
     }
 

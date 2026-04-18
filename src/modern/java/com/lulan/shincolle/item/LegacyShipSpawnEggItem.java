@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -13,7 +14,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -32,6 +35,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -40,9 +44,46 @@ public class LegacyShipSpawnEggItem extends Item {
 
     private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String LEGACY_CLASS_ID_TAG = "ShipClassId";
+    private static final String RECOVERED_SHIP_TAG = "RecoveredShip";
 
     public LegacyShipSpawnEggItem(Properties properties) {
         super(properties);
+    }
+
+    public static ItemStack createRecoveredShipStack(LegacyShipEntity ship) {
+        ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath("shincolle", "shipegg" + ship.getVariantEggMeta());
+        Item item = ForgeRegistries.ITEMS.getValue(itemId);
+        if (item == null) {
+            item = BuiltInRegistries.ITEM.get(itemId);
+        }
+        if (!(item instanceof LegacyShipSpawnEggItem)) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack stack = new ItemStack(item);
+        CompoundTag stackTag = stack.getOrCreateTag();
+        stackTag.putInt(VARIANT_EGG_META_TAG, ship.getVariantEggMeta());
+
+        CompoundTag shipTag = new CompoundTag();
+        ship.addAdditionalSaveData(shipTag);
+        shipTag.remove("Health");
+        shipTag.remove("HurtTime");
+        shipTag.remove("DeathTime");
+        shipTag.remove("NoAI");
+        stackTag.put(RECOVERED_SHIP_TAG, shipTag);
+        return stack;
+    }
+
+    public static boolean isRecoveredShipStack(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        return tag != null && tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND);
+    }
+
+    public static @Nullable CompoundTag getRecoveredShipData(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        return tag != null && tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND)
+                ? tag.getCompound(RECOVERED_SHIP_TAG).copy()
+                : null;
     }
 
     @Override
@@ -86,6 +127,10 @@ public class LegacyShipSpawnEggItem extends Item {
         String itemPath = BuiltInRegistries.ITEM.getKey(this).getPath();
         tooltip.add(Component.translatable("gui.shincolle.spawn_egg.use").withStyle(ChatFormatting.GRAY));
 
+        if (isRecoveredShipStack(stack)) {
+            tooltip.add(Component.translatable("gui.shincolle.spawn_egg.recovered").withStyle(ChatFormatting.GOLD));
+        }
+
         if (LegacyShipConstructionHelper.hasConstructionRecipe(stack)) {
             int[] materials = LegacyShipConstructionHelper.readMaterialAmounts(stack);
             tooltip.add(Component.literal(materials[0] + " ").append(Component.translatable("item.shincolle.grudge")).withStyle(ChatFormatting.WHITE));
@@ -123,10 +168,18 @@ public class LegacyShipSpawnEggItem extends Item {
             return InteractionResult.FAIL;
         }
 
+        CompoundTag recoveredShipData = getRecoveredShipData(stack);
+
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setVariantEggMeta(spec.eggMeta());
         ship.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(pos), MobSpawnType.SPAWN_EGG, null, null);
-        ship.applySpawnSpec(spec, player);
+        if (recoveredShipData != null) {
+            ship.readAdditionalSaveData(recoveredShipData);
+            ship.restoreRecoveredDeployment(player);
+        } else {
+            ship.applySpawnSpec(spec, player);
+        }
+        ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setYHeadRot(player.getYRot());
         ship.yBodyRot = player.getYRot();
 
@@ -138,6 +191,7 @@ public class LegacyShipSpawnEggItem extends Item {
 
         if (!spec.hostile() && player instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.addCollectedShip(serverPlayer, spec.legacyClassId());
+            ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.trigger(serverPlayer);
         }
 
         if (!player.getAbilities().instabuild) {
@@ -157,6 +211,14 @@ public class LegacyShipSpawnEggItem extends Item {
         RandomSource random = level != null ? level.getRandom() : RandomSource.create();
 
         if (tag != null) {
+            if (tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND)) {
+                CompoundTag shipTag = tag.getCompound(RECOVERED_SHIP_TAG);
+                ShipEntitySpec spec = ShipEntitySpecs.findByEggMeta(shipTag.getInt(VARIANT_EGG_META_TAG));
+                if (spec != null) {
+                    return spec.hostile() ? ShipEntitySpecs.friendlyCounterpart(spec) : spec;
+                }
+            }
+
             if (tag.contains(VARIANT_EGG_META_TAG)) {
                 ShipEntitySpec spec = ShipEntitySpecs.findByEggMeta(tag.getInt(VARIANT_EGG_META_TAG));
                 if (spec != null) {
@@ -167,7 +229,7 @@ public class LegacyShipSpawnEggItem extends Item {
             if (tag.contains(LEGACY_CLASS_ID_TAG)) {
                 ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(tag.getInt(LEGACY_CLASS_ID_TAG));
                 if (spec != null) {
-                    return spec;
+                    return spec.hostile() ? ShipEntitySpecs.friendlyCounterpart(spec) : spec;
                 }
             }
 

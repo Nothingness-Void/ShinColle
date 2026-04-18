@@ -1,8 +1,10 @@
 package com.lulan.shincolle;
 
 import com.mojang.logging.LogUtils;
+import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.client.renderer.blockentity.DeskBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.blockentity.SmallShipyardBlockEntityRenderer;
+import com.lulan.shincolle.client.renderer.entity.LegacyShipAircraftRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipProjectileRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyMountRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderer;
@@ -66,6 +68,7 @@ public class ShinColle {
         ModMenus.MENUS.register(modEventBus);
         ModSoundEvents.SOUND_EVENTS.register(modEventBus);
         ModCreativeModeTabs.TABS.register(modEventBus);
+        ModCriteriaTriggers.init();
         ModNetwork.register();
         MinecraftForge.EVENT_BUS.register(this);
     }
@@ -105,6 +108,8 @@ public class ShinColle {
                 BlockEntityRenderers.register(ModBlockEntities.SMALL_SHIPYARD.get(), SmallShipyardBlockEntityRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP.get(), LegacyShipRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_PROJECTILE.get(), LegacyShipProjectileRenderer::new);
+                EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_AIRCRAFT.get(), LegacyShipAircraftRenderer::new);
+                EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_TAKOYAKI.get(), LegacyShipAircraftRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_MOUNT.get(), LegacyMountRenderer::new);
                 ItemProperties.register(ModItems.POINTERITEM.get(), ResourceLocation.fromNamespaceAndPath(MOD_ID, "mode"),
                         (stack, level, entity, seed) -> PointerItem.getModelMode(stack));

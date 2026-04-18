@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "shincolle_resources",
+  "ingredients": [
+    {
+      "item": "shincolle:blockgrudgeheavydeco"
+    }
+  ],
+  "result": {
+    "count": 2,
+    "item": "shincolle:blockgrudge"
+  }
+}

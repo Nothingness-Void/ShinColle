@@ -1,0 +1,32 @@
+{
+  "parent": "shincolle:progression/first_logistics_setup",
+  "display": {
+    "icon": {
+      "item": "shincolle:grudge1"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.ocean_boss_encounter.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.ocean_boss_encounter.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "hurt_boss": {
+      "trigger": "minecraft:player_hurt_entity",
+      "conditions": {
+        "entity": {
+          "type": "shincolle:legacy_ship",
+          "nbt": "{HostileRuntime:{Boss:1b}}"
+        }
+      }
+    }
+  },
+  "rewards": {
+    "experience": 250
+  }
+}

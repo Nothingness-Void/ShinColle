@@ -3,6 +3,7 @@ package com.lulan.shincolle.blockentity;
 import com.lulan.shincolle.block.LargeShipyardBlock;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
+import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.registry.ModBlockEntities;
@@ -497,25 +498,18 @@ public class LargeShipyardBlockEntity extends BlockEntity implements LargeShipya
             return false;
         }
 
-        int fuelValue = Math.round(LargeShipyardRecipes.getFuelValue(fuelStack) * FUEL_MAGNIFICATION);
+        var fuelUse = SmallShipyardRecipes.consumeFuelItem(fuelStack);
+        if (fuelUse.isEmpty()) {
+            return false;
+        }
+
+        int fuelValue = Math.round(fuelUse.get().power() * FUEL_MAGNIFICATION);
         if (fuelValue <= 0) {
             return false;
         }
 
-        ItemStack remainder = fuelStack.hasCraftingRemainingItem() ? fuelStack.getCraftingRemainingItem() : ItemStack.EMPTY;
-        if (!remainder.isEmpty() && fuelStack.getCount() > 1) {
-            return false;
-        }
-
         this.powerRemained = Math.min(POWER_MAX, this.powerRemained + fuelValue);
-        if (remainder.isEmpty()) {
-            fuelStack.shrink(1);
-            if (fuelStack.isEmpty()) {
-                this.items.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, ItemStack.EMPTY);
-            }
-        } else {
-            this.items.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, remainder.copy());
-        }
+        this.items.setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, fuelUse.get().remainder().copy());
 
         return true;
     }
