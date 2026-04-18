@@ -7,6 +7,14 @@
 - `PORTING-1.20.1.md`
 - `MIGRATION-FLOW-CHECKLIST.md`
 
+## 绝对规则
+
+- 迁移工作只允许修改 `src/modern/java`、`src/modern/resources`，以及对应的 1.20.1 迁移文档。
+- `src/main/java`、`src/main/resources` 与 `mc-1.12.2` 分支只作为 1.12 真源参考，默认只读，不得把 1.20.1 迁移改动提交、合并或回写进去。
+- 后续所有迁移分支、提交、PR 都应落在 `codex/mc-1.20.1` 这条 1.20.1 工作线上；`mc-1.12.2` 不是目标分支。
+- 判断行为、数据、资源、UI、输入语义时，以 1.12 实现为真源；实际代码适配和实现落点始终写在 1.20.1 modern 侧。
+- 如果本地 `mc-1.12.2` 被误移动、误合并或误污染，应立即重置回 `upstream/mc-1.12.2`，不要在错误基线上继续工作。
+
 ## 当前基线
 
 - 实际参与构建的是 `src/modern/java` 和 `src/modern/resources`。

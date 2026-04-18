@@ -8,6 +8,14 @@ This file tracks the port in dependency order and checks what is genuinely migra
 It is stricter than `PORTING-1.20.1.md`: code that is only registered as a placeholder is not marked as fully migrated.
 Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.md`.
 
+## Hard Rule
+
+- Only the 1.20.1 modern port line is writable for migration work: `src/modern/java`, `src/modern/resources`, and the related migration docs.
+- `src/main/java`, `src/main/resources`, and branch `mc-1.12.2` are read-only legacy reference truth. Do not merge modern migration commits into them.
+- The correct working branch / PR line for this port is `codex/mc-1.20.1`. `mc-1.12.2` is never the migration target branch.
+- Legacy 1.12 behavior remains the semantic source of truth, but all actual implementation changes belong on the 1.20.1 modern side.
+- If the local `mc-1.12.2` branch is accidentally moved or polluted, reset it back to `upstream/mc-1.12.2` before doing anything else.
+
 ## Self-check Rules
 
 | Check item | Meaning |
