@@ -1664,6 +1664,44 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void simplifiedChineseLangCoversModernKeys(GameTestHelper helper) {
+        JsonObject english = loadJsonResource("assets/shincolle/lang/en_us.json");
+        JsonObject simplifiedChinese = loadJsonResource("assets/shincolle/lang/zh_cn.json");
+        if (english == null || simplifiedChinese == null) {
+            helper.fail("expected en_us and zh_cn language resources to be present");
+            return;
+        }
+
+        for (String key : english.keySet()) {
+            if (!simplifiedChinese.has(key)) {
+                helper.fail("zh_cn language resource is missing key: " + key);
+                return;
+            }
+            if (simplifiedChinese.get(key).getAsString().isBlank()) {
+                helper.fail("zh_cn language resource has blank value for key: " + key);
+                return;
+            }
+        }
+
+        String[] representativeLocalizedKeys = {
+                "block.shincolle.blockabyssium",
+                "item.shincolle.abyssmetal",
+                "item.shincolle.shipegg58",
+                "gui.shincolle.ship_inventory.owner",
+                "chat.shincolle.spawn_egg.deployed",
+                "advancement.shincolle.progression.root.title"
+        };
+        for (String key : representativeLocalizedKeys) {
+            if (english.get(key).getAsString().equals(simplifiedChinese.get(key).getAsString())) {
+                helper.fail("zh_cn language key still matches English: " + key);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void soundsJsonOnlyReferencesPackagedOgg(GameTestHelper helper) {
         JsonObject sounds = loadJsonResource("assets/shincolle/sounds.json");
         if (sounds == null) {
