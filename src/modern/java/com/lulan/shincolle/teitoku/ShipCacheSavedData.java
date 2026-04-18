@@ -41,11 +41,15 @@ public class ShipCacheSavedData extends SavedData {
     }
 
     public void updateFromShip(LegacyShipEntity ship, boolean dead) {
+        this.updateFromShip(ship, dead, !dead);
+    }
+
+    public void updateFromShip(LegacyShipEntity ship, boolean dead, boolean online) {
         if (ship == null || ship.getShipUid() <= 0) {
             return;
         }
 
-        this.shipByUid.put(ship.getShipUid(), ShipWorldCacheEntry.fromShip(ship, dead));
+        this.shipByUid.put(ship.getShipUid(), ShipWorldCacheEntry.fromShip(ship, dead, online));
         this.setDirty();
     }
 

@@ -88,10 +88,14 @@ public final class TeitokuHelper {
     }
 
     public static CompoundTag buildGameplayStateTag(ServerPlayer player) {
+        return buildGameplayStateTag(player.serverLevel(), player);
+    }
+
+    public static CompoundTag buildGameplayStateTag(ServerLevel level, Player player) {
         CompoundTag payload = new CompoundTag();
         get(player).ifPresent(teitokuData -> payload.put(TEITOKU_PAYLOAD_TAG, teitokuData.saveToTag(new CompoundTag())));
 
-        TeamSavedData teamSavedData = TeamSavedData.get(player.serverLevel());
+        TeamSavedData teamSavedData = TeamSavedData.get(level);
         ListTag teamList = new ListTag();
         for (TeamData teamData : teamSavedData.getAllTeams()) {
             teamList.add(teamData.saveToTag(new CompoundTag()));
@@ -100,7 +104,7 @@ public final class TeitokuHelper {
 
         CompoundTag worldRulesTag = new CompoundTag();
         ListTag unattackable = new ListTag();
-        for (String targetClass : WorldCombatRulesSavedData.get(player.serverLevel()).getAllUnattackableClasses()) {
+        for (String targetClass : WorldCombatRulesSavedData.get(level).getAllUnattackableClasses()) {
             unattackable.add(StringTag.valueOf(targetClass));
         }
         worldRulesTag.put(WORLD_UNATTACKABLE_TAG, unattackable);
@@ -108,7 +112,7 @@ public final class TeitokuHelper {
 
         ListTag shipCache = new ListTag();
         int playerUid = getPlayerUid(player);
-        for (ShipWorldCacheEntry entry : ShipCacheSavedData.get(player.serverLevel()).getShipsOwnedBy(playerUid)) {
+        for (ShipWorldCacheEntry entry : ShipCacheSavedData.get(level).getShipsOwnedBy(playerUid)) {
             shipCache.add(entry.saveToTag(new CompoundTag()));
         }
         payload.put(SHIP_CACHE_PAYLOAD_TAG, shipCache);
@@ -437,11 +441,15 @@ public final class TeitokuHelper {
     }
 
     public static void refreshShipCache(LegacyShipEntity ship, boolean dead) {
+        refreshShipCache(ship, dead, !dead);
+    }
+
+    public static void refreshShipCache(LegacyShipEntity ship, boolean dead, boolean online) {
         if (ship == null || ship.getShipUid() <= 0 || !(ship.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 
-        ShipCacheSavedData.get(serverLevel).updateFromShip(ship, dead);
+        ShipCacheSavedData.get(serverLevel).updateFromShip(ship, dead, online);
     }
 
     public static void renameOwnTeam(ServerPlayer player, String teamName) {

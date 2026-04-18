@@ -311,9 +311,12 @@ public final class GameplayCommandHandler {
         LegacyShipEntity target = ship;
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
-                        (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, target.getId()),
+                        (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, target.getId(), target.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", target.getName())),
-                buffer -> buffer.writeVarInt(target.getId()));
+                buffer -> {
+                    buffer.writeVarInt(target.getId());
+                    buffer.writeVarInt(target.getShipUid());
+                });
     }
 
     private static void handleOpenFormationScreen(ServerPlayer player) {

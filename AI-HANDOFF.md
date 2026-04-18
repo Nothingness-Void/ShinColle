@@ -21,7 +21,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 62 required tests passed`
+  - `All 68 required tests passed`
 - 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮 Phase 5-6 主要是服务端/网络/持久化闭环，typed ship command 的客户端输入路径仍建议后续再做一次短冒烟。
 
 ## 已经落地并接线的主线
@@ -54,6 +54,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `ShipInventoryScreen` 的 stop、AI flag、follow range 控制改走专用 ship command packet，team/formation 按钮继续沿用现有总线。
   - `ShipCommandService` 集中处理 owner/UID 解析、存活检查、距离限制、`canEngage`、team slot、formation offset、standby 解除、目标清理与状态同步。
   - `LegacyShipEntity` 的 command pos/dimension、guard UUID、route wait、AI flags、follow range 等运行时状态已有 NBT 回归；修正了读档时 `DATA_AI_FLAGS` 与 `DATA_AI_FOLLOW_RANGE` 同步回调互相覆盖的问题。
+  - `ShipCacheSavedData / ShipWorldCacheEntry` 现已显式区分 `online / offline / dead`：活体缓存写入 `online=true`，死亡快照写入 `dead=true, online=false`，实体卸载写入 `dead=false, online=false`；对应 save/load 与脱实体 UI fallback 已有 GameTest 覆盖。
+  - `buildGameplayStateTag -> applyClientState` 这条 gameplay state 回显链已有 GameTest 覆盖：team world data、world unattackable class、offline ship cache、target-class 与 `PlayerSkillRuntimeState` 都能一起下发到 client mirror。
 - Phase 7 第一切片已完成到 code + GameTest 基线：
   - 新增 `LegacyShipBehaviorCatalog`，作为 legacy class id / hostile flag / runtime state 的舰种行为分发入口。
   - `LegacyShipEntity` 的攻击 profile 初始化现在经由 behavior catalog，后续 per-ship combat hook 不再继续堆在实体主类里。

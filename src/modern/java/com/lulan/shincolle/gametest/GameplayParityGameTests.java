@@ -77,6 +77,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Zombie;
@@ -1242,6 +1243,45 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipCommandServiceReportsFailureReasons(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8109))) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        LegacyShipEntity ally = createOwnedShip(helper, player, 59, 4.5D, 2.0D, 2.5D);
+        if (ship == null || ally == null) {
+            helper.fail("owned ships should be creatable for command failure reporting tests");
+            return;
+        }
+
+        if (ShipCommandService.handleResultForTesting(player,
+                ServerboundShipCommandPacket.moveTo(0, ship.getId(), ship.getShipUid(), new BlockPos(1000, 2, 1000)))
+                != ShipCommandService.ShipCommandResult.MOVE_TARGET_TOO_FAR) {
+            helper.fail("far move commands should report the move-target-too-far failure reason");
+            return;
+        }
+
+        if (ShipCommandService.handleResultForTesting(player,
+                ServerboundShipCommandPacket.guard(0, ship.getId(), ship.getShipUid(), 999999))
+                != ShipCommandService.ShipCommandResult.TARGET_INVALID) {
+            helper.fail("invalid guard targets should report the invalid-target failure reason");
+            return;
+        }
+
+        if (ShipCommandService.handleResultForTesting(player,
+                ServerboundShipCommandPacket.attack(0, ship.getId(), ship.getShipUid(), ally.getId()))
+                != ShipCommandService.ShipCommandResult.TARGET_NOT_ENGAGEABLE) {
+            helper.fail("attacking an allied target should report the not-engageable failure reason");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void legacyAndTypedShipCommandsShareServerBehavior(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8101))) {
@@ -1288,6 +1328,17 @@ public final class GameplayParityGameTests {
                 || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(typedShip.getId(), typedShip.getShipUid(), 28))
                 || legacyShip.getAiFollowRange() != typedShip.getAiFollowRange()) {
             helper.fail("legacy and typed follow-range commands should share behavior");
+            return;
+        }
+
+        CompoundTag legacySit = new CompoundTag();
+        legacySit.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
+        legacySit.putInt(GameplayCommandHandler.TAG_SHIP_UID, legacyShip.getShipUid());
+        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.TOGGLE_SIT_SINGLE, legacySit)
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.toggleSit(0, typedShip.getId(), typedShip.getShipUid()))
+                || !legacyShip.isOrderedToSit()
+                || !typedShip.isOrderedToSit()) {
+            helper.fail("legacy and typed toggle-sit commands should share behavior");
             return;
         }
 
@@ -1845,6 +1896,138 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipInventoryMenuReadsCachedStateByShipUid(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8110);
+            data.setCurrentTeamId(0);
+        })) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for ship inventory cache fallback tests");
+            return;
+        }
+
+        ship.setShipLevel(33);
+        ship.setMorale(8200);
+        ship.setMarried(true);
+        ship.setOrderedToSit(true);
+        ship.setHealth(ship.getMaxHealth() * 0.5F);
+        ship.tick();
+        TeitokuHelper.refreshShipCache(ship, false);
+        int shipUid = ship.getShipUid();
+        if (shipUid <= 0) {
+            helper.fail("cached ship fallback requires a persistent ship UID");
+            return;
+        }
+
+        ship.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+
+        ShipInventoryMenu menu = new ShipInventoryMenu(6, player.getInventory(), ServerboundShipCommandPacket.NO_ENTITY, shipUid);
+        if (menu.getShip() != null) {
+            helper.fail("cache fallback menu should not resolve a live ship after unload");
+            return;
+        }
+        if (menu.getShipUid() != shipUid) {
+            helper.fail("cache fallback menu should preserve ship UID");
+            return;
+        }
+        if (!menu.canEdit()) {
+            helper.fail("cache fallback menu should keep owner edit access through ship UID state");
+            return;
+        }
+        if (!player.getGameProfile().getName().equals(menu.getOwnerLabel().getString())) {
+            helper.fail("cache fallback menu should preserve owner label");
+            return;
+        }
+        if (!menu.getModeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())) {
+            helper.fail("cache fallback menu should preserve standby/follow mode");
+            return;
+        }
+        if (!menu.getRoleLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.role.cruiser").getString())) {
+            helper.fail("cache fallback menu should preserve role label");
+            return;
+        }
+        if (menu.getShipLevel() != 33) {
+            helper.fail("cache fallback menu should preserve ship level");
+            return;
+        }
+        if (!menu.getMarriageLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.marriage.yes").getString())) {
+            helper.fail("cache fallback menu should preserve marriage label");
+            return;
+        }
+        if ("- / -".equals(menu.getHealthText())) {
+            helper.fail("cache fallback menu should preserve health text");
+            return;
+        }
+        if ("-".equals(menu.getAttackText())) {
+            helper.fail("cache fallback menu should preserve cached combat stats");
+            return;
+        }
+        if ("- / -".equals(menu.getRouteEnergyText())) {
+            helper.fail("cache fallback menu should preserve route energy text");
+            return;
+        }
+        if (menu.getAiFollowRange() != ship.getAiFollowRange()) {
+            helper.fail("cache fallback menu should preserve AI follow range");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipCommandsRefreshDetachedInventoryCacheState(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8111);
+            data.setCurrentTeamId(0);
+        })) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for detached ship cache refresh tests");
+            return;
+        }
+
+        TeitokuHelper.refreshShipCache(ship, false);
+        int shipUid = ship.getShipUid();
+        int nextFlags = GameplayCommandHandler.AI_FLAG_ALLOW_PVP | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.toggleSit(0, ship.getId(), shipUid))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), shipUid, nextFlags))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), shipUid, 30))) {
+            helper.fail("ship commands should succeed before detached cache refresh validation");
+            return;
+        }
+
+        ship.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+
+        ShipInventoryMenu menu = new ShipInventoryMenu(7, player.getInventory(), ServerboundShipCommandPacket.NO_ENTITY, shipUid);
+        if (!menu.getModeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())) {
+            helper.fail("detached ship inventory cache should refresh standby state after toggle-sit commands");
+            return;
+        }
+        if (menu.getAiFlags() != nextFlags) {
+            helper.fail("detached ship inventory cache should refresh AI flag state after ship commands");
+            return;
+        }
+        if (menu.getAiFollowRange() != 30) {
+            helper.fail("detached ship inventory cache should refresh follow range after ship commands");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void shipWorldCachePreservesLegacySnapshotFields(GameTestHelper helper) {
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
@@ -1867,9 +2050,10 @@ public final class GameplayParityGameTests {
                 || liveEntry.legacyClassId() != ship.getShipClassId()
                 || liveEntry.variantEggMeta() != 62
                 || liveEntry.ownerUid() != 77
+                || !liveEntry.online()
                 || liveEntry.dead()
                 || !"Cache Kongou".equals(liveEntry.resolveDisplayName().getString())) {
-            helper.fail("live ship cache entries should preserve class, owner, and display name state");
+            helper.fail("live ship cache entries should preserve class, owner, display name, and online-state metadata");
             return;
         }
 
@@ -1879,11 +2063,140 @@ public final class GameplayParityGameTests {
         ShipWorldCacheEntry deadEntry = loaded.getShip(ship.getShipUid());
 
         if (deadEntry == null
+                || deadEntry.online()
                 || !deadEntry.dead()
                 || deadEntry.entityId() != ship.getId()
                 || !deadEntry.dimensionId().equals(helper.getLevel().dimension().location().toString())
                 || deadEntry.entityTag().isEmpty()) {
-            helper.fail("ship cache save/load should preserve dead-state snapshots, entity id, dimension, and entity NBT");
+            helper.fail("ship cache save/load should preserve dead/offline snapshots, entity id, dimension, and entity NBT");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipWorldCacheMarksUnloadedShipsOffline(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8112))) {
+            return;
+        }
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 4.5D, 2.0D, 4.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for offline cache tests");
+            return;
+        }
+
+        ship.tick();
+        int shipUid = ship.getShipUid();
+        if (shipUid <= 0) {
+            helper.fail("offline cache tests require a persistent ship UID");
+            return;
+        }
+
+        ship.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+        ShipWorldCacheEntry unloadedEntry = ShipCacheSavedData.get(helper.getLevel()).getShip(shipUid);
+        if (unloadedEntry == null
+                || unloadedEntry.dead()
+                || unloadedEntry.online()
+                || unloadedEntry.entityTag().isEmpty()) {
+            helper.fail("unloaded ships should remain cached as offline, not dead, with their NBT snapshot intact");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void gameplayStatePayloadSyncsOfflineShipCacheAndRuntimeSlices(GameTestHelper helper) {
+        Player source = helper.makeMockPlayer();
+        Player clientMirror = helper.makeMockPlayer();
+        String worldRuleKey = "shincolle:test_phase6_world_rule";
+
+        int playerUid = 8113;
+        if (!configureTeitoku(helper, source, data -> {
+            data.setPlayerUid(playerUid);
+            data.setPlayerName(source.getGameProfile().getName());
+            data.setHasTeam(true);
+            data.setCurrentTeamId(0);
+            data.addTargetClass("minecraft:zombie");
+        }) || !configureTeitoku(helper, clientMirror, TeitokuData::clearCurrentTeam)) {
+            return;
+        }
+
+        TeamSavedData.get(helper.getLevel()).createTeam(playerUid, source.getGameProfile().getName(), "Phase6Fleet");
+        WorldCombatRulesSavedData.get(helper.getLevel()).toggleUnattackable(worldRuleKey);
+
+        LegacyShipEntity ship = createOwnedShip(helper, source, 58, 6.5D, 2.0D, 6.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for gameplay state payload tests");
+            return;
+        }
+
+        int shipUid = ship.getShipUid();
+        if (shipUid <= 0) {
+            helper.fail("gameplay state payload tests require a persistent ship UID");
+            return;
+        }
+
+        if (!configureTeitoku(helper, source, data -> {
+            data.assignCurrentTeamSlot(0, shipUid);
+            PlayerSkillRuntimeState runtimeState = data.getPlayerSkillRuntimeState();
+            runtimeState.setVisible(true);
+            runtimeState.setHostMode(MorphHostMode.MOUNT);
+            runtimeState.setSlotEnabled(0, true);
+            runtimeState.setSlotEnabled(1, true);
+            runtimeState.setSlotCooldown(0, 40);
+            runtimeState.setSlotMaxCooldown(0, 80);
+            runtimeState.setHostShipUid(shipUid);
+            runtimeState.setHostClassId(ship.getShipClassId());
+        })) {
+            return;
+        }
+
+        ship.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+        CompoundTag payload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), source);
+        TeitokuHelper.applyClientState(clientMirror, payload);
+
+        boolean[] clientTeitokuSynced = { false };
+        TeitokuHelper.get(clientMirror).ifPresent(data -> {
+            clientTeitokuSynced[0] = data.getPlayerUid() == playerUid
+                    && data.hasTargetClass("minecraft:zombie")
+                    && data.getCurrentTeamId() == 0
+                    && data.getShipUid(0, 0) == shipUid
+                    && data.getPlayerSkillRuntimeState().isVisible()
+                    && data.getPlayerSkillRuntimeState().getHostMode() == MorphHostMode.MOUNT
+                    && data.getPlayerSkillRuntimeState().getHostShipUid() == shipUid
+                    && data.getPlayerSkillRuntimeState().getHostClassId() == ship.getShipClassId()
+                    && data.getPlayerSkillRuntimeState().getSlotCooldown(0) == 40
+                    && data.getPlayerSkillRuntimeState().getSlotMaxCooldown(0) == 80
+                    && data.getPlayerSkillRuntimeState().isSlotEnabled(0)
+                    && data.getPlayerSkillRuntimeState().isSlotEnabled(1);
+        });
+
+        if (!clientTeitokuSynced[0]) {
+            helper.fail("gameplay state payload should restore teitoku target/team/player-skill runtime slices on the client mirror");
+            return;
+        }
+
+        if (!TeitokuHelper.getClientTeamData().containsKey(playerUid)
+                || !"Phase6Fleet".equals(TeitokuHelper.getClientTeamData().get(playerUid).getTeamName())) {
+            helper.fail("gameplay state payload should carry team world data for detached UI mirrors");
+            return;
+        }
+
+        if (!TeitokuHelper.getClientWorldUnattackableClasses().contains(worldRuleKey)) {
+            helper.fail("gameplay state payload should carry world unattackable target classes");
+            return;
+        }
+
+        ShipWorldCacheEntry cachedEntry = TeitokuHelper.getClientShipCacheEntry(shipUid);
+        if (cachedEntry == null
+                || cachedEntry.ownerUid() != playerUid
+                || cachedEntry.dead()
+                || cachedEntry.online()) {
+            helper.fail("gameplay state payload should carry offline ship-cache entries for detached ship UI fallback");
             return;
         }
 
