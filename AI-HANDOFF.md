@@ -29,7 +29,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 68 required tests passed`
+  - `All 73 required tests passed`
 - 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮 Phase 5-6 主要是服务端/网络/持久化闭环，typed ship command 的客户端输入路径仍建议后续再做一次短冒烟。
 
 ## 已经落地并接线的主线
@@ -77,6 +77,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `LegacyShipBehaviorCatalog` 现在集中给 hostile / elite / boss spawn 提供等级与士气基线。
   - `LegacyShipEntity.initializeHostileRuntime(...)` 会按 catalog 拉起敌舰等级/士气并刷新满血，避免 boss 和 elite 只改变行为/掉落、不改变单人战斗强度。
   - hostile boss spawn GameTest 已扩展检查等级、士气、满血初始化。
+- Phase 7 第四切片已完成到 code + GameTest 基线：
+  - `LegacyShipBehaviorCatalog` 现在拥有第一批高价值 per-ship combat hook：Shimakaze、Nagato、Yamato、Tenryuu、Tatsuta、Atago/Takao、Kongou-class，以及对应 hostile mirror。
+  - `LegacyShipEntity` 的玩家/AI heavy combat path 先查 catalog，不再在实体主类新增 class-id switch；hook 复用现有 projectile visual、particle 与 reaction 表达，未进入 Phase 8 renderer 范围。
+  - `BossPhaseProfile.forSpec(...)` 已收口到 behavior catalog；hostile loot profile 也改由 catalog 提供，保留 boss bonus、abyss metal 与 egg drop chance 规则。
+  - `LegacyShipPickItemGoal` 现在让位于 active move/route/guard、combat target、sit 状态与 auto-supply disabled，避免自动拾取抢走指挥路径。
+  - 新增 GameTest 覆盖 combat hook class-id/mirror 分发、special heavy cooldown / miss 语义、boss/loot profile、pickup goal 边界；顺手让 air attack 与 world-rule payload 旧测试对持久测试世界更稳定。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -146,6 +152,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
 - Phase 7 hostile spawn 与 command boundary 已有 GameTest 覆盖，确认 hostile boss runtime 初始化、move/route 清 target、guard 清 route/target。
 - Phase 7 hostile scaling 已有 GameTest 覆盖，确认 hostile boss 生成时按 catalog 初始化等级、士气与满血。
+- Phase 7 special combat hook 已有 GameTest 覆盖，确认 Shimakaze/Nagato/Yamato/Tenryuu/Tatsuta/Atago/Takao/Kongou-class 与 hostile mirror 通过 catalog 分发，并能触发 heavy cooldown 且保留 heavy miss 不直接伤害语义。
+- Phase 7 boss/loot profile 已有 GameTest 覆盖，确认 boss action cycle、escort summon egg、base cooldown 与 hostile loot metadata 从 catalog 返回。
+- Phase 7 pickup goal 边界已有 GameTest 覆盖，确认 route、guard、combat、sit、auto supply disabled 不会被自动拾取打断。
 - advancement 资源加载正常
 - `friendly_ship_deployed` trigger 已注册
 - 5 槽 playerskill runtime state 的 save/load 已有回归测试
@@ -173,7 +182,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary 第一批切片已接线；用户已做过一轮客户端验收且未发现明显问题，但 typed ship command 与 Phase 7 行为后续仍建议做短客户端冒烟确认输入体验和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata 与 pickup priority 边界已接线；用户已做过一轮客户端验收且未发现明显问题，但 typed ship command 与 Phase 7 行为后续仍建议做短客户端冒烟确认输入体验、FX 表达和失败反馈。
 
 ### P0 立即验收项
 
@@ -262,13 +271,14 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 ### Phase 7: 实体类型 / 生成
 
 - 当前用单一 `LegacyShipEntity` 承载 legacy eggMeta / class id 变体，spawn egg 和 shipyard 输出已能生成实体。
-- 已新增 `LegacyShipBehaviorCatalog` 作为 per-ship runtime hook 入口；攻击 profile 与已婚友方舰 ring passive 已从实体主类分发到 catalog，并有 2 个 GameTest 锁住 dispatch。
+- 已新增 `LegacyShipBehaviorCatalog` 作为 per-ship runtime hook 入口；攻击 profile、已婚友方舰 ring passive、第一批 special combat hook、boss phase profile 与 hostile loot profile 已从实体主类分发到 catalog，并有 GameTest 锁住 dispatch。
 - hostile encounter 生成现在可测试且返回实体；boss cooldown 只在 spawn 成功后消耗。路线/护卫命令会清理旧 combat target，减少单人指挥中“还在追旧目标”的边界问题。
 - hostile / elite / boss spawn 等级与士气现在也由 behavior catalog 提供，生成后会刷新满血。
+- 自动拾取现在让位于 active move/route/guard、combat target、sit 与 auto-supply disabled，避免 route/guard/combat 优先级被拾取目标抢走。
 - 待补：
-  - 继续把每艘舰专属运行时逻辑和 per-ship combat hooks 分批迁入 catalog，不要长期只靠通用 `LegacyShipEntity`。
-  - 更完整的 hostile / boss / hime / abyssal spawn 规则与掉落。
-  - 舰船 AI route、escort、standby、combat targeting 的复杂边界测试。
+  - 继续把剩余舰种专属运行时逻辑和 per-ship combat hooks 分批迁入 catalog，不要长期只靠通用 `LegacyShipEntity`。
+  - 更完整的 hostile / boss / hime / abyssal spawn 规则、掉落和 encounter 深度。
+  - 舰船 AI route、escort、standby、combat targeting 的更复杂边界测试。
   - 生成蛋、shipyard-built egg、hostile mirror、owner claim、first collection 的客户端实机确认。
 
 ### Phase 8: 客户端渲染 / 视觉
@@ -302,9 +312,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 下一步建议顺序
 
-1. 做一轮短客户端复核，重点是新接线的 Pointer ship command 与 ShipInventory stop / AI flags / follow range。
-2. 进入 Phase 7 单人游戏性：per-ship combat hooks、hostile/boss spawn 深化、AI route/escort/standby 边界。
-3. 继续 Phase 8/9：精确模型、reaction pages、全投射物家族、剩余 morph/player-skill special parity。
+1. 做一轮短客户端复核，重点是 Pointer ship command、ShipInventory stop / AI flags / follow range，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
+2. 继续 Phase 7 单人游戏性：剩余 per-ship combat/runtime hooks、hostile/boss spawn 深化、AI route/escort/standby 边界。
+3. 继续 Phase 8/9：精确模型、reaction pages、全投射物家族、beam/torpedo 专属渲染、剩余 morph/player-skill special parity。
 4. 继续补 recipe / reference / balance 的尾巴，但保持单人友好，不开单人专属数值分支。
 5. 如果后续真的要做 intermod，再把 soft bridge 接到真实 Metamorph API。
 
@@ -323,4 +333,4 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 一句话总结
 
-项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环都有 GameTest 锁定；下一步可以在短客户端复核后进入 Phase 7+ 的 per-ship gameplay、渲染和世界内容深化。
+项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata 与 pickup priority 边界，下一步可以短客户端复核后继续剩余舰种行为、渲染和世界内容深化。

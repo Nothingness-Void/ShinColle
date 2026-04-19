@@ -21,6 +21,8 @@ import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.ship.BossActionType;
+import com.lulan.shincolle.entity.ship.BossPhaseProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
@@ -76,6 +78,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -107,6 +110,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @GameTestHolder(ShinColle.MOD_ID)
 public final class GameplayParityGameTests {
@@ -2126,7 +2130,10 @@ public final class GameplayParityGameTests {
         }
 
         TeamSavedData.get(helper.getLevel()).createTeam(playerUid, source.getGameProfile().getName(), "Phase6Fleet");
-        WorldCombatRulesSavedData.get(helper.getLevel()).toggleUnattackable(worldRuleKey);
+        WorldCombatRulesSavedData worldRules = WorldCombatRulesSavedData.get(helper.getLevel());
+        if (!worldRules.isUnattackable(worldRuleKey)) {
+            worldRules.toggleUnattackable(worldRuleKey);
+        }
 
         LegacyShipEntity ship = createOwnedShip(helper, source, 58, 6.5D, 2.0D, 6.5D);
         if (ship == null) {
@@ -2248,6 +2255,154 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void perShipBehaviorCatalogRoutesSpecialCombatHooks(GameTestHelper helper) {
+        assertCombatHook(helper, 38, LegacyShipBehaviorCatalog.CombatHook.SHIMAKAZE_TORPEDO_BURST);
+        assertCombatHook(helper, 2038, LegacyShipBehaviorCatalog.CombatHook.SHIMAKAZE_TORPEDO_BURST);
+        assertCombatHook(helper, 39, LegacyShipBehaviorCatalog.CombatHook.NAGATO_HEAVY_STRIKE);
+        assertCombatHook(helper, 2039, LegacyShipBehaviorCatalog.CombatHook.NAGATO_HEAVY_STRIKE);
+        assertCombatHook(helper, 48, LegacyShipBehaviorCatalog.CombatHook.YAMATO_BEAM_BARRAGE);
+        assertCombatHook(helper, 2048, LegacyShipBehaviorCatalog.CombatHook.YAMATO_BEAM_BARRAGE);
+        assertCombatHook(helper, 58, LegacyShipBehaviorCatalog.CombatHook.TENRYUU_DASH);
+        assertCombatHook(helper, 2058, LegacyShipBehaviorCatalog.CombatHook.TENRYUU_DASH);
+        assertCombatHook(helper, 59, LegacyShipBehaviorCatalog.CombatHook.TATSUTA_CONTROL_AOE);
+        assertCombatHook(helper, 60, LegacyShipBehaviorCatalog.CombatHook.HEAVY_CRUISER_BARRAGE);
+        assertCombatHook(helper, 61, LegacyShipBehaviorCatalog.CombatHook.HEAVY_CRUISER_BARRAGE);
+        assertCombatHook(helper, 62, LegacyShipBehaviorCatalog.CombatHook.KONGOU_COMBO);
+        assertCombatHook(helper, 63, LegacyShipBehaviorCatalog.CombatHook.KONGOU_COMBO);
+        assertCombatHook(helper, 64, LegacyShipBehaviorCatalog.CombatHook.KONGOU_COMBO);
+        assertCombatHook(helper, 65, LegacyShipBehaviorCatalog.CombatHook.KONGOU_COMBO);
+        assertCombatHook(helper, 49, LegacyShipBehaviorCatalog.CombatHook.NONE);
+        assertCombatHook(helper, 50, LegacyShipBehaviorCatalog.CombatHook.NONE);
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void specialCombatHooksApplyHeavyCooldowns(GameTestHelper helper) {
+        int[] specialEggs = {38, 2038, 39, 2039, 48, 2048, 58, 2058, 59, 60, 61, 62, 63, 64, 65};
+        for (int index = 0; index < specialEggs.length; index++) {
+            LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+            Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+            if (ship == null || target == null) {
+                helper.fail("legacy ship and target should be creatable for special combat hook tests");
+                return;
+            }
+
+            ship.setVariantEggMeta(specialEggs[index]);
+            ship.setOwner(UUID.randomUUID(), "SpecialHook" + specialEggs[index]);
+            ship.setShipLevel(80);
+            BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
+            BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
+            ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
+            target.setPos(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D);
+            helper.getLevel().addFreshEntity(ship);
+            helper.getLevel().addFreshEntity(target);
+
+            boolean handled = ship.performPlayerCompatAttack(target, LegacyShipAttackKind.HEAVY);
+            boolean cooledDown = ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY) > 0;
+            ship.discard();
+            target.discard();
+
+            if (!handled) {
+                helper.fail("special combat hook should handle heavy attack for eggMeta " + specialEggs[index]);
+                return;
+            }
+            if (!cooledDown) {
+                helper.fail("special combat hook should set heavy cooldown for eggMeta " + specialEggs[index]);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void specialCombatHooksPreserveHeavyMisses(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        if (ship == null || target == null) {
+            helper.fail("legacy ship and target should be creatable for special combat miss tests");
+            return;
+        }
+
+        ship.setVariantEggMeta(39);
+        ship.setOwner(UUID.randomUUID(), "SpecialHookMiss");
+        ship.setShipLevel(1);
+        BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos targetPos = helper.absolutePos(new BlockPos(11, 2, 1));
+        ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
+        target.setPos(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(target);
+        ship.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100, 0, false, false, false));
+        target.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 100, 0, false, false, false));
+        ship.getRandom().setSeed(1L);
+
+        float healthBefore = target.getHealth();
+        boolean handled = ship.performPlayerCompatAttack(target, LegacyShipAttackKind.HEAVY);
+        boolean cooledDown = ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY) > 0;
+        float healthAfter = target.getHealth();
+        ship.discard();
+        target.discard();
+
+        if (!handled) {
+            helper.fail("special combat hook should handle a forced heavy miss");
+            return;
+        }
+        if (!cooledDown) {
+            helper.fail("special combat hook should still set heavy cooldown after a miss");
+            return;
+        }
+        if (healthAfter != healthBefore) {
+            helper.fail("special heavy miss must not deal direct damage: before=" + healthBefore + ", after=" + healthAfter);
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void behaviorCatalogOwnsBossAndLootProfiles(GameTestHelper helper) {
+        BossPhaseProfile airfield = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(23));
+        BossPhaseProfile carrierDemon = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(35));
+        BossPhaseProfile battleshipHime = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(28));
+        LegacyShipBehaviorCatalog.HostileLootProfile bossLoot = LegacyShipBehaviorCatalog.hostileLootProfile(
+                ShipEntitySpecs.getByEggMeta(23), true, true);
+        LegacyShipBehaviorCatalog.HostileLootProfile commonLoot = LegacyShipBehaviorCatalog.hostileLootProfile(
+                ShipEntitySpecs.getByEggMeta(2), false, false);
+
+        if (!airfield.actionCycle().equals(List.of(BossActionType.AREA_BOMBARD, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST))
+                || airfield.summonEggMeta() != 14
+                || airfield.baseActionCooldown() != 40
+                || airfield.baseSummonCooldown() != 160) {
+            helper.fail("installation boss profile should live in the behavior catalog with its legacy action cycle");
+            return;
+        }
+        if (!carrierDemon.actionCycle().equals(List.of(BossActionType.AIR_ASSAULT, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST))
+                || carrierDemon.summonEggMeta() != 14) {
+            helper.fail("air boss profile should route through catalog metadata");
+            return;
+        }
+        if (!battleshipHime.actionCycle().equals(List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE, BossActionType.SUMMON_ESCORT))
+                || battleshipHime.summonEggMeta() != 2) {
+            helper.fail("princess boss profile should route through catalog metadata");
+            return;
+        }
+        if (!bossLoot.dropsAbyssMetal() || !bossLoot.dropsAbyssMetal1() || !bossLoot.dropsBossBonus()
+                || bossLoot.eggDropChance() < 0.89F) {
+            helper.fail("boss loot profile should keep advanced drops and high recovered egg chance");
+            return;
+        }
+        if (commonLoot.dropsAbyssMetal() || commonLoot.dropsAbyssMetal1() || commonLoot.dropsBossBonus()
+                || commonLoot.eggDropChance() > 0.21F) {
+            helper.fail("common hostile loot profile should stay lightweight");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void projectileProfilesMatchShipRoles(GameTestHelper helper) {
         LegacyShipAttackProfile kongou = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(62));
         LegacyShipAttackProfile kongouHostileMirror = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(2062));
@@ -2340,14 +2495,17 @@ public final class GameplayParityGameTests {
         }
 
         List<LegacyShipAircraftEntity> aircraft = helper.getLevel().getEntitiesOfClass(LegacyShipAircraftEntity.class,
-                owner.getBoundingBox().inflate(20.0D));
+                owner.getBoundingBox().inflate(20.0D),
+                aircraftEntity -> aircraftEntity.getOwnerId() == owner.getId()
+                        && aircraftEntity.getTargetId() == target.getId());
         if (aircraft.isEmpty()) {
             helper.fail("air attacks should spawn aircraft entities into the world");
             return;
         }
         if (!helper.getLevel().getEntitiesOfClass(LegacyShipProjectileEntity.class,
                 owner.getBoundingBox().inflate(20.0D),
-                projectile -> projectile.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY).isEmpty()) {
+                projectile -> projectile.getOwner() == owner
+                        && projectile.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY).isEmpty()) {
             helper.fail("air attacks should no longer spawn heavy air projectiles");
             return;
         }
@@ -2780,6 +2938,45 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty")
+    public static void shipPickupGoalYieldsToOrdersCombatAndSupplyFlag(GameTestHelper helper) {
+        if (!pickupGoalCanUseWith(helper, 0, ship -> {
+        })) {
+            helper.fail("pickup goal should still activate for an idle friendly ship with auto-supply enabled");
+            return;
+        }
+        if (pickupGoalCanUseWith(helper, 1, ship -> ship.commandMoveTo(new BlockPos(4, 2, 4),
+                helper.getLevel().dimension().location().toString()))) {
+            helper.fail("pickup goal must not interrupt an active move or route command");
+            return;
+        }
+        if (pickupGoalCanUseWith(helper, 2, ship -> ship.commandGuardEntity(UUID.randomUUID()))) {
+            helper.fail("pickup goal must not interrupt an active guard command");
+            return;
+        }
+        if (pickupGoalCanUseWith(helper, 3, ship -> ship.setOrderedToSit(true))) {
+            helper.fail("pickup goal must not run while the ship is standing by");
+            return;
+        }
+        if (pickupGoalCanUseWith(helper, 4, ship -> ship.setAiAutoSupply(false))) {
+            helper.fail("pickup goal must respect the auto-supply AI flag");
+            return;
+        }
+        if (pickupGoalCanUseWith(helper, 5, ship -> {
+            Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+            if (target != null) {
+                target.setPos(ship.getX() + 2.0D, ship.getY(), ship.getZ());
+                helper.getLevel().addFreshEntity(target);
+                ship.setTarget(target);
+            }
+        })) {
+            helper.fail("pickup goal must not interrupt active combat targeting");
+            return;
+        }
+
+        helper.succeed();
+    }
+
     private static boolean referencedModelsExist(GameTestHelper helper, JsonElement element, String ownerPath) {
         if (element == null || element.isJsonNull()) {
             return true;
@@ -2851,6 +3048,48 @@ public final class GameplayParityGameTests {
                     + " / classId " + spec.legacyClassId()
                     + ": expected " + expectedPassive + " but got " + behavior.marriagePassive());
         }
+    }
+
+    private static void assertCombatHook(GameTestHelper helper,
+                                         int eggMeta,
+                                         LegacyShipBehaviorCatalog.CombatHook expectedHook) {
+        ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(eggMeta);
+        LegacyShipBehaviorCatalog.Behavior behavior = LegacyShipBehaviorCatalog.behaviorFor(spec);
+        if (behavior.combatHook() != expectedHook) {
+            helper.fail("unexpected combat hook for eggMeta " + eggMeta
+                    + " / classId " + spec.legacyClassId()
+                    + ": expected " + expectedHook + " but got " + behavior.combatHook());
+        }
+    }
+
+    private static boolean pickupGoalCanUseWith(GameTestHelper helper, int index, Consumer<LegacyShipEntity> setup) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship should be creatable for pickup boundary tests");
+            return false;
+        }
+
+        BlockPos shipPos = helper.absolutePos(new BlockPos(1 + index, 2, 1));
+        ship.setVariantEggMeta(58);
+        ship.setOwner(UUID.randomUUID(), "PickupBoundary");
+        ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+
+        setup.accept(ship);
+
+        ItemEntity grudgeDrop = new ItemEntity(helper.getLevel(),
+                ship.getX() + 1.0D,
+                ship.getY(),
+                ship.getZ() + 0.1D,
+                new ItemStack(ModItems.GRUDGE.get(), 1));
+        helper.getLevel().addFreshEntity(grudgeDrop);
+        boolean canUse = new LegacyShipPickItemGoal(ship, 1.0D).canUse();
+        for (Zombie zombie : helper.getLevel().getEntitiesOfClass(Zombie.class, ship.getBoundingBox().inflate(6.0D))) {
+            zombie.discard();
+        }
+        grudgeDrop.discard();
+        ship.discard();
+        return canUse;
     }
 
     private static int countItems(Container container, net.minecraft.world.level.ItemLike item) {

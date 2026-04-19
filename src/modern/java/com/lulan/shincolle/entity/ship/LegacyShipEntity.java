@@ -1169,6 +1169,10 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.equipmentBehaviorState.autonomousRoute() && this.hasActiveCommandState();
     }
 
+    public boolean hasActiveCommandState() {
+        return this.commandedPos != null || this.guardEntityUuid != null || this.routeNodePos != null;
+    }
+
     public boolean tryCompatCannonAttack(LivingEntity target) {
         boolean attacked = false;
 
@@ -1590,6 +1594,10 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
+        if (LegacyShipBehaviorCatalog.performCombatHook(this, target, attackKind)) {
+            return true;
+        }
+
         LegacyShipProjectileProfile projectileProfile = this.attackProfile.projectileProfile(attackKind);
         if (attackKind.justLaunch() && !projectileProfile.isPresent()) {
             return false;
@@ -1665,6 +1673,49 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         return attacked;
+    }
+
+    boolean performCatalogSpecialAttack(LivingEntity target, LegacyShipAttackKind attackKind, float damageScale,
+                                        boolean knockback, LegacyShipProjectileVisual projectileVisual,
+                                        GameplayParticleType hitParticleType) {
+        if (!this.canEngage(target) || !this.canUseCompatAttack(attackKind)) {
+            return false;
+        }
+
+        LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, attackKind);
+        if (roll.miss()) {
+            this.setLastHurtMob(target);
+            this.emitAttackFx(target, attackKind, roll, false, projectileVisual, hitParticleType);
+            return true;
+        }
+
+        float scaledDamage = Math.max(0.0F, roll.damage() * damageScale);
+        boolean attacked = target.hurt(this.damageSources().mobAttack(this), scaledDamage);
+        if (attacked) {
+            this.setLastHurtMob(target);
+            if (knockback) {
+                target.knockback(0.32D, this.getX() - target.getX(), this.getZ() - target.getZ());
+            }
+            if (attackKind == LegacyShipAttackKind.MELEE) {
+                this.playShipCombatSound(ModSoundEvents.SHIP_HITMETAL.get(), 0.55F, 0.9F + this.random.nextFloat() * 0.2F);
+            } else if (attackKind == LegacyShipAttackKind.LIGHT) {
+                this.playShipCombatSound(ModSoundEvents.SHIP_FIRELIGHT.get(), 0.6F, 0.9F + this.random.nextFloat() * 0.2F);
+            } else if (attackKind == LegacyShipAttackKind.HEAVY) {
+                this.playShipCombatSound(ModSoundEvents.SHIP_FIREHEAVY.get(), 0.7F, 0.85F + this.random.nextFloat() * 0.3F);
+            }
+        }
+        this.emitAttackFx(target, attackKind, roll, attacked, projectileVisual, hitParticleType);
+        return attacked;
+    }
+
+    void setCatalogAttackCooldown(LegacyShipAttackKind attackKind, int delay) {
+        int clampedDelay = Math.max(0, delay);
+        switch (attackKind) {
+            case LIGHT -> this.lightAttackCooldown = clampedDelay;
+            case HEAVY -> this.heavyAttackCooldown = clampedDelay;
+            case AIR_LIGHT, AIR_HEAVY -> this.airAttackCooldown = clampedDelay;
+            case MELEE -> this.meleeAttackCooldown = clampedDelay;
+        }
     }
 
     private void playShipCombatSound(SoundEvent sound, float volume, float pitch) {
@@ -2015,28 +2066,29 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
+        LegacyShipBehaviorCatalog.HostileLootProfile lootProfile = LegacyShipBehaviorCatalog.hostileLootProfile(
+                this.getSpec(), this.hostileRuntimeState.isElite(), this.hostileRuntimeState.isBoss());
         int grudgeCount = 1 + this.random.nextInt(2 + looting);
         int ammoCount = 1 + this.random.nextInt(2 + looting);
         this.spawnAtLocation(new ItemStack(ModItems.GRUDGE.get(), grudgeCount));
         this.spawnAtLocation(new ItemStack(ModItems.AMMO.get(), ammoCount));
 
-        if (this.hostileRuntimeState.isElite() || this.getSpec().archetype() == ShipArchetype.CARRIER || this.getSpec().archetype() == ShipArchetype.BATTLESHIP) {
+        if (lootProfile.dropsAbyssMetal()) {
             this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL.get(), 1 + this.random.nextInt(1 + looting)));
         }
 
-        if (this.getSpec().archetype() == ShipArchetype.INSTALLATION || this.hostileRuntimeState.isBoss()) {
+        if (lootProfile.dropsAbyssMetal1()) {
             this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL1.get(), 1 + this.random.nextInt(2 + looting)));
         }
 
-        if (this.hostileRuntimeState.isBoss()) {
+        if (lootProfile.dropsBossBonus()) {
             this.spawnAtLocation(new ItemStack(ModItems.GRUDGE1.get(), 1 + this.random.nextInt(2)));
             if (this.random.nextFloat() < 0.4F) {
                 this.spawnAtLocation(new ItemStack(ModItems.INSTANTCONMAT.get()));
             }
         }
 
-        float eggDropChance = this.hostileRuntimeState.isBoss() ? 0.9F : this.hostileRuntimeState.isElite() ? 0.33F : 0.2F;
-        if (this.random.nextFloat() < eggDropChance) {
+        if (this.random.nextFloat() < lootProfile.eggDropChance()) {
             ItemStack eggDrop = this.resolveHostileEggDrop();
             if (!eggDrop.isEmpty()) {
                 this.spawnAtLocation(eggDrop);
@@ -3021,10 +3073,6 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void setRouteEnergyBuffer(int amount) {
         this.entityData.set(DATA_ROUTE_ENERGY, Mth.clamp(amount, 0, this.getRouteEnergyCapacity()));
-    }
-
-    private boolean hasActiveCommandState() {
-        return this.commandedPos != null || this.guardEntityUuid != null || this.routeNodePos != null;
     }
 
     private void tickEquipmentBehaviors() {

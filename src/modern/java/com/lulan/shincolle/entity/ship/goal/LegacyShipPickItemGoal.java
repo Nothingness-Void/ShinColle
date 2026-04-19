@@ -84,7 +84,7 @@ public class LegacyShipPickItemGoal extends Goal {
                 && !this.ship.isHostileVariant()
                 && this.ship.isAiAutoSupply()
                 && !this.ship.isOrderedToSit()
-                && !this.ship.shouldPreferAutonomousRoute()
+                && !this.ship.hasActiveCommandState()
                 && this.ship.getTarget() == null
                 && this.hasAnyCargoSpace();
     }
