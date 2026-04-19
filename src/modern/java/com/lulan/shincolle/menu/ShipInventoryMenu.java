@@ -39,6 +39,13 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
     private static final String SHIP_MORALE_TAG = "ShipMorale";
+    private static final String SHIP_FUEL_TAG = "ShipFuel";
+    private static final String SHIP_LIGHT_AMMO_TAG = "ShipLightAmmo";
+    private static final String SHIP_HEAVY_AMMO_TAG = "ShipHeavyAmmo";
+    private static final String SHIP_GRUDGE_TAG = "ShipGrudge";
+    private static final String LEGACY_LIGHT_AMMO_TAG = "NumAmmoLight";
+    private static final String LEGACY_HEAVY_AMMO_TAG = "NumAmmoHeavy";
+    private static final String LEGACY_GRUDGE_TAG = "NumGrudge";
     private static final String SHIP_MARRIED_TAG = "ShipMarried";
     private static final String MODERN_HEALTH_TAG = "ModernHealth";
     private static final String MODERN_ATTACK_TAG = "ModernAttack";
@@ -275,6 +282,42 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         LegacyShipEntity ship = this.getShip();
         return ship != null ? ship.getMorale() + " / 16000"
                 : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedInt(this.getCachedEntityTag(), SHIP_MORALE_TAG, 0) + " / 16000";
+    }
+
+    public String getFuelText() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getShipFuelText()
+                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_FUEL_TAG, null, LegacyShipEntity.MAX_SHIP_FUEL);
+    }
+
+    public String getLightAmmoText() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getLightAmmoText()
+                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG, LegacyShipEntity.MAX_LIGHT_AMMO);
+    }
+
+    public String getHeavyAmmoText() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getHeavyAmmoText()
+                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG, LegacyShipEntity.MAX_HEAVY_AMMO);
+    }
+
+    public String getGrudgeText() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getGrudgeText()
+                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG, LegacyShipEntity.MAX_GRUDGE);
+    }
+
+    public String getSupplyTierText() {
+        LegacyShipEntity ship = this.getShip();
+        int fuel = ship != null ? ship.getShipFuel() : this.getCachedResourceValue(SHIP_FUEL_TAG, null, LegacyShipEntity.MAX_SHIP_FUEL);
+        int light = ship != null ? ship.getLightAmmo() : this.getCachedResourceValue(SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG, LegacyShipEntity.MAX_LIGHT_AMMO);
+        int heavy = ship != null ? ship.getHeavyAmmo() : this.getCachedResourceValue(SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG, LegacyShipEntity.MAX_HEAVY_AMMO);
+        int grudge = ship != null ? ship.getGrudge() : this.getCachedResourceValue(SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG, LegacyShipEntity.MAX_GRUDGE);
+        int ammoTier = this.resourceTier(light + heavy, LegacyShipEntity.MAX_LIGHT_AMMO + LegacyShipEntity.MAX_HEAVY_AMMO);
+        return "F" + this.resourceTier(fuel, LegacyShipEntity.MAX_SHIP_FUEL)
+                + " A" + ammoTier
+                + " G" + this.resourceTier(grudge, LegacyShipEntity.MAX_GRUDGE);
     }
 
     public Component getMarriageLabel() {
@@ -651,6 +694,29 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
 
     private int getCachedInt(CompoundTag tag, String key, int defaultValue) {
         return tag.contains(key) ? tag.getInt(key) : defaultValue;
+    }
+
+    private int getCachedResourceValue(String key, @Nullable String legacyKey, int defaultValue) {
+        CompoundTag tag = this.getCachedEntityTag();
+        if (tag.contains(key)) {
+            return tag.getInt(key);
+        }
+        if (legacyKey != null && tag.contains(legacyKey)) {
+            return tag.getInt(legacyKey);
+        }
+        return defaultValue;
+    }
+
+    private String getCachedResourceText(String key, @Nullable String legacyKey, int maxValue) {
+        return this.getCachedResourceValue(key, legacyKey, maxValue) + " / " + maxValue;
+    }
+
+    private int resourceTier(int value, int maxValue) {
+        if (maxValue <= 0) {
+            return 0;
+        }
+
+        return Math.max(0, Math.min(9, Math.round(value * 9.0F / maxValue)));
     }
 
     private float getCachedFloat(CompoundTag tag, String key, float defaultValue) {

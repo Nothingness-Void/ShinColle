@@ -1,6 +1,6 @@
 # ShinColle AI Handoff
 
-更新时间：2026-04-19
+更新时间：2026-04-20
 
 先读：
 - `PORTING-MISTAKES.md`
@@ -29,8 +29,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 75 required tests passed`
-- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮新增了单人主线 GameTest 与 Phase 8 legacy model source 解析覆盖。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
+  - `All 76 required tests passed`
+- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；近期新增了单人主线 GameTest、Phase 8 legacy model source 解析覆盖，以及 ship fuel / ammo / grudge runtime supply 回归。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
 
 ## 已经落地并接线的主线
 
@@ -87,6 +87,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - 新增跨系统 GameTest，覆盖 support item、AI flags / follow range、typed move / attack / stop、boss unlock / spawn，以及 heavy hook cooldown。
   - 新增 Phase 8 资源解析 GameTest，覆盖当前单人可到达舰船 legacy model source，以及 aircraft / takoyaki / mount static model source，要求 packaged source 能 parse 成非空可渲染 model definition。
   - 2026-04-19 `runClient` 启动/资源冒烟到达 resource reload、sound engine、texture atlas creation；检查日志未见 ShinColle crash、missing texture、model fallback。该验证不等同于进世界手测，Pointer、ShipInventory、rider/morph input 与 combat FX 仍列为 P0 实机项。
+- 2026-04-20 单人 runtime supply 切片已完成到 code + GameTest 基线：
+  - `LegacyShipEntity` 新增持久/同步的 fuel、light ammo、heavy ammo、grudge，读档兼容旧 `NumAmmoLight` / `NumAmmoHeavy` / `NumGrudge`。
+  - 友方非 melee 攻击现在按舰种族消耗 fuel + ammo + grudge；hostile 舰不受资源耗尽限制，避免单人遭遇战跑空。
+  - Combat ration 会补 ship fuel，grudge / ammo 支援物品会补对应 runtime supply；auto supply 能在资源低位时消耗船舱支援物品。
+  - ShipInventory 增加 supply tier 行和 tooltip 明细，离线 ship cache 也能读新增 NBT。
+  - 新增 GameTest 覆盖资源耗尽阻止攻击、补给后恢复攻击、单次攻击消耗、NBT 持久化、旧 tag 迁移、ration/grudge/light ammo/heavy ammo 直接补给。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -153,8 +159,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `compileJava`
 - `processResources`
 - `runGameTestServer`
-- 当前 GameTest baseline：`All 75 required tests passed`
+- 当前 GameTest baseline：`All 76 required tests passed`
 - 单人主线 smoke 已有 GameTest 覆盖，确认 support item、typed ship command、boss gate/spawn 与 heavy combat cooldown 在同一闭环内可用。
+- 单人 runtime supply 已有 GameTest 覆盖，确认 fuel/light ammo/heavy ammo/grudge 的攻击门槛、消耗、NBT、旧 tag 迁移和直接补给路径。
 - Phase 8 legacy model source 解析已有 GameTest 覆盖，确认单人可到达舰船与 summon/mount 静态模型源不会静默解析为空模型。
 - `runClient` 启动/资源冒烟已到 resource reload、sound engine、texture atlas creation，已查日志未见 ShinColle-specific crash / missing texture / model fallback；完整世界内交互仍待手测。
 - Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
@@ -190,7 +197,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata、pickup priority 边界与单人主线 smoke 已接线；Phase 8 已补单人可达 legacy model source 解析防线。用户已做过一轮客户端验收且未发现明显问题，但 typed ship command、Phase 7/8 行为和 FX 后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，ship fuel/ammo/grudge runtime supply 已进入持久化、UI 和战斗门槛；Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata、pickup priority 边界与单人主线 smoke 已接线；Phase 8 已补单人可达 legacy model source 解析防线。用户已做过一轮客户端验收且未发现明显问题，但 typed ship command、runtime supply UI、Phase 7/8 行为和 FX 后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
 
 ### P0 立即验收项
 
@@ -205,6 +212,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Ship spawn / render / interaction、ShipInventory、Crane、Waypoint、LargeShipyard、LegacyCore 屏幕是否能在真实客户端打开并正常刷新。
   - 友方舰船死亡是否掉出 owner-only recovered egg，其他玩家是否不能捡，owner 拾取后重新部署是否恢复原船数据且不散落 cargo。
   - Phase 5 typed ship command 接线后，再复核 Pointer 的 move / guard / attack / stop / sit / open inventory 和 ShipInventory 的 stop / AI flags / follow range。
+  - runtime supply 接线后，复核 ShipInventory supply 行/tooltip、combat ration fuel、grudge/ammo 支援物品和弹药不足时的攻击失败反馈。
 - 实体渲染改动后必须进世界冒烟，不能只看主菜单。
 - 资源规则继续遵守：运行时 `ResourceLocation` path 必须小写；改 `processResources` 后跑 `cleanProcessResources processResources` 并检查输出。
 
@@ -265,22 +273,24 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ### Phase 6: SavedData / 能力系统
 
-- 当前已有 TeitokuData、TeamSavedData、FormationRuntimeState、world combat rules、ship runtime slice。
+- 当前已有 TeitokuData、TeamSavedData、FormationRuntimeState、world combat rules、ship command/runtime supply slice。
 - 本轮已锁定：
   - AI flags、follow range、commanded position/dimension、guard target UUID、route wait、standby/target clearing 的 NBT 往返。
+  - ship fuel、light ammo、heavy ammo、grudge 的 NBT 往返，以及旧 `NumAmmoLight` / `NumAmmoHeavy` / `NumGrudge` 迁移。
   - 当前 team、team slots、slot selection、formation id 的 save/load。
-  - `ShipInventory` 继续作为 Phase 6 可视化基线，显示 AI flags、follow range、route energy、战斗属性、team/formation/role。
+  - `ShipInventory` 继续作为 Phase 6 可视化基线，显示 AI flags、follow range、route energy、runtime supply、战斗属性、team/formation/role。
   - `TeitokuHelper` 的 team ship lookup 与 ship uid lookup 支持 GameTest mock player 和真实 ServerPlayer 两条路径。
 - 待补：
   - 旧版 `CapaTeitoku` 更完整字段迁移与兼容读写策略。
   - 队伍编辑、目标阵型编辑、Pointer command 高级家族所需的更深持久状态。
-  - 更完整的 ship task/combat/runtime state，例如 ammo/fuel/grudge、morale tick、repair/rescue cooldown、formation modifiers。
+  - 更完整的 ship task/combat/runtime state，例如 morale tick、repair/rescue cooldown、formation modifiers 和更细的 supply failure feedback。
   - 存档迁移/容错测试：缺字段、旧 NBT、跨版本数据、uid 冲突恢复。
 
 ### Phase 7: 实体类型 / 生成
 
 - 当前用单一 `LegacyShipEntity` 承载 legacy eggMeta / class id 变体，spawn egg 和 shipyard 输出已能生成实体。
 - 已新增 `LegacyShipBehaviorCatalog` 作为 per-ship runtime hook 入口；攻击 profile、已婚友方舰 ring passive、第一批 special combat hook、boss phase profile 与 hostile loot profile 已从实体主类分发到 catalog，并有 GameTest 锁住 dispatch。
+- 友方 ranged / air combat 现在已有通用 fuel + ammo + grudge 门槛和消耗；hostile 舰保留无限资源，避免遭遇战因资源耗尽失效。剩余舰种的特殊消耗、失败反馈和细分补给策略仍需后续补。
 - hostile encounter 生成现在可测试且返回实体；boss cooldown 只在 spawn 成功后消耗。路线/护卫命令会清理旧 combat target，减少单人指挥中“还在追旧目标”的边界问题。
 - hostile / elite / boss spawn 等级与士气现在也由 behavior catalog 提供，生成后会刷新满血。
 - 自动拾取现在让位于 active move/route/guard、combat target、sit 与 auto-supply disabled，避免 route/guard/combat 优先级被拾取目标抢走。
@@ -321,8 +331,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 下一步建议顺序
 
-1. 做一轮进世界客户端复核：生成 1 个友方舰船和 1 个 hostile / boss，重点验证 Pointer ship command、ShipInventory stop / AI flags / follow range、rider/morph 输入，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
-2. 继续 Phase 7 单人游戏性：剩余 per-ship combat/runtime hooks、hostile/boss spawn 深化、AI route/escort/standby 边界。
+1. 做一轮进世界客户端复核：生成 1 个友方舰船和 1 个 hostile / boss，重点验证 Pointer ship command、ShipInventory stop / AI flags / follow range / supply readout、support item refill、rider/morph 输入，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
+2. 继续 Phase 7 单人游戏性：剩余 per-ship combat/runtime hooks、hostile/boss spawn 深化、AI route/escort/standby/supply 边界。
 3. 继续 Phase 8/9：精确模型、reaction pages、全投射物家族、beam/torpedo 专属渲染、剩余 morph/player-skill special parity。
 4. 继续补 recipe / reference / balance 的尾巴，但保持单人友好，不开单人专属数值分支。
 5. 如果后续真的要做 intermod，再把 soft bridge 接到真实 Metamorph API。
@@ -342,4 +352,4 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 一句话总结
 
-项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata、pickup priority 边界和单人主线 smoke；Phase 8 已补单人可达 legacy model source 解析防线。下一步应进世界短客户端复核后继续剩余舰种行为、精确渲染和世界内容深化。
+项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环和 ship runtime supply 都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata、pickup priority 边界和单人主线 smoke；Phase 8 已补单人可达 legacy model source 解析防线。下一步应进世界短客户端复核后继续剩余舰种行为、精确渲染和世界内容深化。

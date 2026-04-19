@@ -130,8 +130,9 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.morale"), this.menu.getMoraleText(), 168);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.state"), this.menu.getMoraleLabel().getString(), 177);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.marriage"), this.menu.getMarriageLabel().getString(), 186);
-        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.modern"), String.valueOf(this.menu.getModernizationCount()), 195);
-        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.rescue"), String.valueOf(this.menu.getRescueCount()), 204);
+        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.modern"),
+                this.menu.getModernizationCount() + "  R" + this.menu.getRescueCount(), 195);
+        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.supply"), this.menu.getSupplyTierText(), 204);
     }
 
     @Override
@@ -212,7 +213,10 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         if (inside(localX, localY, PREVIEW_PANEL_X, PREVIEW_PANEL_Y, PREVIEW_PANEL_W, PREVIEW_PANEL_H)) {
             guiGraphics.renderComponentTooltip(this.font, List.of(
                     this.menu.getRoleLabel(),
-                    Component.literal(this.menu.getMoraleLabel().getString() + "  " + this.menu.getMoraleText())), mouseX, mouseY);
+                    Component.literal(this.menu.getMoraleLabel().getString() + "  " + this.menu.getMoraleText()),
+                    Component.literal("Fuel " + this.menu.getFuelText()),
+                    Component.literal("Ammo L " + this.menu.getLightAmmoText() + "  H " + this.menu.getHeavyAmmoText()),
+                    Component.literal("Grudge " + this.menu.getGrudgeText())), mouseX, mouseY);
             return;
         }
 

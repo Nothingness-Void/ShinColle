@@ -2522,6 +2522,119 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipRuntimeSuppliesGatePersistAndRefillCombat(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        if (ship == null || target == null) {
+            helper.fail("legacy ship and zombie should be creatable for ship supply tests");
+            return;
+        }
+
+        ship.setVariantEggMeta(53);
+        ship.setOwner(player);
+        ship.setPos(1.0D, 2.0D, 1.0D);
+        target.setPos(3.0D, 2.0D, 1.0D);
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(target);
+
+        ship.setShipFuel(0);
+        ship.setLightAmmo(0);
+        ship.setHeavyAmmo(0);
+        ship.setGrudge(0);
+        if (ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)
+                || ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) > 0) {
+            helper.fail("friendly ranged combat should be gated by ship fuel, ammo, and grudge");
+            return;
+        }
+
+        ship.setShipFuel(10);
+        ship.setLightAmmo(10);
+        ship.setGrudge(20);
+        int fuelBefore = ship.getShipFuel();
+        int lightAmmoBefore = ship.getLightAmmo();
+        int grudgeBefore = ship.getGrudge();
+        if (!ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)) {
+            helper.fail("friendly ranged combat should resume after runtime supplies are restored");
+            return;
+        }
+        if (ship.getShipFuel() != fuelBefore - 1
+                || ship.getLightAmmo() >= lightAmmoBefore
+                || ship.getGrudge() >= grudgeBefore) {
+            helper.fail("friendly ranged combat should consume fuel, ammo, and grudge once per attack");
+            return;
+        }
+
+        CompoundTag saved = new CompoundTag();
+        ship.addAdditionalSaveData(saved);
+        LegacyShipEntity loaded = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (loaded == null) {
+            helper.fail("legacy ship should be creatable for ship supply save/load tests");
+            return;
+        }
+        loaded.readAdditionalSaveData(saved);
+        if (loaded.getShipFuel() != ship.getShipFuel()
+                || loaded.getLightAmmo() != ship.getLightAmmo()
+                || loaded.getHeavyAmmo() != ship.getHeavyAmmo()
+                || loaded.getGrudge() != ship.getGrudge()) {
+            helper.fail("ship fuel, ammo, and grudge should persist through entity NBT");
+            return;
+        }
+
+        CompoundTag legacyTag = new CompoundTag();
+        legacyTag.putInt("VariantEggMeta", 53);
+        legacyTag.putInt("NumAmmoLight", 7);
+        legacyTag.putInt("NumAmmoHeavy", 9);
+        legacyTag.putInt("NumGrudge", 11);
+        LegacyShipEntity migrated = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (migrated == null) {
+            helper.fail("legacy ship should be creatable for legacy supply migration tests");
+            return;
+        }
+        migrated.readAdditionalSaveData(legacyTag);
+        if (migrated.getLightAmmo() != 7 || migrated.getHeavyAmmo() != 9 || migrated.getGrudge() != 11) {
+            helper.fail("modern ship runtime supplies should migrate legacy ammo and grudge tags");
+            return;
+        }
+
+        ship.setShipFuel(0);
+        ship.setLightAmmo(0);
+        ship.setHeavyAmmo(0);
+        ship.setGrudge(0);
+        ship.setMorale(0);
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.COMBATRATION.get()));
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
+                || ship.getShipFuel() <= 0) {
+            helper.fail("combat rations should refuel friendly ships");
+            return;
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.GRUDGE.get()));
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
+                || ship.getGrudge() <= 0) {
+            helper.fail("grudge support items should restore ship grudge runtime state");
+            return;
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.AMMO.get()));
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
+                || ship.getLightAmmo() <= 0) {
+            helper.fail("light ammo support items should reload ship light ammo runtime state");
+            return;
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.AMMO2.get()));
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
+                || ship.getHeavyAmmo() <= 0) {
+            helper.fail("heavy ammo support items should reload ship heavy ammo runtime state");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void playerSkillRuntimeStateSaveLoadKeepsFiveSlotSnapshot(GameTestHelper helper) {
         PlayerSkillRuntimeState runtimeState = new PlayerSkillRuntimeState();
         runtimeState.setVisible(true);
