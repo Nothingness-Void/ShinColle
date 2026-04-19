@@ -1,6 +1,6 @@
 # ShinColle AI Handoff
 
-更新时间：2026-04-18
+更新时间：2026-04-19
 
 先读：
 - `PORTING-MISTAKES.md`
@@ -29,8 +29,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 73 required tests passed`
-- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮 Phase 5-6 主要是服务端/网络/持久化闭环，typed ship command 的客户端输入路径仍建议后续再做一次短冒烟。
+  - `All 75 required tests passed`
+- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；本轮新增了单人主线 GameTest 与 Phase 8 legacy model source 解析覆盖。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
 
 ## 已经落地并接线的主线
 
@@ -83,6 +83,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - `BossPhaseProfile.forSpec(...)` 已收口到 behavior catalog；hostile loot profile 也改由 catalog 提供，保留 boss bonus、abyss metal 与 egg drop chance 规则。
   - `LegacyShipPickItemGoal` 现在让位于 active move/route/guard、combat target、sit 状态与 auto-supply disabled，避免自动拾取抢走指挥路径。
   - 新增 GameTest 覆盖 combat hook class-id/mirror 分发、special heavy cooldown / miss 语义、boss/loot profile、pickup goal 边界；顺手让 air attack 与 world-rule payload 旧测试对持久测试世界更稳定。
+- 本轮单人主线 smoke 已完成到 code + GameTest 基线：
+  - 新增跨系统 GameTest，覆盖 support item、AI flags / follow range、typed move / attack / stop、boss unlock / spawn，以及 heavy hook cooldown。
+  - 新增 Phase 8 资源解析 GameTest，覆盖当前单人可到达舰船 legacy model source，以及 aircraft / takoyaki / mount static model source，要求 packaged source 能 parse 成非空可渲染 model definition。
+  - 2026-04-19 `runClient` 启动/资源冒烟到达 resource reload、sound engine、texture atlas creation；检查日志未见 ShinColle crash、missing texture、model fallback。该验证不等同于进世界手测，Pointer、ShipInventory、rider/morph input 与 combat FX 仍列为 P0 实机项。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -149,6 +153,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `compileJava`
 - `processResources`
 - `runGameTestServer`
+- 当前 GameTest baseline：`All 75 required tests passed`
+- 单人主线 smoke 已有 GameTest 覆盖，确认 support item、typed ship command、boss gate/spawn 与 heavy combat cooldown 在同一闭环内可用。
+- Phase 8 legacy model source 解析已有 GameTest 覆盖，确认单人可到达舰船与 summon/mount 静态模型源不会静默解析为空模型。
+- `runClient` 启动/资源冒烟已到 resource reload、sound engine、texture atlas creation，已查日志未见 ShinColle-specific crash / missing texture / model fallback；完整世界内交互仍待手测。
 - Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
 - Phase 7 hostile spawn 与 command boundary 已有 GameTest 覆盖，确认 hostile boss runtime 初始化、move/route 清 target、guard 清 route/target。
 - Phase 7 hostile scaling 已有 GameTest 覆盖，确认 hostile boss 生成时按 catalog 初始化等级、士气与满血。
@@ -182,12 +190,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata 与 pickup priority 边界已接线；用户已做过一轮客户端验收且未发现明显问题，但 typed ship command 与 Phase 7 行为后续仍建议做短客户端冒烟确认输入体验、FX 表达和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata、pickup priority 边界与单人主线 smoke 已接线；Phase 8 已补单人可达 legacy model source 解析防线。用户已做过一轮客户端验收且未发现明显问题，但 typed ship command、Phase 7/8 行为和 FX 后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
 
 ### P0 立即验收项
 
 - 客户端手工冒烟记录与待复核点：
   - 用户上一轮实机验收未发现明显问题；之前暴露的生成蛋/交互吞掉、舰船假死后仍能交互等问题已修并有回归。
+  - Codex 本轮只完成 `runClient` 启动/资源冒烟；仍需进世界生成友方舰船和 hostile / boss 实体做交互验证。
   - rider host 技能条是否显示正确。
   - morph / mount host 技能条是否显示正确。
   - `1~5` 与 `Z/X/C` 输入是否正常触发技能。
@@ -283,7 +292,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ### Phase 8: 客户端渲染 / 视觉
 
-- 当前有通用 humanoid renderer 与 lowercase-safe texture bridge，但这不是最终视觉对等。
+- 当前有通用 humanoid renderer 与 lowercase-safe texture bridge，但这不是最终视觉对等。单人可到达舰船与 summon/mount static legacy model source 已有 parser GameTest，能防止 packaged source 缺失或解析为空模型；真实 renderer 仍未迁到每舰精确模型。
 - 待补：
   - 每艘舰精确模型迁移，必须复用旧版 `Model*.java` 的 ModelRenderer 骨架；不要把旧贴图硬套 vanilla PlayerModel。
   - BlockEntityRenderer 覆盖，例如大型方块、核心块、结构状态可视化。
@@ -312,7 +321,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 下一步建议顺序
 
-1. 做一轮短客户端复核，重点是 Pointer ship command、ShipInventory stop / AI flags / follow range，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
+1. 做一轮进世界客户端复核：生成 1 个友方舰船和 1 个 hostile / boss，重点验证 Pointer ship command、ShipInventory stop / AI flags / follow range、rider/morph 输入，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
 2. 继续 Phase 7 单人游戏性：剩余 per-ship combat/runtime hooks、hostile/boss spawn 深化、AI route/escort/standby 边界。
 3. 继续 Phase 8/9：精确模型、reaction pages、全投射物家族、beam/torpedo 专属渲染、剩余 morph/player-skill special parity。
 4. 继续补 recipe / reference / balance 的尾巴，但保持单人友好，不开单人专属数值分支。
@@ -333,4 +342,4 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 一句话总结
 
-项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata 与 pickup priority 边界，下一步可以短客户端复核后继续剩余舰种行为、渲染和世界内容深化。
+项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata、pickup priority 边界和单人主线 smoke；Phase 8 已补单人可达 legacy model source 解析防线。下一步应进世界短客户端复核后继续剩余舰种行为、精确渲染和世界内容深化。

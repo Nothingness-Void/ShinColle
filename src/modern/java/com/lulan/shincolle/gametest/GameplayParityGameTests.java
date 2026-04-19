@@ -13,6 +13,8 @@ import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
+import com.lulan.shincolle.client.model.legacy.LegacyModelDefinition;
+import com.lulan.shincolle.client.model.legacy.LegacyModelSourceParser;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
@@ -2716,6 +2718,102 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void singlePlayerMainlineSmokeCoversShipCommandSupportBossAndCombat(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setPos(2.0D, 2.0D, 2.0D);
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8601);
+            data.setCurrentTeamId(0);
+            data.setBossCooldown(0);
+            data.addCollectedShip(62);
+        })) {
+            return;
+        }
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 62, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            return;
+        }
+        ship.setShipLevel(35);
+        ship.setMorale(1200);
+
+        if (!configureTeitoku(helper, player, data -> {
+            data.assignCurrentTeamSlot(0, ship.getShipUid());
+            data.setCurrentTeamSelection(0, true);
+        })) {
+            return;
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.COMBATRATION.get()));
+        int moraleBeforeRation = ship.getMorale();
+        if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
+                || ship.getMorale() <= moraleBeforeRation) {
+            helper.fail("single-player ship should accept support items before sortie commands");
+            return;
+        }
+
+        int aiFlags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET
+                | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
+                | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), ship.getShipUid(), aiFlags))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), ship.getShipUid(), 24))
+                || ship.getAiFlagsBitmask() != aiFlags
+                || ship.getAiFollowRange() != 24) {
+            helper.fail("single-player ship inventory command controls should update AI flags and follow range");
+            return;
+        }
+
+        BlockPos moveTarget = new BlockPos(6, 2, 6);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, ship.getId(), ship.getShipUid(), moveTarget))
+                || !moveTarget.equals(ship.getCommandedPos())
+                || ship.isOrderedToSit()) {
+            helper.fail("single-player sortie should accept typed move commands");
+            return;
+        }
+
+        TeitokuData data = new TeitokuData();
+        data.addCollectedShip(62);
+        data.setBossCooldown(0);
+        if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
+            helper.fail("single-player boss gate should open after a collected friendly ship");
+            return;
+        }
+
+        LegacyShipEntity boss = HostileEncounterSpawner.spawnEncounterAt(helper.getLevel(),
+                helper.absolutePos(new BlockPos(5, 2, 5)),
+                null,
+                new com.lulan.shincolle.world.HostileSpawnProfile(23, 1, true, true));
+        if (boss == null) {
+            helper.fail("single-player mainline should be able to spawn a hostile boss encounter");
+            return;
+        }
+        boss.setPos(5.0D, 2.0D, 5.0D);
+
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.attack(0, ship.getId(), ship.getShipUid(), boss.getId()))
+                || ship.getTarget() != boss
+                || ship.getCommandedPos() != null) {
+            helper.fail("single-player attack command should target hostile boss encounters and clear move orders");
+            return;
+        }
+
+        if (!ship.performPlayerCompatAttack(boss, LegacyShipAttackKind.HEAVY)
+                || ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY) <= 0) {
+            helper.fail("single-player boss combat should dispatch heavy combat hooks and set cooldowns");
+            return;
+        }
+
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.stop(0, ship.getId(), ship.getShipUid()))
+                || ship.getTarget() != null
+                || ship.getCommandedPos() != null
+                || ship.getGuardEntityUuid() != null) {
+            helper.fail("single-player stop command should clear boss combat and navigation state");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void friendlyCounterpartsResolveForConstructionAndLoot(GameTestHelper helper) {
         ShipEntitySpec smallEgg = ShipEntitySpecs.resolveEggItem("smallegg", RandomSource.create(7L));
         ShipEntitySpec largeEgg = ShipEntitySpecs.resolveEggItem("largeegg", RandomSource.create(17L));
@@ -2859,19 +2957,58 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void reachableShipLegacyModelSourcesParse(GameTestHelper helper) {
+        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
+        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
+        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
+
+        LegacyModelSourceParser parser = new LegacyModelSourceParser();
+        for (ShipEntitySpec spec : reachableSpecs) {
+            String source = readTextResource(spec.modelSourceLocation());
+            if (source == null) {
+                helper.fail("reachable ship model source should be packaged: egg="
+                        + spec.eggMeta() + " stem=" + spec.modelSourceStem());
+                return;
+            }
+
+            LegacyModelDefinition definition;
+            try {
+                definition = parser.parse(spec.modelSourceStem(), source);
+            } catch (Exception exception) {
+                helper.fail("reachable ship model source should parse without fallback: egg="
+                        + spec.eggMeta() + " stem=" + spec.modelSourceStem()
+                        + " error=" + exception.getClass().getSimpleName());
+                return;
+            }
+
+            boolean hasRenderableCube = definition.parts().values().stream()
+                    .anyMatch(part -> !part.cubes().isEmpty());
+            if (definition.rootParts().isEmpty() || definition.parts().isEmpty() || !hasRenderableCube) {
+                helper.fail("reachable ship model source parsed to an empty model: egg="
+                        + spec.eggMeta() + " stem=" + spec.modelSourceStem());
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void summonAndMountAssetsExist(GameTestHelper helper) {
-        ResourceLocation[] requiredResources = {
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanezero.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanet.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modeltakoyaki.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountafh.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountbah.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcah.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcawd.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmounthbh.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountish.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountmih.java"),
-                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountsuh.java"),
+        StaticLegacyModelAsset[] requiredModels = {
+                new StaticLegacyModelAsset("ModelAirplaneZero", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanezero.java")),
+                new StaticLegacyModelAsset("ModelAirplaneT", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelairplanet.java")),
+                new StaticLegacyModelAsset("ModelTakoyaki", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modeltakoyaki.java")),
+                new StaticLegacyModelAsset("ModelMountAfH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountafh.java")),
+                new StaticLegacyModelAsset("ModelMountBaH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountbah.java")),
+                new StaticLegacyModelAsset("ModelMountCaH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcah.java")),
+                new StaticLegacyModelAsset("ModelMountCaWD", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountcawd.java")),
+                new StaticLegacyModelAsset("ModelMountHbH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmounthbh.java")),
+                new StaticLegacyModelAsset("ModelMountIsH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountish.java")),
+                new StaticLegacyModelAsset("ModelMountMiH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountmih.java")),
+                new StaticLegacyModelAsset("ModelMountSuH", ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelmountsuh.java"))
+        };
+        ResourceLocation[] requiredTextures = {
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityairplanezero.png"),
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityairplanet.png"),
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityaircrafttakoyaki.png"),
@@ -2885,9 +3022,34 @@ public final class GameplayParityGameTests {
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entitymountsuh.png")
         };
 
-        for (ResourceLocation resource : requiredResources) {
-            if (!resourceExists(resource)) {
-                helper.fail("expected summon or mount asset to exist: " + resource);
+        LegacyModelSourceParser parser = new LegacyModelSourceParser();
+        for (StaticLegacyModelAsset model : requiredModels) {
+            String source = readTextResource(model.sourceLocation());
+            if (source == null) {
+                helper.fail("expected summon or mount model source to exist: " + model.sourceLocation());
+                return;
+            }
+
+            LegacyModelDefinition definition;
+            try {
+                definition = parser.parse(model.modelName(), source);
+            } catch (Exception exception) {
+                helper.fail("summon or mount model source should parse without fallback: "
+                        + model.sourceLocation() + " error=" + exception.getClass().getSimpleName());
+                return;
+            }
+
+            boolean hasRenderableCube = definition.parts().values().stream()
+                    .anyMatch(part -> !part.cubes().isEmpty());
+            if (definition.rootParts().isEmpty() || definition.parts().isEmpty() || !hasRenderableCube) {
+                helper.fail("summon or mount model source parsed to an empty model: " + model.sourceLocation());
+                return;
+            }
+        }
+
+        for (ResourceLocation texture : requiredTextures) {
+            if (!resourceExists(texture)) {
+                helper.fail("expected summon or mount texture to exist: " + texture);
                 return;
             }
         }
@@ -3163,6 +3325,21 @@ public final class GameplayParityGameTests {
         } catch (Exception exception) {
             return false;
         }
+    }
+
+    private static String readTextResource(ResourceLocation resourceLocation) {
+        try (InputStream stream = GameplayParityGameTests.class.getClassLoader()
+                .getResourceAsStream("assets/" + resourceLocation.getNamespace() + "/" + resourceLocation.getPath())) {
+            if (stream == null) {
+                return null;
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private record StaticLegacyModelAsset(String modelName, ResourceLocation sourceLocation) {
     }
 
     private static void assertCrafts(GameTestHelper helper, String recipePath, ItemStack expected, ItemStack... inputs) {

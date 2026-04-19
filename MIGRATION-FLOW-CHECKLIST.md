@@ -2,7 +2,7 @@
 
 For the newest implementation handoff, read `AI-HANDOFF.md`.
 
-Audit date: 2026-04-18
+Audit date: 2026-04-19
 
 This file tracks the port in dependency order and checks what is genuinely migrated today.
 It is stricter than `PORTING-1.20.1.md`: code that is only registered as a placeholder is not marked as fully migrated.
@@ -37,7 +37,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 | 5 | Networking (`SimpleChannel`) | Phases 1-4 | Partial | `Code`, `Compile` | `SimpleChannel` now carries Teitoku sync, gameplay command/state sync, combat FX, and a dedicated `ServerboundShipCommandPacket` family for single-player ship commands. Old gameplay ship commands and the new typed packet share `ShipCommandService`, command writes now refresh `ShipCacheSavedData` for detached UI fallback, and `ShipInventory` mode/AI controls no longer depend on a separate menu-only mutation path. Gameplay-state payload application is now GameTest-covered for team/world-rule/offline-ship-cache/player-skill client mirrors. Deeper legacy GUI packet families and multiplayer ally UI are still pending. |
 | 6 | Saved data, attachments, capabilities | Phases 1-5 | Partial | `Code`, `Compile` | Teitoku/team/formation data plus ship runtime command state now persist the single-player command loop: AI flags, follow range, route energy/wait, command pos, guard target, current team slots, selected slots, formation id, ship UID lookup, and ship cache `online / offline / dead` lifecycle are GameTest-covered. Broader old `CapaTeitoku`, migration edge cases, and deeper ship task/combat state are still pending. |
 | 7 | Entity types and spawn logic | Phases 1-6 | Partial | `Code`, `Compile` | A modern generic ship entity and real spawn-egg deployment path now exist. `LegacyShipBehaviorCatalog` owns attack profile routing, marriage/ring passives, hostile/elite/boss spawn level/morale baselines, first high-value per-ship combat hooks, boss phase profiles, and hostile loot metadata. Hostile boss spawn runtime, route/guard command boundaries, special combat hook dispatch/cooldowns, boss/loot profiles, and pickup priority boundaries now have GameTest coverage; remaining per-ship runtime hooks and spawn depth are still pending. |
-| 8 | Client renderers and visual glue | Phases 2-7 | Partial | `Code`, `Compile`, `Runtime` | Basic item property/render-layer hooks exist, several blocks use custom JSON models, and the first generic ship renderer can now draw legacy ship textures. No BER or per-ship renderer migration yet. |
+| 8 | Client renderers and visual glue | Phases 2-7 | Partial | `Code`, `Compile`, `Runtime` | Basic item property/render-layer hooks exist, several blocks use custom JSON models, and the first generic ship renderer can now draw legacy ship textures. Reachable single-player ship model sources plus summon/mount static model sources now parse into nonempty legacy model definitions, and a dev-client boot/resource smoke reached atlas load without ShinColle crash/fallback errors. No BER or model-accurate per-ship renderer migration yet. |
 | 9 | AI, combat, reactions | Phases 2-8 | Partial | `Code`, `Compile` | Ships now have escort / standby behavior, owner assist targeting, hostile-vs-friendly combat targeting, restored legacy stat rebuilding, legacy-style melee / light / heavy / air attack routing, and a first compatibility projectile layer for heavy / air attacks. Full projectile systems, per-ship weapon specials, and reaction pages are still missing. |
 | 10 | Worldgen, advanced recipes, inter-mod | Phases 1-9 | Not started | none | Only basic resource/data reuse exists today. |
 
@@ -75,14 +75,14 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 | Ship equipment integration | Equipment-slot stat application and restored attack math | Partial | `Code`, `Compile` | `entity/ship/ShipEquipmentProfile.java`, `entity/ship/LegacyShipEntity.java`, `entity/ship/LegacyShipStats.java`, `menu/ShipEquipmentSlot.java` | Mounted legacy equipment now feeds back into the restored 1.12.2 stat flow instead of a custom modern approximation. Equipment, morale, potion, and formation placeholders are combined in legacy order, ship UI now reads buffed legacy values, and ranged attack routing consumes the restored light / heavy / air damage families. Full projectile and per-weapon behavior parity is still pending. |
 | Ship support items | Direct item-to-ship interactions for recovery, growth, and ownership flows | Partial | `Code`, `Compile` | `entity/ship/LegacyShipEntity.java`, `item/BucketRepairItem.java`, `item/CombatRationItem.java`, `item/MarriageRingItem.java`, `item/ModernKitItem.java`, `item/OwnerPaperItem.java`, `item/RepairGoddessItem.java`, `item/TrainingBookItem.java`, `item/PointerItem.java`, `item/KaitaiHammerItem.java` | Friendly ships now respond again to repair buckets, combat rations, training books, modernization kits, wedding rings, ownership papers, repair goddess storage, pointer caress mode, and kaitai dismantle. This is a focused support slice, not full legacy item parity. |
 | Ship spawn eggs | Real spawn deployment + random small/large pools + hostile mob variants | Partial | `Code`, `Compile` | `item/LegacyShipSpawnEggItem.java`, `registry/ModItems.java`, `crafting/LegacyShipConstructionHelper.java`, `teitoku/TeitokuHelper.java` | The full current egg catalog now deploys real entities, including random primary/advanced pools and hostile `(Mob)` variants. Shipyard-produced `smallegg` now also restores legacy material-weighted ship rolls instead of using a flat random pool, friendly ship deployments record first collection state into Teitoku data, and recovered `shipegg*` stacks with `RecoveredShip` NBT can redeploy a preserved owner/variant/cargo snapshot. |
-| Entity renderer baseline | Generic humanoid renderer + lowercase-safe legacy texture bridge | Partial | `Code`, `Compile` | `client/renderer/entity/LegacyShipRenderer.java`, `textures/entity/modern/*` | This is enough to see spawned ships in-client, but not enough for model-accurate legacy visuals. |
+| Entity renderer baseline | Generic humanoid renderer + lowercase-safe legacy texture bridge | Partial | `Code`, `Compile` | `client/renderer/entity/LegacyShipRenderer.java`, `textures/entity/modern/*`, `legacy_model_sources/*` | Reachable ship model sources and summon/mount static model sources are now parser-covered so packaged single-player assets cannot silently fall back to an empty model. The live renderer is still a generic bridge, not model-accurate legacy visuals. |
 | Placeholder interaction items | Bucket/modern kit/training book etc. | Partial | `Code`, `Compile` | `item/LegacyUseFeedbackItem.java`, `item/LegacyPlaceholderItem.java` | They are intentionally usable placeholders, not full ports. |
 | Legacy core heavy blocks | Volcore/polymetal/heavy grudge owner + mode + persistent charge baseline | Partial | `Code`, `Compile` | `block/LegacyCoreBlock.java`, `blockentity/LegacyCoreBlockEntity.java`, `menu/LegacyCoreMenu.java`, `client/screen/LegacyCoreScreen.java`, `registry/ModBlockEntities.java` | The three heavy blocks are no longer message-only placeholders: they persist owner, operating mode, and charge state, and share one Phase 4 control/readout page. Full multiblock energy chains and heavy-block-specific automation loops are still pending. |
 
 ## What Is Fully Checked Right Now
 
 - `compileJava`, `processResources`, and `runGameTestServer` pass on Java 17.
-- Current GameTest baseline: `All 73 required tests passed`.
+- Current GameTest baseline: `All 75 required tests passed`.
 - Phase 1 registered blockstate/model/item-model/menu texture/sound resource coverage is locked by tests.
 - Phase 2 ship sound routing is locked by tests for friendly/hostile sound source semantics and combat event resolution.
 - Phase 3 waypoint wait, crane route item/fluid/energy transfer, and large shipyard structure/fuel/energy/output loops are locked by tests.
@@ -95,14 +95,16 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 - Phase 7 first special combat hooks are locked by tests for Shimakaze/Nagato/Yamato/Tenryuu/Tatsuta/Atago/Takao/Kongou-class class-id dispatch, hostile mirrors, heavy cooldown application, and heavy miss no-damage semantics.
 - Phase 7 boss phase and hostile loot catalog metadata are locked by tests for action cycle, escort summon egg, base cooldowns, boss bonus drops, abyss metal drops, and egg drop chance.
 - Phase 7 pickup priority boundaries are locked by tests so auto pickup yields to route/move, guard, combat target, sit, and disabled auto-supply state.
+- Single-player mainline smoke coverage is locked by tests for ship support-item use, typed ship command AI flags/follow range/move/attack/stop, boss gate/spawn, and heavy combat hook cooldown dispatch.
+- Phase 8 reachable single-player ship model sources and summon/mount static model sources are locked by tests to parse into nonempty renderable legacy model definitions.
 - Friendly ship death recovery is locked by tests: dead/dying ships do not open ShipInventory, cargo stays inside the recovered egg, the dropped egg is owner-targeted, and redeploy restores owner/variant/cargo/health.
-- Dev client can launch, Desk block interaction path has previously been smoke-tested in client, and the user reported the latest manual client pass found no obvious issues after the death/recovery fixes.
+- Dev-client boot/resource smoke can reach resource reload, sound engine startup, and texture atlas creation without ShinColle-specific crash, missing-texture, or model-fallback errors in the checked logs. Desk block interaction path has previously been smoke-tested in client, and the user reported the latest manual client pass found no obvious issues after the death/recovery fixes.
 
 ## What Is Still Only Code-Checked
 
-- Fresh client-side smoke for the new Phase 5 typed ship commands: Pointer move/guard/attack/stop/sit/open-inventory and ShipInventory stop/AI flags/follow range.
+- Fresh in-world client-side smoke for the new Phase 5 typed ship commands: Pointer move/guard/attack/stop/sit/open-inventory and ShipInventory stop/AI flags/follow range.
 - Deeper client-side visual smoke for rider/morph/mount skill HUD and `1~5` / `Z/X/C` input under longer sessions.
-- Deeper client-side visual smoke for heavy/air projectile FX, first Phase 7 special combat hook FX, and reaction presentation under longer sessions.
+- Deeper client-side visual smoke for heavy/air projectile FX, first Phase 7 special combat hook FX, reaction presentation, and the parser-covered legacy model assets under longer sessions.
 - Deeper client-side smoke for friendly death recovery egg pickup/redeploy semantics, especially owner-only pickup behavior in a real multiplayer-style client situation.
 - Target wrench pairing loop and ship tank interactions beyond their route/logistics GameTest coverage.
 - Most placeholder item and block interaction messages.
@@ -110,7 +112,7 @@ Before continuing entity, resource, or renderer work, re-read `PORTING-MISTAKES.
 
 ## Immediate Next Targets
 
-1. Run a short client smoke pass focused on the new Phase 5 typed ship commands from Pointer and ShipInventory.
+1. Run a real in-world client smoke pass focused on spawning one friendly ship and one hostile/boss enemy, then verifying Pointer commands, ShipInventory stop / AI flags / follow range, rider/morph inputs, and visible combat FX.
 2. Continue Phase 7 single-player gameplay depth: migrate the remaining per-ship combat/runtime hooks into `LegacyShipBehaviorCatalog`, then deepen hostile/boss spawn and route/escort/standby edge cases.
 3. Continue Phase 8/9 depth: model-accurate ship renderers, reaction pages, full projectile families, beam/torpedo dedicated visuals, and remaining morph/player-skill special parity.
 
