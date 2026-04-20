@@ -207,6 +207,7 @@ public final class MorphHelper {
         int normalizedSlot = Mth.clamp(skillSlot, 1, PlayerSkillRuntimeState.SLOT_COUNT) - 1;
         PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
         if (!host.visible()) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
             return false;
         }
 
@@ -220,7 +221,12 @@ public final class MorphHelper {
 
     public static boolean performCompatAttack(ServerPlayer player, LegacyShipAttackKind attackKind, int targetId) {
         MorphProfile profile = getActiveProfile(player);
-        if (profile == null || !(player.level().getEntity(targetId) instanceof LivingEntity target)) {
+        if (profile == null) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
+            return false;
+        }
+        if (!(player.level().getEntity(targetId) instanceof LivingEntity target)) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.target_invalid");
             return false;
         }
 
@@ -232,26 +238,35 @@ public final class MorphHelper {
             case AIR_LIGHT -> attackProfile.airLight();
             case AIR_HEAVY -> attackProfile.airHeavy();
         };
-        if (!allowed || !canEngage(player, profile, target)) {
+        if (!allowed) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
+            return false;
+        }
+        if (!canEngage(player, profile, target)) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.target_invalid");
             return false;
         }
 
         TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
         if (data == null) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
             return false;
         }
 
         MorphRuntimeState runtimeState = data.getMorphRuntimeState();
         if (runtimeState.getAttackCooldown(attackKind) > 0) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.cooldown");
             return false;
         }
 
         LegacyShipStats stats = profile.buildStats(player.getActiveEffects());
         ShipEquipmentBehaviorState behaviorState = profile.buildBehaviorState();
         if (!isWithinMorphAttackRange(player, stats, behaviorState, attackKind, target)) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.out_of_range");
             return false;
         }
         if (!consumeAttackCost(profile, attackKind)) {
+            sendSkillFailure(player, morphAmmoFailureKey(attackKind));
             return false;
         }
         if (attackKind != LegacyShipAttackKind.MELEE && behaviorState.flareLevel() > 0) {
@@ -279,20 +294,28 @@ public final class MorphHelper {
 
     public static boolean performCompatSpecial(ServerPlayer player, int targetId) {
         MorphProfile profile = getActiveProfile(player);
-        if (profile == null || !hasSpecialSkill(profile)) {
+        if (profile == null) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
+            return false;
+        }
+        if (!hasSpecialSkill(profile)) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
             return false;
         }
 
         TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
         if (data == null) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
             return false;
         }
 
         MorphRuntimeState runtimeState = data.getMorphRuntimeState();
         if (runtimeState.getSpecialCooldown() > 0) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.cooldown");
             return false;
         }
         if (profile.getGrudge() < 4) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.no_grudge");
             return false;
         }
 
@@ -301,11 +324,13 @@ public final class MorphHelper {
             target = MorphSpecialCatalog.findNearestTarget(player, profile, 9.0D);
         }
         if (target == null) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.target_invalid");
             return false;
         }
 
         int cooldown = MorphSpecialCatalog.cast(player, profile, target);
         if (cooldown <= 0) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
             return false;
         }
 
@@ -437,6 +462,22 @@ public final class MorphHelper {
         return getSpecialPreviewCooldown(profile);
     }
 
+    private static void sendSkillFailure(ServerPlayer player, String reasonKey) {
+        sendSkillFailure(player, Component.translatable(reasonKey));
+    }
+
+    private static void sendSkillFailure(ServerPlayer player, Component reason) {
+        player.displayClientMessage(Component.translatable("chat.shincolle.skill.failed", reason), true);
+    }
+
+    private static String morphAmmoFailureKey(LegacyShipAttackKind attackKind) {
+        return switch (attackKind) {
+            case LIGHT, AIR_LIGHT -> "chat.shincolle.skill.reason.no_light_ammo";
+            case HEAVY, AIR_HEAVY -> "chat.shincolle.skill.reason.no_heavy_ammo";
+            case MELEE -> "chat.shincolle.skill.reason.skill_unavailable";
+        };
+    }
+
     private static boolean performShipSlotSkill(ServerPlayer player,
                                                 LegacyShipEntity ship,
                                                 int slot,
@@ -450,15 +491,18 @@ public final class MorphHelper {
             default -> null;
         };
         if (attackKind == null || target == null) {
+            sendSkillFailure(player, attackKind == null
+                    ? "chat.shincolle.skill.reason.skill_unavailable"
+                    : "chat.shincolle.skill.reason.target_invalid");
             return false;
         }
-        if (!ship.supportsCompatAttack(attackKind)
-                || ship.getCompatAttackCooldown(attackKind) > 0
-                || !ship.canEngage(target)
-                || !ship.isTargetInCompatRange(target, attackKind)) {
+        LegacyShipEntity.CompatAttackFailureReason failureReason = ship.getCompatAttackFailureReason(target, attackKind);
+        if (failureReason != LegacyShipEntity.CompatAttackFailureReason.NONE) {
+            sendSkillFailure(player, failureReason.message());
             return false;
         }
         if (!ship.performPlayerCompatAttack(target, attackKind)) {
+            sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
             return false;
         }
 

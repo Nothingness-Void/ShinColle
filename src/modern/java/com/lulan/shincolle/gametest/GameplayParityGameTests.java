@@ -65,6 +65,7 @@ import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
+import com.lulan.shincolle.world.SinglePlayerResourceSourceCatalog;
 import io.netty.buffer.Unpooled;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.CriteriaTriggers;
@@ -2405,6 +2406,125 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void behaviorCatalogClassifiesSinglePlayerMainlineRoster(GameTestHelper helper) {
+        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
+        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
+        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
+
+        LinkedHashSet<ShipArchetype> coveredArchetypes = new LinkedHashSet<>();
+        for (ShipEntitySpec spec : reachableSpecs) {
+            LegacyShipBehaviorCatalog.BehaviorCoverage coverage = LegacyShipBehaviorCatalog.coverageFor(spec);
+            if (!coverage.singlePlayerMainlineCovered() || coverage.mainlineBehavior().isBlank()) {
+                helper.fail("single-player reachable ship spec should have mainline behavior coverage: egg="
+                        + spec.eggMeta() + " tier=" + coverage.tier());
+                return;
+            }
+            if (LegacyShipBehaviorCatalog.hasCombatHook(spec)
+                    && coverage.tier() != LegacyShipBehaviorCatalog.BehaviorCoverageTier.SPECIFIC_HOOK) {
+                helper.fail("specific combat hook specs should be classified as specific hook coverage: egg=" + spec.eggMeta());
+                return;
+            }
+            coveredArchetypes.add(coverage.archetype());
+        }
+
+        for (ShipArchetype archetype : ShipArchetype.values()) {
+            if (!coveredArchetypes.contains(archetype)) {
+                helper.fail("single-player mainline coverage should include archetype " + archetype);
+                return;
+            }
+        }
+
+        if (!LegacyShipBehaviorCatalog.singlePlayerAiPriorityOrder().equals(List.of(
+                LegacyShipBehaviorCatalog.AiPriority.DEATH_STOP_SIT,
+                LegacyShipBehaviorCatalog.AiPriority.EXPLICIT_COMMAND,
+                LegacyShipBehaviorCatalog.AiPriority.ACTIVE_COMBAT_TARGET,
+                LegacyShipBehaviorCatalog.AiPriority.AUTO_SUPPLY,
+                LegacyShipBehaviorCatalog.AiPriority.PICKUP,
+                LegacyShipBehaviorCatalog.AiPriority.IDLE_FOLLOW))) {
+            helper.fail("single-player AI priority order should stay fixed for Phase 7/9 closure");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipCompatAttackFailureReasonsCoverSinglePlayerFeedback(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity target = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null || target == null) {
+            helper.fail("legacy ships should be creatable for attack feedback tests");
+            return;
+        }
+
+        ship.setVariantEggMeta(58);
+        ship.setOwner(UUID.randomUUID(), "AttackFeedback");
+        ship.setShipLevel(25);
+        target.setVariantEggMeta(23);
+        target.initializeHostileRuntime(false, true, true);
+        BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
+        target.setPos(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(target);
+
+        if (ship.getCompatAttackFailureReason(null, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.TARGET_INVALID) {
+            helper.fail("missing target should report target-invalid feedback");
+            return;
+        }
+        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.AIR_HEAVY)
+                != LegacyShipEntity.CompatAttackFailureReason.SKILL_UNAVAILABLE) {
+            helper.fail("unsupported attack kind should report skill-unavailable feedback");
+            return;
+        }
+
+        target.setPos(shipPos.getX() + 40.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
+        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.OUT_OF_RANGE) {
+            helper.fail("distant target should report out-of-range feedback");
+            return;
+        }
+        target.setPos(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D);
+
+        ship.setShipFuel(0);
+        ship.setGrudge(100);
+        ship.setLightAmmo(100);
+        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.NO_FUEL) {
+            helper.fail("empty fuel should report fuel feedback");
+            return;
+        }
+
+        ship.setShipFuel(100);
+        ship.setGrudge(0);
+        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.NO_GRUDGE) {
+            helper.fail("empty grudge should report grudge feedback");
+            return;
+        }
+
+        ship.setGrudge(100);
+        ship.setLightAmmo(0);
+        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.NO_LIGHT_AMMO) {
+            helper.fail("empty light ammo should report light-ammo feedback");
+            return;
+        }
+
+        ship.setLightAmmo(100);
+        if (!ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)
+                || ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
+                != LegacyShipEntity.CompatAttackFailureReason.COOLDOWN) {
+            helper.fail("successful player-facing attack should report cooldown while reloading");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void projectileProfilesMatchShipRoles(GameTestHelper helper) {
         LegacyShipAttackProfile kongou = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(62));
         LegacyShipAttackProfile kongouHostileMirror = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(2062));
@@ -2824,6 +2944,39 @@ public final class GameplayParityGameTests {
         data.addCollectedShip(2);
         if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
             helper.fail("boss encounters should unlock after the first friendly ship is collected");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void singlePlayerResourceSourceCatalogClosesMainlineLoop(GameTestHelper helper) {
+        if (SinglePlayerResourceSourceCatalog.requiredMainlineResources().size() < 8) {
+            helper.fail("single-player resource source catalog should cover all required mainline resources");
+            return;
+        }
+
+        for (SinglePlayerResourceSourceCatalog.ResourceLoopStatus status
+                : SinglePlayerResourceSourceCatalog.mainlineLoopStatus()) {
+            if (!status.discoverable()) {
+                helper.fail("required single-player resource has no discoverable source: " + status.resourceKey());
+                return;
+            }
+            for (SinglePlayerResourceSourceCatalog.ResourceSource source : status.sources()) {
+                if (source.hasPackResource() && !packResourceExists(source.packPath())) {
+                    helper.fail("single-player resource source points at missing data pack resource: "
+                            + source.resourceKey() + " -> " + source.packPath());
+                    return;
+                }
+            }
+        }
+
+        List<String> deskLines = SinglePlayerResourceSourceCatalog.deskReferenceLines();
+        if (deskLines.size() != SinglePlayerResourceSourceCatalog.requiredMainlineResources().size()
+                || deskLines.stream().noneMatch(line -> line.startsWith("Polymetal:"))
+                || deskLines.stream().noneMatch(line -> line.startsWith("Shipyard build:"))) {
+            helper.fail("desk reference resource source lines should expose the mainline resource loop");
             return;
         }
 
@@ -3434,6 +3587,14 @@ public final class GameplayParityGameTests {
     private static boolean resourceExists(ResourceLocation resourceLocation) {
         try (InputStream stream = GameplayParityGameTests.class.getClassLoader()
                 .getResourceAsStream("assets/" + resourceLocation.getNamespace() + "/" + resourceLocation.getPath())) {
+            return stream != null;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    private static boolean packResourceExists(String packPath) {
+        try (InputStream stream = GameplayParityGameTests.class.getClassLoader().getResourceAsStream(packPath)) {
             return stream != null;
         } catch (Exception exception) {
             return false;

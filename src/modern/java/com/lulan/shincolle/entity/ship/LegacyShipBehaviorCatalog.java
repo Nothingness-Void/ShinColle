@@ -18,6 +18,21 @@ import java.util.List;
  */
 public final class LegacyShipBehaviorCatalog {
 
+    public enum BehaviorCoverageTier {
+        SPECIFIC_HOOK,
+        GENERIC_MAINLINE,
+        PARITY_BACKLOG
+    }
+
+    public enum AiPriority {
+        DEATH_STOP_SIT,
+        EXPLICIT_COMMAND,
+        ACTIVE_COMBAT_TARGET,
+        AUTO_SUPPLY,
+        PICKUP,
+        IDLE_FOLLOW
+    }
+
     public enum MarriagePassive {
         NONE,
         SELF_AND_OWNER_INVISIBILITY,
@@ -43,6 +58,15 @@ public final class LegacyShipBehaviorCatalog {
                                      boolean dropsAbyssMetal1,
                                      boolean dropsBossBonus,
                                      float eggDropChance) {
+    }
+
+    public record BehaviorCoverage(ShipArchetype archetype,
+                                   BehaviorCoverageTier tier,
+                                   String mainlineBehavior,
+                                   String parityBacklog) {
+        public boolean singlePlayerMainlineCovered() {
+            return this.tier != BehaviorCoverageTier.PARITY_BACKLOG;
+        }
     }
 
     public record Behavior(int legacyClassId, boolean hostile, MarriagePassive marriagePassive, CombatHook combatHook) {
@@ -80,6 +104,38 @@ public final class LegacyShipBehaviorCatalog {
 
     public static boolean shouldUseCombatHook(ShipEntitySpec spec, LegacyShipAttackKind attackKind) {
         return attackKind == LegacyShipAttackKind.HEAVY && hasCombatHook(spec);
+    }
+
+    public static BehaviorCoverage coverageFor(ShipEntitySpec spec) {
+        Behavior behavior = behaviorFor(spec);
+        if (behavior.hasCombatHook()) {
+            return new BehaviorCoverage(
+                    spec.archetype(),
+                    BehaviorCoverageTier.SPECIFIC_HOOK,
+                    "catalog heavy special, cooldown, miss/crit, FX, resource gate",
+                    "exact legacy animation timing and every old packet page");
+        }
+
+        return switch (spec.archetype()) {
+            case DESTROYER -> genericCoverage(spec, "destroyer mainline gun/torpedo profile, escort, pickup, supply");
+            case CRUISER -> genericCoverage(spec, "cruiser mainline gun profile, escort, pickup, supply");
+            case BATTLESHIP -> genericCoverage(spec, "battleship heavy profile, boss-safe targeting, supply");
+            case CARRIER -> genericCoverage(spec, "carrier air attack profile, aircraft projectile family, supply");
+            case SUBMARINE -> genericCoverage(spec, "submarine light attack profile and undersea targeting stats");
+            case TRANSPORT -> genericCoverage(spec, "transport loot/logistics profile and generic combat fallback");
+            case PRINCESS -> genericCoverage(spec, "princess boss profile, summon cycle, hostile loot, heavy/air fallback");
+            case INSTALLATION -> genericCoverage(spec, "installation boss profile, summon cycle, hostile loot, heavy/air fallback");
+        };
+    }
+
+    public static List<AiPriority> singlePlayerAiPriorityOrder() {
+        return List.of(
+                AiPriority.DEATH_STOP_SIT,
+                AiPriority.EXPLICIT_COMMAND,
+                AiPriority.ACTIVE_COMBAT_TARGET,
+                AiPriority.AUTO_SUPPLY,
+                AiPriority.PICKUP,
+                AiPriority.IDLE_FOLLOW);
     }
 
     public static boolean performCombatHook(LegacyShipEntity ship, LivingEntity target, LegacyShipAttackKind attackKind) {
@@ -220,6 +276,16 @@ public final class LegacyShipBehaviorCatalog {
             case 54 -> MarriagePassive.OWNER_SPEED;
             default -> MarriagePassive.NONE;
         };
+    }
+
+    private static BehaviorCoverage genericCoverage(ShipEntitySpec spec, String mainlineBehavior) {
+        return new BehaviorCoverage(
+                spec.archetype(),
+                BehaviorCoverageTier.GENERIC_MAINLINE,
+                mainlineBehavior,
+                spec.hostile()
+                        ? "non-mainline rare legacy hostile-only gimmicks"
+                        : "non-mainline per-ship cosmetic and multiplayer-only differences");
     }
 
     private static CombatHook combatHookForClassId(int legacyClassId) {

@@ -15,6 +15,7 @@ import com.lulan.shincolle.morph.MorphRuntimeState;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.world.SinglePlayerResourceSourceCatalog;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -538,7 +539,8 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                     List.of(
                             "World shield rules take priority over normal target classes.",
                             "Use them to exempt friendly or protected entities globally."));
-            case 3 -> new BookPageData("Route Logistics",
+            case 3 -> this.bookPage == 0
+                    ? new BookPageData("Route Logistics",
                     List.of(
                             "Waypoint supplies cargo from linked storage and marks route staging points.",
                             "Crane moves item cargo with per-row load/unload filters for ship upkeep loops.",
@@ -548,7 +550,12 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                             "Early solo flow stays on common encounters until your first friendly ship is deployed."),
                     List.of(
                             "Target Wrench can pair route nodes with containers, tanks, cores, or shipyards.",
-                            "Energy mode 1 loads to ship, mode 2 unloads to facility."));
+                            "Energy mode 1 loads to ship, mode 2 unloads to facility."))
+                    : new BookPageData("Resource Sources",
+                    SinglePlayerResourceSourceCatalog.deskReferenceLines(),
+                    List.of(
+                            "The single-player loop is complete when each listed resource has at least one recipe, world, loot, or hostile source.",
+                            "Full old worldgen matrices and inter-mod ore dictionary parity are tracked outside this mainline book."));
             case 4 -> new BookPageData("Morph Runtime",
                     List.of(
                             "Selected Class: " + morphState.getSelectedClassId(),
@@ -745,7 +752,7 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
 
     private int getBookPageCount(int chapter) {
         return switch (chapter) {
-            case 0, 1, 2 -> 2;
+            case 0, 1, 2, 3 -> 2;
             default -> 1;
         };
     }

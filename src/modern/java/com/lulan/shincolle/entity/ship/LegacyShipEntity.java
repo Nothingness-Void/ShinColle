@@ -107,6 +107,32 @@ import java.util.function.Predicate;
 
 public class LegacyShipEntity extends PathfinderMob {
 
+    public enum CompatAttackFailureReason {
+        NONE(""),
+        TARGET_INVALID("chat.shincolle.skill.reason.target_invalid"),
+        SKILL_UNAVAILABLE("chat.shincolle.skill.reason.skill_unavailable"),
+        COOLDOWN("chat.shincolle.skill.reason.cooldown"),
+        OUT_OF_RANGE("chat.shincolle.skill.reason.out_of_range"),
+        NO_FUEL("chat.shincolle.skill.reason.no_fuel"),
+        NO_GRUDGE("chat.shincolle.skill.reason.no_grudge"),
+        NO_LIGHT_AMMO("chat.shincolle.skill.reason.no_light_ammo"),
+        NO_HEAVY_AMMO("chat.shincolle.skill.reason.no_heavy_ammo");
+
+        private final String translationKey;
+
+        CompatAttackFailureReason(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        public String translationKey() {
+            return this.translationKey;
+        }
+
+        public Component message() {
+            return this.translationKey.isEmpty() ? Component.empty() : Component.translatable(this.translationKey);
+        }
+    }
+
     private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String OWNER_UUID_TAG = "OwnerUuid";
     private static final String OWNER_NAME_TAG = "OwnerName";
@@ -1311,6 +1337,23 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.canUseCompatAttack(attackKind);
     }
 
+    public CompatAttackFailureReason getCompatAttackFailureReason(@Nullable LivingEntity target,
+                                                                  LegacyShipAttackKind attackKind) {
+        if (target == null || !this.canEngage(target)) {
+            return CompatAttackFailureReason.TARGET_INVALID;
+        }
+        if (!this.canUseCompatAttack(attackKind)) {
+            return CompatAttackFailureReason.SKILL_UNAVAILABLE;
+        }
+        if (this.getCompatAttackCooldown(attackKind) > 0) {
+            return CompatAttackFailureReason.COOLDOWN;
+        }
+        if (!this.isTargetInCompatRange(target, attackKind)) {
+            return CompatAttackFailureReason.OUT_OF_RANGE;
+        }
+        return this.getAttackResourceFailureReason(attackKind);
+    }
+
     public int getCompatAttackCooldown(LegacyShipAttackKind attackKind) {
         return switch (attackKind) {
             case LIGHT -> this.lightAttackCooldown;
@@ -1334,6 +1377,9 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public boolean performPlayerCompatAttack(LivingEntity target, LegacyShipAttackKind attackKind) {
+        if (this.getCompatAttackFailureReason(target, attackKind) != CompatAttackFailureReason.NONE) {
+            return false;
+        }
         return this.performCompatAttack(target, attackKind);
     }
 
@@ -1685,6 +1731,30 @@ public class LegacyShipEntity extends PathfinderMob {
             case HEAVY -> this.attackProfile.heavy();
             case AIR_LIGHT -> this.attackProfile.airLight();
             case AIR_HEAVY -> this.attackProfile.airHeavy();
+        };
+    }
+
+    private CompatAttackFailureReason getAttackResourceFailureReason(LegacyShipAttackKind attackKind) {
+        if (this.isHostileVariant() || attackKind == LegacyShipAttackKind.MELEE) {
+            return CompatAttackFailureReason.NONE;
+        }
+
+        if (this.getShipFuel() <= 0) {
+            return CompatAttackFailureReason.NO_FUEL;
+        }
+        if (this.getGrudge() < this.getAttackGrudgeCost(attackKind)) {
+            return CompatAttackFailureReason.NO_GRUDGE;
+        }
+
+        int ammoCost = this.getAttackAmmoCost(attackKind);
+        return switch (attackKind) {
+            case LIGHT, AIR_LIGHT -> this.getLightAmmo() >= ammoCost
+                    ? CompatAttackFailureReason.NONE
+                    : CompatAttackFailureReason.NO_LIGHT_AMMO;
+            case HEAVY, AIR_HEAVY -> this.getHeavyAmmo() >= ammoCost
+                    ? CompatAttackFailureReason.NONE
+                    : CompatAttackFailureReason.NO_HEAVY_AMMO;
+            case MELEE -> CompatAttackFailureReason.NONE;
         };
     }
 

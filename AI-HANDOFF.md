@@ -29,8 +29,8 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 76 required tests passed`
-- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；近期新增了单人主线 GameTest、Phase 8 legacy model source 解析覆盖，以及 ship fuel / ammo / grudge runtime supply 回归。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
+  - `All 79 required tests passed`
+- 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；近期新增了单人主线 GameTest、Phase 8 legacy model source 解析覆盖、ship fuel / ammo / grudge runtime supply 回归，以及 Phase 5-10 单人主线收口测试。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
 
 ## 已经落地并接线的主线
 
@@ -93,6 +93,12 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - Combat ration 会补 ship fuel，grudge / ammo 支援物品会补对应 runtime supply；auto supply 能在资源低位时消耗船舱支援物品。
   - ShipInventory 增加 supply tier 行和 tooltip 明细，离线 ship cache 也能读新增 NBT。
   - 新增 GameTest 覆盖资源耗尽阻止攻击、补给后恢复攻击、单次攻击消耗、NBT 持久化、旧 tag 迁移、ration/grudge/light ammo/heavy ammo 直接补给。
+- 2026-04-20 Phase 5-10 双层收口已完成到 code + GameTest 基线：
+  - Phase 5/6：玩家技能、rider ship skill、morph attack / special 失败时会给出 actionbar 原因，包括 no host、invalid target、skill unavailable、cooldown、out of range、no fuel、no grudge、no light/heavy ammo。
+  - Phase 7/9：`LegacyShipBehaviorCatalog` 显式声明 `BehaviorCoverageTier`、`BehaviorCoverage` 与单人 AI 优先级，GameTest 锁住所有 reachable friendly / hostile / boss roster 都已归类为 `SPECIFIC_HOOK` 或 `GENERIC_MAINLINE`。
+  - Phase 10：新增 `SinglePlayerResourceSourceCatalog`，把 polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、DeskReference 的 world / recipe / loot / hostile / advancement 来源记录成可测矩阵。
+  - DeskReference logbook 的 Logistics 章节新增 Resource Sources 页，直接展示单人主线资源来源。
+  - `MIGRATION-FLOW-CHECKLIST.md` 已将 Phase 5-10 标为 `Done (SP mainline)`，并新增 Full 1.12 parity backlog。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -159,9 +165,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `compileJava`
 - `processResources`
 - `runGameTestServer`
-- 当前 GameTest baseline：`All 76 required tests passed`
+- 当前 GameTest baseline：`All 79 required tests passed`
 - 单人主线 smoke 已有 GameTest 覆盖，确认 support item、typed ship command、boss gate/spawn 与 heavy combat cooldown 在同一闭环内可用。
 - 单人 runtime supply 已有 GameTest 覆盖，确认 fuel/light ammo/heavy ammo/grudge 的攻击门槛、消耗、NBT、旧 tag 迁移和直接补给路径。
+- Phase 5-10 双层收口已有 GameTest 覆盖，确认玩家可见失败反馈、行为 catalog 覆盖矩阵、AI 优先级、Phase 10 资源来源矩阵和 DeskReference resource source 行均可用。
 - Phase 8 legacy model source 解析已有 GameTest 覆盖，确认单人可到达舰船与 summon/mount 静态模型源不会静默解析为空模型。
 - `runClient` 启动/资源冒烟已到 resource reload、sound engine、texture atlas creation，已查日志未见 ShinColle-specific crash / missing texture / model fallback；完整世界内交互仍待手测。
 - Phase 7 per-ship behavior catalog 已有 GameTest 覆盖，确认 legacy marriage passive 与 attack profile 分发不回退。
@@ -197,7 +204,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 1-6 的单人主线已有 code + GameTest 基线，ship fuel/ammo/grudge runtime supply 已进入持久化、UI 和战斗门槛；Phase 7 的 per-ship behavior catalog、hostile spawn runtime、route/guard command boundary、第一批 special combat hooks、boss/loot metadata、pickup priority 边界与单人主线 smoke 已接线；Phase 8 已补单人可达 legacy model source 解析防线。用户已做过一轮客户端验收且未发现明显问题，但 typed ship command、runtime supply UI、Phase 7/8 行为和 FX 后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 0-4 为完整 Done；Phase 5-10 已按 `Done (SP mainline)` 收口，单人主线的网络/GUI/持久化、实体/AI/战斗、视觉资源防线、投射物反馈、世界资源闭环和 DeskReference 指引都有 code + GameTest 基线。完整 1.12 parity 现在单独作为 backlog：多人 ally UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 矩阵、模型精确渲染和全部边角舰种细节不阻塞本轮完成。后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
 
 ### P0 立即验收项
 
@@ -321,21 +328,19 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ### Phase 10: 世界生成 / 高级配方 / 跨模组
 
-- 当前基本未开始，只保留可玩优先的 vanilla-first 配方和 soft bridge 骨架。
-- 待补：
-  - 完整 legacy ore-dict / tag 化配方对等，不要只停留在简化配方。
-  - DeskReference 全深度文档，覆盖物品、方块、造舰、路线、技能、战斗、世界内容。
-  - Worldgen：abyssium / polymetal 矿石、结构生成、姬级 spawner 或 hostile encounter 深化。
-  - Loot / advancement / boss progression 与新世界生成内容的闭环。
+- 当前单人主线已完成：polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、DeskReference 的来源都登记在 `SinglePlayerResourceSourceCatalog`，并由 GameTest 检查 data-pack 资源存在。
+- DeskReference 已有 Resource Sources 页，能把单人主线资源来源直接展示给玩家。
+- Backlog：
+  - 完整 legacy ore-dict / tag 化配方对等。
+  - 全旧版 worldgen 矩阵、结构生成矩阵、历史 dungeon/loot 分布。
+  - DeskReference 全深度百科，不只覆盖单人主线资源闭环。
   - `MorphCompatBridge` 替换为真实 Metamorph API 绑定；其他兼容 mod 只做 soft dependency，不硬崩无依赖环境。
 
 ## 下一步建议顺序
 
 1. 做一轮进世界客户端复核：生成 1 个友方舰船和 1 个 hostile / boss，重点验证 Pointer ship command、ShipInventory stop / AI flags / follow range / supply readout、support item refill、rider/morph 输入，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
-2. 继续 Phase 7 单人游戏性：剩余 per-ship combat/runtime hooks、hostile/boss spawn 深化、AI route/escort/standby/supply 边界。
-3. 继续 Phase 8/9：精确模型、reaction pages、全投射物家族、beam/torpedo 专属渲染、剩余 morph/player-skill special parity。
-4. 继续补 recipe / reference / balance 的尾巴，但保持单人友好，不开单人专属数值分支。
-5. 如果后续真的要做 intermod，再把 soft bridge 接到真实 Metamorph API。
+2. 若客户端复核发现单人阻塞，优先修 crash、missing texture/model fallback、命令失效、GUI 不刷新和存档破坏。
+3. 其余工作按 Full 1.12 parity backlog 排期：多人 ally UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 矩阵、精确模型/BER、全部边角舰种细节。
 
 ## 关键现代文件
 
@@ -346,10 +351,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `src/modern/java/com/lulan/shincolle/playerskill/*`
 - `src/modern/java/com/lulan/shincolle/entity/ship/*`
 - `src/modern/java/com/lulan/shincolle/entity/projectile/*`
+- `src/modern/java/com/lulan/shincolle/world/SinglePlayerResourceSourceCatalog.java`
 - `src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java`
 - `src/modern/java/com/lulan/shincolle/client/screen/*`
 - `src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java`
 
 ## 一句话总结
 
-项目现在已经从“growth loop 能跑”推进到 Phase 1-6 的资源、音效、Block Entity、菜单、专用舰船命令包、SavedData/Team/Formation 单人指挥闭环和 ship runtime supply 都有 GameTest 锁定；Phase 7 已接入第一批 per-ship combat hook、boss/loot metadata、pickup priority 边界和单人主线 smoke；Phase 8 已补单人可达 legacy model source 解析防线。下一步应进世界短客户端复核后继续剩余舰种行为、精确渲染和世界内容深化。
+项目现在已经按“双层收口”完成 Phase 5-10 的 `Done (SP mainline)`：单人主线网络/GUI/存档、行为 catalog、AI/战斗、视觉资源防线、投射物反馈、世界资源闭环和 DeskReference 指引都有 GameTest 锁定。下一步只需要做进世界客户端复核；完整 1.12 parity 作为独立 backlog 继续排期。
