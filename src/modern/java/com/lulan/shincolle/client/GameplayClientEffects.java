@@ -31,7 +31,7 @@ public final class GameplayClientEffects {
             spawnCombatReact(level, anchor, packet);
         }
 
-        if (minecraft.player != null) {
+        if (minecraft.player != null && packet.involvesEntity(minecraft.player.getId())) {
             minecraft.player.displayClientMessage(toMessage(packet.reactType()), true);
         }
     }

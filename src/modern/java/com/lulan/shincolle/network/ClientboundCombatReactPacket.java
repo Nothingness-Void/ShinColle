@@ -11,6 +11,10 @@ import java.util.function.Supplier;
 public record ClientboundCombatReactPacket(CombatReactType reactType, int attackerId, int targetId,
                                            LegacyShipAttackKind attackKind, LegacyShipProjectileVisual projectileVisual) {
 
+    public boolean involvesEntity(int entityId) {
+        return entityId == this.attackerId || entityId == this.targetId;
+    }
+
     public static void encode(ClientboundCombatReactPacket packet, FriendlyByteBuf buffer) {
         buffer.writeVarInt(packet.reactType.ordinal());
         buffer.writeVarInt(packet.attackerId);

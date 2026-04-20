@@ -41,6 +41,8 @@ import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.network.ClientboundCombatReactPacket;
+import com.lulan.shincolle.network.CombatReactType;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
@@ -3143,6 +3145,56 @@ public final class GameplayParityGameTests {
                 || spawned.getMorale() != LegacyShipBehaviorCatalog.hostileSpawnMorale(true, true)
                 || spawned.getHealth() < spawned.getMaxHealth()) {
             helper.fail("hostile encounter spawn should initialize hostile boss runtime, sound source, stats, and attack profile");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void hostileBossUsesLegacyPlayerTargetRules(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        LegacyShipEntity boss = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (boss == null) {
+            helper.fail("legacy ship entities should be creatable for hostile targeting tests");
+            return;
+        }
+
+        boss.setVariantEggMeta(23);
+        boss.initializeHostileRuntime(false, true, true);
+        boss.setPos(5.0D, 2.0D, 5.0D);
+        player.setPos(7.0D, 2.0D, 5.0D);
+
+        player.getAbilities().invulnerable = true;
+        player.getAbilities().instabuild = true;
+        if (boss.canEngage(player)) {
+            helper.fail("hostile bosses should ignore invulnerable creative or spectator players");
+            return;
+        }
+
+        player.getAbilities().invulnerable = false;
+        player.getAbilities().instabuild = false;
+        if (!boss.canEngage(player)) {
+            helper.fail("hostile bosses should still engage nearby vulnerable players");
+            return;
+        }
+
+        double legacyRange = boss.getCompatAttackRange();
+        player.setPos(5.0D + legacyRange + 1.0D, 2.0D, 5.0D);
+        if (boss.canEngage(player)) {
+            helper.fail("hostile bosses should use legacy attack range as the player target leash");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void combatReactActionbarScopeRequiresParticipant(GameTestHelper helper) {
+        ClientboundCombatReactPacket packet = new ClientboundCombatReactPacket(
+                CombatReactType.LAUNCH, 10, 20, LegacyShipAttackKind.AIR_HEAVY, LegacyShipProjectileVisual.AIRPLANE);
+        if (!packet.involvesEntity(10) || !packet.involvesEntity(20) || packet.involvesEntity(30)) {
+            helper.fail("combat reaction actionbar eligibility should be limited to attacker and target entity ids");
             return;
         }
 

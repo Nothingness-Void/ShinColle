@@ -6,6 +6,7 @@ import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.mojang.datafixers.util.Pair;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipHostilePlayerTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtByTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
@@ -95,6 +96,7 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -361,17 +363,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(1, new LegacyShipOwnerHurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new LegacyShipOwnerHurtTargetGoal(this));
-        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, true) {
-            @Override
-            public boolean canUse() {
-                return LegacyShipEntity.this.isHostileVariant() && LegacyShipEntity.this.canEngage(this.target);
-            }
-
-            @Override
-            public boolean canContinueToUse() {
-                return LegacyShipEntity.this.isHostileVariant() && super.canContinueToUse();
-            }
-        });
+        this.targetSelector.addGoal(1, new LegacyShipHostilePlayerTargetGoal(this));
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LegacyShipEntity.class, 5, true, false,
                 target -> target != null && LegacyShipEntity.this.canEngage(target)) {
             @Override
@@ -1394,7 +1386,15 @@ public class LegacyShipEntity extends PathfinderMob {
 
         Player owner = this.getOwnerPlayer();
 
+        if (this.isHostileVariant() && !this.isWithinHostileTargetRange(target)) {
+            return false;
+        }
+
         if (target instanceof Player player) {
+            if (player.getAbilities().invulnerable || player.isSpectator()) {
+                return false;
+            }
+
             if (this.isHostileVariant()) {
                 return true;
             }
@@ -1454,6 +1454,20 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         return false;
+    }
+
+    public double getHostileTargetSearchRange() {
+        return Math.max(2.0D, this.getCompatAttackRange());
+    }
+
+    public AABB getHostileTargetSearchArea() {
+        double targetRange = this.getHostileTargetSearchRange();
+        return this.getBoundingBox().inflate(targetRange, targetRange * 0.75D, targetRange);
+    }
+
+    private boolean isWithinHostileTargetRange(LivingEntity target) {
+        double targetRange = this.getHostileTargetSearchRange();
+        return this.distanceToSqr(target) <= targetRange * targetRange;
     }
 
     public boolean canAutoTargetEnemyMob(@Nullable LivingEntity target) {
@@ -2283,7 +2297,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private @Nullable LivingEntity findBossTarget() {
         LivingEntity closest = null;
         double bestDistance = Double.MAX_VALUE;
-        for (LivingEntity candidate : this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(40.0D, 12.0D, 40.0D))) {
+        for (LivingEntity candidate : this.level().getEntitiesOfClass(LivingEntity.class, this.getHostileTargetSearchArea())) {
             if (!this.canEngage(candidate)) {
                 continue;
             }
