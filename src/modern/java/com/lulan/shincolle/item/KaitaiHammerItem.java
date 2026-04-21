@@ -38,10 +38,6 @@ public class KaitaiHammerItem extends Item {
             return false;
         }
 
-        if (!player.isShiftKeyDown()) {
-            return true;
-        }
-
         if (player.level().isClientSide()) {
             return true;
         }

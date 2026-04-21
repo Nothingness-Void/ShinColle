@@ -56,6 +56,7 @@ public class TeitokuData {
     private int teamCooldown = DEFAULT_TEAM_COOLDOWN;
     private boolean hasTeam;
     private int currentTeamId;
+    private int pointerSlotCursor;
     private final int[] formationIds = new int[TEAM_COUNT];
     private final int[] teamShipUids = new int[TEAM_SLOT_COUNT];
     private final boolean[] teamShipSelected = new boolean[TEAM_SLOT_COUNT];
@@ -297,6 +298,14 @@ public class TeitokuData {
         this.currentTeamId = normalizeTeamId(teamId);
     }
 
+    public int getPointerSlotCursor() {
+        return Mth.clamp(this.pointerSlotCursor, 0, TEAM_SIZE - 1);
+    }
+
+    public void setPointerSlotCursor(int pointerSlotCursor) {
+        this.pointerSlotCursor = Mth.clamp(pointerSlotCursor, 0, TEAM_SIZE - 1);
+    }
+
     public int getCurrentFormationId() {
         return this.getFormationId(this.currentTeamId);
     }
@@ -358,7 +367,6 @@ public class TeitokuData {
     }
 
     public void assignCurrentTeamSlot(int slot, int shipUid) {
-        this.removeShipUidEverywhere(shipUid);
         this.setShipUid(this.currentTeamId, slot, shipUid);
     }
 

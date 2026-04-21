@@ -1,6 +1,7 @@
 package com.lulan.shincolle.network;
 
 public enum GameplayCommandType {
+    SET_POINTER_MODE,
     TOGGLE_SIT_SINGLE,
     TOGGLE_SIT_GROUP,
     CYCLE_FORMATION,

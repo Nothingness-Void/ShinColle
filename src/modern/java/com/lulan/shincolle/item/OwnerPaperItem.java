@@ -1,10 +1,11 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.sound.ShipSoundType;
-import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -15,17 +16,18 @@ import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class OwnerPaperItem extends Item {
 
-    public static final String OWNER_A_NAME = "OwnerAName";
-    public static final String OWNER_A_UUID = "OwnerAUuid";
-    public static final String OWNER_B_NAME = "OwnerBName";
-    public static final String OWNER_B_UUID = "OwnerBUuid";
-    public static final String NEXT_SLOT_IS_A = "NextSlotIsA";
+    public static final String SIGN_NAME_A = "SignNameA";
+    public static final String SIGN_NAME_B = "SignNameB";
+    public static final String SIGN_ID_A = "SignIDA";
+    public static final String SIGN_ID_B = "SignIDB";
+    private static final String SIGN_POS = "signPos";
 
-    public record Signer(UUID uuid, String name) {
+    public record Signer(int uid, UUID uuid, String name) {
     }
 
     public OwnerPaperItem(Properties properties) {
@@ -35,103 +37,86 @@ public class OwnerPaperItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-
-        if (player.isShiftKeyDown()) {
+        if (player.isShiftKeyDown() || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResultHolder.pass(stack);
         }
 
         if (!level.isClientSide()) {
-            CompoundTag tag = stack.getOrCreateTag();
-            boolean nextSlotIsA = !tag.contains(NEXT_SLOT_IS_A) || tag.getBoolean(NEXT_SLOT_IS_A);
-
-            if (nextSlotIsA) {
-                sign(tag, OWNER_A_NAME, OWNER_A_UUID, player);
-            } else {
-                sign(tag, OWNER_B_NAME, OWNER_B_UUID, player);
+            int playerUid = TeitokuHelper.getPlayerUid(serverPlayer);
+            if (playerUid <= 0) {
+                return InteractionResultHolder.pass(stack);
             }
 
-            tag.putBoolean(NEXT_SLOT_IS_A, !nextSlotIsA);
-            ShinColleSoundHelper.playShipVoice(level, player, ShipSoundType.PICKITEM, 0.6F,
-                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-            player.displayClientMessage(Component.translatable("chat.shincolle.ownerpaper.signed",
-                    Component.translatable(nextSlotIsA ? "gui.shincolle.ownerpaper.slot_a" : "gui.shincolle.ownerpaper.slot_b")), true);
+            CompoundTag tag = stack.getTag();
+            if (tag == null) {
+                tag = new CompoundTag();
+                tag.putString(SIGN_NAME_A, player.getName().getString());
+                tag.putString(SIGN_NAME_B, "");
+                tag.putInt(SIGN_ID_A, playerUid);
+                tag.putInt(SIGN_ID_B, -1);
+                tag.putBoolean(SIGN_POS, false);
+                stack.setTag(tag);
+            } else if (tag.getBoolean(SIGN_POS)) {
+                sign(tag, SIGN_NAME_A, SIGN_ID_A, serverPlayer, playerUid);
+                tag.putBoolean(SIGN_POS, false);
+            } else {
+                sign(tag, SIGN_NAME_B, SIGN_ID_B, serverPlayer, playerUid);
+                tag.putBoolean(SIGN_POS, true);
+            }
         }
 
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+        return InteractionResultHolder.pass(stack);
     }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         CompoundTag tag = stack.getTag();
-        tooltip.add(buildSignerLine(tag, "gui.shincolle.ownerpaper.slot_a", OWNER_A_NAME, OWNER_A_UUID));
-        tooltip.add(buildSignerLine(tag, "gui.shincolle.ownerpaper.slot_b", OWNER_B_NAME, OWNER_B_UUID));
+        if (tag == null) {
+            return;
+        }
 
-        boolean nextSlotIsA = tag == null || !tag.contains(NEXT_SLOT_IS_A) || tag.getBoolean(NEXT_SLOT_IS_A);
-        tooltip.add(Component.translatable("gui.shincolle.ownerpaper.next",
-                Component.translatable(nextSlotIsA ? "gui.shincolle.ownerpaper.slot_a" : "gui.shincolle.ownerpaper.slot_b")).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("gui.shincolle.ownerpaper.use").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(buildSignerLine(tag, SIGN_NAME_A, SIGN_ID_A));
+        tooltip.add(buildSignerLine(tag, SIGN_NAME_B, SIGN_ID_B));
     }
 
-    public static java.util.Optional<Signer> resolveTransferTarget(ItemStack stack, @Nullable UUID currentOwner) {
+    public static Optional<Signer> resolveTransferTarget(ServerLevel level, ItemStack stack, int currentOwnerUid) {
         CompoundTag tag = stack.getTag();
-        if (tag == null || currentOwner == null) {
-            return java.util.Optional.empty();
+        if (tag == null || currentOwnerUid <= 0) {
+            return Optional.empty();
         }
 
-        java.util.Optional<Signer> signerA = readSigner(tag, OWNER_A_NAME, OWNER_A_UUID);
-        java.util.Optional<Signer> signerB = readSigner(tag, OWNER_B_NAME, OWNER_B_UUID);
-
-        if (signerA.isPresent() && signerA.get().uuid().equals(currentOwner)) {
-            return signerB;
+        int signerA = tag.getInt(SIGN_ID_A);
+        int signerB = tag.getInt(SIGN_ID_B);
+        if (signerA <= 0 || signerB <= 0) {
+            return Optional.empty();
         }
 
-        if (signerB.isPresent() && signerB.get().uuid().equals(currentOwner)) {
-            return signerA;
+        int targetUid;
+        if (signerA == currentOwnerUid) {
+            targetUid = signerB;
+        } else if (signerB == currentOwnerUid) {
+            targetUid = signerA;
+        } else {
+            return Optional.empty();
         }
 
-        return java.util.Optional.empty();
+        for (ServerPlayer onlinePlayer : level.getServer().getPlayerList().getPlayers()) {
+            if (TeitokuHelper.getPlayerUid(onlinePlayer) == targetUid) {
+                return Optional.of(new Signer(targetUid, onlinePlayer.getUUID(), onlinePlayer.getGameProfile().getName()));
+            }
+        }
+
+        return Optional.empty();
     }
 
-    private static void sign(CompoundTag tag, String nameKey, String uuidKey, Player player) {
-        tag.putString(nameKey, player.getName().getString());
-        tag.putString(uuidKey, player.getUUID().toString());
+    private static void sign(CompoundTag tag, String nameKey, String idKey, ServerPlayer player, int uid) {
+        tag.putString(nameKey, player.getGameProfile().getName());
+        tag.putInt(idKey, uid);
     }
 
-    private static java.util.Optional<Signer> readSigner(CompoundTag tag, String nameKey, String uuidKey) {
-        if (!tag.contains(nameKey) || !tag.contains(uuidKey)) {
-            return java.util.Optional.empty();
-        }
-
-        String name = tag.getString(nameKey);
-        String uuidText = tag.getString(uuidKey);
-        if (name.isBlank() || uuidText.isBlank()) {
-            return java.util.Optional.empty();
-        }
-
-        try {
-            return java.util.Optional.of(new Signer(java.util.UUID.fromString(uuidText), name));
-        } catch (IllegalArgumentException ignored) {
-            return java.util.Optional.empty();
-        }
-    }
-
-    private static Component buildSignerLine(@Nullable CompoundTag tag, String slotKey, String nameKey, String uuidKey) {
-        if (tag == null || !tag.contains(nameKey)) {
-            return Component.translatable(slotKey)
-                    .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
-                    .append(Component.translatable("gui.shincolle.ownerpaper.empty").withStyle(ChatFormatting.DARK_GRAY));
-        }
-
-        String name = tag.getString(nameKey);
-        String uuid = abbreviateUuid(tag.getString(uuidKey));
-
-        return Component.translatable(slotKey)
-                .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(name).withStyle(ChatFormatting.AQUA))
-                .append(Component.literal(" [" + uuid + "]").withStyle(ChatFormatting.RED));
-    }
-
-    private static String abbreviateUuid(String uuid) {
-        return uuid.length() <= 8 ? uuid : uuid.substring(0, 8);
+    private static Component buildSignerLine(CompoundTag tag, String nameKey, String idKey) {
+        return Component.literal(String.valueOf(tag.getInt(idKey))).withStyle(ChatFormatting.RED)
+                .append(Component.literal(" "))
+                .append(Component.literal(tag.getString(nameKey)).withStyle(ChatFormatting.AQUA));
     }
 }

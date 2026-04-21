@@ -6,29 +6,30 @@ import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
-import com.lulan.shincolle.registry.ModSoundEvents;
-import com.lulan.shincolle.sound.ShipSoundType;
-import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.team.TeamData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+
 import javax.annotation.Nullable;
 import java.util.List;
 
 public class PointerItem extends Item {
 
     private static final String MODE_TAG = "Mode";
-    private static final int MAX_MODE = 3;
+    private static final int MAX_MODE = 5;
 
     public PointerItem(Properties properties) {
         super(properties);
@@ -42,63 +43,17 @@ public class PointerItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        int mode = getMode(stack);
-
-        if (player.isShiftKeyDown() && player.isSprinting()) {
-            if (mode == 2) {
-                sendGameplayCommand(player, GameplayCommandType.CLEAR_CURRENT_TEAM, payload -> {
-                });
-                return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-            }
-
-            int nextMode = (mode + 1) % (MAX_MODE + 1);
-            setMode(stack, nextMode);
-
-            if (!level.isClientSide()) {
-                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-                player.displayClientMessage(Component.translatable("chat.shincolle.pointer.mode_changed", getModeName(nextMode)), true);
-            }
-
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+        if (isCaressMode(getMode(stack))) {
+            return InteractionResultHolder.pass(stack);
         }
 
         if (player.isShiftKeyDown()) {
-            sendGameplayCommand(player, mode == 2 ? GameplayCommandType.OPEN_DESK_SCREEN : GameplayCommandType.OPEN_FORMATION_SCREEN, payload -> {
-                if (mode == 2) {
-                    payload.putInt(GameplayCommandHandler.TAG_MODE, 1);
-                }
+            sendGameplayCommand(player, GameplayCommandType.OPEN_FORMATION_SCREEN, payload -> {
             });
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
-        if (player.isSprinting() && mode != 2) {
-            sendShipCommand(player, ServerboundShipCommandPacket.stop(
-                    mode == 0 ? 1 : 2,
-                    ServerboundShipCommandPacket.NO_ENTITY,
-                    ServerboundShipCommandPacket.NO_UID));
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-        }
-
-        if (mode == 2 && player.isSprinting()) {
-            sendGameplayCommand(player, GameplayCommandType.CYCLE_FORMATION, payload -> {
-            });
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-        }
-
-        ShinColleSoundHelper.playShipVoice(level, player, ShipSoundType.PICKITEM, 0.55F,
-                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.1F));
-
-        if (level.isClientSide()) {
-            switch (mode) {
-                case 1 -> player.displayClientMessage(Component.translatable("chat.shincolle.pointer.command_group_hint"), true);
-                case 2 -> player.displayClientMessage(Component.translatable("chat.shincolle.pointer.targetclass_hint"), true);
-                case 3 -> player.displayClientMessage(Component.translatable("gui.shincolle.pointer.caress_note"), true);
-                default -> player.displayClientMessage(Component.translatable("chat.shincolle.pointer.command_single_hint"), true);
-            }
-        }
-
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+        return InteractionResultHolder.pass(stack);
     }
 
     @Override
@@ -108,23 +63,19 @@ public class PointerItem extends Item {
             return InteractionResult.PASS;
         }
 
-        ItemStack stack = context.getItemInHand();
-        int mode = getMode(stack);
-        if (mode == 3) {
+        int mode = getMode(context.getItemInHand());
+        if (isCaressMode(mode)) {
             return InteractionResult.PASS;
         }
 
         if (player.isShiftKeyDown()) {
-            sendGameplayCommand(player, mode == 2 ? GameplayCommandType.OPEN_DESK_SCREEN : GameplayCommandType.OPEN_FORMATION_SCREEN, payload -> {
-                if (mode == 2) {
-                    payload.putInt(GameplayCommandHandler.TAG_MODE, 1);
-                }
+            sendGameplayCommand(player, GameplayCommandType.OPEN_FORMATION_SCREEN, payload -> {
             });
             return InteractionResult.sidedSuccess(player.level().isClientSide());
         }
 
         sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
-                mode == 0 ? 1 : 2,
+                getCommandMode(mode),
                 ServerboundShipCommandPacket.NO_ENTITY,
                 ServerboundShipCommandPacket.NO_UID,
                 context.getClickedPos()));
@@ -134,9 +85,19 @@ public class PointerItem extends Item {
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity interactionTarget, InteractionHand hand) {
         int mode = getMode(stack);
-
-        if (mode == 3) {
+        if (isCaressMode(mode)) {
             return InteractionResult.PASS;
+        }
+
+        int commandMode = getCommandMode(mode);
+
+        if (player.isSprinting()) {
+            sendShipCommand(player, ServerboundShipCommandPacket.guard(
+                    commandMode,
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID,
+                    interactionTarget.getId()));
+            return InteractionResult.CONSUME;
         }
 
         if (player.isShiftKeyDown() && interactionTarget instanceof LegacyShipEntity ship && ship.canCommanderEdit(player)) {
@@ -144,45 +105,66 @@ public class PointerItem extends Item {
             return InteractionResult.CONSUME;
         }
 
-        if (mode == 2 && player.isShiftKeyDown()) {
-            net.minecraft.resources.ResourceLocation targetKey =
-                    net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(interactionTarget.getType());
-            String targetClass = targetKey == null ? "" : targetKey.toString();
-            if (targetClass.isBlank()) {
-                player.displayClientMessage(Component.translatable("chat.shincolle.pointer.targetclass_invalid"), true);
-                return InteractionResult.CONSUME;
-            }
-
-            sendGameplayCommand(player, GameplayCommandType.TOGGLE_TARGET_CLASS,
-                    payload -> payload.putString(GameplayCommandHandler.TAG_TARGET_CLASS, targetClass));
-            return InteractionResult.CONSUME;
-        }
-
-        if (mode <= 1
-                && !player.isSprinting()
-                && interactionTarget instanceof LegacyShipEntity ship
-                && ship.canCommanderEdit(player)) {
+        if (interactionTarget instanceof LegacyShipEntity ship && ship.canCommanderEdit(player)) {
             sendShipCommand(player, ServerboundShipCommandPacket.toggleSit(
-                    mode == 0 ? 0 : 2,
+                    commandMode,
                     ship.getId(),
                     ship.getShipUid()));
             return InteractionResult.CONSUME;
         }
 
-        int commandMode = mode == 0 ? 1 : 2;
-        sendShipCommand(player, player.isSprinting()
-                ? ServerboundShipCommandPacket.guard(commandMode,
-                ServerboundShipCommandPacket.NO_ENTITY,
-                ServerboundShipCommandPacket.NO_UID,
-                interactionTarget.getId())
-                : ServerboundShipCommandPacket.attack(commandMode,
+        if (shouldMoveToEntity(player, interactionTarget)) {
+            sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
+                    commandMode,
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID,
+                    interactionTarget.blockPosition()));
+            return InteractionResult.CONSUME;
+        }
+
+        if (interactionTarget.isInvisible()) {
+            return InteractionResult.PASS;
+        }
+
+        sendShipCommand(player, ServerboundShipCommandPacket.attack(
+                commandMode,
                 ServerboundShipCommandPacket.NO_ENTITY,
                 ServerboundShipCommandPacket.NO_UID,
                 interactionTarget.getId()));
         return InteractionResult.CONSUME;
     }
 
-    private static void sendGameplayCommand(Player player, GameplayCommandType commandType, java.util.function.Consumer<CompoundTag> payloadBuilder) {
+    private static boolean shouldMoveToEntity(Player player, LivingEntity target) {
+        if (target.isInvisible()) {
+            return true;
+        }
+
+        int playerUid = TeitokuHelper.getPlayerUid(player);
+        if (target instanceof LegacyShipEntity ship) {
+            return ship.canCommanderEdit(player) || isFriendlyTarget(playerUid, ship.getOwnerUid());
+        }
+
+        if (target instanceof Player otherPlayer) {
+            return otherPlayer == player || isFriendlyTarget(playerUid, TeitokuHelper.getPlayerUid(otherPlayer));
+        }
+
+        return false;
+    }
+
+    private static boolean isFriendlyTarget(int sourceUid, int targetUid) {
+        if (sourceUid <= 0 || targetUid <= 0) {
+            return false;
+        }
+        if (sourceUid == targetUid) {
+            return true;
+        }
+
+        TeamData teamData = TeitokuHelper.getClientTeamData().get(sourceUid);
+        return teamData != null && teamData.isAlly(targetUid);
+    }
+
+    private static void sendGameplayCommand(Player player, GameplayCommandType commandType,
+                                            java.util.function.Consumer<CompoundTag> payloadBuilder) {
         CompoundTag payload = new CompoundTag();
         payloadBuilder.accept(payload);
 
@@ -206,7 +188,8 @@ public class PointerItem extends Item {
     }
 
     public static float getModelMode(ItemStack stack) {
-        return getMode(stack);
+        int mode = getMode(stack);
+        return isCaressMode(mode) ? 3.0F : getCommandMode(mode);
     }
 
     public static int getMode(ItemStack stack) {
@@ -219,15 +202,43 @@ public class PointerItem extends Item {
         return mode >= 0 && mode <= MAX_MODE ? mode : 0;
     }
 
-    private static void setMode(ItemStack stack, int mode) {
-        stack.getOrCreateTag().putInt(MODE_TAG, mode);
+    public static int getCommandMode(int mode) {
+        int commandMode = mode % 3;
+        return commandMode < 0 ? commandMode + 3 : commandMode;
     }
 
-    private static Component getModeName(int mode) {
+    public static boolean isCaressMode(int mode) {
+        return mode > 2;
+    }
+
+    public static int cycleCommandMode(int mode) {
         return switch (mode) {
+            case 1, 4 -> 2;
+            case 2, 5 -> 0;
+            default -> 1;
+        };
+    }
+
+    public static int toggleCaressMode(int mode) {
+        return switch (mode) {
+            case 1, 2 -> mode + 3;
+            case 3, 4, 5 -> mode - 3;
+            default -> 3;
+        };
+    }
+
+    public static void setMode(ItemStack stack, int mode) {
+        stack.getOrCreateTag().putInt(MODE_TAG, Math.max(0, Math.min(MAX_MODE, mode)));
+    }
+
+    public static Component getModeName(int mode) {
+        if (isCaressMode(mode)) {
+            return Component.translatable("gui.shincolle.pointer.caress");
+        }
+
+        return switch (getCommandMode(mode)) {
             case 1 -> Component.translatable("gui.shincolle.pointer1");
             case 2 -> Component.translatable("gui.shincolle.pointer2");
-            case 3 -> Component.translatable("gui.shincolle.pointer.caress");
             default -> Component.translatable("gui.shincolle.pointer0");
         };
     }

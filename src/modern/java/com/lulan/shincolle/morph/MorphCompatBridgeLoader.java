@@ -17,18 +17,18 @@ public final class MorphCompatBridgeLoader {
     public static MorphCompatBridge load() {
         boolean metamorphPresent = ModList.get().isLoaded("metamorph");
         MorphCompatBridge bridge = metamorphPresent
-                ? new PlaceholderExternalBridge("metamorph")
+                ? new SoftDependencyBridge("metamorph")
                 : MorphCompatBridge.NOOP;
         LOGGER.info("Morph compat bridge loaded: id={}, available={}, capabilities={}",
                 bridge.bridgeId(), bridge.isAvailable(), bridge.describeCapabilities());
         return bridge;
     }
 
-    private static final class PlaceholderExternalBridge implements MorphCompatBridge {
+    private static final class SoftDependencyBridge implements MorphCompatBridge {
 
         private final String targetModId;
 
-        private PlaceholderExternalBridge(String targetModId) {
+        private SoftDependencyBridge(String targetModId) {
             this.targetModId = targetModId;
         }
 
@@ -39,7 +39,7 @@ public final class MorphCompatBridgeLoader {
 
         @Override
         public String describeCapabilities() {
-            return "mod_present=true,sync_hook=true,reset_hook=true,attack_delegate_hook=true";
+            return "mod_present=true,active_bridge=false";
         }
 
         @Override

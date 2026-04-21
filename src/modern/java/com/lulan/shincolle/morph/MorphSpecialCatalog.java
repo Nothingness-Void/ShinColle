@@ -2,6 +2,7 @@ package com.lulan.shincolle.morph;
 
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
 import com.lulan.shincolle.network.CombatFxDispatcher;
@@ -17,13 +18,9 @@ import net.minecraft.world.phys.Vec3;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 final class MorphSpecialCatalog {
-
-    private static final Map<Integer, Behavior> BEHAVIORS = createSpecialBehaviors();
 
     private MorphSpecialCatalog() {
     }
@@ -65,27 +62,28 @@ final class MorphSpecialCatalog {
         return bestTarget;
     }
 
-    private static Map<Integer, Behavior> createSpecialBehaviors() {
-        Map<Integer, Behavior> behaviors = new HashMap<>();
-        register(behaviors, 130, MorphSpecialCatalog::performShimakazeSpecial, 36, 2036);
-        register(behaviors, 170, MorphSpecialCatalog::performNagatoSpecial, 37, 2037);
-        register(behaviors, 200, MorphSpecialCatalog::performYamatoSpecial, 46, 2046);
-        register(behaviors, 120, MorphSpecialCatalog::performTenryuuSpecial, 56, 2056);
-        register(behaviors, 120, MorphSpecialCatalog::performTatsutaSpecial, 57, 2057);
-        register(behaviors, 140, MorphSpecialCatalog::performHeavyCruiserSpecial, 58, 2058, 59, 2059);
-        register(behaviors, 150, MorphSpecialCatalog::performKongouClassSpecial, 60, 2060, 61, 2061, 62, 2062, 63, 2063);
-        return Map.copyOf(behaviors);
-    }
-
-    private static void register(Map<Integer, Behavior> behaviors, int cooldown, CastAction castAction, int... legacyClassIds) {
-        Behavior behavior = new Behavior(cooldown, castAction);
-        for (int legacyClassId : legacyClassIds) {
-            behaviors.put(legacyClassId, behavior);
-        }
-    }
-
     private static @Nullable Behavior resolve(@Nullable MorphProfile profile) {
-        return profile == null ? null : BEHAVIORS.get(profile.getLegacyClassId());
+        if (profile == null) {
+            return null;
+        }
+
+        LegacyShipBehaviorCatalog.CombatHook hook =
+                LegacyShipBehaviorCatalog.combatHookForLegacyClassId(profile.getLegacyClassId());
+        int cooldown = LegacyShipBehaviorCatalog.morphSpecialCooldown(hook);
+        if (cooldown <= 0) {
+            return null;
+        }
+
+        return switch (hook) {
+            case SHIMAKAZE_TORPEDO_BURST -> new Behavior(cooldown, MorphSpecialCatalog::performShimakazeSpecial);
+            case NAGATO_HEAVY_STRIKE -> new Behavior(cooldown, MorphSpecialCatalog::performNagatoSpecial);
+            case YAMATO_BEAM_BARRAGE -> new Behavior(cooldown, MorphSpecialCatalog::performYamatoSpecial);
+            case TENRYUU_DASH -> new Behavior(cooldown, MorphSpecialCatalog::performTenryuuSpecial);
+            case TATSUTA_CONTROL_AOE -> new Behavior(cooldown, MorphSpecialCatalog::performTatsutaSpecial);
+            case HEAVY_CRUISER_BARRAGE -> new Behavior(cooldown, MorphSpecialCatalog::performHeavyCruiserSpecial);
+            case KONGOU_COMBO -> new Behavior(cooldown, MorphSpecialCatalog::performKongouClassSpecial);
+            case NONE -> null;
+        };
     }
 
     private static boolean performShimakazeSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
