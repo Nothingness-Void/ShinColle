@@ -5,79 +5,100 @@ import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
 public final class HostileEncounterTable {
 
-    private static final List<HostileSpawnProfile> OCEAN_COMMON = List.of(
-            new HostileSpawnProfile(2, 12, false, false),
-            new HostileSpawnProfile(3, 10, false, false),
-            new HostileSpawnProfile(4, 10, false, false),
-            new HostileSpawnProfile(5, 10, false, false),
-            new HostileSpawnProfile(18, 7, false, false),
-            new HostileSpawnProfile(11, 6, false, false),
-            new HostileSpawnProfile(12, 6, false, false),
-            new HostileSpawnProfile(19, 5, false, false),
-            new HostileSpawnProfile(20, 5, false, false),
-            new HostileSpawnProfile(21, 5, false, false),
-            new HostileSpawnProfile(14, 4, true, false),
-            new HostileSpawnProfile(15, 4, true, false),
-            new HostileSpawnProfile(16, 4, true, false),
-            new HostileSpawnProfile(17, 4, true, false));
-    private static final List<HostileSpawnProfile> OCEAN_BOSSES = List.of(
-            new HostileSpawnProfile(22, 8, true, true),
-            new HostileSpawnProfile(23, 6, true, true),
-            new HostileSpawnProfile(28, 7, true, true),
-            new HostileSpawnProfile(30, 6, true, true),
-            new HostileSpawnProfile(31, 5, true, true),
-            new HostileSpawnProfile(32, 4, true, true),
-            new HostileSpawnProfile(33, 4, true, true),
-            new HostileSpawnProfile(35, 3, true, true),
-            new HostileSpawnProfile(46, 4, true, true),
-            new HostileSpawnProfile(51, 4, true, true),
-            new HostileSpawnProfile(74, 3, true, true));
+    private static final int[] COMMON_POOL = {2053, 2054, 2055, 2056, 2038, 2040, 2041};
+    private static final int[] RARE_CRUISER_POOL = {2058, 2059, 2060, 2061};
+    private static final int[] RARE_CARRIER_POOL = {2049, 2050};
+    private static final int[] SUPER_RARE_KONGOU_POOL = {2062, 2063, 2064, 2065};
+    private static final int[] REACHABLE_HOSTILE_POOL = {
+            2038, 2039, 2040, 2041, 2048, 2049, 2050,
+            2053, 2054, 2055, 2056, 2058, 2059, 2060, 2061, 2062, 2063, 2064, 2065
+    };
+    private static final List<HostileSpawnProfile> LEGACY_COMMON_PROFILES = createCommonProfiles();
+    private static final List<HostileSpawnProfile> LEGACY_BOSS_PROFILES = createBossProfiles();
 
     private HostileEncounterTable() {
     }
 
     public static List<HostileSpawnProfile> commonProfiles() {
-        return OCEAN_COMMON;
+        return LEGACY_COMMON_PROFILES;
     }
 
     public static List<HostileSpawnProfile> bossProfiles() {
-        return OCEAN_BOSSES;
+        return LEGACY_BOSS_PROFILES;
     }
 
     public static List<ShipEntitySpec> reachableShipSpecs() {
         LinkedHashSet<ShipEntitySpec> specs = new LinkedHashSet<>();
-        OCEAN_COMMON.forEach(profile -> specs.add(ShipEntitySpecs.getByEggMeta(profile.eggMeta())));
-        OCEAN_BOSSES.forEach(profile -> specs.add(ShipEntitySpecs.getByEggMeta(profile.eggMeta())));
+        for (int eggMeta : REACHABLE_HOSTILE_POOL) {
+            specs.add(ShipEntitySpecs.getByEggMeta(eggMeta));
+        }
         return List.copyOf(specs);
     }
 
     public static HostileSpawnProfile pick(RandomSource random, Difficulty difficulty, boolean deepOcean, boolean allowBoss) {
-        if (allowBoss && difficulty != Difficulty.PEACEFUL && random.nextFloat() < (deepOcean ? 0.45F : 0.28F)) {
-            return weightedPick(random, OCEAN_BOSSES);
+        if (difficulty == Difficulty.PEACEFUL) {
+            return new HostileSpawnProfile(COMMON_POOL[0], 1, false, false);
         }
 
-        return weightedPick(random, OCEAN_COMMON);
+        if (allowBoss && random.nextInt(4) == 0) {
+            return bossProfile(random);
+        }
+
+        return commonProfile(random);
     }
 
-    private static HostileSpawnProfile weightedPick(RandomSource random, List<HostileSpawnProfile> entries) {
-        int totalWeight = 0;
-        for (HostileSpawnProfile entry : entries) {
-            totalWeight += Math.max(1, entry.weight());
+    public static HostileSpawnProfile commonProfile(RandomSource random) {
+        return new HostileSpawnProfile(pickLegacyMobEggMeta(random), 1, random.nextInt(10) > 7, false);
+    }
+
+    public static HostileSpawnProfile bossProfile(RandomSource random) {
+        return new HostileSpawnProfile(pickLegacyMobEggMeta(random), 1, random.nextInt(100) > 65, true);
+    }
+
+    private static int pickLegacyMobEggMeta(RandomSource random) {
+        int tierRoll = random.nextInt(100);
+
+        if (tierRoll > 75) {
+            return switch (random.nextInt(3)) {
+                case 1 -> 2048;
+                case 2 -> pickFrom(random, SUPER_RARE_KONGOU_POOL);
+                default -> 2039;
+            };
         }
 
-        int roll = random.nextInt(Math.max(1, totalWeight));
-        for (HostileSpawnProfile entry : entries) {
-            roll -= Math.max(1, entry.weight());
-            if (roll < 0) {
-                return entry;
-            }
+        if (tierRoll > 45) {
+            return switch (random.nextInt(3)) {
+                case 1, 2 -> pickFrom(random, RARE_CRUISER_POOL);
+                default -> pickFrom(random, RARE_CARRIER_POOL);
+            };
         }
 
-        return entries.get(0);
+        return pickFrom(random, COMMON_POOL);
+    }
+
+    private static int pickFrom(RandomSource random, int[] pool) {
+        return pool[random.nextInt(pool.length)];
+    }
+
+    private static List<HostileSpawnProfile> createCommonProfiles() {
+        ArrayList<HostileSpawnProfile> profiles = new ArrayList<>(REACHABLE_HOSTILE_POOL.length);
+        for (int eggMeta : REACHABLE_HOSTILE_POOL) {
+            profiles.add(new HostileSpawnProfile(eggMeta, 1, false, false));
+        }
+        return List.copyOf(profiles);
+    }
+
+    private static List<HostileSpawnProfile> createBossProfiles() {
+        ArrayList<HostileSpawnProfile> profiles = new ArrayList<>(REACHABLE_HOSTILE_POOL.length);
+        for (int eggMeta : REACHABLE_HOSTILE_POOL) {
+            profiles.add(new HostileSpawnProfile(eggMeta, 1, true, true));
+        }
+        return List.copyOf(profiles);
     }
 }

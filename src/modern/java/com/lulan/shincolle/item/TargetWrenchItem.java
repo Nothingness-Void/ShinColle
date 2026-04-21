@@ -2,9 +2,11 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -13,6 +15,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
@@ -42,21 +45,7 @@ public class TargetWrenchItem extends Item {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-
-        if (!player.isShiftKeyDown()) {
-            if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                MorphHelper.openMorphScreen(serverPlayer);
-            }
-            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-        }
-
-        if (!level.isClientSide() && hasSelection(stack)) {
-            clearSelection(stack);
-            player.displayClientMessage(Component.translatable("chat.shincolle.wrench.selection_cleared"), true);
-        }
-
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+        return InteractionResultHolder.pass(player.getItemInHand(hand));
     }
 
     @Override
@@ -136,11 +125,27 @@ public class TargetWrenchItem extends Item {
     }
 
     @Override
+    public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
+        if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+                || !(entity instanceof LegacyShipEntity ship)
+                || ship.isHostileVariant()
+                || !ship.canCommanderEdit(serverPlayer)) {
+            return false;
+        }
+
+        boolean unlocked = MorphHelper.unlockMorph(serverPlayer, ship.getShipClassId());
+        TeitokuHelper.get(serverPlayer).ifPresent(data -> data.setSelectedMorphProfile(ship.getShipClassId()));
+        TeitokuHelper.syncGameplayState(serverPlayer);
+        serverPlayer.displayClientMessage(Component.literal(unlocked
+                ? "Unlocked morph: " + ship.getName().getString()
+                : "Selected morph: " + ship.getName().getString()), true);
+        return true;
+    }
+
+    @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("gui.shincolle.wrench.selection", describeSelection(stack)).withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.translatable("gui.shincolle.wrench.morph").withStyle(ChatFormatting.LIGHT_PURPLE));
         tooltip.add(Component.translatable("gui.shincolle.wrench3").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("gui.shincolle.wrench.clear").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     private static void pairRouteNodes(Level level, Player player, BlockPos fromPos, RouteNode fromNode,

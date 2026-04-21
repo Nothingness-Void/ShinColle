@@ -5,7 +5,6 @@ import com.lulan.shincolle.item.BucketRepairItem;
 import com.lulan.shincolle.item.CombatRationItem;
 import com.lulan.shincolle.item.DeskReferenceItem;
 import com.lulan.shincolle.item.KaitaiHammerItem;
-import com.lulan.shincolle.item.LegacyPlaceholderItem;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.item.LegacyShipSupportItem;
 import com.lulan.shincolle.item.MarriageRingItem;
@@ -50,12 +49,12 @@ public final class ModItems {
             "gui.shincolle.ship_support.heavy_ammo", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> BUCKETREPAIR = ITEMS.register("bucketrepair",
             () -> new BucketRepairItem(new Item.Properties().stacksTo(16)));
-    public static final RegistryObject<Item> COMBATRATION = combatRation("combatration", "gui.shincolle.combatration0", 1400, 900, 1800, 4, 0.35F);
-    public static final RegistryObject<Item> COMBATRATION1 = combatRation("combatration1", "gui.shincolle.combatration1", 1800, 3600, 7200, 5, 0.4F);
-    public static final RegistryObject<Item> COMBATRATION2 = combatRation("combatration2", "gui.shincolle.combatration2", 1600, 1200, 2400, 6, 0.55F);
-    public static final RegistryObject<Item> COMBATRATION3 = combatRation("combatration3", "gui.shincolle.combatration3", 2000, 3900, 7800, 7, 0.65F);
-    public static final RegistryObject<Item> COMBATRATION4 = combatRation("combatration4", "gui.shincolle.combatration4", 3000, 100, 200, 3, 0.25F);
-    public static final RegistryObject<Item> COMBATRATION5 = combatRation("combatration5", "gui.shincolle.combatration5", 4000, 900, 1800, 4, 0.3F);
+    public static final RegistryObject<Item> COMBATRATION = combatRation("combatration", "gui.shincolle.combatration0", 1400, 900, 1800, false);
+    public static final RegistryObject<Item> COMBATRATION1 = combatRation("combatration1", "gui.shincolle.combatration1", 1800, 3600, 7200, false);
+    public static final RegistryObject<Item> COMBATRATION2 = combatRation("combatration2", "gui.shincolle.combatration2", 1600, 1200, 2400, false);
+    public static final RegistryObject<Item> COMBATRATION3 = combatRation("combatration3", "gui.shincolle.combatration3", 2000, 3900, 7800, false);
+    public static final RegistryObject<Item> COMBATRATION4 = combatRation("combatration4", "gui.shincolle.combatration4", 3000, 100, 200, true);
+    public static final RegistryObject<Item> COMBATRATION5 = combatRation("combatration5", "gui.shincolle.combatration5", 4000, 900, 1800, true);
     public static final RegistryObject<Item> DESKITEMBOOK = ITEMS.register("deskitembook",
             () -> new DeskReferenceItem(new Item.Properties().stacksTo(1), 1, "item.shincolle.deskitembook"));
     public static final RegistryObject<Item> DESKITEMRADAR = ITEMS.register("deskitemradar",
@@ -146,41 +145,15 @@ public final class ModItems {
         return ITEMS.register(name, supplier);
     }
 
-    private static RegistryObject<Item> placeholderItem(String name, int stackSize, String tooltipKey) {
-        return placeholderItem(name, stackSize, tooltipKey, false);
-    }
-
-    private static RegistryObject<Item> placeholderItem(String name, int stackSize, String tooltipKey, boolean foil) {
-        return ITEMS.register(name, () -> new LegacyPlaceholderItem(new Item.Properties().stacksTo(stackSize), tooltipKey, foil));
-    }
-
-    private static List<RegistryObject<Item>> placeholderVariants(String baseName, int count, String tooltipKey) {
-        List<RegistryObject<Item>> items = new ArrayList<>();
-
-        for (int i = 0; i < count; i++) {
-            items.add(placeholderItem(variantName(baseName, i), 1, tooltipKey));
-        }
-
-        return List.copyOf(items);
-    }
-
-    private static List<RegistryObject<Item>> placeholderNamedItems(int stackSize, String tooltipKey, String... names) {
-        List<RegistryObject<Item>> items = new ArrayList<>();
-
-        for (String name : names) {
-            items.add(placeholderItem(name, stackSize, tooltipKey));
-        }
-
-        return List.copyOf(items);
-    }
-
-    private static RegistryObject<Item> combatRation(String name, String descriptionKey, int moraleValue, int fuelMin, int fuelMax, int nutrition, float saturation) {
+    private static RegistryObject<Item> combatRation(String name, String descriptionKey, int moraleValue,
+                                                     int grudgeMin, int grudgeMax, boolean clearsDebuffs) {
         return ITEMS.register(name, () -> new CombatRationItem(
-                new Item.Properties().stacksTo(16).food(CombatRationItem.rationFood(nutrition, saturation)),
+                new Item.Properties().stacksTo(16),
                 descriptionKey,
                 moraleValue,
-                fuelMin,
-                fuelMax));
+                grudgeMin,
+                grudgeMax,
+                clearsDebuffs));
     }
 
     private static RegistryObject<Item> shipTank(String name, int capacity) {

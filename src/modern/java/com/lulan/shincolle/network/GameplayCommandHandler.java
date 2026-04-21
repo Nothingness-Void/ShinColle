@@ -63,6 +63,7 @@ public final class GameplayCommandHandler {
         boolean broadcastTeamState = false;
 
         switch (type) {
+            case SET_POINTER_MODE -> handleSetPointerMode(player, payload);
             case TOGGLE_SIT_SINGLE, TOGGLE_SIT_GROUP -> ShipCommandService.handleLegacy(player, type, payload);
             case CYCLE_FORMATION -> {
                 TeitokuHelper.cycleFormationId(player);
@@ -146,26 +147,6 @@ public final class GameplayCommandHandler {
         }
     }
 
-    private static void handleToggleSitSingle(ServerPlayer player, int shipId) {
-        LegacyShipEntity ship = resolveOwnedShip(player, shipId);
-        if (ship == null) {
-            return;
-        }
-        ship.setOrderedToSit(!ship.isOrderedToSit());
-    }
-
-    private static void handleToggleSitGroup(ServerPlayer player, int anchorShipId) {
-        LegacyShipEntity anchor = resolveOwnedShip(player, anchorShipId);
-        if (anchor == null) {
-            return;
-        }
-
-        boolean nextSit = !anchor.isOrderedToSit();
-        for (LegacyShipEntity ship : resolveCommandShips(player, 2, anchor)) {
-            ship.setOrderedToSit(nextSit);
-        }
-    }
-
     private static void handleAssignShip(ServerPlayer player, CompoundTag payload) {
         int slot = Mth.clamp(payload.getInt(TAG_SLOT), 0, TeitokuData.TEAM_SIZE - 1);
         boolean hasShipUid = payload.contains(TAG_SHIP_UID);
@@ -175,7 +156,11 @@ public final class GameplayCommandHandler {
             return;
         }
 
-        LegacyShipEntity ship = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
+        LegacyShipEntity ship = null;
+        if (player.level().getEntity(payload.getInt(TAG_SHIP_ID)) instanceof LegacyShipEntity byId
+                && byId.canCommanderEdit(player)) {
+            ship = byId;
+        }
 
         if (ship == null && shipUid > 0) {
             ship = TeitokuHelper.findOwnedShipByUid(player, shipUid);
@@ -215,65 +200,15 @@ public final class GameplayCommandHandler {
         TeitokuHelper.clearCurrentTeam(player);
     }
 
-    private static void handleMoveToPos(ServerPlayer player, CompoundTag payload) {
-        int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 2);
-        LegacyShipEntity anchor = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        BlockPos pos = new BlockPos(payload.getInt(TAG_X), payload.getInt(TAG_Y), payload.getInt(TAG_Z));
-        if (player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) > MAX_MOVE_COMMAND_RANGE_SQR) {
+    private static void handleSetPointerMode(ServerPlayer player, CompoundTag payload) {
+        if (!(player.getMainHandItem().getItem() instanceof com.lulan.shincolle.item.PointerItem)) {
             return;
         }
 
-        for (LegacyShipEntity ship : resolveCommandShips(player, mode, anchor)) {
-            FormationRuntimeState runtimeState = resolveFormationMoveState(player, ship, pos);
-            ship.commandMoveTo(runtimeState.targetPos(), player.level().dimension().location().toString());
-            ship.setOrderedToSit(false);
-        }
-    }
-
-    private static void handleGuardEntity(ServerPlayer player, CompoundTag payload) {
-        int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 2);
-        LegacyShipEntity anchor = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        if (!(player.level().getEntity(payload.getInt(TAG_TARGET_ID)) instanceof LivingEntity target)) {
-            return;
-        }
-        if (player.distanceToSqr(target) > MAX_TARGET_COMMAND_RANGE_SQR) {
-            return;
-        }
-
-        for (LegacyShipEntity ship : resolveCommandShips(player, mode, anchor)) {
-            ship.commandGuardEntity(target.getUUID());
-            ship.setOrderedToSit(false);
-        }
-    }
-
-    private static void handleAttackEntity(ServerPlayer player, CompoundTag payload) {
-        int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 2);
-        LegacyShipEntity anchor = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        if (!(player.level().getEntity(payload.getInt(TAG_TARGET_ID)) instanceof LivingEntity target)) {
-            return;
-        }
-        if (player.distanceToSqr(target) > MAX_TARGET_COMMAND_RANGE_SQR) {
-            return;
-        }
-
-        for (LegacyShipEntity ship : resolveCommandShips(player, mode, anchor)) {
-            if (ship.canEngage(target)) {
-                ship.setTarget(target);
-                ship.clearCommandState();
-                ship.setOrderedToSit(false);
-            }
-        }
-    }
-
-    private static void handleStop(ServerPlayer player, CompoundTag payload) {
-        int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 2);
-        LegacyShipEntity anchor = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-
-        for (LegacyShipEntity ship : resolveCommandShips(player, mode, anchor)) {
-            ship.setTarget(null);
-            ship.clearCommandState();
-            ship.getNavigation().stop();
-        }
+        int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 5);
+        com.lulan.shincolle.item.PointerItem.setMode(player.getMainHandItem(), mode);
+        player.displayClientMessage(Component.translatable("chat.shincolle.pointer.mode_changed",
+                com.lulan.shincolle.item.PointerItem.getModeName(mode)), true);
     }
 
     private static void handleToggleTargetClass(ServerPlayer player, CompoundTag payload) {
@@ -297,28 +232,6 @@ public final class GameplayCommandHandler {
         }
     }
 
-    private static void handleOpenShipInventory(ServerPlayer player, CompoundTag payload) {
-        LegacyShipEntity ship = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        if (ship == null) {
-            int shipUid = payload.getInt(TAG_SHIP_UID);
-            ship = TeitokuHelper.findOwnedShipByUid(player, shipUid);
-        }
-
-        if (ship == null || !ship.canCommanderEdit(player)) {
-            return;
-        }
-
-        LegacyShipEntity target = ship;
-        NetworkHooks.openScreen(player,
-                new SimpleMenuProvider(
-                        (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, target.getId(), target.getShipUid()),
-                        Component.translatable("gui.shincolle.ship_inventory.title", target.getName())),
-                buffer -> {
-                    buffer.writeVarInt(target.getId());
-                    buffer.writeVarInt(target.getShipUid());
-                });
-    }
-
     private static void handleOpenFormationScreen(ServerPlayer player) {
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
@@ -339,36 +252,6 @@ public final class GameplayCommandHandler {
                     buffer.writeBlockPos(player.blockPosition());
                     buffer.writeVarInt(selectedFunction);
                 });
-    }
-
-    private static void handleSetShipAiFlags(ServerPlayer player, CompoundTag payload) {
-        LegacyShipEntity ship = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        if (ship == null) {
-            ship = TeitokuHelper.findOwnedShipByUid(player, payload.getInt(TAG_SHIP_UID));
-        }
-
-        if (ship == null) {
-            return;
-        }
-
-        int flags = payload.getInt(TAG_AI_FLAGS);
-        ship.setAiAutoTarget((flags & AI_FLAG_AUTO_TARGET) != 0);
-        ship.setAiAllowPvp((flags & AI_FLAG_ALLOW_PVP) != 0);
-        ship.setAiAutoSupply((flags & AI_FLAG_AUTO_SUPPLY) != 0);
-        ship.setAiRespectRouteStay((flags & AI_FLAG_ROUTE_STAY) != 0);
-    }
-
-    private static void handleSetShipFollowRange(ServerPlayer player, CompoundTag payload) {
-        LegacyShipEntity ship = resolveOwnedShip(player, payload.getInt(TAG_SHIP_ID));
-        if (ship == null) {
-            ship = TeitokuHelper.findOwnedShipByUid(player, payload.getInt(TAG_SHIP_UID));
-        }
-
-        if (ship == null) {
-            return;
-        }
-
-        ship.setAiFollowRange(payload.getInt(TAG_FOLLOW_RANGE));
     }
 
     private static void handleMorphCycle(ServerPlayer player, boolean forward) {
@@ -493,99 +376,6 @@ public final class GameplayCommandHandler {
         }
 
         player.displayClientMessage(Component.literal("World unattackable: " + String.join(", ", classes)), false);
-    }
-
-    private static LegacyShipEntity resolveOwnedShip(ServerPlayer player, int entityId) {
-        if (!(player.level().getEntity(entityId) instanceof LegacyShipEntity ship)) {
-            return null;
-        }
-        return isCommandableFrom(player, ship) ? ship : null;
-    }
-
-    private static List<LegacyShipEntity> resolveCommandShips(ServerPlayer player, int mode, LegacyShipEntity anchor) {
-        List<LegacyShipEntity> ships = new ArrayList<>();
-
-        if (mode == 0 && anchor != null) {
-            ships.add(anchor);
-            return ships;
-        }
-
-        TeitokuHelper.collectCurrentTeamShips(player, mode == 1, ships);
-        ships.removeIf(ship -> !isCommandableFrom(player, ship));
-        if (ships.isEmpty() && anchor != null) {
-            ships.add(anchor);
-        }
-        return ships;
-    }
-
-    private static boolean isCommandableFrom(ServerPlayer commander, LegacyShipEntity ship) {
-        if (ship == null || ship.level() != commander.level() || !ship.canCommanderEdit(commander)) {
-            return false;
-        }
-
-        return commander.distanceToSqr(ship) <= MAX_SHIP_COMMAND_RANGE_SQR;
-    }
-
-    private static FormationRuntimeState resolveFormationMoveState(ServerPlayer player, LegacyShipEntity ship, BlockPos center) {
-        if (ship.getShipUid() <= 0) {
-            return new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                    TeitokuData.DEFAULT_FORMATION_ID,
-                    0,
-                    center.immutable());
-        }
-
-        return TeitokuHelper.get(player)
-                .map(teitokuData -> {
-                    int teamId = teitokuData.findTeamIdByShipUid(ship.getShipUid());
-                    int slot = teitokuData.findSlotIndexByShipUid(ship.getShipUid());
-                    if (teamId < 0 || slot < 0 || teitokuData.countShipsInTeam(teamId) <= 4) {
-                        return new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                                TeitokuData.DEFAULT_FORMATION_ID,
-                                slot < 0 ? 0 : slot,
-                                center.immutable());
-                    }
-
-                    int formationId = teitokuData.getFormationId(teamId);
-                    BlockPos formationPos = resolveFormationOffset(center, formationId, slot, player.getDirection());
-                    return new FormationRuntimeState(teamId, formationId, slot, formationPos);
-                })
-                .orElse(new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                        TeitokuData.DEFAULT_FORMATION_ID,
-                        0,
-                        center.immutable()));
-    }
-
-    private static BlockPos resolveFormationOffset(BlockPos center, int formationId, int slot, Direction forwardDirection) {
-        int normalizedSlot = Mth.clamp(slot, 0, TeitokuData.TEAM_SIZE - 1);
-        int[][] localOffsets = switch (Mth.clamp(formationId, TeitokuData.DEFAULT_FORMATION_ID, TeitokuData.MAX_FORMATION_ID)) {
-            case 1 -> new int[][]{
-                    { -4, 0 }, { -2, 0 }, { 0, 0 }, { 2, 0 }, { 4, 0 }, { 6, 0 }
-            };
-            case 2 -> new int[][]{
-                    { -2, -1 }, { -2, 1 }, { 0, -1 }, { 0, 1 }, { 2, -1 }, { 2, 1 }
-            };
-            case 3 -> new int[][]{
-                    { -3, 0 }, { -1, -2 }, { -1, 2 }, { 1, -1 }, { 1, 1 }, { 3, 0 }
-            };
-            case 4 -> new int[][]{
-                    { -3, -3 }, { -2, -2 }, { -1, -1 }, { 0, 0 }, { 1, 1 }, { 2, 2 }
-            };
-            case 5 -> new int[][]{
-                    { 0, -5 }, { 0, -3 }, { 0, -1 }, { 0, 1 }, { 0, 3 }, { 0, 5 }
-            };
-            default -> new int[][]{
-                    { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
-            };
-        };
-
-        Direction forward = forwardDirection.getAxis().isVertical() ? Direction.NORTH : forwardDirection;
-        Direction right = forward.getClockWise();
-        int forwardOffset = localOffsets[normalizedSlot][0];
-        int rightOffset = localOffsets[normalizedSlot][1];
-
-        int x = center.getX() + forward.getStepX() * forwardOffset + right.getStepX() * rightOffset;
-        int z = center.getZ() + forward.getStepZ() * forwardOffset + right.getStepZ() * rightOffset;
-        return new BlockPos(x, center.getY(), z);
     }
 
     private static String sanitizeTargetClass(String raw) {

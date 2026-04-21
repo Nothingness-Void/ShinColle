@@ -15,6 +15,7 @@ import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.item.CombatRationItem;
+import com.lulan.shincolle.item.LegacyShipSupportItem;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.item.OwnerPaperItem;
 import com.lulan.shincolle.item.PointerItem;
@@ -1649,7 +1650,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public boolean performKaitai(Player player, ItemStack hammer) {
-        if (!this.canCommanderEdit(player) || this.level().isClientSide()) {
+        if ((!this.canCommanderEdit(player) && !player.hasPermissions(2)) || this.level().isClientSide()) {
             return false;
         }
 
@@ -3230,26 +3231,6 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        if (this.getHealth() < this.getMaxHealth() * 0.55F && this.consumeFirstMatchingItem(ModItems.BUCKETREPAIR.get())) {
-            this.heal((float) ((this.getMaxHealth() * 0.08F + 6.0F) * this.getSupportEffectMultiplier()));
-            return;
-        }
-
-        if (this.hasNegativeEffects() && this.tryUseSupportItemFromInventory(action -> action.clearsNegativeStates())) {
-            return;
-        }
-
-        if (this.getHealth() < this.getMaxHealth() * 0.55F
-                && this.tryUseSupportItemFromInventory(action -> action.healRatio() > 0.0F || !action.effects().isEmpty())) {
-            return;
-        }
-
-        if (this.needsRuntimeSupply()
-                && this.tryUseSupportItemFromInventory(action -> action.hasRuntimeSupplyGain()
-                && this.canApplyRuntimeSupply(action))) {
-            return;
-        }
-
         if (this.getMorale() >= 4200) {
             return;
         }
@@ -3260,9 +3241,11 @@ public class LegacyShipEntity extends PathfinderMob {
                 continue;
             }
 
-            this.addMorale(this.scaleSupportMorale(ration.getMoraleValue()));
-            this.addShipFuel(this.rollCombatRationFuel(ration));
-            this.heal((float) (Math.max(1.0F, this.getMaxHealth() * 0.01F) * this.getSupportEffectMultiplier()));
+            this.addMorale(ration.getMoraleValue());
+            this.addGrudge(ration.rollGrudge(this.random));
+            if (ration.clearsDebuffs()) {
+                this.clearNegativeEffects();
+            }
             stack.shrink(1);
             if (stack.isEmpty()) {
                 this.shipInventory.setItem(slot, ItemStack.EMPTY);
@@ -3271,8 +3254,6 @@ public class LegacyShipEntity extends PathfinderMob {
             }
             return;
         }
-
-        this.tryUseSupportItemFromInventory(action -> action.moraleGain() > 0);
     }
 
     private boolean dimensionMatchesCommand(ServerLevel serverLevel) {
@@ -3387,25 +3368,9 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void tickMarriageBond() {
-        if (!this.isMarried() || this.tickCount % 200 != 0) {
-            return;
-        }
-
-        if (this.getMorale() < 12000) {
-            this.addMorale(24);
-        }
-
-        if (this.getHealth() < this.getMaxHealth()) {
-            this.heal(Math.max(1.0F, this.getMaxHealth() * 0.01F));
-        }
     }
 
     private void tickLegacyRingPassives() {
-        if (!this.isMarried() || this.isHostileVariant() || this.tickCount % 128 != 0) {
-            return;
-        }
-
-        LegacyShipBehaviorCatalog.tickMarriagePassive(this);
     }
 
     void applyCarrierRingAura(int durationTicks, int amplifier) {
@@ -3461,13 +3426,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 || this.getGrudge() < MAX_GRUDGE / 4;
     }
 
-    private boolean canApplyRuntimeSupply(ShipSupportAction action) {
-        return action.fuelGain() > 0 && this.getShipFuel() < MAX_SHIP_FUEL
-                || action.lightAmmoGain() > 0 && this.getLightAmmo() < MAX_LIGHT_AMMO
-                || action.heavyAmmoGain() > 0 && this.getHeavyAmmo() < MAX_HEAVY_AMMO
-                || action.grudgeGain() > 0 && this.getGrudge() < MAX_GRUDGE;
-    }
-
     private void resetOwnershipBoundState() {
         this.clearCommandState();
         this.getNavigation().stop();
@@ -3493,6 +3451,16 @@ public class LegacyShipEntity extends PathfinderMob {
         if (stack.getItem() instanceof CombatRationItem ration) {
             this.feedCombatRation(player, hand, stack, ration);
             return InteractionResult.CONSUME;
+        }
+
+        if (stack.getItem() instanceof LegacyShipSupportItem
+                || stack.is(Items.POTION)
+                || stack.getFoodProperties(this) != null) {
+            if (this.feedLegacyItem(player, hand, stack)) {
+                return InteractionResult.CONSUME;
+            }
+
+            return InteractionResult.PASS;
         }
 
         if (stack.is(ModItems.BUCKETREPAIR.get())) {
@@ -3563,11 +3531,9 @@ public class LegacyShipEntity extends PathfinderMob {
             this.addRandomModernization();
             this.addRandomModernization();
             this.addRandomModernization();
-            this.heal(this.getMaxHealth());
             this.consumeHeldItem(player, hand, 1);
             if (player instanceof ServerPlayer serverPlayer) {
                 TeitokuHelper.incrementMarriageCount(serverPlayer);
-                TeitokuHelper.addCollectedShip(serverPlayer, this.getShipClassId());
             }
             ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.MARRY, 0.8F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.06F));
@@ -3586,13 +3552,17 @@ public class LegacyShipEntity extends PathfinderMob {
                 return InteractionResult.CONSUME;
             }
 
-            OwnerPaperItem.Signer targetSigner = OwnerPaperItem.resolveTransferTarget(stack, this.getOwnerUuid().orElse(null)).orElse(null);
+            if (!(this.level() instanceof ServerLevel serverLevel)) {
+                return InteractionResult.CONSUME;
+            }
+
+            OwnerPaperItem.Signer targetSigner = OwnerPaperItem.resolveTransferTarget(serverLevel, stack, this.ownerUid).orElse(null);
             if (targetSigner == null) {
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.ownerpaper_invalid"), true);
                 return InteractionResult.CONSUME;
             }
 
-            this.setOwner(targetSigner.uuid(), targetSigner.name());
+            this.setOwner(targetSigner.uuid(), targetSigner.name(), targetSigner.uid());
             this.consumeHeldItem(player, hand, 1);
             ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.PICKITEM, 0.6F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
@@ -3602,33 +3572,21 @@ public class LegacyShipEntity extends PathfinderMob {
             return InteractionResult.CONSUME;
         }
 
-        if (stack.is(ModItems.REPAIRGODDESS.get())) {
-            if (!this.canCommanderEdit(player)) {
+        if (stack.is(ModItems.KAITAIHAMMER.get()) && player.isShiftKeyDown()) {
+            if (!this.performKaitai(player, stack)) {
                 this.displayOwnerLocked(player);
-                return InteractionResult.CONSUME;
             }
-
-            if (this.storeSingleItem(stack)) {
-                this.consumeHeldItem(player, hand, 1);
-                player.displayClientMessage(Component.translatable("chat.shincolle.ship.repairgoddess_stowed",
-                        this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getRescueItemCount()), true);
-            } else {
-                player.displayClientMessage(Component.translatable("chat.shincolle.ship.inventory_full",
-                        this.getName().copy().withStyle(ChatFormatting.GRAY)), true);
-            }
-
             return InteractionResult.CONSUME;
         }
 
         if (stack.is(ModItems.POINTERITEM.get())) {
-            if (PointerItem.getMode(stack) == 3) {
+            if (PointerItem.getMode(stack) == 3 && !player.isShiftKeyDown()) {
                 if (!this.canCommanderEdit(player)) {
                     this.displayOwnerLocked(player);
                     return InteractionResult.CONSUME;
                 }
 
-                this.addMorale(120);
-                this.heal(Math.max(1.0F, this.getMaxHealth() * 0.01F));
+                this.addMorale(20);
                 ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.FEED, 0.55F,
                         ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.caress",
@@ -3639,23 +3597,21 @@ public class LegacyShipEntity extends PathfinderMob {
             return InteractionResult.PASS;
         }
 
-        if (this.tryApplySupportItem(player, hand, stack)) {
-            return InteractionResult.CONSUME;
-        }
-
         return InteractionResult.PASS;
     }
 
     private boolean isShipInteractionItem(ItemStack stack) {
         return stack.getItem() instanceof CombatRationItem
+                || stack.getItem() instanceof LegacyShipSupportItem
+                || stack.is(Items.POTION)
+                || stack.getFoodProperties(this) != null
                 || stack.is(ModItems.BUCKETREPAIR.get())
                 || stack.is(ModItems.MODERNKIT.get())
                 || stack.is(ModItems.TRAININGBOOK.get())
                 || stack.is(ModItems.MARRIAGERING.get())
                 || stack.is(ModItems.OWNERPAPER.get())
-                || stack.is(ModItems.REPAIRGODDESS.get())
-                || stack.is(ModItems.POINTERITEM.get())
-                || this.resolveSupportItemAction(stack) != null;
+                || stack.is(ModItems.KAITAIHAMMER.get())
+                || stack.is(ModItems.POINTERITEM.get());
     }
 
     private void repairFromBucket(Player player, InteractionHand hand, ItemStack stack) {
@@ -3679,22 +3635,10 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void feedCombatRation(Player player, InteractionHand hand, ItemStack stack, CombatRationItem ration) {
-        boolean canImproveMorale = this.getMorale() < MAX_MORALE;
-        boolean canRefuel = this.getShipFuel() < MAX_SHIP_FUEL && ration.getFuelMax() > 0;
-        boolean canHeal = this.getHealth() < this.getMaxHealth();
-        if (!canImproveMorale && !canRefuel && !canHeal) {
-            player.displayClientMessage(Component.translatable("chat.shincolle.ship.feed_full",
-                    this.getName().copy().withStyle(ChatFormatting.GRAY)), true);
-            return;
-        }
-
-        this.addMorale(this.scaleSupportMorale(ration.getMoraleValue()));
-        this.addShipFuel(this.rollCombatRationFuel(ration));
-        this.heal((float) (Math.max(1.0F, this.getMaxHealth() * 0.025F) * this.getSupportEffectMultiplier()));
-
-        String itemPath = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
-        if ("combatration4".equals(itemPath) || "combatration5".equals(itemPath)) {
-            this.removeAllEffects();
+        this.addMorale(ration.getMoraleValue());
+        this.addGrudge(ration.rollGrudge(this.random));
+        if (ration.clearsDebuffs()) {
+            this.clearNegativeEffects();
         }
 
         this.consumeHeldItem(player, hand, 1);
@@ -3704,190 +3648,81 @@ public class LegacyShipEntity extends PathfinderMob {
                 this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
     }
 
-    private boolean tryApplySupportItem(Player player, InteractionHand hand, ItemStack stack) {
-        ShipSupportAction action = this.resolveSupportItemAction(stack);
-        if (action == null) {
-            return false;
-        }
-
-        return this.applySupportItemAction(action,
-                () -> this.consumeHeldItem(player, hand, 1),
-                player);
-    }
-
-    private boolean tryUseSupportItemFromInventory(java.util.function.Predicate<ShipSupportAction> predicate) {
-        for (int slot = 0; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack stack = this.shipInventory.getItem(slot);
-            ShipSupportAction action = this.resolveSupportItemAction(stack);
-            if (action == null || !predicate.test(action)) {
-                continue;
-            }
-
-            int resolvedSlot = slot;
-            if (this.applySupportItemAction(action, () -> this.consumeInventorySlot(resolvedSlot), null)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean applySupportItemAction(ShipSupportAction action, @Nullable Runnable consumeAction, @Nullable Player feedbackPlayer) {
-        boolean canImproveMorale = action.moraleGain() > 0 && this.getMorale() < MAX_MORALE;
-        boolean canReduceMorale = action.moraleGain() < 0;
-        boolean canHeal = action.healRatio() > 0.0F && this.getHealth() < this.getMaxHealth();
-        boolean canClearAll = action.clearAllEffects() && !this.getActiveEffects().isEmpty();
-        boolean canClearNegative = action.clearNegativeEffects() && this.hasNegativeEffects();
-        boolean canApplyEffects = !action.effects().isEmpty();
-        boolean canRefuel = action.fuelGain() > 0 && this.getShipFuel() < MAX_SHIP_FUEL;
-        boolean canReloadLight = action.lightAmmoGain() > 0 && this.getLightAmmo() < MAX_LIGHT_AMMO;
-        boolean canReloadHeavy = action.heavyAmmoGain() > 0 && this.getHeavyAmmo() < MAX_HEAVY_AMMO;
-        boolean canRestoreGrudge = action.grudgeGain() > 0 && this.getGrudge() < MAX_GRUDGE;
-
-        if (!canImproveMorale && !canReduceMorale && !canHeal && !canClearAll && !canClearNegative && !canApplyEffects
-                && !canRefuel && !canReloadLight && !canReloadHeavy && !canRestoreGrudge) {
-            if (feedbackPlayer != null && action.moraleGain() > 0) {
-                feedbackPlayer.displayClientMessage(Component.translatable("chat.shincolle.ship.feed_full",
-                        this.getName().copy().withStyle(ChatFormatting.GRAY)), true);
-            }
-            return false;
-        }
-
-        if (action.clearAllEffects()) {
-            this.removeAllEffects();
-        } else if (action.clearNegativeEffects()) {
-            this.clearNegativeEffects();
-        }
-
-        for (MobEffectInstance effect : action.effects()) {
-            this.applySupportEffect(effect);
-        }
-
-        if (action.healRatio() > 0.0F && this.getHealth() < this.getMaxHealth()) {
-            this.heal((float) Math.max(1.0F, this.getMaxHealth() * action.healRatio() * this.getSupportEffectMultiplier()));
-        }
-
-        if (action.moraleGain() != 0) {
-            this.addMorale(this.scaleSupportMorale(action.moraleGain()));
-        }
-        if (action.fuelGain() != 0) {
-            this.addShipFuel(action.fuelGain());
-        }
-        if (action.lightAmmoGain() != 0) {
-            this.addLightAmmo(action.lightAmmoGain());
-        }
-        if (action.heavyAmmoGain() != 0) {
-            this.addHeavyAmmo(action.heavyAmmoGain());
-        }
-        if (action.grudgeGain() != 0) {
-            this.addGrudge(action.grudgeGain());
-        }
-
-        if (consumeAction != null) {
-            consumeAction.run();
-        }
-
-        if (feedbackPlayer != null) {
-            ShinColleSoundHelper.playShipVoice(this.level(), feedbackPlayer, ShipSoundType.FEED, 0.62F,
-                    ShinColleSoundHelper.variedPitch(feedbackPlayer, 1.0F, 0.08F));
-            feedbackPlayer.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
-                    this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
-        }
-
-        return true;
-    }
-
-    private @Nullable ShipSupportAction resolveSupportItemAction(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return null;
-        }
+    private boolean feedLegacyItem(Player player, InteractionHand hand, ItemStack stack) {
+        int moraleGain = 0;
+        int grudgeGain = 0;
+        int lightAmmoGain = 0;
+        int heavyAmmoGain = 0;
+        boolean consumed = false;
 
         if (stack.is(ModItems.GRUDGE.get())) {
-            return new ShipSupportAction(240, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 25, 0)),
-                    0, 0, 0, 300);
-        }
-        if (stack.is(ModItems.GRUDGE1.get())) {
-            return new ShipSupportAction(420, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * 40, 1)),
-                    0, 0, 0, 2700);
-        }
-        if (stack.is(ModItems.AMMO.get())) {
-            return new ShipSupportAction(140, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 25, 0)),
-                    0, 30, 0, 0);
-        }
-        if (stack.is(ModItems.AMMO1.get())) {
-            return new ShipSupportAction(220, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 40, 0)),
-                    0, 270, 0, 0);
-        }
-        if (stack.is(ModItems.AMMO2.get())) {
-            return new ShipSupportAction(180, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 30, 1)),
-                    0, 0, 15, 0);
-        }
-        if (stack.is(ModItems.AMMO3.get())) {
-            return new ShipSupportAction(280, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 50, 1)),
-                    0, 0, 135, 0);
-        }
-        if (stack.is(ModItems.ABYSSMETAL.get())) {
-            return new ShipSupportAction(180, 0.08F, false, false, List.of());
-        }
-        if (stack.is(ModItems.ABYSSMETAL1.get())) {
-            return new ShipSupportAction(220, 0.04F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.ABSORPTION, 20 * 45, 0)));
-        }
-        if (stack.is(ModItems.TOYAIRPLANE.get())) {
-            return new ShipSupportAction(360, 0.0F, false, false,
-                    List.of(new MobEffectInstance(MobEffects.LUCK, 20 * 50, 1),
-                            new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 20 * 40, 0)));
-        }
-        if (stack.is(Items.MILK_BUCKET)) {
-            return new ShipSupportAction(80, 0.02F, true, false, List.of());
-        }
-        if (stack.is(Items.HONEY_BOTTLE)) {
-            return new ShipSupportAction(120, 0.01F, false, true, List.of());
-        }
-        if (stack.is(Items.POTION) || stack.is(Items.SPLASH_POTION) || stack.is(Items.LINGERING_POTION)) {
-            List<MobEffectInstance> effects = copyEffectList(PotionUtils.getMobEffects(stack));
-            if (effects.isEmpty()) {
-                return null;
+            moraleGain = 10 + this.random.nextInt(11);
+            grudgeGain = 300 + this.random.nextInt(500);
+            consumed = true;
+        } else if (stack.is(ModItems.GRUDGE1.get())) {
+            moraleGain = 10 + this.random.nextInt(11);
+            grudgeGain = 300 + this.random.nextInt(500);
+            consumed = true;
+        } else if (stack.is(ModItems.AMMO.get())) {
+            moraleGain = 5 + this.random.nextInt(6);
+            lightAmmoGain = 30 + this.random.nextInt(10);
+            consumed = true;
+        } else if (stack.is(ModItems.AMMO1.get())) {
+            moraleGain = 5 + this.random.nextInt(6);
+            lightAmmoGain = 270 + this.random.nextInt(90);
+            consumed = true;
+        } else if (stack.is(ModItems.AMMO2.get())) {
+            moraleGain = 5 + this.random.nextInt(6);
+            heavyAmmoGain = 15 + this.random.nextInt(5);
+            consumed = true;
+        } else if (stack.is(ModItems.AMMO3.get())) {
+            moraleGain = 5 + this.random.nextInt(6);
+            heavyAmmoGain = 135 + this.random.nextInt(45);
+            consumed = true;
+        } else if (stack.is(ModItems.ABYSSMETAL.get())) {
+            moraleGain = 30 + this.random.nextInt(31);
+            this.heal(this.getMaxHealth() * 0.05F + 1.0F);
+            consumed = true;
+        } else if (stack.is(ModItems.ABYSSMETAL1.get())) {
+            moraleGain = 30 + this.random.nextInt(31);
+            consumed = true;
+        } else if (stack.is(ModItems.TOYAIRPLANE.get())) {
+            moraleGain = 150 + this.random.nextInt(151);
+            consumed = true;
+        } else if (stack.is(Items.POTION)) {
+            moraleGain = -100;
+            grudgeGain = 300;
+            for (MobEffectInstance effect : PotionUtils.getMobEffects(stack)) {
+                this.applySupportEffect(new MobEffectInstance(effect));
+            }
+            consumed = true;
+        } else {
+            FoodProperties foodProperties = stack.getFoodProperties(this);
+            if (foodProperties == null) {
+                return false;
             }
 
-            int beneficialEffects = 0;
-            int harmfulEffects = 0;
-            for (MobEffectInstance effect : effects) {
-                MobEffectCategory category = effect.getEffect().getCategory();
-                if (category == MobEffectCategory.BENEFICIAL) {
-                    beneficialEffects++;
-                } else if (category == MobEffectCategory.HARMFUL) {
-                    harmfulEffects++;
-                }
-            }
-
-            int moraleGain = beneficialEffects * 80 - harmfulEffects * 60;
-            return new ShipSupportAction(moraleGain, 0.0F, false, false, effects);
+            float nutrition = Math.max(1.0F, foodProperties.getNutrition());
+            moraleGain = Math.max(1, Math.round((nutrition + this.random.nextInt((int) nutrition + 5))
+                    * foodProperties.getSaturationModifier() * 20.0F));
+            grudgeGain = moraleGain;
+            consumed = true;
         }
 
-        FoodProperties foodProperties = stack.getFoodProperties(this);
-        if (foodProperties == null) {
-            return null;
+        if (!consumed) {
+            return false;
         }
 
-        List<MobEffectInstance> foodEffects = new ArrayList<>();
-        for (Pair<MobEffectInstance, Float> effectEntry : foodProperties.getEffects()) {
-            if (this.random.nextFloat() <= effectEntry.getSecond()) {
-                foodEffects.add(new MobEffectInstance(effectEntry.getFirst()));
-            }
-        }
-
-        int moraleGain = Math.max(70, Math.round(foodProperties.getNutrition() * 18.0F
-                + foodProperties.getSaturationModifier() * 180.0F));
-        float healRatio = Mth.clamp(foodProperties.getNutrition() * 0.003F
-                + foodProperties.getSaturationModifier() * 0.015F, 0.01F, 0.05F);
-        return new ShipSupportAction(moraleGain, healRatio, false, false, foodEffects);
+        this.addMorale(moraleGain);
+        this.addGrudge(grudgeGain);
+        this.addLightAmmo(lightAmmoGain);
+        this.addHeavyAmmo(heavyAmmoGain);
+        this.consumeHeldItem(player, hand, 1);
+        ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.FEED, 0.65F,
+                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+        player.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
+                this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
+        return true;
     }
 
     private void applySupportEffect(MobEffectInstance effect) {
@@ -3898,16 +3733,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.addEffect(new MobEffectInstance(effect));
-    }
-
-    private boolean hasNegativeEffects() {
-        for (MobEffectInstance effect : this.getActiveEffects()) {
-            if (effect.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private void clearNegativeEffects() {
@@ -3922,16 +3747,6 @@ public class LegacyShipEntity extends PathfinderMob {
         for (MobEffect effect : harmfulEffects) {
             this.removeEffect(effect);
         }
-    }
-
-    private static List<MobEffectInstance> copyEffectList(List<MobEffectInstance> effects) {
-        List<MobEffectInstance> copiedEffects = new ArrayList<>(effects.size());
-
-        for (MobEffectInstance effect : effects) {
-            copiedEffects.add(new MobEffectInstance(effect));
-        }
-
-        return copiedEffects;
     }
 
     private void openInventory(ServerPlayer player) {
@@ -4108,31 +3923,4 @@ public class LegacyShipEntity extends PathfinderMob {
         return tag.contains(fallbackKey, Tag.TAG_INT) ? tag.getInt(fallbackKey) : defaultValue;
     }
 
-    private record ShipSupportAction(
-            int moraleGain,
-            float healRatio,
-            boolean clearAllEffects,
-            boolean clearNegativeEffects,
-            List<MobEffectInstance> effects,
-            int fuelGain,
-            int lightAmmoGain,
-            int heavyAmmoGain,
-            int grudgeGain) {
-
-        private ShipSupportAction(int moraleGain,
-                                  float healRatio,
-                                  boolean clearAllEffects,
-                                  boolean clearNegativeEffects,
-                                  List<MobEffectInstance> effects) {
-            this(moraleGain, healRatio, clearAllEffects, clearNegativeEffects, effects, 0, 0, 0, 0);
-        }
-
-        private boolean clearsNegativeStates() {
-            return this.clearAllEffects || this.clearNegativeEffects;
-        }
-
-        private boolean hasRuntimeSupplyGain() {
-            return this.fuelGain > 0 || this.lightAmmoGain > 0 || this.heavyAmmoGain > 0 || this.grudgeGain > 0;
-        }
-    }
 }

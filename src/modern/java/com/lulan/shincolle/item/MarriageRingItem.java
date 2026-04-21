@@ -2,6 +2,7 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
@@ -9,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -35,7 +37,19 @@ public class MarriageRingItem extends Item {
             stack.getOrCreateTag().putBoolean(ACTIVE_TAG, active);
             if (player instanceof ServerPlayer serverPlayer) {
                 TeitokuHelper.markRingState(serverPlayer, active);
+
+                if (!active && !serverPlayer.getAbilities().instabuild) {
+                    TeitokuHelper.get(serverPlayer).ifPresent(data -> {
+                        if (data.isRingFlying()) {
+                            serverPlayer.getAbilities().flying = false;
+                            serverPlayer.getAbilities().mayfly = false;
+                            data.setRingFlying(false);
+                            serverPlayer.onUpdateAbilities();
+                        }
+                    });
+                }
             }
+
             ShinColleSoundHelper.playShipVoice(level, player, active ? ShipSoundType.MARRY : ShipSoundType.PICKITEM,
                     active ? 0.8F : 0.55F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
@@ -44,12 +58,53 @@ public class MarriageRingItem extends Item {
                     : "chat.shincolle.marriagering.disabled"), true);
         }
 
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+        return InteractionResultHolder.pass(stack);
     }
 
     @Override
     public boolean isFoil(ItemStack stack) {
         return isActive(stack);
+    }
+
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
+        if (!(entity instanceof Player player) || !isActive(stack)) {
+            return;
+        }
+
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        if (data == null) {
+            return;
+        }
+
+        if ((player.tickCount & 127) == 0 && data.getMarriageNum() >= 0 && player.getAirSupply() < player.getMaxAirSupply()) {
+            player.setAirSupply(player.getMaxAirSupply());
+        }
+
+        if (!(player instanceof ServerPlayer serverPlayer) || data.getMarriageNum() < 6) {
+            return;
+        }
+
+        boolean inLiquid = player.isInWaterOrBubble() || player.isInLava();
+        if (inLiquid) {
+            if (!player.getAbilities().instabuild) {
+                serverPlayer.getAbilities().mayfly = true;
+            }
+
+            serverPlayer.getAbilities().flying = true;
+            data.setRingFlying(true);
+            serverPlayer.onUpdateAbilities();
+            return;
+        }
+
+        if (!data.isRingFlying() || player.getAbilities().instabuild) {
+            return;
+        }
+
+        serverPlayer.getAbilities().flying = false;
+        serverPlayer.getAbilities().mayfly = false;
+        data.setRingFlying(false);
+        serverPlayer.onUpdateAbilities();
     }
 
     @Override

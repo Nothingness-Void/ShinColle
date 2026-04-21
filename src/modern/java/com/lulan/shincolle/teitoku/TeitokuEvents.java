@@ -3,6 +3,7 @@ package com.lulan.shincolle.teitoku;
 import com.lulan.shincolle.ShinColle;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
@@ -84,8 +85,14 @@ public final class TeitokuEvents {
         }
 
         if (bossCooldown > 0) {
-            int nextBoss = TeitokuHelper.tickBossCooldown(serverPlayer);
-            shouldSync |= nextBoss == 0 || (serverPlayer.tickCount % 20) == 0;
+            boolean legacyBossBiome = serverPlayer.serverLevel().getBiome(serverPlayer.blockPosition()).is(BiomeTags.IS_OCEAN)
+                    || serverPlayer.serverLevel().getBiome(serverPlayer.blockPosition()).is(BiomeTags.IS_DEEP_OCEAN)
+                    || serverPlayer.serverLevel().getBiome(serverPlayer.blockPosition()).is(BiomeTags.IS_BEACH);
+            boolean hasRing = TeitokuHelper.get(serverPlayer).map(TeitokuData::hasRing).orElse(false);
+            if (legacyBossBiome && hasRing) {
+                int nextBoss = TeitokuHelper.tickBossCooldown(serverPlayer);
+                shouldSync |= nextBoss == 0 || (serverPlayer.tickCount % 20) == 0;
+            }
         }
 
         if (shouldSync) {

@@ -67,7 +67,6 @@ import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
-import com.lulan.shincolle.world.SinglePlayerResourceSourceCatalog;
 import io.netty.buffer.Unpooled;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.CriteriaTriggers;
@@ -397,7 +396,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void legacyRingPassivesApplyFirstMigratedShipEffects(GameTestHelper helper) {
+    public static void marriedShipTicksDoNotInventLegacyRingAuras(GameTestHelper helper) {
         LegacyShipEntity submarine = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity carrier = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity escort = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
@@ -430,13 +429,13 @@ public final class GameplayParityGameTests {
             carrier.tick();
         }
 
-        if (!submarine.hasEffect(MobEffects.INVISIBILITY)) {
-            helper.fail("U511/Ro500 migrated ring passive should apply invisibility to the ship");
+        if (submarine.hasEffect(MobEffects.INVISIBILITY)) {
+            helper.fail("married ship ticks should not invent the removed U511/Ro500 invisibility aura");
             return;
         }
 
-        if (!escort.hasEffect(MobEffects.JUMP) || escort.getEffect(MobEffects.JUMP).getAmplifier() != 1) {
-            helper.fail("Kaga/Akagi migrated ring passive should apply jump boost to nearby allied ships");
+        if (escort.hasEffect(MobEffects.JUMP)) {
+            helper.fail("married ship ticks should not invent the removed Kaga/Akagi jump aura");
             return;
         }
 
@@ -1449,7 +1448,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void selectedAndCurrentTeamCommandsRespectFormationOffsets(GameTestHelper helper) {
+    public static void formationModeCommandsGateGroupMovesAndOffsetFollowers(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8104);
@@ -1487,19 +1486,15 @@ public final class GameplayParityGameTests {
                 ServerboundShipCommandPacket.NO_ENTITY,
                 ServerboundShipCommandPacket.NO_UID,
                 selectedTarget))) {
-            helper.fail("selected-team move command should affect selected ships");
+            helper.fail("legacy move command should still pass through the selected-team handler");
             return;
         }
-        if (ships[0].getCommandedPos() == null
-                || ships[2].getCommandedPos() == null
+        if (ships[0].getCommandedPos() != null
                 || ships[1].getCommandedPos() != null
+                || ships[2].getCommandedPos() != null
                 || ships[3].getCommandedPos() != null
                 || ships[4].getCommandedPos() != null) {
-            helper.fail("selected-team command should only affect selected slots");
-            return;
-        }
-        if (selectedTarget.equals(ships[0].getCommandedPos())) {
-            helper.fail("formation move should offset non-center slots when team size exceeds four");
+            helper.fail("selected-team move commands should stay blocked while the current team is in an active formation");
             return;
         }
 
@@ -1516,6 +1511,14 @@ public final class GameplayParityGameTests {
                 helper.fail("current-team command should write a command position to every team ship");
                 return;
             }
+        }
+        if (!currentTeamTarget.equals(ships[0].getCommandedPos())) {
+            helper.fail("formation flagship should keep the requested center position");
+            return;
+        }
+        if (currentTeamTarget.equals(ships[1].getCommandedPos())) {
+            helper.fail("formation followers should use old-position offsets instead of stacking on the flagship");
+            return;
         }
 
         helper.succeed();
@@ -1686,38 +1689,6 @@ public final class GameplayParityGameTests {
         if (heavy.getMaterialAmounts()[3] != 8) {
             helper.fail("materials inserted through a servant block should be absorbed by the shipyard master");
             return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void langPlaceholdersDescribeLiveFeatures(GameTestHelper helper) {
-        JsonObject lang = loadJsonResource("assets/shincolle/lang/en_us.json");
-        if (lang == null) {
-            helper.fail("expected en_us language resource to be present");
-            return;
-        }
-
-        String[] keys = {
-                "gui.shincolle.placeholder_equip",
-                "gui.shincolle.placeholder.block.crane",
-                "gui.shincolle.placeholder.block.desk",
-                "gui.shincolle.placeholder_item",
-                "gui.shincolle.placeholder_desk_item",
-                "gui.shincolle.placeholder_command_item",
-                "gui.shincolle.placeholder_spawn_egg"
-        };
-        for (String key : keys) {
-            if (!lang.has(key)) {
-                helper.fail("missing lang key: " + key);
-                return;
-            }
-            String value = lang.get(key).getAsString().toLowerCase();
-            if (value.contains("pending port") || value.contains("will return")) {
-                helper.fail("lang key still reports unfinished behavior: " + key);
-                return;
-            }
         }
 
         helper.succeed();
@@ -2408,49 +2379,6 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void behaviorCatalogClassifiesSinglePlayerMainlineRoster(GameTestHelper helper) {
-        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
-        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
-        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
-
-        LinkedHashSet<ShipArchetype> coveredArchetypes = new LinkedHashSet<>();
-        for (ShipEntitySpec spec : reachableSpecs) {
-            LegacyShipBehaviorCatalog.BehaviorCoverage coverage = LegacyShipBehaviorCatalog.coverageFor(spec);
-            if (!coverage.singlePlayerMainlineCovered() || coverage.mainlineBehavior().isBlank()) {
-                helper.fail("single-player reachable ship spec should have mainline behavior coverage: egg="
-                        + spec.eggMeta() + " tier=" + coverage.tier());
-                return;
-            }
-            if (LegacyShipBehaviorCatalog.hasCombatHook(spec)
-                    && coverage.tier() != LegacyShipBehaviorCatalog.BehaviorCoverageTier.SPECIFIC_HOOK) {
-                helper.fail("specific combat hook specs should be classified as specific hook coverage: egg=" + spec.eggMeta());
-                return;
-            }
-            coveredArchetypes.add(coverage.archetype());
-        }
-
-        for (ShipArchetype archetype : ShipArchetype.values()) {
-            if (!coveredArchetypes.contains(archetype)) {
-                helper.fail("single-player mainline coverage should include archetype " + archetype);
-                return;
-            }
-        }
-
-        if (!LegacyShipBehaviorCatalog.singlePlayerAiPriorityOrder().equals(List.of(
-                LegacyShipBehaviorCatalog.AiPriority.DEATH_STOP_SIT,
-                LegacyShipBehaviorCatalog.AiPriority.EXPLICIT_COMMAND,
-                LegacyShipBehaviorCatalog.AiPriority.ACTIVE_COMBAT_TARGET,
-                LegacyShipBehaviorCatalog.AiPriority.AUTO_SUPPLY,
-                LegacyShipBehaviorCatalog.AiPriority.PICKUP,
-                LegacyShipBehaviorCatalog.AiPriority.IDLE_FOLLOW))) {
-            helper.fail("single-player AI priority order should stay fixed for Phase 7/9 closure");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
     public static void shipCompatAttackFailureReasonsCoverSinglePlayerFeedback(GameTestHelper helper) {
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity target = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
@@ -2644,7 +2572,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void shipRuntimeSuppliesGatePersistAndRefillCombat(GameTestHelper helper) {
+    public static void shipRuntimeSuppliesGatePersistAndRestoreLegacySupportValues(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
@@ -2724,17 +2652,23 @@ public final class GameplayParityGameTests {
         ship.setHeavyAmmo(0);
         ship.setGrudge(0);
         ship.setMorale(0);
+        int moraleBefore = ship.getMorale();
 
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.COMBATRATION.get()));
         if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
-                || ship.getShipFuel() <= 0) {
-            helper.fail("combat rations should refuel friendly ships");
+                || ship.getShipFuel() != 0
+                || ship.getLightAmmo() != 0
+                || ship.getHeavyAmmo() != 0
+                || ship.getMorale() <= moraleBefore
+                || ship.getGrudge() <= 0) {
+            helper.fail("combat rations should restore morale and grudge without refueling or rearming ships");
             return;
         }
+        int grudgeAfterRation = ship.getGrudge();
 
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.GRUDGE.get()));
         if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
-                || ship.getGrudge() <= 0) {
+                || ship.getGrudge() <= grudgeAfterRation) {
             helper.fail("grudge support items should restore ship grudge runtime state");
             return;
         }
@@ -2908,7 +2842,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void growthLoopBuildsSmallEggAndBossGate(GameTestHelper helper) {
+    public static void smallShipyardEggFlowUsesLegacyBossRingGate(GameTestHelper helper) {
         int[] materials = {SmallShipyardRecipes.MIN_AMOUNT, SmallShipyardRecipes.MIN_AMOUNT,
                 SmallShipyardRecipes.MIN_AMOUNT, SmallShipyardRecipes.MIN_AMOUNT};
         if (!SmallShipyardRecipes.canRecipeBuild(materials)) {
@@ -2940,12 +2874,12 @@ public final class GameplayParityGameTests {
 
         TeitokuData data = new TeitokuData();
         if (HostileEncounterSpawner.canRollBossEncounter(data)) {
-            helper.fail("boss encounters should stay locked before the admiral deploys a ship");
+            helper.fail("boss encounters should stay locked until the admiral has a ring");
             return;
         }
-        data.addCollectedShip(2);
+        data.setHasRing(true);
         if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
-            helper.fail("boss encounters should unlock after the first friendly ship is collected");
+            helper.fail("boss encounters should unlock when the admiral has the ring");
             return;
         }
 
@@ -2953,47 +2887,14 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void singlePlayerResourceSourceCatalogClosesMainlineLoop(GameTestHelper helper) {
-        if (SinglePlayerResourceSourceCatalog.requiredMainlineResources().size() < 8) {
-            helper.fail("single-player resource source catalog should cover all required mainline resources");
-            return;
-        }
-
-        for (SinglePlayerResourceSourceCatalog.ResourceLoopStatus status
-                : SinglePlayerResourceSourceCatalog.mainlineLoopStatus()) {
-            if (!status.discoverable()) {
-                helper.fail("required single-player resource has no discoverable source: " + status.resourceKey());
-                return;
-            }
-            for (SinglePlayerResourceSourceCatalog.ResourceSource source : status.sources()) {
-                if (source.hasPackResource() && !packResourceExists(source.packPath())) {
-                    helper.fail("single-player resource source points at missing data pack resource: "
-                            + source.resourceKey() + " -> " + source.packPath());
-                    return;
-                }
-            }
-        }
-
-        List<String> deskLines = SinglePlayerResourceSourceCatalog.deskReferenceLines();
-        if (deskLines.size() != SinglePlayerResourceSourceCatalog.requiredMainlineResources().size()
-                || deskLines.stream().noneMatch(line -> line.startsWith("Polymetal:"))
-                || deskLines.stream().noneMatch(line -> line.startsWith("Shipyard build:"))) {
-            helper.fail("desk reference resource source lines should expose the mainline resource loop");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void singlePlayerMainlineSmokeCoversShipCommandSupportBossAndCombat(GameTestHelper helper) {
+    public static void shipCommandSupportBossAndCombatFlowUsesLegacyBossState(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         player.setPos(2.0D, 2.0D, 2.0D);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8601);
             data.setCurrentTeamId(0);
             data.setBossCooldown(0);
-            data.addCollectedShip(62);
+            data.setHasRing(true);
         })) {
             return;
         }
@@ -3016,7 +2917,7 @@ public final class GameplayParityGameTests {
         int moraleBeforeRation = ship.getMorale();
         if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
                 || ship.getMorale() <= moraleBeforeRation) {
-            helper.fail("single-player ship should accept support items before sortie commands");
+            helper.fail("owned ship should accept support items before sortie commands");
             return;
         }
 
@@ -3027,7 +2928,7 @@ public final class GameplayParityGameTests {
                 || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), ship.getShipUid(), 24))
                 || ship.getAiFlagsBitmask() != aiFlags
                 || ship.getAiFollowRange() != 24) {
-            helper.fail("single-player ship inventory command controls should update AI flags and follow range");
+            helper.fail("ship inventory command controls should update AI flags and follow range");
             return;
         }
 
@@ -3035,15 +2936,15 @@ public final class GameplayParityGameTests {
         if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.moveTo(0, ship.getId(), ship.getShipUid(), moveTarget))
                 || !moveTarget.equals(ship.getCommandedPos())
                 || ship.isOrderedToSit()) {
-            helper.fail("single-player sortie should accept typed move commands");
+            helper.fail("sortie flow should accept typed move commands");
             return;
         }
 
         TeitokuData data = new TeitokuData();
-        data.addCollectedShip(62);
+        data.setHasRing(true);
         data.setBossCooldown(0);
         if (!HostileEncounterSpawner.canRollBossEncounter(data)) {
-            helper.fail("single-player boss gate should open after a collected friendly ship");
+            helper.fail("boss gate should open for admirals with a ring");
             return;
         }
 
@@ -3052,7 +2953,7 @@ public final class GameplayParityGameTests {
                 null,
                 new com.lulan.shincolle.world.HostileSpawnProfile(23, 1, true, true));
         if (boss == null) {
-            helper.fail("single-player mainline should be able to spawn a hostile boss encounter");
+            helper.fail("legacy hostile helper should be able to spawn a hostile boss encounter");
             return;
         }
         boss.setPos(5.0D, 2.0D, 5.0D);
@@ -3060,13 +2961,13 @@ public final class GameplayParityGameTests {
         if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.attack(0, ship.getId(), ship.getShipUid(), boss.getId()))
                 || ship.getTarget() != boss
                 || ship.getCommandedPos() != null) {
-            helper.fail("single-player attack command should target hostile boss encounters and clear move orders");
+            helper.fail("attack command should target hostile boss encounters and clear move orders");
             return;
         }
 
         if (!ship.performPlayerCompatAttack(boss, LegacyShipAttackKind.HEAVY)
                 || ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY) <= 0) {
-            helper.fail("single-player boss combat should dispatch heavy combat hooks and set cooldowns");
+            helper.fail("boss combat should dispatch heavy combat hooks and set cooldowns");
             return;
         }
 
@@ -3074,7 +2975,7 @@ public final class GameplayParityGameTests {
                 || ship.getTarget() != null
                 || ship.getCommandedPos() != null
                 || ship.getGuardEntityUuid() != null) {
-            helper.fail("single-player stop command should clear boss combat and navigation state");
+            helper.fail("stop command should clear boss combat and navigation state");
             return;
         }
 

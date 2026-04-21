@@ -1,12 +1,12 @@
 package com.lulan.shincolle.network;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.formation.LegacyFormationHelper;
 import com.lulan.shincolle.formation.FormationRuntimeState;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -166,9 +166,13 @@ public final class ShipCommandService {
         if (ships.isEmpty()) {
             return mode == 0 ? ShipCommandResult.NO_COMMANDABLE_SHIP : ShipCommandResult.NO_COMMANDABLE_SHIPS;
         }
+        if (!canExecuteLegacyMoveOrGuard(player, mode, ships)) {
+            return ShipCommandResult.SUCCESS;
+        }
 
+        LegacyShipEntity flagship = mode == 2 ? LegacyFormationHelper.resolveFlagship(ships) : null;
         for (LegacyShipEntity ship : ships) {
-            FormationRuntimeState runtimeState = resolveFormationMoveState(player, ship, pos);
+            FormationRuntimeState runtimeState = LegacyFormationHelper.resolveMoveState(player, ship, pos, flagship);
             ship.commandMoveTo(runtimeState.targetPos(), player.level().dimension().location().toString());
             ship.setOrderedToSit(false);
             markShipDirty(ship);
@@ -189,6 +193,9 @@ public final class ShipCommandService {
         List<LegacyShipEntity> ships = resolveCommandShips(player, mode, anchor);
         if (ships.isEmpty()) {
             return mode == 0 ? ShipCommandResult.NO_COMMANDABLE_SHIP : ShipCommandResult.NO_COMMANDABLE_SHIPS;
+        }
+        if (!canExecuteLegacyMoveOrGuard(player, mode, ships)) {
+            return ShipCommandResult.SUCCESS;
         }
 
         for (LegacyShipEntity ship : ships) {
@@ -335,6 +342,17 @@ public final class ShipCommandService {
         TeitokuHelper.refreshShipCache(ship, false);
     }
 
+    private static boolean canExecuteLegacyMoveOrGuard(Player player, int mode, List<LegacyShipEntity> ships) {
+        int formationId = TeitokuHelper.get(player)
+                .map(data -> data.getFormationId(data.getCurrentTeamId()))
+                .orElse(TeitokuData.DEFAULT_FORMATION_ID);
+        if (mode < 2) {
+            return formationId <= TeitokuData.DEFAULT_FORMATION_ID;
+        }
+
+        return formationId <= TeitokuData.DEFAULT_FORMATION_ID || ships.size() > 4;
+    }
+
     private static void sendFailureFeedback(ServerPlayer player, ShipCommandAction action, ShipCommandResult result) {
         if (result.reasonKey() == null) {
             return;
@@ -359,65 +377,4 @@ public final class ShipCommandService {
         };
     }
 
-    private static FormationRuntimeState resolveFormationMoveState(Player player, LegacyShipEntity ship, BlockPos center) {
-        if (ship.getShipUid() <= 0) {
-            return new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                    TeitokuData.DEFAULT_FORMATION_ID,
-                    0,
-                    center.immutable());
-        }
-
-        return TeitokuHelper.get(player)
-                .map(teitokuData -> {
-                    int teamId = teitokuData.findTeamIdByShipUid(ship.getShipUid());
-                    int slot = teitokuData.findSlotIndexByShipUid(ship.getShipUid());
-                    if (teamId < 0 || slot < 0 || teitokuData.countShipsInTeam(teamId) <= 4) {
-                        return new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                                TeitokuData.DEFAULT_FORMATION_ID,
-                                slot < 0 ? 0 : slot,
-                                center.immutable());
-                    }
-
-                    int formationId = teitokuData.getFormationId(teamId);
-                    BlockPos formationPos = resolveFormationOffset(center, formationId, slot, player.getDirection());
-                    return new FormationRuntimeState(teamId, formationId, slot, formationPos);
-                })
-                .orElse(new FormationRuntimeState(TeitokuHelper.getCurrentTeamId(player),
-                        TeitokuData.DEFAULT_FORMATION_ID,
-                        0,
-                        center.immutable()));
-    }
-
-    private static BlockPos resolveFormationOffset(BlockPos center, int formationId, int slot, Direction forwardDirection) {
-        int normalizedSlot = Mth.clamp(slot, 0, TeitokuData.TEAM_SIZE - 1);
-        int[][] localOffsets = switch (Mth.clamp(formationId, TeitokuData.DEFAULT_FORMATION_ID, TeitokuData.MAX_FORMATION_ID)) {
-            case 1 -> new int[][]{
-                    { -4, 0 }, { -2, 0 }, { 0, 0 }, { 2, 0 }, { 4, 0 }, { 6, 0 }
-            };
-            case 2 -> new int[][]{
-                    { -2, -1 }, { -2, 1 }, { 0, -1 }, { 0, 1 }, { 2, -1 }, { 2, 1 }
-            };
-            case 3 -> new int[][]{
-                    { -3, 0 }, { -1, -2 }, { -1, 2 }, { 1, -1 }, { 1, 1 }, { 3, 0 }
-            };
-            case 4 -> new int[][]{
-                    { -3, -3 }, { -2, -2 }, { -1, -1 }, { 0, 0 }, { 1, 1 }, { 2, 2 }
-            };
-            case 5 -> new int[][]{
-                    { 0, -5 }, { 0, -3 }, { 0, -1 }, { 0, 1 }, { 0, 3 }, { 0, 5 }
-            };
-            default -> new int[][]{
-                    { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
-            };
-        };
-
-        Direction forward = forwardDirection.getAxis().isVertical() ? Direction.NORTH : forwardDirection;
-        Direction right = forward.getClockWise();
-        int forwardOffset = localOffsets[normalizedSlot][0];
-        int rightOffset = localOffsets[normalizedSlot][1];
-
-        int x = center.getX() + forward.getStepX() * forwardOffset + right.getStepX() * rightOffset;
-        int z = center.getZ() + forward.getStepZ() * forwardOffset + right.getStepZ() * rightOffset;
-        return new BlockPos(x, center.getY(), z);
-    }
 }

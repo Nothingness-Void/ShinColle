@@ -15,7 +15,6 @@ import com.lulan.shincolle.morph.MorphRuntimeState;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
-import com.lulan.shincolle.world.SinglePlayerResourceSourceCatalog;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -551,11 +550,16 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                     List.of(
                             "Target Wrench can pair route nodes with containers, tanks, cores, or shipyards.",
                             "Energy mode 1 loads to ship, mode 2 unloads to facility."))
-                    : new BookPageData("Resource Sources",
-                    SinglePlayerResourceSourceCatalog.deskReferenceLines(),
+                    : new BookPageData("Legacy Supply Notes",
                     List.of(
-                            "The single-player loop is complete when each listed resource has at least one recipe, world, loot, or hostile source.",
-                            "Full old worldgen matrices and inter-mod ore dictionary parity are tracked outside this mainline book."));
+                            "Polymetal and abyssium stay tied to old ore, gravel, loot, and hostile drops.",
+                            "Grudge, ammo, and ration lines are battlefield supplies first, not a trimmed solo loop.",
+                            "Desk, waypoint, crane, shipyard, and vol-core pages should describe the old logistics chain.",
+                            "Boss fleets remain an ocean pressure source once ring and cooldown conditions are met.",
+                            "Inter-mod tags and wider world sources are parity work, not optional side notes."),
+                    List.of(
+                            "Use this page as old-style field notes, not as a minimal progression checklist.",
+                            "Recipes, loot, worldgen, and combat drops should be read against 1.12.2 behavior."));
             case 4 -> new BookPageData("Morph Runtime",
                     List.of(
                             "Selected Class: " + morphState.getSelectedClassId(),

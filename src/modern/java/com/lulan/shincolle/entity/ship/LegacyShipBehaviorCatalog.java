@@ -14,15 +14,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Central dispatch point for legacy per-ship behavior that is visible in single-player.
+ * Central dispatch point for ported 1.12.2 per-ship behavior.
  */
 public final class LegacyShipBehaviorCatalog {
-
-    public enum BehaviorCoverageTier {
-        SPECIFIC_HOOK,
-        GENERIC_MAINLINE,
-        PARITY_BACKLOG
-    }
 
     public enum AiPriority {
         DEATH_STOP_SIT,
@@ -60,15 +54,6 @@ public final class LegacyShipBehaviorCatalog {
                                      float eggDropChance) {
     }
 
-    public record BehaviorCoverage(ShipArchetype archetype,
-                                   BehaviorCoverageTier tier,
-                                   String mainlineBehavior,
-                                   String parityBacklog) {
-        public boolean singlePlayerMainlineCovered() {
-            return this.tier != BehaviorCoverageTier.PARITY_BACKLOG;
-        }
-    }
-
     public record Behavior(int legacyClassId, boolean hostile, MarriagePassive marriagePassive, CombatHook combatHook) {
         public boolean hasMarriagePassive() {
             return this.marriagePassive != MarriagePassive.NONE;
@@ -104,28 +89,6 @@ public final class LegacyShipBehaviorCatalog {
 
     public static boolean shouldUseCombatHook(ShipEntitySpec spec, LegacyShipAttackKind attackKind) {
         return attackKind == LegacyShipAttackKind.HEAVY && hasCombatHook(spec);
-    }
-
-    public static BehaviorCoverage coverageFor(ShipEntitySpec spec) {
-        Behavior behavior = behaviorFor(spec);
-        if (behavior.hasCombatHook()) {
-            return new BehaviorCoverage(
-                    spec.archetype(),
-                    BehaviorCoverageTier.SPECIFIC_HOOK,
-                    "catalog heavy special, cooldown, miss/crit, FX, resource gate",
-                    "exact legacy animation timing and every old packet page");
-        }
-
-        return switch (spec.archetype()) {
-            case DESTROYER -> genericCoverage(spec, "destroyer mainline gun/torpedo profile, escort, pickup, supply");
-            case CRUISER -> genericCoverage(spec, "cruiser mainline gun profile, escort, pickup, supply");
-            case BATTLESHIP -> genericCoverage(spec, "battleship heavy profile, boss-safe targeting, supply");
-            case CARRIER -> genericCoverage(spec, "carrier air attack profile, aircraft projectile family, supply");
-            case SUBMARINE -> genericCoverage(spec, "submarine light attack profile and undersea targeting stats");
-            case TRANSPORT -> genericCoverage(spec, "transport loot/logistics profile and generic combat fallback");
-            case PRINCESS -> genericCoverage(spec, "princess boss profile, summon cycle, hostile loot, heavy/air fallback");
-            case INSTALLATION -> genericCoverage(spec, "installation boss profile, summon cycle, hostile loot, heavy/air fallback");
-        };
     }
 
     public static List<AiPriority> singlePlayerAiPriorityOrder() {
@@ -266,6 +229,23 @@ public final class LegacyShipBehaviorCatalog {
         }
     }
 
+    public static CombatHook combatHookForLegacyClassId(int legacyClassId) {
+        return combatHookForClassId(legacyClassId);
+    }
+
+    public static int morphSpecialCooldown(CombatHook hook) {
+        return switch (hook) {
+            case SHIMAKAZE_TORPEDO_BURST -> 130;
+            case NAGATO_HEAVY_STRIKE -> 170;
+            case YAMATO_BEAM_BARRAGE -> 200;
+            case TENRYUU_DASH -> 120;
+            case TATSUTA_CONTROL_AOE -> 120;
+            case HEAVY_CRUISER_BARRAGE -> 140;
+            case KONGOU_COMBO -> 150;
+            case NONE -> 0;
+        };
+    }
+
     private static MarriagePassive marriagePassiveForFriendlyClassId(int legacyClassId) {
         return switch (legacyClassId) {
             case 38, 39 -> MarriagePassive.SELF_AND_OWNER_INVISIBILITY;
@@ -276,16 +256,6 @@ public final class LegacyShipBehaviorCatalog {
             case 54 -> MarriagePassive.OWNER_SPEED;
             default -> MarriagePassive.NONE;
         };
-    }
-
-    private static BehaviorCoverage genericCoverage(ShipEntitySpec spec, String mainlineBehavior) {
-        return new BehaviorCoverage(
-                spec.archetype(),
-                BehaviorCoverageTier.GENERIC_MAINLINE,
-                mainlineBehavior,
-                spec.hostile()
-                        ? "non-mainline rare legacy hostile-only gimmicks"
-                        : "non-mainline per-ship cosmetic and multiplayer-only differences");
     }
 
     private static CombatHook combatHookForClassId(int legacyClassId) {

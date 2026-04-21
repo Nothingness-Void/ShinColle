@@ -279,7 +279,14 @@ public final class TeitokuHelper {
     public static int cycleFormationId(ServerPlayer player) {
         return get(player)
                 .map(teitokuData -> {
-                    int formationId = teitokuData.cycleFormationId();
+                    int teamId = teitokuData.getCurrentTeamId();
+                    int formationId;
+                    if (teitokuData.countShipsInTeam(teamId) > 4) {
+                        formationId = teitokuData.cycleFormationId(teamId);
+                    } else {
+                        teitokuData.setFormationId(teamId, TeitokuData.DEFAULT_FORMATION_ID);
+                        formationId = TeitokuData.DEFAULT_FORMATION_ID;
+                    }
                     syncGameplayState(player);
                     return formationId;
                 })
@@ -603,8 +610,7 @@ public final class TeitokuHelper {
     }
 
     public static String resolveTargetClass(LivingEntity target) {
-        ResourceLocation key = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
-        return key == null ? "" : normalizeTargetClass(key.toString());
+        return target == null ? "" : normalizeTargetClass(target.getClass().getSimpleName());
     }
 
     private static String normalizeTargetClass(String targetClass) {
