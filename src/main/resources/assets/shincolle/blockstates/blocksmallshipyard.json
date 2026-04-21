@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "active=false,facing=north": {
+      "model": "shincolle:block/blocksmallshipyard"
+    },
+    "active=false,facing=east": {
+      "model": "shincolle:block/blocksmallshipyard",
+      "y": 90
+    },
+    "active=false,facing=south": {
+      "model": "shincolle:block/blocksmallshipyard",
+      "y": 180
+    },
+    "active=false,facing=west": {
+      "model": "shincolle:block/blocksmallshipyard",
+      "y": 270
+    },
+    "active=true,facing=north": {
+      "model": "shincolle:block/blocksmallshipyard_on"
+    },
+    "active=true,facing=east": {
+      "model": "shincolle:block/blocksmallshipyard_on",
+      "y": 90
+    },
+    "active=true,facing=south": {
+      "model": "shincolle:block/blocksmallshipyard_on",
+      "y": 180
+    },
+    "active=true,facing=west": {
+      "model": "shincolle:block/blocksmallshipyard_on",
+      "y": 270
+    }
+  }
+}

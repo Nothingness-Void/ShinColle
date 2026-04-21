@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "shincolle:block/blockframetop",
+    "down": "shincolle:block/blockframebtm",
+    "up": "shincolle:block/blockframetop",
+    "east": "shincolle:block/blockframe2",
+    "west": "shincolle:block/blockframe3",
+    "north": "shincolle:block/blockframe4",
+    "south": "shincolle:block/blockframe5"
+  }
+}

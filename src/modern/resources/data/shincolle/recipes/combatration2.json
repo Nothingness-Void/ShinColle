@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "food",
+  "group": "shincolle_rations",
+  "key": {
+    "b": {
+      "tag": "shincolle:cooked_meat"
+    },
+    "c": {
+      "item": "minecraft:golden_carrot"
+    },
+    "g": {
+      "item": "shincolle:grudge"
+    },
+    "w": {
+      "item": "minecraft:wheat"
+    }
+  },
+  "pattern": [
+    "www",
+    "bgc",
+    "www"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:combatration2"
+  }
+}

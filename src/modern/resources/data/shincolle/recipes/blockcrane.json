@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "a": {
+      "item": "shincolle:abyssmetal"
+    },
+    "g": {
+      "item": "shincolle:blockgrudge"
+    },
+    "p": {
+      "item": "minecraft:piston"
+    }
+  },
+  "pattern": [
+    "aaa",
+    "aga",
+    "apa"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockcrane"
+  }
+}

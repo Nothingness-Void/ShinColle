@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "shincolle_resources",
+  "key": {
+    "g": {
+      "item": "shincolle:grudge"
+    }
+  },
+  "pattern": [
+    "ggg",
+    "ggg",
+    "ggg"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockgrudge"
+  }
+}

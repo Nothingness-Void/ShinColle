@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "a": {
+      "item": "shincolle:abyssmetal"
+    },
+    "s": {
+      "item": "minecraft:nether_star"
+    }
+  },
+  "pattern": [
+    " s ",
+    "a a",
+    " a "
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:marriagering"
+  }
+}

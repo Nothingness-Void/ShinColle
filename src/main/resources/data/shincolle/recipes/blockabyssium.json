@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "shincolle_resources",
+  "key": {
+    "a": {
+      "item": "shincolle:abyssmetal"
+    }
+  },
+  "pattern": [
+    "aaa",
+    "aaa",
+    "aaa"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockabyssium"
+  }
+}

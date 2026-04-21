@@ -1,0 +1,20 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "shincolle:item/pointeritem0"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "shincolle:mode": 0.5
+      },
+      "model": "shincolle:item/pointeritem1"
+    },
+    {
+      "predicate": {
+        "shincolle:mode": 1.5
+      },
+      "model": "shincolle:item/pointeritem2"
+    }
+  ]
+}

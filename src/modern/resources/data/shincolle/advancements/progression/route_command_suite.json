@@ -1,0 +1,67 @@
+{
+  "parent": "shincolle:progression/deploy_first_ship",
+  "display": {
+    "icon": {
+      "item": "shincolle:pointeritem"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.route_command_suite.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.route_command_suite.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "pointer": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:pointeritem"
+            ]
+          }
+        ]
+      }
+    },
+    "wrench": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:targetwrench"
+            ]
+          }
+        ]
+      }
+    },
+    "waypoint": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:blockwaypoint"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "pointer"
+    ],
+    [
+      "wrench"
+    ],
+    [
+      "waypoint"
+    ]
+  ]
+}

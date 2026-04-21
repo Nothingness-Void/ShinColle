@@ -1,0 +1,32 @@
+{
+  "parent": "shincolle:progression/build_small_shipyard",
+  "display": {
+    "icon": {
+      "item": "shincolle:smallegg"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.prepare_small_egg.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.prepare_small_egg.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "smallegg": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "shincolle:smallegg"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

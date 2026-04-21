@@ -1,0 +1,23 @@
+{
+  "parent": "shincolle:progression/prepare_small_egg",
+  "display": {
+    "icon": {
+      "item": "shincolle:shipegg38"
+    },
+    "title": {
+      "translate": "advancement.shincolle.progression.deploy_first_ship.title"
+    },
+    "description": {
+      "translate": "advancement.shincolle.progression.deploy_first_ship.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "friendly_ship_deployed": {
+      "trigger": "shincolle:friendly_ship_deployed"
+    }
+  }
+}
