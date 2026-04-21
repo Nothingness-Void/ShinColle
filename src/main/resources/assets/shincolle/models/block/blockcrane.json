@@ -1,0 +1,8 @@
+{
+  "parent": "block/cube_bottom_top",
+  "textures": {
+    "side": "shincolle:block/blockcraneside",
+    "bottom": "shincolle:block/blockcranebtm",
+    "top": "shincolle:block/blockcranetop"
+  }
+}

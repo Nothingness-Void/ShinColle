@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_resources",
+  "key": {
+    "n": {
+      "item": "shincolle:abyssnugget"
+    }
+  },
+  "pattern": [
+    "nnn",
+    "nnn",
+    "nnn"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:abyssmetal"
+  }
+}

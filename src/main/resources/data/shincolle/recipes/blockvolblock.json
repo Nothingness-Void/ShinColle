@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "group": "shincolle_resources",
+  "key": {
+    "g": {
+      "item": "shincolle:blockgrudge"
+    },
+    "m": {
+      "item": "minecraft:magma_block"
+    },
+    "o": {
+      "item": "minecraft:obsidian"
+    }
+  },
+  "pattern": [
+    "mom",
+    "ogo",
+    "mom"
+  ],
+  "result": {
+    "count": 1,
+    "item": "shincolle:blockvolblock"
+  }
+}

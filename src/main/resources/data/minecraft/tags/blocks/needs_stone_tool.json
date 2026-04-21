@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "shincolle:blockabyssium",
+    "shincolle:blockpolymetal",
+    "shincolle:blockpolymetalore",
+    "shincolle:blockvolcore",
+    "shincolle:blockvolblock"
+  ]
+}
