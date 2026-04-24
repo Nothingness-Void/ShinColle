@@ -38,6 +38,20 @@ public record ShipWorldCacheEntry(
     private static final String POS_Z_TAG = "PosZ";
     private static final String ENTITY_TAG = "EntityTag";
     private static final String CUSTOM_NAME_TAG = "CustomName";
+    private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
+    private static final String SHIP_LEVEL_TAG = "ShipLevel";
+    private static final String SHIP_MORALE_TAG = "ShipMorale";
+    private static final String SHIP_FUEL_TAG = "ShipFuel";
+    private static final String SHIP_LIGHT_AMMO_TAG = "ShipLightAmmo";
+    private static final String SHIP_HEAVY_AMMO_TAG = "ShipHeavyAmmo";
+    private static final String SHIP_GRUDGE_TAG = "ShipGrudge";
+    private static final String LEGACY_LIGHT_AMMO_TAG = "NumAmmoLight";
+    private static final String LEGACY_HEAVY_AMMO_TAG = "NumAmmoHeavy";
+    private static final String LEGACY_GRUDGE_TAG = "NumGrudge";
+    private static final String SHIP_MARRIED_TAG = "ShipMarried";
+    private static final String COMMAND_POS_TAG = "CommandPos";
+    private static final String GUARD_ENTITY_TAG = "GuardEntity";
+    private static final String ROUTE_NODE_TAG = "RouteNode";
 
     public ShipWorldCacheEntry {
         dimensionId = dimensionId == null || dimensionId.isBlank()
@@ -129,5 +143,55 @@ public record ShipWorldCacheEntry(
             spec = ShipEntitySpecs.findByEggMeta(this.variantEggMeta);
         }
         return spec != null ? spec.displayName() : Component.literal("Ship UID " + this.shipUid);
+    }
+
+    public int getShipLevel() {
+        return this.entityTag.getInt(SHIP_LEVEL_TAG);
+    }
+
+    public int getMorale() {
+        return this.entityTag.getInt(SHIP_MORALE_TAG);
+    }
+
+    public int getShipFuel() {
+        return this.entityTag.getInt(SHIP_FUEL_TAG);
+    }
+
+    public int getLightAmmo() {
+        return this.getIntWithFallback(SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG);
+    }
+
+    public int getHeavyAmmo() {
+        return this.getIntWithFallback(SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG);
+    }
+
+    public int getGrudge() {
+        return this.getIntWithFallback(SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG);
+    }
+
+    public boolean isMarried() {
+        return this.entityTag.getBoolean(SHIP_MARRIED_TAG);
+    }
+
+    public boolean isOrderedToSit() {
+        return this.entityTag.getBoolean(ORDERED_TO_SIT_TAG);
+    }
+
+    public boolean hasCommandState() {
+        return this.entityTag.contains(COMMAND_POS_TAG, Tag.TAG_LONG)
+                || this.entityTag.hasUUID(GUARD_ENTITY_TAG)
+                || this.entityTag.contains(ROUTE_NODE_TAG, Tag.TAG_LONG);
+    }
+
+    public String getPositionText() {
+        return this.posX + ", " + this.posY + ", " + this.posZ;
+    }
+
+    private int getIntWithFallback(String primaryTag, String legacyTag) {
+        if (this.entityTag.contains(primaryTag, Tag.TAG_INT)) {
+            return this.entityTag.getInt(primaryTag);
+        }
+
+        return this.entityTag.contains(legacyTag, Tag.TAG_INT) ? this.entityTag.getInt(legacyTag) : 0;
     }
 }

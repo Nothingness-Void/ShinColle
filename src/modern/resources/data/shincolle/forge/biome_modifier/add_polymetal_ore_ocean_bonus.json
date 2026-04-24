@@ -1,0 +1,8 @@
+{
+  "type": "forge:add_features",
+  "biomes": "#minecraft:is_ocean",
+  "features": [
+    "shincolle:polymetal_ore_ocean_bonus"
+  ],
+  "step": "underground_ores"
+}

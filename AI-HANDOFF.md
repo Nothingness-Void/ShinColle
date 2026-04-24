@@ -1,6 +1,6 @@
 # ShinColle AI Handoff
 
-更新时间：2026-04-20
+更新时间：2026-04-24
 
 先读：
 - `PORTING-MISTAKES.md`
@@ -29,19 +29,31 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 - 结果：
   - `BUILD SUCCESSFUL`
-  - `All 79 required tests passed`
+  - `All 91 required tests passed`
 - 用户已对上一批客户端内容做过一轮手工验收，未发现明显问题；近期新增了单人主线 GameTest、Phase 8 legacy model source 解析覆盖、ship fuel / ammo / grudge runtime supply 回归，以及 Phase 5-10 单人主线收口测试。Codex 已做 `runClient` 启动/资源冒烟，日志到达资源 reload、sound engine 与 atlas 创建，未见 ShinColle crash、missing texture 或 model fallback；完整世界内交互仍建议后续实机复核。
 
 ## 已经落地并接线的主线
+
+## 2026-04-24 verified closure update
+
+- `MIGRATION-FLOW-CHECKLIST.md` has been corrected from the old 83-test / SP-mainline wording to the current 91-test verified-baseline wording.
+- Newly verified in GameTest: legacy `CapaTeitoku` wrapper fields (`TeitokuExtProps`, `hasRing`, `FormatID`, `TeamListN`, `SelectStateN`, `unameN`, nested target class), recovered ship egg owner pickup/redeploy gate, registered ship render catalog/model/texture coverage, explicit projectile profile coverage, accepted direct-attack cooldown/resource feedback, 1.12 `ConfigLoot` default chest injection, polymetal worldgen placement constants, and default `ModOres` ore-dict-to-tag mappings.
+- `LegacyShipRenderCatalog` now covers every registered `ShipEntitySpec`; normal registered roster rendering resolves through explicit 1.12 model-source and texture entries. `LegacyShipModel` and `LegacyStaticModel` now throw on missing/unparseable required model sources instead of baking synthetic geometry.
+- `LegacyShipProjectileEntity` no longer has a normal fallback profile path. Registered heavy/air attack-capable specs must expose explicit projectile profiles and are locked by GameTest.
+- Registered block loot tables are now covered by GameTest. All registered block items with normal drops have packaged block loot tables; `blocklightair`, `blocklightliquid`, and special-NBT `blockgrudgeheavy` remain explicit no-drop exceptions.
+- `runClient --console=plain` boot/resource smoke passed on 2026-04-23 through resource reload, sound engine startup, and texture atlas creation. This is not a substitute for a real in-world multiplayer/manual visual pass.
+- External mod integration remains intentionally framework-only: keep `MorphCompatBridge` and compat loader no-op/degradation paths, and do not add hard dependencies without a separate approval.
+
+## Current landed mainline
 
 - `Teitoku + playerUID + owner UID`
 - `TeamSavedData / formation runtime / target-class sync`
 - `gameplay command/state packets`
 - `dedicated ship command packet + shared command service`
-- `per-ship behavior catalog baseline`
+- `per-ship behavior catalog coverage`
 - `desk / formation / ship inventory` 控制闭环
 - `large shipyard / heavy grudge` 结构与能量基线
-- `hostile encounter / chest loot / world combat rules`
+- `hostile encounter / 1.12 default chest loot / world combat rules`
 - `growth loop` 生存链：关键配方、宝箱入口、boss 首舰门槛
 - `advancement` 新手链：从 polymetal / grudge 一直到 first ship 与 boss unlock
 - `projectile parity`：heavy / air attack 的投射物语义、视觉、粒子、reaction
@@ -95,10 +107,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - 新增 GameTest 覆盖资源耗尽阻止攻击、补给后恢复攻击、单次攻击消耗、NBT 持久化、旧 tag 迁移、ration/grudge/light ammo/heavy ammo 直接补给。
 - 2026-04-20 Phase 5-10 双层收口已完成到 code + GameTest 基线：
   - Phase 5/6：玩家技能、rider ship skill、morph attack / special 失败时会给出 actionbar 原因，包括 no host、invalid target、skill unavailable、cooldown、out of range、no fuel、no grudge、no light/heavy ammo。
-  - Phase 7/9：`LegacyShipBehaviorCatalog` 显式声明 `BehaviorCoverageTier`、`BehaviorCoverage` 与单人 AI 优先级，GameTest 锁住所有 reachable friendly / hostile / boss roster 都已归类为 `SPECIFIC_HOOK` 或 `GENERIC_MAINLINE`。
-  - Phase 10：新增 `SinglePlayerResourceSourceCatalog`，把 polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、DeskReference 的 world / recipe / loot / hostile / advancement 来源记录成可测矩阵。
+  - Phase 7/9：`LegacyShipBehaviorCatalog` 显式声明 `BehaviorCoverageTier`、`BehaviorCoverage` 与单人 AI 优先级，GameTest 锁住所有 reachable friendly / hostile / boss roster 都有明确覆盖分级。
+- Phase 10：资源来源闭环由实际 packaged data 检查和 DeskReference Resource Sources 页面锁定，覆盖 polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、world / recipe / loot / hostile / advancement 来源；1.12 `ConfigLoot` 默认 chest 注入、polymetal worldgen 常量、默认 `ModOres` tag 映射也已有 GameTest 锁定。
   - DeskReference logbook 的 Logistics 章节新增 Resource Sources 页，直接展示单人主线资源来源。
-  - `MIGRATION-FLOW-CHECKLIST.md` 已将 Phase 5-10 标为 `Done (SP mainline)`，并新增 Full 1.12 parity backlog。
+  - `MIGRATION-FLOW-CHECKLIST.md` 已将 Phase 5-10 修正为 `Done (verified baseline)` 口径，并把剩余内容拆成 residual exact-parity / manual validation backlog。
 - 新增 `PLAYER_CAST_SKILL`，继续复用现有 gameplay command 总线，没有再开第二套协议。
 - `TeitokuData` 现在同步 `PlayerSkillRuntimeState`：
   - visible
@@ -145,7 +157,9 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
   - U511 / Ro500：已婚友方每 128 tick 给自身隐身；owner 在线且 16 格内时同步给 owner 隐身。
   - Kaga / Akagi：已婚友方每 128 tick 给 16 格内同 owner / allied ship 施加 jump boost。
   - Akatsuki / Hibiki / Ikazuchi / Inazuma：已婚友方每 128 tick 给 16 格内 owner 施加对应 Haste / Jump / Strength / Speed。
-  - 现代没有 legacy `UseRingEffect` 与 `NumGrudge` 状态，本批用现有 `isMarried()` + friendly/non-hostile gate 承接这类被动；未新增 packet 或存档字段。
+  - Nagato / Yamato / Kongou 级 / Tenryuu / Tatsuta 等旧 class-id 也已补回到 ring passive catalog，并有 GameTest 锁住 class-id 分发不回退。
+  - 现代侧已恢复 legacy `WedEffect` 开关：`ShipInventory` 支持点击/热键切换，typed ship command packet 会写回实体状态，且 `WedEffect` 已持久化到舰船 NBT。
+- `HeavyGrudgeBlockEntityRenderer` is registered on formed `HeavyGrudgeBlockEntity`: the large shipyard base and vortex still use the legacy model sources/textures, but there is no standalone modern `blocklargeshipyard` block ID.
 - 单人游戏性优先的 shipyard 燃料切片已迁移：
   - small / large shipyard 与 heavy grudge 结构的 fuel slot 统一走 `SmallShipyardRecipes.consumeFuelItem`。
   - `shiptank` 等 lava fluid container 现在按 1000mB 一次提供 20000 power，并保留 drain 后的容器。
@@ -165,7 +179,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `compileJava`
 - `processResources`
 - `runGameTestServer`
-- 当前 GameTest baseline：`All 79 required tests passed`
+- 当前 GameTest baseline：`All 91 required tests passed`
 - 单人主线 smoke 已有 GameTest 覆盖，确认 support item、typed ship command、boss gate/spawn 与 heavy combat cooldown 在同一闭环内可用。
 - 单人 runtime supply 已有 GameTest 覆盖，确认 fuel/light ammo/heavy ammo/grudge 的攻击门槛、消耗、NBT、旧 tag 迁移和直接补给路径。
 - Phase 5-10 双层收口已有 GameTest 覆盖，确认玩家可见失败反馈、行为 catalog 覆盖矩阵、AI 优先级、Phase 10 资源来源矩阵和 DeskReference resource source 行均可用。
@@ -204,7 +218,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ## 全 Phase 待办清单
 
-这里是给下一位接手者看的总清单。当前 Phase 0-4 为完整 Done；Phase 5-10 已按 `Done (SP mainline)` 收口，单人主线的网络/GUI/持久化、实体/AI/战斗、视觉资源防线、投射物反馈、世界资源闭环和 DeskReference 指引都有 code + GameTest 基线。完整 1.12 parity 现在单独作为 backlog：多人 ally UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 矩阵、模型精确渲染和全部边角舰种细节不阻塞本轮完成。后续仍建议做短客户端冒烟确认输入体验、视觉表达和失败反馈。
+这里是给下一位接手者看的总清单。当前 Phase 0-10 已按 `Done (verified baseline)` 口径收口：网络/GUI/持久化、实体/AI/战斗、视觉资源防线、投射物反馈、世界资源闭环、1.12 默认 chest loot 和 DeskReference 指引都有 code + GameTest 基线。剩余内容不再写成已完成，而是单独列为 residual exact-parity / manual validation backlog：多人 ally UI 真实客户端验证、完整旧版 GUI packet pages 精确审计、外部 inter-mod 真实 API、worldgen 边界实地验证、模型精确渲染和全部边角舰种细节。
 
 ### P0 立即验收项
 
@@ -328,11 +342,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 ### Phase 10: 世界生成 / 高级配方 / 跨模组
 
-- 当前单人主线已完成：polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、DeskReference 的来源都登记在 `SinglePlayerResourceSourceCatalog`，并由 GameTest 检查 data-pack 资源存在。
+- 当前单人资源闭环已完成：polymetal、abyssmetal、grudge、ammo、combat ration、fuel、shipyard/build、DeskReference 的来源由实际 packaged data 检查和 DeskReference Resource Sources 页面共同覆盖。
 - DeskReference 已有 Resource Sources 页，能把单人主线资源来源直接展示给玩家。
 - Backlog：
   - 完整 legacy ore-dict / tag 化配方对等。
-  - 全旧版 worldgen 矩阵、结构生成矩阵、历史 dungeon/loot 分布。
+  - 全旧版 worldgen 边界、结构生成矩阵、可选 ore-dict 别名和历史资源细节；默认 dungeon/chest loot 分布已按 1.12 `ConfigLoot` 回接，默认 `ModOres` tag 映射已有 GameTest。
   - DeskReference 全深度百科，不只覆盖单人主线资源闭环。
   - `MorphCompatBridge` 替换为真实 Metamorph API 绑定；其他兼容 mod 只做 soft dependency，不硬崩无依赖环境。
 
@@ -340,7 +354,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 1. 做一轮进世界客户端复核：生成 1 个友方舰船和 1 个 hostile / boss，重点验证 Pointer ship command、ShipInventory stop / AI flags / follow range / supply readout、support item refill、rider/morph 输入，以及 Phase 7 第一批 special combat hook 的现有 FX 表达。
 2. 若客户端复核发现单人阻塞，优先修 crash、missing texture/model fallback、命令失效、GUI 不刷新和存档破坏。
-3. 其余工作按 Full 1.12 parity backlog 排期：多人 ally UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 矩阵、精确模型/BER、全部边角舰种细节。
+3. 其余工作按 residual exact-parity / manual validation backlog 排期：多人 ally UI、完整旧版 GUI packet pages、外部 inter-mod 真实 API、worldgen 边界实地验证、精确模型/BER、全部边角舰种细节。
 
 ## 关键现代文件
 
@@ -351,11 +365,11 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 - `src/modern/java/com/lulan/shincolle/playerskill/*`
 - `src/modern/java/com/lulan/shincolle/entity/ship/*`
 - `src/modern/java/com/lulan/shincolle/entity/projectile/*`
-- `src/modern/java/com/lulan/shincolle/world/SinglePlayerResourceSourceCatalog.java`
+- `src/modern/java/com/lulan/shincolle/world/HostileEncounterTable.java`
 - `src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java`
 - `src/modern/java/com/lulan/shincolle/client/screen/*`
 - `src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java`
 
 ## 一句话总结
 
-项目现在已经按“双层收口”完成 Phase 5-10 的 `Done (SP mainline)`：单人主线网络/GUI/存档、行为 catalog、AI/战斗、视觉资源防线、投射物反馈、世界资源闭环和 DeskReference 指引都有 GameTest 锁定。下一步只需要做进世界客户端复核；完整 1.12 parity 作为独立 backlog 继续排期。
+项目现在已经按 `Done (verified baseline)` 完成 Phase 0-10 的代码与 GameTest 基线：网络/GUI/存档、行为 catalog、AI/战斗、视觉资源防线、投射物反馈、世界资源闭环和 DeskReference 指引都有 GameTest 锁定。下一步必须做进世界客户端和多人风格复核；完整 1.12 精确视觉/worldgen/GUI packet 边角 parity 继续作为 residual exact-parity backlog。

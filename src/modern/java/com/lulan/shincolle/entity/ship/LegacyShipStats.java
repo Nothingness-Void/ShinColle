@@ -36,7 +36,8 @@ public final class LegacyShipStats {
 
     public static LegacyShipStats create(int legacyClassId, ShipArchetype archetype, boolean hostileVariant,
                                          int level, int moraleValue,
-                                         int healthBonus, int attackBonus, int moveBonus, int rangeBonus,
+                                         int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
+                                         int moveBonus, int rangeBonus,
                                          boolean married,
                                          int formationId,
                                          ShipEquipmentProfile equipmentProfile,
@@ -44,7 +45,7 @@ public final class LegacyShipStats {
         int resolvedLevel = Math.max(1, level);
         float[] raw = hostileVariant
                 ? buildHostileRaw(legacyClassId, archetype)
-                : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, moveBonus, rangeBonus);
+                : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, defenseBonus, attackSpeedBonus, moveBonus, rangeBonus);
         float[] equip = equipmentProfile.toArray();
         float[] marriage = LegacyShipStatTables.copyMarriageStats(married);
         float[] morale = LegacyShipStatTables.copyMoraleStats(moraleValue);
@@ -60,7 +61,8 @@ public final class LegacyShipStats {
     }
 
     private static float[] buildFriendlyRaw(int legacyClassId, int level,
-                                            int healthBonus, int attackBonus, int moveBonus, int rangeBonus) {
+                                            int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
+                                            int moveBonus, int rangeBonus) {
         float[] raw = getResetRawValue();
         float[] base = LegacyShipStatTables.copyBaseStats(legacyClassId);
 
@@ -70,11 +72,11 @@ public final class LegacyShipStats {
                         * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HP]);
         raw[LegacyShipStatTables.Attr.DEF] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.DEF]
-                        + level * 0.00133F * base[LegacyShipStatTables.BaseAttr.MOD_DEF])
+                        + (defenseBonus + 1F) * level * 0.00133F * base[LegacyShipStatTables.BaseAttr.MOD_DEF])
                         * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.DEF]);
         raw[LegacyShipStatTables.Attr.SPD] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.SPD]
-                        + level * 0.004F * base[LegacyShipStatTables.BaseAttr.MOD_SPD])
+                        + (attackSpeedBonus + 1F) * level * 0.004F * base[LegacyShipStatTables.BaseAttr.MOD_SPD])
                         * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.SPD]);
         raw[LegacyShipStatTables.Attr.MOV] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.MOV]

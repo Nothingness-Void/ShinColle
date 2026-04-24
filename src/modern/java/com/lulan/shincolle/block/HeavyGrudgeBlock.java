@@ -21,7 +21,9 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.NetworkHooks;
 
@@ -29,13 +31,21 @@ import javax.annotation.Nullable;
 
 public class HeavyGrudgeBlock extends BaseEntityBlock {
 
+    public static final IntegerProperty MBS = IntegerProperty.create("mbs", 0, 2);
+
     public HeavyGrudgeBlock(Properties properties) {
         super(properties);
+        this.registerDefaultState(this.stateDefinition.any().setValue(MBS, 0));
     }
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return state.getValue(MBS) > 0 ? RenderShape.ENTITYBLOCK_ANIMATED : RenderShape.MODEL;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(MBS);
     }
 
     @Override
@@ -51,8 +61,12 @@ public class HeavyGrudgeBlock extends BaseEntityBlock {
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (!level.isClientSide() && placer instanceof Player player && level.getBlockEntity(pos) instanceof HeavyGrudgeBlockEntity heavy) {
-            heavy.setOwner(player);
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof HeavyGrudgeBlockEntity heavy) {
+            level.setBlock(pos, state.setValue(MBS, 0), Block.UPDATE_ALL);
+            if (placer instanceof Player player) {
+                heavy.setOwner(player);
+            }
+            heavy.restoreFromPlacedStack(stack);
         }
     }
 
@@ -63,15 +77,21 @@ public class HeavyGrudgeBlock extends BaseEntityBlock {
         }
 
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            if (!heavy.isStructureComplete()) {
+                if (player.isShiftKeyDown() || !heavy.tryAssembleStructure()) {
+                    return InteractionResult.PASS;
+                }
+                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
+                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+                return InteractionResult.SUCCESS;
+            }
+
             ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
             NetworkHooks.openScreen(serverPlayer, heavy, pos);
 
             if (!heavy.canEdit(player)) {
-                Component key = heavy.isStructureComplete()
-                        ? Component.translatable("chat.shincolle.shipyard.readonly")
-                        : Component.translatable("chat.shincolle.legacy_core.readonly", heavy.getBlockLabel());
-                player.displayClientMessage(key, true);
+                player.displayClientMessage(Component.translatable("chat.shincolle.shipyard.readonly"), true);
             }
         }
 
@@ -98,6 +118,7 @@ public class HeavyGrudgeBlock extends BaseEntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof HeavyGrudgeBlockEntity heavy) {
             heavy.dropContents();
+            heavy.resetStructure(false);
         }
 
         super.onRemove(state, level, pos, newState, movedByPiston);

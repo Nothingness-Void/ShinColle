@@ -104,8 +104,6 @@ public class LegacyEquipmentItem extends Item {
         if (misc != null) {
             appendBuildInfo(tooltip, misc);
         }
-
-        tooltip.add(Component.translatable("gui.shincolle.equipment.bridge_live").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     private static void appendStats(List<Component> tooltip, float[] stats) {

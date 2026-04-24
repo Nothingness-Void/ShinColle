@@ -151,8 +151,11 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String LEGACY_HEAVY_AMMO_TAG = "NumAmmoHeavy";
     private static final String LEGACY_GRUDGE_TAG = "NumGrudge";
     private static final String SHIP_MARRIED_TAG = "ShipMarried";
+    private static final String WED_EFFECT_TAG = "WedEffect";
     private static final String MODERN_HEALTH_TAG = "ModernHealth";
     private static final String MODERN_ATTACK_TAG = "ModernAttack";
+    private static final String MODERN_DEFENSE_TAG = "ModernDefense";
+    private static final String MODERN_ATTACK_SPEED_TAG = "ModernAttackSpeed";
     private static final String MODERN_SPEED_TAG = "ModernSpeed";
     private static final String MODERN_RANGE_TAG = "ModernRange";
     private static final String SHIP_UID_TAG = "ShipUID";
@@ -183,8 +186,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final int DEFAULT_HEAVY_AMMO = MAX_HEAVY_AMMO;
     private static final int DEFAULT_GRUDGE = MAX_GRUDGE;
     private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
-    private static final int MAX_MODERN_TOTAL_STEPS = 24;
-    private static final int MAX_MODERN_STAT_STEPS = 12;
+    public static final int MODERN_LIMIT = 3;
+    private static final int MODERN_ATTRIBUTE_COUNT = 6;
     private static final int ROUTE_FLUID_TRANSFER_UNIT = 250;
     private static final int ROUTE_ENERGY_TRANSFER_UNIT = 100;
 
@@ -209,6 +212,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_GRUDGE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_MARRIED =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> DATA_RING_EFFECT =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> DATA_MODERNIZATION_TOTAL =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -243,13 +248,15 @@ public class LegacyShipEntity extends PathfinderMob {
             false,
             DEFAULT_LEVEL,
             DEFAULT_MORALE,
-            0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
             false,
             TeitokuData.DEFAULT_FORMATION_ID,
             ShipEquipmentProfile.EMPTY,
             List.of());
     private int modernHealthSteps;
     private int modernAttackSteps;
+    private int modernDefenseSteps;
+    private int modernAttackSpeedSteps;
     private int modernSpeedSteps;
     private int modernRangeSteps;
     private int meleeAttackCooldown;
@@ -309,6 +316,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_HEAVY_AMMO, DEFAULT_HEAVY_AMMO);
         this.entityData.define(DATA_GRUDGE, DEFAULT_GRUDGE);
         this.entityData.define(DATA_MARRIED, false);
+        this.entityData.define(DATA_RING_EFFECT, true);
         this.entityData.define(DATA_MODERNIZATION_TOTAL, 0);
         this.entityData.define(DATA_FORMATION_ID, TeitokuData.DEFAULT_FORMATION_ID);
         this.entityData.define(DATA_AI_FLAGS, GameplayCommandHandler.AI_FLAG_AUTO_TARGET
@@ -425,10 +433,13 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setHeavyAmmo(getIntWithFallback(tag, SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG, DEFAULT_HEAVY_AMMO));
         this.setGrudge(getIntWithFallback(tag, SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG, DEFAULT_GRUDGE));
         this.entityData.set(DATA_MARRIED, tag.getBoolean(SHIP_MARRIED_TAG));
-        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MAX_MODERN_STAT_STEPS);
+        this.entityData.set(DATA_RING_EFFECT, !tag.contains(WED_EFFECT_TAG) || tag.getBoolean(WED_EFFECT_TAG));
+        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, MODERN_LIMIT);
+        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MODERN_LIMIT);
+        this.modernDefenseSteps = Mth.clamp(tag.getInt(MODERN_DEFENSE_TAG), 0, MODERN_LIMIT);
+        this.modernAttackSpeedSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_SPEED_TAG), 0, MODERN_LIMIT);
+        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MODERN_LIMIT);
+        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MODERN_LIMIT);
         this.shipUid = Math.max(0, tag.getInt(SHIP_UID_TAG));
         this.commandedPos = tag.contains(COMMAND_POS_TAG, Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong(COMMAND_POS_TAG))
@@ -484,8 +495,11 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putInt(SHIP_HEAVY_AMMO_TAG, this.getHeavyAmmo());
         tag.putInt(SHIP_GRUDGE_TAG, this.getGrudge());
         tag.putBoolean(SHIP_MARRIED_TAG, this.isMarried());
+        tag.putBoolean(WED_EFFECT_TAG, this.isRingEffectEnabled());
         tag.putInt(MODERN_HEALTH_TAG, this.modernHealthSteps);
         tag.putInt(MODERN_ATTACK_TAG, this.modernAttackSteps);
+        tag.putInt(MODERN_DEFENSE_TAG, this.modernDefenseSteps);
+        tag.putInt(MODERN_ATTACK_SPEED_TAG, this.modernAttackSpeedSteps);
         tag.putInt(MODERN_SPEED_TAG, this.modernSpeedSteps);
         tag.putInt(MODERN_RANGE_TAG, this.modernRangeSteps);
         if (this.shipUid > 0) {
@@ -733,19 +747,11 @@ public class LegacyShipEntity extends PathfinderMob {
                 && !this.isHostileVariant()
                 && amount >= this.getHealth()
                 && this.consumeFirstMatchingItem(ModItems.REPAIRGODDESS.get())) {
-            this.setHealth(Math.max(1.0F, this.getMaxHealth() * 0.4F));
-            this.removeAllEffects();
-            this.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 20 * 12, 1));
-            this.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 20 * 20, 1));
-            this.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 20 * 20, 0));
-            this.level().broadcastEntityEvent(this, (byte) 35);
-
-            Player owner = this.getOwnerPlayer();
-            if (owner != null) {
-                owner.displayClientMessage(Component.translatable("chat.shincolle.ship.repairgoddess.triggered",
-                        this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE)), true);
-            }
-
+            this.setHealth(this.getMaxHealth());
+            this.invulnerableTime = 120;
+            this.lastHurt = Float.MAX_VALUE;
+            CombatFxDispatcher.sendParticle(this, GameplayParticleType.FLARE_BURST,
+                    this.getX(), this.getY() + this.getBbHeight() * 0.4D, this.getZ());
             return false;
         }
 
@@ -868,6 +874,8 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.set(DATA_MARRIED, false);
         this.modernHealthSteps = 0;
         this.modernAttackSteps = 0;
+        this.modernDefenseSteps = 0;
+        this.modernAttackSpeedSteps = 0;
         this.modernSpeedSteps = 0;
         this.modernRangeSteps = 0;
         this.entityData.set(DATA_MODERNIZATION_TOTAL, 0);
@@ -1042,8 +1050,22 @@ public class LegacyShipEntity extends PathfinderMob {
         this.refreshFromVariant(true);
     }
 
+    public boolean isRingEffectEnabled() {
+        return this.entityData.get(DATA_RING_EFFECT);
+    }
+
+    public void setRingEffectEnabled(boolean enabled) {
+        this.entityData.set(DATA_RING_EFFECT, enabled);
+        this.setPersistenceRequired();
+    }
+
     public int getModernizationCount() {
-        return this.modernHealthSteps + this.modernAttackSteps + this.modernSpeedSteps + this.modernRangeSteps;
+        return this.modernHealthSteps
+                + this.modernAttackSteps
+                + this.modernDefenseSteps
+                + this.modernAttackSpeedSteps
+                + this.modernSpeedSteps
+                + this.modernRangeSteps;
     }
 
     public int getModernizationDisplayCount() {
@@ -1311,14 +1333,14 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         LegacyShipAttackKind preferred = this.nextAirAttackLight ? LegacyShipAttackKind.AIR_LIGHT : LegacyShipAttackKind.AIR_HEAVY;
-        LegacyShipAttackKind fallback = this.nextAirAttackLight ? LegacyShipAttackKind.AIR_HEAVY : LegacyShipAttackKind.AIR_LIGHT;
+        LegacyShipAttackKind alternate = this.nextAirAttackLight ? LegacyShipAttackKind.AIR_HEAVY : LegacyShipAttackKind.AIR_LIGHT;
 
         if (this.canUseCompatAttack(preferred) && this.performCompatAttack(target, preferred)) {
             this.nextAirAttackLight = !this.nextAirAttackLight;
             return true;
         }
 
-        if (this.canUseCompatAttack(fallback) && this.performCompatAttack(target, fallback)) {
+        if (this.canUseCompatAttack(alternate) && this.performCompatAttack(target, alternate)) {
             this.nextAirAttackLight = !this.nextAirAttackLight;
             return true;
         }
@@ -1575,38 +1597,54 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public boolean addRandomModernization() {
-        if (this.getModernizationCount() >= MAX_MODERN_TOTAL_STEPS) {
+        if (this.getModernizationCount() >= MODERN_LIMIT * MODERN_ATTRIBUTE_COUNT) {
             return false;
         }
 
-        List<Integer> available = new ArrayList<>(4);
-        if (this.modernHealthSteps < MAX_MODERN_STAT_STEPS) {
-            available.add(0);
+        int selected = this.random.nextInt(MODERN_ATTRIBUTE_COUNT);
+        if (this.getModernizationSteps(selected) >= MODERN_LIMIT) {
+            selected = -1;
+            for (int i = 0; i < MODERN_ATTRIBUTE_COUNT; i++) {
+                if (this.getModernizationSteps(i) < MODERN_LIMIT) {
+                    selected = i;
+                    break;
+                }
+            }
         }
-        if (this.modernAttackSteps < MAX_MODERN_STAT_STEPS) {
-            available.add(1);
-        }
-        if (this.modernSpeedSteps < MAX_MODERN_STAT_STEPS) {
-            available.add(2);
-        }
-        if (this.modernRangeSteps < MAX_MODERN_STAT_STEPS) {
-            available.add(3);
-        }
-
-        if (available.isEmpty()) {
+        if (selected < 0) {
             return false;
         }
 
-        switch (available.get(this.random.nextInt(available.size()))) {
-            case 0 -> this.modernHealthSteps++;
-            case 1 -> this.modernAttackSteps++;
-            case 2 -> this.modernSpeedSteps++;
-            default -> this.modernRangeSteps++;
-        }
+        this.addModernizationStep(selected);
 
         this.entityData.set(DATA_MODERNIZATION_TOTAL, this.getModernizationCount());
         this.refreshFromVariant(true);
         return true;
+    }
+
+    private int getModernizationSteps(int index) {
+        return switch (index) {
+            case 0 -> this.modernHealthSteps;
+            case 1 -> this.modernAttackSteps;
+            case 2 -> this.modernDefenseSteps;
+            case 3 -> this.modernAttackSpeedSteps;
+            case 4 -> this.modernSpeedSteps;
+            case 5 -> this.modernRangeSteps;
+            default -> MODERN_LIMIT;
+        };
+    }
+
+    private void addModernizationStep(int index) {
+        switch (index) {
+            case 0 -> this.modernHealthSteps++;
+            case 1 -> this.modernAttackSteps++;
+            case 2 -> this.modernDefenseSteps++;
+            case 3 -> this.modernAttackSpeedSteps++;
+            case 4 -> this.modernSpeedSteps++;
+            case 5 -> this.modernRangeSteps++;
+            default -> {
+            }
+        }
     }
 
     public int getRescueItemCount() {
@@ -1686,6 +1724,8 @@ public class LegacyShipEntity extends PathfinderMob {
                 this.getMorale(),
                 this.modernHealthSteps,
                 this.modernAttackSteps,
+                this.modernDefenseSteps,
+                this.modernAttackSpeedSteps,
                 this.modernSpeedSteps,
                 this.modernRangeSteps,
                 this.isMarried(),
@@ -1903,8 +1943,8 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         boolean attacked = target.hurt(this.damageSources().mobAttack(this), roll.damage());
+        this.setLastHurtMob(target);
         if (attacked) {
-            this.setLastHurtMob(target);
             if (attackKind == LegacyShipAttackKind.MELEE) {
                 this.playShipCombatSound(ModSoundEvents.SHIP_HITMETAL.get(), 0.55F, 0.9F + this.random.nextFloat() * 0.2F);
             } else if (attackKind == LegacyShipAttackKind.LIGHT) {
@@ -1912,8 +1952,8 @@ public class LegacyShipEntity extends PathfinderMob {
             } else if (attackKind == LegacyShipAttackKind.HEAVY) {
                 this.playShipCombatSound(ModSoundEvents.SHIP_FIREHEAVY.get(), 0.7F, 0.85F + this.random.nextFloat() * 0.3F);
             }
-            this.consumeAttackResources(attackKind);
         }
+        this.consumeAttackResources(attackKind);
         this.emitAttackFx(target, attackKind, roll, attacked);
         switch (attackKind) {
             case LIGHT -> this.lightAttackCooldown = delay;
@@ -1922,7 +1962,7 @@ public class LegacyShipEntity extends PathfinderMob {
             case MELEE -> this.meleeAttackCooldown = delay;
         }
 
-        return attacked;
+        return true;
     }
 
     boolean performCatalogSpecialAttack(LivingEntity target, LegacyShipAttackKind attackKind, float damageScale,
@@ -2471,14 +2511,14 @@ public class LegacyShipEntity extends PathfinderMob {
                 && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
         boolean canUnloadEnergy = crane.getEnergyMode() == 2
                 && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-        boolean hasPendingWork = canLoad || canUnload;
-        hasPendingWork = hasPendingWork || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
+        boolean hasTransferWork = canLoad || canUnload;
+        hasTransferWork = hasTransferWork || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
 
         if (this.routeTransferCooldown > 0) {
             this.routeTransferCooldown--;
         }
 
-        if (hasPendingWork && this.routeTransferCooldown <= 0) {
+        if (hasTransferWork && this.routeTransferCooldown <= 0) {
             int moved = 0;
             if ((canLoad || canLoadLiquid || canLoadEnergy)
                     && (!canUnload && !canUnloadLiquid && !canUnloadEnergy || this.routePreferLoad)) {
@@ -2530,7 +2570,7 @@ public class LegacyShipEntity extends PathfinderMob {
                         && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
                 canUnloadEnergy = crane.getEnergyMode() == 2
                         && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-                hasPendingWork = canLoad || canUnload || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
+                hasTransferWork = canLoad || canUnload || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
             }
         }
 
@@ -2539,7 +2579,7 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (crane.getWaitMode() <= 4) {
-            return hasPendingWork;
+            return hasTransferWork;
         }
 
         return this.waitAtRouteNode(CraneBlockEntity.getWaitTime(crane.getWaitMode()));
@@ -3368,15 +3408,27 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void tickMarriageBond() {
+        if ((this.tickCount & 127) != 0
+                || !this.isMarried()
+                || !this.isRingEffectEnabled()
+                || this.getGrudge() <= 0) {
+            return;
+        }
+
+        LegacyShipBehaviorCatalog.tickMarriagePassive(this);
     }
 
     private void tickLegacyRingPassives() {
     }
 
     void applyCarrierRingAura(int durationTicks, int amplifier) {
+        this.applyAlliedRingAura(MobEffects.JUMP, durationTicks, amplifier);
+    }
+
+    void applyAlliedRingAura(MobEffect effect, int durationTicks, int amplifier) {
         for (LegacyShipEntity ship : this.level().getEntitiesOfClass(LegacyShipEntity.class, this.getBoundingBox().inflate(16.0D))) {
             if (!ship.isHostileVariant() && (ship == this || this.isAlliedTo(ship))) {
-                this.applyLegacyRingEffect(ship, MobEffects.JUMP, durationTicks, amplifier);
+                this.applyLegacyRingEffect(ship, effect, durationTicks, amplifier);
             }
         }
     }
@@ -3431,6 +3483,13 @@ public class LegacyShipEntity extends PathfinderMob {
         this.getNavigation().stop();
         this.setTarget(null);
         this.setOrderedToSit(false);
+        this.modernHealthSteps = 0;
+        this.modernAttackSteps = 0;
+        this.modernDefenseSteps = 0;
+        this.modernAttackSpeedSteps = 0;
+        this.modernSpeedSteps = 0;
+        this.modernRangeSteps = 0;
+        this.entityData.set(DATA_MODERNIZATION_TOTAL, 0);
     }
 
     private InteractionResult handleShipItemInteraction(Player player, InteractionHand hand, ItemStack stack) {

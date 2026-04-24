@@ -4,7 +4,6 @@ import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
-import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
 import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
@@ -22,8 +21,6 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(CraneBlockEntity::new, ModBlocks.BLOCK_CRANE.get()).build(null));
     public static final RegistryObject<BlockEntityType<DeskBlockEntity>> DESK = BLOCK_ENTITIES.register("desk",
             () -> BlockEntityType.Builder.of(DeskBlockEntity::new, ModBlocks.BLOCK_DESK.get()).build(null));
-    public static final RegistryObject<BlockEntityType<LargeShipyardBlockEntity>> LARGE_SHIPYARD = BLOCK_ENTITIES.register("large_shipyard",
-            () -> BlockEntityType.Builder.of(LargeShipyardBlockEntity::new, ModBlocks.BLOCK_LARGE_SHIPYARD.get()).build(null));
     public static final RegistryObject<BlockEntityType<HeavyGrudgeBlockEntity>> GRUDGE_HEAVY = BLOCK_ENTITIES.register("grudge_heavy",
             () -> BlockEntityType.Builder.of(HeavyGrudgeBlockEntity::new, ModBlocks.BLOCK_GRUDGE_HEAVY.get()).build(null));
     public static final RegistryObject<BlockEntityType<PolymetalServantBlockEntity>> POLYMETAL = BLOCK_ENTITIES.register("polymetal",

@@ -94,7 +94,11 @@ public final class ShipEntitySpecs {
     }
 
     public static ShipEntitySpec getByEggMeta(int eggMeta) {
-        return SPECS.getOrDefault(eggMeta, DEFAULT);
+        ShipEntitySpec spec = SPECS.get(eggMeta);
+        if (spec == null) {
+            throw new IllegalArgumentException("Unknown legacy ship egg meta " + eggMeta);
+        }
+        return spec;
     }
 
     public static @Nullable ShipEntitySpec findByEggMeta(int eggMeta) {
@@ -107,11 +111,10 @@ public final class ShipEntitySpecs {
 
     public static ShipEntitySpec friendlyCounterpart(int eggMeta) {
         Integer friendlyMeta = FRIENDLY_COUNTERPARTS.get(eggMeta);
-        if (friendlyMeta != null) {
-            return getByEggMeta(friendlyMeta);
+        if (friendlyMeta == null) {
+            throw new IllegalArgumentException("No explicit 1.12 friendly counterpart for legacy ship egg meta " + eggMeta);
         }
-
-        return fallbackFriendlySpec(getByEggMeta(eggMeta).archetype());
+        return getByEggMeta(friendlyMeta);
     }
 
     public static ShipEntitySpec friendlyCounterpart(ShipEntitySpec spec) {
@@ -120,22 +123,22 @@ public final class ShipEntitySpecs {
 
     public static ShipEntitySpec resolveEggItem(String itemPath, RandomSource random) {
         if ("smallegg".equals(itemPath)) {
-            return randomConstructionSmall(random);
+            return randomPrimary(random);
         }
 
         if ("largeegg".equals(itemPath)) {
-            return randomConstructionLarge(random);
+            return randomAdvanced(random);
         }
 
         if (itemPath.startsWith("shipegg")) {
             try {
                 return getByEggMeta(Integer.parseInt(itemPath.substring("shipegg".length())));
             } catch (NumberFormatException ignored) {
-                return DEFAULT;
+                throw new IllegalArgumentException("Invalid legacy ship egg item path " + itemPath, ignored);
             }
         }
 
-        return DEFAULT;
+        throw new IllegalArgumentException("Unknown legacy ship egg item path " + itemPath);
     }
 
     public static ShipEntitySpec randomPrimary(RandomSource random) {
@@ -144,14 +147,6 @@ public final class ShipEntitySpecs {
 
     public static ShipEntitySpec randomAdvanced(RandomSource random) {
         return getByEggMeta(ADVANCED_EGG_POOL[random.nextInt(ADVANCED_EGG_POOL.length)]);
-    }
-
-    public static ShipEntitySpec randomConstructionSmall(RandomSource random) {
-        return getByEggMeta(CONSTRUCTION_SMALL_EGG_POOL[random.nextInt(CONSTRUCTION_SMALL_EGG_POOL.length)]);
-    }
-
-    public static ShipEntitySpec randomConstructionLarge(RandomSource random) {
-        return getByEggMeta(CONSTRUCTION_LARGE_EGG_POOL[random.nextInt(CONSTRUCTION_LARGE_EGG_POOL.length)]);
     }
 
     public static List<ShipEntitySpec> primaryPool() {
@@ -179,16 +174,6 @@ public final class ShipEntitySpecs {
 
     public static Collection<ShipEntitySpec> values() {
         return Collections.unmodifiableCollection(SPECS.values());
-    }
-
-    private static ShipEntitySpec fallbackFriendlySpec(ShipArchetype archetype) {
-        return switch (archetype) {
-            case DESTROYER -> getByEggMeta(38);
-            case CRUISER, TRANSPORT -> getByEggMeta(58);
-            case SUBMARINE -> getByEggMeta(40);
-            case CARRIER, INSTALLATION -> getByEggMeta(49);
-            case BATTLESHIP, PRINCESS -> getByEggMeta(39);
-        };
     }
 
     private static void registerFriendlyCounterparts() {

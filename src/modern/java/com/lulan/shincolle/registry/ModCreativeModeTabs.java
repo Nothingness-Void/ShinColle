@@ -68,7 +68,6 @@ public final class ModCreativeModeTabs {
                         output.accept(ModBlocks.BLOCK_POLYMETAL.get());
                         output.accept(ModBlocks.BLOCK_POLYMETAL_ORE.get());
                         output.accept(ModBlocks.BLOCK_POLYMETAL_GRAVEL.get());
-                        output.accept(ModBlocks.BLOCK_LARGE_SHIPYARD.get());
                         output.accept(ModBlocks.BLOCK_SMALL_SHIPYARD.get());
                         output.accept(ModBlocks.BLOCK_VOL_BLOCK.get());
                         output.accept(ModBlocks.BLOCK_VOL_CORE.get());

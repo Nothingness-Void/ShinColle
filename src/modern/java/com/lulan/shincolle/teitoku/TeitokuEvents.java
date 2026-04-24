@@ -1,14 +1,20 @@
 package com.lulan.shincolle.teitoku;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
+import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
@@ -64,6 +70,23 @@ public final class TeitokuEvents {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.initializeAndSync(serverPlayer);
         }
+    }
+
+    @SubscribeEvent
+    public static void onRecoveredShipEggPickup(EntityItemPickupEvent event) {
+        ItemEntity itemEntity = event.getItem();
+        ItemStack stack = itemEntity.getItem();
+        Player player = event.getEntity();
+        if (!LegacyShipSpawnEggItem.isRecoveredShipStack(stack)
+                || LegacyShipSpawnEggItem.canPlayerAccessRecoveredShip(stack, player)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        itemEntity.setPickUpDelay(20);
+        Component ownerName = Component.literal(LegacyShipSpawnEggItem.getRecoveredOwnerName(stack).orElse("?"))
+                .withStyle(ChatFormatting.GOLD);
+        player.displayClientMessage(Component.translatable("chat.shincolle.entity.owner_locked", ownerName), true);
     }
 
     @SubscribeEvent

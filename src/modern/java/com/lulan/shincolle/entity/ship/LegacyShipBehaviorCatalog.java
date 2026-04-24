@@ -31,7 +31,14 @@ public final class LegacyShipBehaviorCatalog {
         NONE,
         SELF_AND_OWNER_INVISIBILITY,
         ALLIED_JUMP_AURA,
+        ALLIED_STRENGTH_AURA,
+        ALLIED_RESISTANCE_FIRE_AURA,
+        ALLIED_HEALTH_BOOST_AURA,
+        ALLIED_SATURATION_AURA,
+        ALLIED_LUCK_AURA,
+        ALLIED_NIGHT_VISION_AURA,
         OWNER_HASTE,
+        OWNER_NIGHT_VISION,
         OWNER_JUMP,
         OWNER_STRENGTH,
         OWNER_SPEED
@@ -220,7 +227,18 @@ public final class LegacyShipBehaviorCatalog {
                 ship.applyOwnerRingEffect(MobEffects.INVISIBILITY, 40 + shipLevel, 0);
             }
             case ALLIED_JUMP_AURA -> ship.applyCarrierRingAura(50 + shipLevel, shipLevel / 85);
+            case ALLIED_STRENGTH_AURA -> ship.applyAlliedRingAura(MobEffects.DAMAGE_BOOST, 50 + shipLevel, shipLevel / 70);
+            case ALLIED_RESISTANCE_FIRE_AURA -> {
+                int amplifier = shipLevel / 70;
+                ship.applyAlliedRingAura(MobEffects.DAMAGE_RESISTANCE, 50 + shipLevel, amplifier);
+                ship.applyAlliedRingAura(MobEffects.FIRE_RESISTANCE, 50 + shipLevel, amplifier);
+            }
+            case ALLIED_HEALTH_BOOST_AURA -> ship.applyAlliedRingAura(MobEffects.HEALTH_BOOST, 140 + shipLevel, shipLevel / 120);
+            case ALLIED_SATURATION_AURA -> ship.applyAlliedRingAura(MobEffects.SATURATION, 100 + shipLevel * 2, shipLevel / 120);
+            case ALLIED_LUCK_AURA -> ship.applyAlliedRingAura(MobEffects.LUCK, 100 + shipLevel, shipLevel / 120);
+            case ALLIED_NIGHT_VISION_AURA -> ship.applyAlliedRingAura(MobEffects.NIGHT_VISION, 100 + shipLevel, 0);
             case OWNER_HASTE -> ship.applyOwnerRingEffect(MobEffects.DIG_SPEED, 80 + shipLevel, shipLevel / 30);
+            case OWNER_NIGHT_VISION -> ship.applyOwnerRingEffect(MobEffects.NIGHT_VISION, 100 + shipLevel, 0);
             case OWNER_JUMP -> ship.applyOwnerRingEffect(MobEffects.JUMP, 80 + shipLevel, shipLevel / 45 + 1);
             case OWNER_STRENGTH -> ship.applyOwnerRingEffect(MobEffects.DAMAGE_BOOST, 80 + shipLevel, shipLevel / 50);
             case OWNER_SPEED -> ship.applyOwnerRingEffect(MobEffects.MOVEMENT_SPEED, 80 + shipLevel, shipLevel / 45);
@@ -248,12 +266,19 @@ public final class LegacyShipBehaviorCatalog {
 
     private static MarriagePassive marriagePassiveForFriendlyClassId(int legacyClassId) {
         return switch (legacyClassId) {
+            case 37 -> MarriagePassive.ALLIED_STRENGTH_AURA;
             case 38, 39 -> MarriagePassive.SELF_AND_OWNER_INVISIBILITY;
+            case 46 -> MarriagePassive.ALLIED_RESISTANCE_FIRE_AURA;
             case 47, 48 -> MarriagePassive.ALLIED_JUMP_AURA;
             case 51 -> MarriagePassive.OWNER_HASTE;
             case 52 -> MarriagePassive.OWNER_JUMP;
             case 53 -> MarriagePassive.OWNER_STRENGTH;
             case 54 -> MarriagePassive.OWNER_SPEED;
+            case 56, 57 -> MarriagePassive.OWNER_NIGHT_VISION;
+            case 60 -> MarriagePassive.ALLIED_HEALTH_BOOST_AURA;
+            case 61 -> MarriagePassive.ALLIED_SATURATION_AURA;
+            case 62 -> MarriagePassive.ALLIED_LUCK_AURA;
+            case 63 -> MarriagePassive.ALLIED_NIGHT_VISION_AURA;
             default -> MarriagePassive.NONE;
         };
     }

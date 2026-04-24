@@ -1,10 +1,14 @@
 package com.lulan.shincolle.crafting;
 
 import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.registry.ModBlocks;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.ItemStackHandler;
+
+import java.util.Arrays;
 
 public final class LargeShipyardRecipes {
 
@@ -21,6 +25,9 @@ public final class LargeShipyardRecipes {
     public static final int SLOT_COUNT = 10;
 
     public static final int MIN_AMOUNT = 100;
+    public static final int MAX_STOCK = 1000000;
+    public static final int COMPRESSED_OUTPUT_AMOUNT = 9;
+    public static final int SINGLE_OUTPUT_AMOUNT = 1;
     private static final int BASE_POWER = 460800;
     private static final int POWER_PER_MATERIAL = 256;
 
@@ -51,27 +58,153 @@ public final class LargeShipyardRecipes {
     }
 
     public static int materialSlot(ItemStack stack) {
+        int[] values = materialValues(stack);
+        if (values[0] > 0 && values[1] == 0 && values[2] == 0 && values[3] == 0) {
+            return 0;
+        }
+        if (values[1] > 0 && values[0] == 0 && values[2] == 0 && values[3] == 0) {
+            return 1;
+        }
+        if (values[2] > 0 && values[0] == 0 && values[1] == 0 && values[3] == 0) {
+            return 2;
+        }
+        if (values[3] > 0 && values[0] == 0 && values[1] == 0 && values[2] == 0) {
+            return 3;
+        }
+        return -1;
+    }
+
+    public static int[] materialValues(ItemStack stack) {
         if (stack.isEmpty()) {
-            return -1;
+            return new int[4];
         }
 
-        if (stack.is(ModItems.GRUDGE.get())) {
-            return 0;
+        if (stack.is(ModItems.GRUDGE.get()) || stack.is(ModItems.GRUDGE1.get())) {
+            return new int[]{1, 0, 0, 0};
         }
 
         if (stack.is(ModItems.ABYSSMETAL.get())) {
-            return 1;
-        }
-
-        if (stack.is(ModItems.AMMO.get())) {
-            return 2;
+            return new int[]{0, 1, 0, 0};
         }
 
         if (stack.is(ModItems.ABYSSMETAL1.get())) {
-            return 3;
+            return new int[]{0, 0, 0, 1};
         }
 
-        return -1;
+        if (stack.is(ModItems.AMMO.get())) {
+            return new int[]{0, 0, 1, 0};
+        }
+
+        if (stack.is(ModItems.AMMO1.get())) {
+            return new int[]{0, 0, 9, 0};
+        }
+
+        if (stack.is(ModItems.AMMO2.get())) {
+            return new int[]{0, 0, 4, 0};
+        }
+
+        if (stack.is(ModItems.AMMO3.get())) {
+            return new int[]{0, 0, 36, 0};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
+            return new int[]{9, 0, 0, 0};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_ABYSSIUM.get().asItem())) {
+            return new int[]{0, 9, 0, 0};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_POLYMETAL.get().asItem())) {
+            return new int[]{0, 0, 0, 9};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_POLYMETAL_GRAVEL.get().asItem())) {
+            return new int[]{0, 0, 0, 4};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get().asItem())) {
+            return new int[]{18, 0, 0, 0};
+        }
+
+        if (stack.is(ModBlocks.BLOCK_GRUDGE_HEAVY.get().asItem())) {
+            int[] values = new int[]{81, 0, 0, 0};
+            if (stack.hasTag()) {
+                int[] mats = stack.getTag().getIntArray("mats");
+                for (int i = 0; i < values.length && i < mats.length; i++) {
+                    values[i] += mats[i];
+                }
+            }
+            return values;
+        }
+
+        return new int[4];
+    }
+
+    public static boolean addMaterialStock(int[] stock, ItemStack stack) {
+        if (stock == null || stock.length < 4 || stack.isEmpty()) {
+            return false;
+        }
+
+        int[] values = materialValues(stack);
+        if (Arrays.stream(values).allMatch(value -> value == 0)) {
+            return false;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            if (stock[i] > MAX_STOCK || stock[i] + values[i] > MAX_STOCK) {
+                return false;
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            stock[i] += values[i];
+        }
+        return true;
+    }
+
+    public static boolean outputMaterialToSlot(ItemStackHandler items, int material, boolean compress) {
+        Item item = outputItem(material, compress);
+        if (item == null) {
+            return false;
+        }
+
+        ItemStack output = new ItemStack(item);
+        for (int slot = SLOT_FUEL; slot < items.getSlots(); slot++) {
+            ItemStack current = items.getStackInSlot(slot);
+            if (current.isEmpty()) {
+                items.setStackInSlot(slot, output);
+                return true;
+            }
+
+            if (ItemStack.isSameItemSameTags(current, output) && current.getCount() < current.getMaxStackSize()) {
+                current.grow(1);
+                items.setStackInSlot(slot, current);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static Item outputItem(int material, boolean compress) {
+        if (compress) {
+            return switch (material) {
+                case 0 -> ModBlocks.BLOCK_GRUDGE.get().asItem();
+                case 1 -> ModBlocks.BLOCK_ABYSSIUM.get().asItem();
+                case 2 -> ModItems.AMMO1.get();
+                case 3 -> ModBlocks.BLOCK_POLYMETAL.get().asItem();
+                default -> null;
+            };
+        }
+
+        return switch (material) {
+            case 0 -> ModItems.GRUDGE.get();
+            case 1 -> ModItems.ABYSSMETAL.get();
+            case 2 -> ModItems.AMMO.get();
+            case 3 -> ModItems.ABYSSMETAL1.get();
+            default -> null;
+        };
     }
 
     public static int materialIndexForSlot(int slot) {

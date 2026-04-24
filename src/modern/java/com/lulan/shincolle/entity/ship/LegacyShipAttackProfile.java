@@ -15,27 +15,15 @@ public record LegacyShipAttackProfile(
         LegacyShipProjectileProfile airLightProjectile,
         LegacyShipProjectileProfile airHeavyProjectile) {
 
-    private static final LegacyShipProjectileProfile MISSILE_BARRAGE = new LegacyShipProjectileProfile(
+    private static final LegacyShipProjectileProfile LEGACY_HEAVY_MISSILE = new LegacyShipProjectileProfile(
             LegacyShipProjectileVisual.MISSILE,
             LegacyShipProjectileMoveType.ARC,
-            0.52D,
-            0.72F,
-            0.35F,
-            90,
+            0.5D,
+            0.5F,
+            0.1F,
+            160,
             0.0F,
-            0.18F,
-            GameplayParticleType.LAUNCH_SMOKE,
-            GameplayParticleType.MISSILE_TRAIL,
-            GameplayParticleType.MISSILE_IMPACT);
-    private static final LegacyShipProjectileProfile GUIDED_MISSILE_BARRAGE = new LegacyShipProjectileProfile(
-            LegacyShipProjectileVisual.MISSILE,
-            LegacyShipProjectileMoveType.GUIDED,
-            0.48D,
-            0.72F,
-            0.4F,
-            100,
-            0.22F,
-            0.08F,
+            0.25F,
             GameplayParticleType.LAUNCH_SMOKE,
             GameplayParticleType.MISSILE_TRAIL,
             GameplayParticleType.MISSILE_IMPACT);
@@ -76,6 +64,19 @@ public record LegacyShipAttackProfile(
             GameplayParticleType.BOMB_DROP,
             GameplayParticleType.BOMB_IMPACT);
 
+    private static final java.util.Set<String> LEGACY_AIR_ATTACK_STEMS = java.util.Set.of(
+            "EntityCarrierWo",
+            "EntityBattleshipRe",
+            "EntityCarrierHime",
+            "EntityAirfieldHime",
+            "EntityHarbourHime",
+            "EntityIsolatedHime",
+            "EntityMidwayHime",
+            "EntityNorthernHime",
+            "EntityCarrierWDemon",
+            "EntityCarrierKaga",
+            "EntityCarrierAkagi");
+
     public static final LegacyShipAttackProfile MELEE_ONLY = new LegacyShipAttackProfile(
             true, false, false, false, false,
             LegacyShipProjectileProfile.NONE,
@@ -85,69 +86,12 @@ public record LegacyShipAttackProfile(
     public static LegacyShipAttackProfile resolve(ShipEntitySpec spec) {
         String stem = spec.textureStem();
         boolean melee = true;
-        boolean light;
-        boolean heavy;
-        boolean airLight;
-        boolean airHeavy;
+        boolean light = true;
+        boolean heavy = true;
+        boolean airLight = LEGACY_AIR_ATTACK_STEMS.contains(stem);
+        boolean airHeavy = airLight;
 
-        switch (stem) {
-            case "EntityTransportWa" -> {
-                light = false;
-                heavy = false;
-                airLight = false;
-                airHeavy = false;
-            }
-            case "EntityCarrierAkagi", "EntityCarrierKaga", "EntityCarrierWo", "EntityCarrierHime" -> {
-                light = false;
-                heavy = false;
-                airLight = true;
-                airHeavy = true;
-            }
-            case "EntityCarrierWDemon" -> {
-                light = true;
-                heavy = false;
-                airLight = true;
-                airHeavy = true;
-            }
-            case "EntityAirfieldHime", "EntityHarbourHime", "EntityIsolatedHime", "EntityMidwayHime", "EntityNorthernHime" -> {
-                light = true;
-                heavy = true;
-                airLight = true;
-                airHeavy = true;
-            }
-            default -> {
-                switch (spec.archetype()) {
-                    case CARRIER -> {
-                        light = false;
-                        heavy = false;
-                        airLight = true;
-                        airHeavy = true;
-                    }
-                    case TRANSPORT -> {
-                        light = false;
-                        heavy = false;
-                        airLight = false;
-                        airHeavy = false;
-                    }
-                    case INSTALLATION -> {
-                        light = true;
-                        heavy = true;
-                        airLight = true;
-                        airHeavy = true;
-                    }
-                    default -> {
-                        light = true;
-                        heavy = true;
-                        airLight = false;
-                        airHeavy = false;
-                    }
-                }
-            }
-        }
-
-        LegacyShipProjectileProfile heavyProjectile = heavy
-                ? (spec.archetype() == ShipArchetype.INSTALLATION ? GUIDED_MISSILE_BARRAGE : MISSILE_BARRAGE)
-                : LegacyShipProjectileProfile.NONE;
+        LegacyShipProjectileProfile heavyProjectile = heavy ? LEGACY_HEAVY_MISSILE : LegacyShipProjectileProfile.NONE;
         LegacyShipProjectileProfile airLightProjectile = airLight ? CARRIER_FIGHTER_SWEEP : LegacyShipProjectileProfile.NONE;
         LegacyShipProjectileProfile airHeavyProjectile = airHeavy
                 ? switch (stem) {
@@ -159,9 +103,6 @@ public record LegacyShipAttackProfile(
                 : LegacyShipProjectileProfile.NONE;
 
         if (spec.hostile() && spec.eggMeta() >= 2000) {
-            if (heavy) {
-                heavyProjectile = GUIDED_MISSILE_BARRAGE;
-            }
             if (airHeavy) {
                 airHeavyProjectile = ABYSS_BOMBER_RUN;
             }

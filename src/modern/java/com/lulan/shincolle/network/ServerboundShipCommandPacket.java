@@ -43,6 +43,10 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
         return new ServerboundShipCommandPacket(ShipCommandAction.OPEN_SHIP_INVENTORY, 0, shipId, shipUid, NO_ENTITY, null, 0);
     }
 
+    public static ServerboundShipCommandPacket toggleRingEffect(int shipId, int shipUid) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.TOGGLE_RING_EFFECT, 0, shipId, shipUid, NO_ENTITY, null, 0);
+    }
+
     public static ServerboundShipCommandPacket setAiFlags(int shipId, int shipUid, int flags) {
         return new ServerboundShipCommandPacket(ShipCommandAction.SET_AI_FLAGS, 0, shipId, shipUid, NO_ENTITY, null, flags);
     }

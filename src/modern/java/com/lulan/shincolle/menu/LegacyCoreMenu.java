@@ -117,11 +117,9 @@ public class LegacyCoreMenu extends AbstractContainerMenu {
     }
 
     public Component getModeLabel() {
-        return switch (this.getMode()) {
-            case 1 -> Component.translatable("gui.shincolle.legacy_core.mode.charge");
-            case 2 -> Component.translatable("gui.shincolle.legacy_core.mode.drain");
-            default -> Component.translatable("gui.shincolle.legacy_core.mode.idle");
-        };
+        return this.getMode() == 1
+                ? Component.translatable("gui.shincolle.legacy_core.mode.active")
+                : Component.translatable("gui.shincolle.legacy_core.mode.idle");
     }
 
     public int getChargeScaled(int height) {

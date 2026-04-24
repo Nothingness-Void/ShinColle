@@ -8,7 +8,8 @@ public enum ShipCommandAction {
     SET_AI_FLAGS,
     SET_FOLLOW_RANGE,
     TOGGLE_SIT,
-    OPEN_SHIP_INVENTORY;
+    OPEN_SHIP_INVENTORY,
+    TOGGLE_RING_EFFECT;
 
     public static ShipCommandAction fromOrdinal(int ordinal) {
         ShipCommandAction[] values = values();

@@ -17,8 +17,10 @@ import java.util.Locale;
 public class TeitokuData {
 
     private static final String PLAYER_NAME_TAG = "PlayerName";
+    private static final String LEGACY_CAPABILITY_TAG = "TeitokuExtProps";
     private static final String PLAYER_UID_TAG = "PlayerUID";
     private static final String HAS_RING_TAG = "HasRing";
+    private static final String LEGACY_HAS_RING_TAG = "hasRing";
     private static final String RING_ACTIVE_TAG = "RingOn";
     private static final String RING_FLYING_TAG = "RingFly";
     private static final String MARRIAGE_NUM_TAG = "MarriageNum";
@@ -31,9 +33,13 @@ public class TeitokuData {
     private static final String TARGET_CLASSES_TAG = "CustomTargetClass";
     private static final String CURRENT_TEAM_ID_TAG = "CurrentTeamId";
     private static final String FORMATION_IDS_TAG = "FormationIds";
+    private static final String LEGACY_FORMAT_IDS_TAG = "FormatID";
     private static final String TEAM_SHIP_UIDS_TAG = "TeamShipUids";
     private static final String TEAM_SHIP_SELECTED_TAG = "TeamShipSelected";
     private static final String TEAM_NAMES_TAG = "TeamNames";
+    private static final String LEGACY_TEAM_LIST_PREFIX = "TeamList";
+    private static final String LEGACY_SELECT_STATE_PREFIX = "SelectState";
+    private static final String LEGACY_TEAM_NAME_PREFIX = "uname";
     private static final String MORPH_PROFILES_TAG = "MorphProfiles";
     private static final String MORPH_RUNTIME_TAG = "MorphRuntime";
     private static final String PLAYER_SKILL_RUNTIME_TAG = "PlayerSkillRuntime";
@@ -86,9 +92,9 @@ public class TeitokuData {
         tag.putInt(TEAM_COOLDOWN_TAG, this.teamCooldown);
         tag.putBoolean(HAS_TEAM_TAG, this.hasTeam);
         tag.putInt(FORMATION_ID_TAG, this.getCurrentFormationId());
-        tag.putIntArray(FORMATION_IDS_TAG, this.formationIds);
+        tag.putIntArray(FORMATION_IDS_TAG, Arrays.copyOf(this.formationIds, this.formationIds.length));
         tag.putInt(CURRENT_TEAM_ID_TAG, this.currentTeamId);
-        tag.putIntArray(TEAM_SHIP_UIDS_TAG, this.teamShipUids);
+        tag.putIntArray(TEAM_SHIP_UIDS_TAG, Arrays.copyOf(this.teamShipUids, this.teamShipUids.length));
         tag.putByteArray(TEAM_SHIP_SELECTED_TAG, toByteArray(this.teamShipSelected));
         tag.putIntArray(COLLECTED_SHIPS_TAG, this.collectedShips);
         tag.putIntArray(COLLECTED_EQUIPMENT_TAG, this.collectedEquipment);
@@ -116,60 +122,89 @@ public class TeitokuData {
     }
 
     public void loadFromTag(CompoundTag tag) {
-        this.playerName = tag.getString(PLAYER_NAME_TAG);
-        this.playerUid = tag.contains(PLAYER_UID_TAG) ? tag.getInt(PLAYER_UID_TAG) : -1;
-        this.hasRing = tag.getBoolean(HAS_RING_TAG);
-        this.ringActive = tag.getBoolean(RING_ACTIVE_TAG);
-        this.ringFlying = tag.getBoolean(RING_FLYING_TAG);
-        this.marriageNum = Math.max(0, tag.getInt(MARRIAGE_NUM_TAG));
-        this.bossCooldown = tag.contains(BOSS_COOLDOWN_TAG) ? tag.getInt(BOSS_COOLDOWN_TAG) : DEFAULT_BOSS_COOLDOWN;
-        this.teamCooldown = tag.contains(TEAM_COOLDOWN_TAG) ? tag.getInt(TEAM_COOLDOWN_TAG) : DEFAULT_TEAM_COOLDOWN;
-        this.hasTeam = tag.contains(HAS_TEAM_TAG) ? tag.getBoolean(HAS_TEAM_TAG) : this.playerUid > 0;
-        this.currentTeamId = normalizeTeamId(tag.getInt(CURRENT_TEAM_ID_TAG));
+        CompoundTag source = unwrapLegacyCapabilityTag(tag);
+        this.playerName = source.getString(PLAYER_NAME_TAG);
+        this.playerUid = source.contains(PLAYER_UID_TAG) ? source.getInt(PLAYER_UID_TAG) : -1;
+        this.hasRing = source.contains(HAS_RING_TAG) ? source.getBoolean(HAS_RING_TAG) : source.getBoolean(LEGACY_HAS_RING_TAG);
+        this.ringActive = source.getBoolean(RING_ACTIVE_TAG);
+        this.ringFlying = source.getBoolean(RING_FLYING_TAG);
+        this.marriageNum = Math.max(0, source.getInt(MARRIAGE_NUM_TAG));
+        this.bossCooldown = source.contains(BOSS_COOLDOWN_TAG) ? source.getInt(BOSS_COOLDOWN_TAG) : DEFAULT_BOSS_COOLDOWN;
+        this.teamCooldown = source.contains(TEAM_COOLDOWN_TAG) ? source.getInt(TEAM_COOLDOWN_TAG) : DEFAULT_TEAM_COOLDOWN;
+        this.hasTeam = source.contains(HAS_TEAM_TAG) ? source.getBoolean(HAS_TEAM_TAG) : this.playerUid > 0;
+        this.currentTeamId = normalizeTeamId(source.getInt(CURRENT_TEAM_ID_TAG));
 
         Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
-        int[] loadedFormationIds = tag.getIntArray(FORMATION_IDS_TAG);
+        int[] loadedFormationIds = source.getIntArray(FORMATION_IDS_TAG);
+        if (loadedFormationIds.length == 0) {
+            loadedFormationIds = source.getIntArray(LEGACY_FORMAT_IDS_TAG);
+        }
         if (loadedFormationIds.length > 0) {
             for (int i = 0; i < TEAM_COUNT && i < loadedFormationIds.length; i++) {
                 this.formationIds[i] = normalizeFormationId(loadedFormationIds[i]);
             }
         } else {
-            int fallbackFormationId = tag.contains(FORMATION_ID_TAG)
-                    ? normalizeFormationId(tag.getInt(FORMATION_ID_TAG))
+            int fallbackFormationId = source.contains(FORMATION_ID_TAG)
+                    ? normalizeFormationId(source.getInt(FORMATION_ID_TAG))
                     : DEFAULT_FORMATION_ID;
             this.formationIds[this.currentTeamId] = fallbackFormationId;
         }
 
         Arrays.fill(this.teamShipUids, -1);
-        int[] loadedShipUids = tag.getIntArray(TEAM_SHIP_UIDS_TAG);
-        for (int i = 0; i < TEAM_SLOT_COUNT && i < loadedShipUids.length; i++) {
-            this.teamShipUids[i] = loadedShipUids[i] > 0 ? loadedShipUids[i] : -1;
+        int[] loadedShipUids = source.getIntArray(TEAM_SHIP_UIDS_TAG);
+        if (loadedShipUids.length > 0) {
+            for (int i = 0; i < TEAM_SLOT_COUNT && i < loadedShipUids.length; i++) {
+                this.teamShipUids[i] = loadedShipUids[i] > 0 ? loadedShipUids[i] : -1;
+            }
+        } else {
+            for (int teamId = 0; teamId < TEAM_COUNT; teamId++) {
+                int[] legacyTeam = source.getIntArray(LEGACY_TEAM_LIST_PREFIX + teamId);
+                for (int slot = 0; slot < TEAM_SIZE && slot < legacyTeam.length; slot++) {
+                    this.teamShipUids[slotIndex(teamId, slot)] = legacyTeam[slot] > 0 ? legacyTeam[slot] : -1;
+                }
+            }
         }
 
         Arrays.fill(this.teamShipSelected, false);
-        byte[] selected = tag.getByteArray(TEAM_SHIP_SELECTED_TAG);
-        for (int i = 0; i < TEAM_SLOT_COUNT && i < selected.length; i++) {
-            this.teamShipSelected[i] = selected[i] != 0;
+        byte[] selected = source.getByteArray(TEAM_SHIP_SELECTED_TAG);
+        if (selected.length > 0) {
+            for (int i = 0; i < TEAM_SLOT_COUNT && i < selected.length; i++) {
+                this.teamShipSelected[i] = selected[i] != 0;
+            }
+        } else {
+            for (int teamId = 0; teamId < TEAM_COUNT; teamId++) {
+                byte[] legacySelected = source.getByteArray(LEGACY_SELECT_STATE_PREFIX + teamId);
+                for (int slot = 0; slot < TEAM_SIZE && slot < legacySelected.length; slot++) {
+                    int index = slotIndex(teamId, slot);
+                    this.teamShipSelected[index] = legacySelected[slot] != 0 && this.teamShipUids[index] > 0;
+                }
+            }
         }
 
         Arrays.fill(this.teamNames, "");
-        ListTag teamNameList = tag.getList(TEAM_NAMES_TAG, Tag.TAG_STRING);
-        for (int i = 0; i < TEAM_COUNT && i < teamNameList.size(); i++) {
-            this.teamNames[i] = teamNameList.getString(i);
+        ListTag teamNameList = source.getList(TEAM_NAMES_TAG, Tag.TAG_STRING);
+        if (!teamNameList.isEmpty()) {
+            for (int i = 0; i < TEAM_COUNT && i < teamNameList.size(); i++) {
+                this.teamNames[i] = teamNameList.getString(i);
+            }
+        } else {
+            for (int i = 0; i < TEAM_COUNT; i++) {
+                this.teamNames[i] = source.getString(LEGACY_TEAM_NAME_PREFIX + i).trim();
+            }
         }
 
         this.collectedShips.clear();
-        for (int shipId : tag.getIntArray(COLLECTED_SHIPS_TAG)) {
+        for (int shipId : source.getIntArray(COLLECTED_SHIPS_TAG)) {
             this.addCollectedShip(shipId);
         }
 
         this.collectedEquipment.clear();
-        for (int equipmentId : tag.getIntArray(COLLECTED_EQUIPMENT_TAG)) {
+        for (int equipmentId : source.getIntArray(COLLECTED_EQUIPMENT_TAG)) {
             this.addCollectedEquipment(equipmentId);
         }
 
         this.targetClasses.clear();
-        ListTag targetClassList = tag.getList(TARGET_CLASSES_TAG, Tag.TAG_STRING);
+        ListTag targetClassList = source.getList(TARGET_CLASSES_TAG, Tag.TAG_STRING);
         for (int index = 0; index < targetClassList.size(); index++) {
             String targetClass = targetClassList.getString(index);
             if (!targetClass.isBlank() && !this.targetClasses.contains(targetClass)) {
@@ -178,7 +213,7 @@ public class TeitokuData {
         }
 
         this.morphProfiles.clear();
-        ListTag morphProfileList = tag.getList(MORPH_PROFILES_TAG, Tag.TAG_COMPOUND);
+        ListTag morphProfileList = source.getList(MORPH_PROFILES_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < morphProfileList.size(); index++) {
             MorphProfile morphProfile = new MorphProfile();
             morphProfile.setDirtyCallback(() -> {
@@ -191,14 +226,14 @@ public class TeitokuData {
             }
         }
 
-        if (tag.contains(MORPH_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
-            this.morphRuntimeState.loadFromTag(tag.getCompound(MORPH_RUNTIME_TAG));
+        if (source.contains(MORPH_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
+            this.morphRuntimeState.loadFromTag(source.getCompound(MORPH_RUNTIME_TAG));
         } else {
             this.morphRuntimeState.setActive(false);
             this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
         }
-        if (tag.contains(PLAYER_SKILL_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
-            this.playerSkillRuntimeState.loadFromTag(tag.getCompound(PLAYER_SKILL_RUNTIME_TAG));
+        if (source.contains(PLAYER_SKILL_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
+            this.playerSkillRuntimeState.loadFromTag(source.getCompound(PLAYER_SKILL_RUNTIME_TAG));
         } else {
             this.playerSkillRuntimeState.clear();
         }
@@ -208,6 +243,13 @@ public class TeitokuData {
             this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
         }
         this.bindMorphDirtyCallbacks();
+    }
+
+    private static CompoundTag unwrapLegacyCapabilityTag(CompoundTag tag) {
+        if (tag.contains(LEGACY_CAPABILITY_TAG, Tag.TAG_COMPOUND)) {
+            return tag.getCompound(LEGACY_CAPABILITY_TAG);
+        }
+        return tag;
     }
 
     public void copyFrom(TeitokuData other) {

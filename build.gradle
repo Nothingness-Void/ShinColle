@@ -64,6 +64,7 @@ sourceSets {
             exclude 'assets/shincolle/models/item/*[A-Z]*.json'
             exclude 'assets/shincolle/textures/entity/Entity*.png'
             exclude 'assets/shincolle/textures/entity/Model*.png'
+            exclude 'assets/shincolle/textures/blocks/*[A-Z]*.png'
         }
     }
 }
@@ -108,6 +109,12 @@ tasks.named('processResources', ProcessResources).configure {
         include 'Entity*.png'
         include 'Model*.png'
         into 'assets/shincolle/textures/entity'
+        rename { fileName -> fileName.toLowerCase() }
+    }
+
+    from('src/modern/resources/assets/shincolle/textures/blocks') {
+        include '*.png'
+        into 'assets/shincolle/textures/blocks'
         rename { fileName -> fileName.toLowerCase() }
     }
 }

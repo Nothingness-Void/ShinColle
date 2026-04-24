@@ -27,6 +27,7 @@ import java.util.Locale;
 public class MorphInventoryMenu extends AbstractContainerMenu {
 
     public static final int BUTTON_UNUSED = 0;
+    private static final int LEGACY_EXP_MOD = 20;
 
     private static final int EQUIPMENT_SLOT_START = 0;
     private static final int PLAYER_SLOT_START = EQUIPMENT_SLOT_START + LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
@@ -160,6 +161,15 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
         return profile == null ? "-" : Integer.toString(profile.getLevel());
     }
 
+    public String getExperienceText() {
+        MorphProfile profile = this.getProfile();
+        if (profile == null) {
+            return "-";
+        }
+
+        return profile.getExperience() + " / " + legacyExpNext(profile.getLevel());
+    }
+
     public String getAttackText() {
         LegacyShipStats stats = this.getLegacyStats();
         return stats == null ? "-" : String.format(Locale.ROOT, "%.1f", stats.attackLight());
@@ -220,6 +230,28 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
     public int getModernizationCount() {
         MorphProfile profile = this.getProfile();
         return profile == null ? 0 : profile.getModernizationDisplayCount();
+    }
+
+    public boolean isAuraEffectEnabled() {
+        MorphProfile profile = this.getProfile();
+        return profile != null && profile.hasAuraEffect();
+    }
+
+    public boolean isShowHeldItemEnabled() {
+        MorphProfile profile = this.getProfile();
+        return profile != null && profile.isShowHeldItem();
+    }
+
+    public Component getAuraStateLabel() {
+        return Component.translatable(this.isAuraEffectEnabled()
+                ? "gui.shincolle.ship_inventory.behavior.on"
+                : "gui.shincolle.ship_inventory.behavior.off");
+    }
+
+    public Component getShowHeldStateLabel() {
+        return Component.translatable(this.isShowHeldItemEnabled()
+                ? "gui.shincolle.ship_inventory.behavior.on"
+                : "gui.shincolle.ship_inventory.behavior.off");
     }
 
     public Component getSensorBehaviorLabel() {
@@ -314,5 +346,9 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
         return TeitokuHelper.get(player)
                 .map(data -> data.getMorphRuntimeState().getSelectedClassId())
                 .orElse(0);
+    }
+
+    private static int legacyExpNext(int level) {
+        return Math.max(1, (level + 1) * LEGACY_EXP_MOD);
     }
 }

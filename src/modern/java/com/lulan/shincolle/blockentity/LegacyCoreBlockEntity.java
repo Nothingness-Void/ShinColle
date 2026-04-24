@@ -38,12 +38,13 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     private static final String OWNER_UID_TAG = "OwnerUID";
     private static final String MODE_TAG = "Mode";
     private static final String CHARGE_TAG = "Charge";
+    private static final String ACTIVE_TAG = "active";
+    private static final String POWER_TAG = "power";
     private static final String FUEL_ITEMS_TAG = "FuelItems";
 
     private static final int MODE_IDLE = 0;
-    private static final int MODE_CHARGE = 1;
-    private static final int MODE_DRAIN = 2;
-    private static final int MAX_MODE = MODE_DRAIN;
+    private static final int MODE_ACTIVE = 1;
+    private static final int MAX_MODE = MODE_ACTIVE;
     private static final int FUEL_SLOT_COUNT = 9;
     private static final double VOLCORE_AURA_RADIUS = 6.0D;
     private static final int VOLCORE_EFFECT_INTERVAL = 32;
@@ -62,6 +63,8 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     private PlayerOwnerData owner;
     private int mode;
     private int storedCharge;
+    private int syncTick;
+    private boolean canWork;
     private boolean volCoreWet;
     private LazyOptional<IItemHandler> itemHandler = LazyOptional.empty();
     private final ContainerData coreData = new ContainerData() {
@@ -101,15 +104,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     public static LegacyCoreBlockEntity newVolCore(BlockPos pos, BlockState state) {
-        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore", 8, 24000);
-    }
-
-    public static LegacyCoreBlockEntity newPolymetal(BlockPos pos, BlockState state) {
-        return new LegacyCoreBlockEntity(ModBlockEntities.POLYMETAL.get(), pos, state, "block.shincolle.blockpolymetal", 5, 16000);
-    }
-
-    public static LegacyCoreBlockEntity newGrudgeHeavy(BlockPos pos, BlockState state) {
-        return new LegacyCoreBlockEntity(ModBlockEntities.GRUDGE_HEAVY.get(), pos, state, "block.shincolle.blockgrudgeheavy", 6, 20000);
+        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore", 16, 9600);
     }
 
     @Override
@@ -137,8 +132,10 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     public void load(CompoundTag tag) {
         super.load(tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
-        this.mode = Mth.clamp(tag.getInt(MODE_TAG), MODE_IDLE, MAX_MODE);
-        this.storedCharge = Mth.clamp(tag.getInt(CHARGE_TAG), 0, this.maxCharge);
+        this.mode = tag.contains(ACTIVE_TAG)
+                ? (tag.getBoolean(ACTIVE_TAG) ? MODE_ACTIVE : MODE_IDLE)
+                : Mth.clamp(tag.getInt(MODE_TAG), MODE_IDLE, MAX_MODE);
+        this.storedCharge = Mth.clamp(tag.contains(POWER_TAG) ? tag.getInt(POWER_TAG) : tag.getInt(CHARGE_TAG), 0, this.maxCharge);
         if (tag.contains(FUEL_ITEMS_TAG)) {
             this.fuelItems.deserializeNBT(tag.getCompound(FUEL_ITEMS_TAG));
         }
@@ -150,8 +147,8 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         }
-        tag.putInt(MODE_TAG, this.mode);
-        tag.putInt(CHARGE_TAG, this.storedCharge);
+        tag.putBoolean(ACTIVE_TAG, this.mode == MODE_ACTIVE);
+        tag.putInt(POWER_TAG, this.storedCharge);
         tag.put(FUEL_ITEMS_TAG, this.fuelItems.serializeNBT());
     }
 
@@ -197,11 +194,9 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     public Component getModeName() {
-        return switch (this.mode) {
-            case MODE_CHARGE -> Component.translatable("gui.shincolle.legacy_core.mode.charge");
-            case MODE_DRAIN -> Component.translatable("gui.shincolle.legacy_core.mode.drain");
-            default -> Component.translatable("gui.shincolle.legacy_core.mode.idle");
-        };
+        return this.mode == MODE_ACTIVE
+                ? Component.translatable("gui.shincolle.legacy_core.mode.active")
+                : Component.translatable("gui.shincolle.legacy_core.mode.idle");
     }
 
     public Component getBlockLabel() {
@@ -227,7 +222,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     public boolean canProvideCharge() {
-        return this.mode == MODE_DRAIN && this.storedCharge > 0;
+        return this.storedCharge > 0;
     }
 
     @Override
@@ -343,6 +338,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         }
 
         boolean changed = false;
+        core.syncTick++;
         if (core.isVolCore()) {
             boolean wet = core.hasNearbyFluid(level);
             if (wet != core.volCoreWet) {
@@ -351,16 +347,23 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
             }
         }
 
-        if (core.mode != MODE_IDLE) {
+        if (core.syncTick % 32 == 0) {
             changed |= core.refuelFromInventory();
         }
 
-        if (core.mode == MODE_DRAIN && core.storedCharge >= core.chargePerTick) {
-            core.storedCharge = Math.max(0, core.storedCharge - core.chargePerTick);
-            changed = true;
+        if (core.syncTick % 16 == 0) {
+            boolean canWork = core.storedCharge >= core.chargePerTick;
+            if (canWork != core.canWork) {
+                core.canWork = canWork;
+                changed = true;
+            }
+            if (core.mode == MODE_ACTIVE && core.canWork) {
+                core.storedCharge = Math.max(0, core.storedCharge - core.chargePerTick);
+                changed = true;
 
-            if (core.isVolCore() && level.getGameTime() % VOLCORE_EFFECT_INTERVAL == 0) {
-                changed |= core.tickVolCoreAura(level);
+                if (core.isVolCore() && core.syncTick % VOLCORE_EFFECT_INTERVAL == 0) {
+                    changed |= core.tickVolCoreAura(level);
+                }
             }
         }
 
@@ -459,13 +462,13 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         }
 
         if (stack.is(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
-            return Math.max(this.chargePerTick * 2700 / 10, this.maxCharge * 9 / 10);
+            return 2160;
         }
         if (stack.is(ModItems.GRUDGE1.get())) {
-            return Math.max(this.chargePerTick * 600 / 10, this.maxCharge / 4);
+            return 240;
         }
         if (stack.is(ModItems.GRUDGE.get())) {
-            return Math.max(this.chargePerTick * 300, this.maxCharge / 10);
+            return 240;
         }
 
         return 0;

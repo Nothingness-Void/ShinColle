@@ -57,6 +57,8 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     private static final int TOP_PANEL_RIGHT = 242;
     private static final int BOTTOM_PANEL_LEFT = 171;
     private static final int BOTTOM_PANEL_RIGHT = 246;
+    private static final int MARRIAGE_ROW_Y = 186;
+    private static final int MARRIAGE_ROW_H = 9;
 
     public ShipInventoryScreen(ShipInventoryMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -129,7 +131,8 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.range"), this.menu.getRangeText(), 159);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.morale"), this.menu.getMoraleText(), 168);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.state"), this.menu.getMoraleLabel().getString(), 177);
-        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.marriage"), this.menu.getMarriageLabel().getString(), 186);
+        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.marriage"),
+                this.menu.getMarriageLabel().getString() + " " + onOff(this.menu.isRingEffectEnabled()), MARRIAGE_ROW_Y);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.modern"),
                 this.menu.getModernizationCount() + "  R" + this.menu.getRescueCount(), 195);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.supply"), this.menu.getSupplyTierText(), 204);
@@ -151,6 +154,10 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         }
         if (this.sendShipCommandOnClick(mouseX, mouseY, STOP_BUTTON_X, STOP_BUTTON_Y, STOP_BUTTON_W, STOP_BUTTON_H,
                 ServerboundShipCommandPacket.stop(2, this.menu.getShipId(), this.resolveShipUid()))) {
+            return true;
+        }
+        if (this.sendShipCommandOnClick(mouseX, mouseY, BOTTOM_PANEL_LEFT - 2, MARRIAGE_ROW_Y - 1, 78, MARRIAGE_ROW_H,
+                ServerboundShipCommandPacket.toggleRingEffect(this.menu.getShipId(), this.resolveShipUid()))) {
             return true;
         }
 
@@ -200,7 +207,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         if (inside(localX, localY, TOP_PANEL_LEFT, BEHAVIOR_AREA_Y, BEHAVIOR_AREA_W, BEHAVIOR_AREA_H)) {
             guiGraphics.renderComponentTooltip(this.font, List.of(
                     Component.literal("T: AutoTarget  Y: PVP  U: AutoSupply"),
-                    Component.literal("I: RouteStay  J/K: FollowRange"),
+                    Component.literal("I: RouteStay  O: Aura Effect  J/K: FollowRange"),
                     this.menu.getSensorBehaviorLabel(),
                     this.menu.getUtilityBehaviorLabel(),
                     this.menu.getRouteBehaviorLabel(),
@@ -223,6 +230,16 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         if (inside(localX, localY, 144, 18, 16, 108)) {
             guiGraphics.renderComponentTooltip(this.font, List.of(
                     Component.translatable("gui.shincolle.ship_inventory.tooltip.equip")), mouseX, mouseY);
+            return;
+        }
+
+        if (inside(localX, localY, BOTTOM_PANEL_LEFT - 2, MARRIAGE_ROW_Y - 1, 78, MARRIAGE_ROW_H)) {
+            guiGraphics.renderComponentTooltip(this.font, List.of(
+                    this.menu.getMarriageLabel(),
+                    Component.translatable("gui.shincolle.auraeffect"),
+                    this.menu.getRingEffectLabel(),
+                    Component.translatable("gui.shincolle.ship_inventory.tooltip.ring_effect")),
+                    mouseX, mouseY);
             return;
         }
 
@@ -344,6 +361,10 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                 this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_ROUTE_STAY);
                 return true;
             }
+            if (keyCode == GLFW.GLFW_KEY_O) {
+                this.toggleRingEffect();
+                return true;
+            }
             if (keyCode == GLFW.GLFW_KEY_J) {
                 this.adjustFollowRange(-2);
                 return true;
@@ -364,7 +385,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         boolean routeStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
 
         this.drawScaledString(guiGraphics,
-                "A:" + onOff(autoTarget) + " P:" + onOff(allowPvp),
+                "A:" + onOff(autoTarget) + " P:" + onOff(allowPvp) + " W:" + onOff(this.menu.isRingEffectEnabled()),
                 TOP_PANEL_LEFT, 106, 0xD0D7DC, 0.75F);
         this.drawScaledString(guiGraphics,
                 "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getAiFollowRange() + " E" + this.menu.getRouteEnergyText(),
@@ -383,6 +404,10 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
 
     private void sendAiFlags(int flags) {
         ModNetwork.sendToServer(ServerboundShipCommandPacket.setAiFlags(this.menu.getShipId(), this.resolveShipUid(), flags));
+    }
+
+    private void toggleRingEffect() {
+        ModNetwork.sendToServer(ServerboundShipCommandPacket.toggleRingEffect(this.menu.getShipId(), this.resolveShipUid()));
     }
 
     private int resolveShipUid() {

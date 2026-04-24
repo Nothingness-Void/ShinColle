@@ -21,8 +21,8 @@ public class MorphProfile {
     public static final int DEFAULT_LEVEL = 1;
     public static final int DEFAULT_MORALE = 1600;
     public static final int MAX_MORALE = 16000;
-    public static final int MAX_MODERN_TOTAL_STEPS = 24;
-    public static final int MAX_MODERN_STAT_STEPS = 12;
+    public static final int MODERN_LIMIT = 3;
+    private static final int MODERN_ATTRIBUTE_COUNT = 6;
 
     private static final String LEGACY_CLASS_ID_TAG = "LegacyClassId";
     private static final String LEVEL_TAG = "Level";
@@ -34,6 +34,8 @@ public class MorphProfile {
     private static final String MARRIED_TAG = "Married";
     private static final String MODERN_HEALTH_TAG = "ModernHealth";
     private static final String MODERN_ATTACK_TAG = "ModernAttack";
+    private static final String MODERN_DEFENSE_TAG = "ModernDefense";
+    private static final String MODERN_ATTACK_SPEED_TAG = "ModernAttackSpeed";
     private static final String MODERN_SPEED_TAG = "ModernSpeed";
     private static final String MODERN_RANGE_TAG = "ModernRange";
     private static final String SHOW_HELD_TAG = "ShowHeldItem";
@@ -62,6 +64,8 @@ public class MorphProfile {
     private boolean married;
     private int modernHealthSteps;
     private int modernAttackSteps;
+    private int modernDefenseSteps;
+    private int modernAttackSpeedSteps;
     private int modernSpeedSteps;
     private int modernRangeSteps;
     private boolean showHeldItem;
@@ -97,6 +101,8 @@ public class MorphProfile {
         tag.putBoolean(MARRIED_TAG, this.married);
         tag.putInt(MODERN_HEALTH_TAG, this.modernHealthSteps);
         tag.putInt(MODERN_ATTACK_TAG, this.modernAttackSteps);
+        tag.putInt(MODERN_DEFENSE_TAG, this.modernDefenseSteps);
+        tag.putInt(MODERN_ATTACK_SPEED_TAG, this.modernAttackSpeedSteps);
         tag.putInt(MODERN_SPEED_TAG, this.modernSpeedSteps);
         tag.putInt(MODERN_RANGE_TAG, this.modernRangeSteps);
         tag.putBoolean(SHOW_HELD_TAG, this.showHeldItem);
@@ -119,10 +125,12 @@ public class MorphProfile {
         this.ammoHeavy = Math.max(0, tag.getInt(AMMO_HEAVY_TAG));
         this.grudge = Math.max(0, tag.getInt(GRUDGE_TAG));
         this.married = tag.getBoolean(MARRIED_TAG);
-        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MAX_MODERN_STAT_STEPS);
-        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MAX_MODERN_STAT_STEPS);
+        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, MODERN_LIMIT);
+        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MODERN_LIMIT);
+        this.modernDefenseSteps = Mth.clamp(tag.getInt(MODERN_DEFENSE_TAG), 0, MODERN_LIMIT);
+        this.modernAttackSpeedSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_SPEED_TAG), 0, MODERN_LIMIT);
+        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MODERN_LIMIT);
+        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MODERN_LIMIT);
         this.showHeldItem = tag.getBoolean(SHOW_HELD_TAG);
         this.auraEffect = !tag.contains(AURA_EFFECT_TAG) || tag.getBoolean(AURA_EFFECT_TAG);
         this.aiAutoTarget = !tag.contains(AI_AUTO_TARGET_TAG) || tag.getBoolean(AI_AUTO_TARGET_TAG);
@@ -146,37 +154,52 @@ public class MorphProfile {
     }
 
     public boolean addRandomModernization(RandomSource random) {
-        if (this.getModernizationCount() >= MAX_MODERN_TOTAL_STEPS) {
+        if (this.getModernizationCount() >= MODERN_LIMIT * MODERN_ATTRIBUTE_COUNT) {
             return false;
         }
 
-        int[] weights = new int[] {
-                this.modernHealthSteps < MAX_MODERN_STAT_STEPS ? 1 : 0,
-                this.modernAttackSteps < MAX_MODERN_STAT_STEPS ? 1 : 0,
-                this.modernSpeedSteps < MAX_MODERN_STAT_STEPS ? 1 : 0,
-                this.modernRangeSteps < MAX_MODERN_STAT_STEPS ? 1 : 0
-        };
-        int total = weights[0] + weights[1] + weights[2] + weights[3];
-        if (total <= 0) {
-            return false;
-        }
-
-        int roll = random.nextInt(total);
-        for (int i = 0; i < weights.length; i++) {
-            if (roll < weights[i]) {
-                switch (i) {
-                    case 0 -> this.modernHealthSteps++;
-                    case 1 -> this.modernAttackSteps++;
-                    case 2 -> this.modernSpeedSteps++;
-                    default -> this.modernRangeSteps++;
+        int selected = random.nextInt(MODERN_ATTRIBUTE_COUNT);
+        if (this.getModernizationSteps(selected) >= MODERN_LIMIT) {
+            selected = -1;
+            for (int i = 0; i < MODERN_ATTRIBUTE_COUNT; i++) {
+                if (this.getModernizationSteps(i) < MODERN_LIMIT) {
+                    selected = i;
+                    break;
                 }
-                this.markDirty();
-                return true;
             }
-            roll -= weights[i];
+        }
+        if (selected < 0) {
+            return false;
         }
 
-        return false;
+        this.addModernizationStep(selected);
+        this.markDirty();
+        return true;
+    }
+
+    private int getModernizationSteps(int index) {
+        return switch (index) {
+            case 0 -> this.modernHealthSteps;
+            case 1 -> this.modernAttackSteps;
+            case 2 -> this.modernDefenseSteps;
+            case 3 -> this.modernAttackSpeedSteps;
+            case 4 -> this.modernSpeedSteps;
+            case 5 -> this.modernRangeSteps;
+            default -> MODERN_LIMIT;
+        };
+    }
+
+    private void addModernizationStep(int index) {
+        switch (index) {
+            case 0 -> this.modernHealthSteps++;
+            case 1 -> this.modernAttackSteps++;
+            case 2 -> this.modernDefenseSteps++;
+            case 3 -> this.modernAttackSpeedSteps++;
+            case 4 -> this.modernSpeedSteps++;
+            case 5 -> this.modernRangeSteps++;
+            default -> {
+            }
+        }
     }
 
     public ShipEntitySpec getSpec() {
@@ -205,6 +228,8 @@ public class MorphProfile {
                 this.morale,
                 this.modernHealthSteps,
                 this.modernAttackSteps,
+                this.modernDefenseSteps,
+                this.modernAttackSpeedSteps,
                 this.modernSpeedSteps,
                 this.modernRangeSteps,
                 this.married,
@@ -218,7 +243,12 @@ public class MorphProfile {
     }
 
     public int getModernizationCount() {
-        return this.modernHealthSteps + this.modernAttackSteps + this.modernSpeedSteps + this.modernRangeSteps;
+        return this.modernHealthSteps
+                + this.modernAttackSteps
+                + this.modernDefenseSteps
+                + this.modernAttackSpeedSteps
+                + this.modernSpeedSteps
+                + this.modernRangeSteps;
     }
 
     public int getLegacyClassId() {
@@ -322,6 +352,14 @@ public class MorphProfile {
 
     public int getModernAttackSteps() {
         return this.modernAttackSteps;
+    }
+
+    public int getModernDefenseSteps() {
+        return this.modernDefenseSteps;
+    }
+
+    public int getModernAttackSpeedSteps() {
+        return this.modernAttackSpeedSteps;
     }
 
     public int getModernSpeedSteps() {

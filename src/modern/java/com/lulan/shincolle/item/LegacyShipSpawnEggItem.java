@@ -39,12 +39,18 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public class LegacyShipSpawnEggItem extends Item {
 
     private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String LEGACY_CLASS_ID_TAG = "ShipClassId";
     private static final String RECOVERED_SHIP_TAG = "RecoveredShip";
+    private static final String OWNER_UUID_TAG = "OwnerUuid";
+    private static final String OWNER_NAME_TAG = "OwnerName";
+    private static final String LEGACY_OWNER_NAME_TAG = "Owner";
+    private static final String OWNER_UID_TAG = "OwnerUID";
 
     public LegacyShipSpawnEggItem(Properties properties) {
         super(properties);
@@ -84,6 +90,49 @@ public class LegacyShipSpawnEggItem extends Item {
         return tag != null && tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND)
                 ? tag.getCompound(RECOVERED_SHIP_TAG).copy()
                 : null;
+    }
+
+    public static Optional<UUID> getRecoveredOwnerUuid(ItemStack stack) {
+        CompoundTag recoveredData = getRecoveredShipData(stack);
+        return recoveredData != null && recoveredData.hasUUID(OWNER_UUID_TAG)
+                ? Optional.of(recoveredData.getUUID(OWNER_UUID_TAG))
+                : Optional.empty();
+    }
+
+    public static Optional<String> getRecoveredOwnerName(ItemStack stack) {
+        CompoundTag recoveredData = getRecoveredShipData(stack);
+        if (recoveredData == null) {
+            return Optional.empty();
+        }
+        if (recoveredData.contains(OWNER_NAME_TAG, Tag.TAG_STRING) && !recoveredData.getString(OWNER_NAME_TAG).isBlank()) {
+            return Optional.of(recoveredData.getString(OWNER_NAME_TAG));
+        }
+        if (recoveredData.contains(LEGACY_OWNER_NAME_TAG, Tag.TAG_STRING) && !recoveredData.getString(LEGACY_OWNER_NAME_TAG).isBlank()) {
+            return Optional.of(recoveredData.getString(LEGACY_OWNER_NAME_TAG));
+        }
+        return Optional.empty();
+    }
+
+    public static boolean canPlayerAccessRecoveredShip(ItemStack stack, Player player) {
+        CompoundTag recoveredData = getRecoveredShipData(stack);
+        if (recoveredData == null) {
+            return true;
+        }
+
+        if (recoveredData.hasUUID(OWNER_UUID_TAG)) {
+            return recoveredData.getUUID(OWNER_UUID_TAG).equals(player.getUUID());
+        }
+
+        if (recoveredData.contains(OWNER_UID_TAG, Tag.TAG_INT)) {
+            int recoveredOwnerUid = recoveredData.getInt(OWNER_UID_TAG);
+            int playerUid = TeitokuHelper.getPlayerUid(player);
+            if (recoveredOwnerUid > 0 && playerUid > 0) {
+                return recoveredOwnerUid == playerUid;
+            }
+        }
+
+        Optional<String> ownerName = getRecoveredOwnerName(stack);
+        return ownerName.isEmpty() || ownerName.get().equals(player.getGameProfile().getName());
     }
 
     @Override
@@ -169,6 +218,10 @@ public class LegacyShipSpawnEggItem extends Item {
         }
 
         CompoundTag recoveredShipData = getRecoveredShipData(stack);
+        if (recoveredShipData != null && !canPlayerAccessRecoveredShip(stack, player)) {
+            displayRecoveredOwnerLocked(player, stack);
+            return InteractionResult.FAIL;
+        }
 
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setVariantEggMeta(spec.eggMeta());
@@ -240,6 +293,11 @@ public class LegacyShipSpawnEggItem extends Item {
         }
 
         return ShipEntitySpecs.resolveEggItem(itemPath, random);
+    }
+
+    private static void displayRecoveredOwnerLocked(Player player, ItemStack stack) {
+        Component ownerName = Component.literal(getRecoveredOwnerName(stack).orElse("?")).withStyle(ChatFormatting.GOLD);
+        player.displayClientMessage(Component.translatable("chat.shincolle.entity.owner_locked", ownerName), true);
     }
 
     private static BlockPos getSpawnPos(Level level, BlockPos clickedPos, Direction face) {

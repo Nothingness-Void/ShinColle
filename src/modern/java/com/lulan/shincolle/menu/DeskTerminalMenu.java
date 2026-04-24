@@ -16,8 +16,27 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class DeskTerminalMenu extends AbstractContainerMenu {
+
+    public enum TeamRelation {
+        OWN("gui.shincolle.team.belong"),
+        ALLIED("gui.shincolle.team.allied"),
+        HOSTILE("gui.shincolle.team.hostile"),
+        NEUTRAL("gui.shincolle.team.neutral");
+
+        private final String translationKey;
+
+        TeamRelation(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        public Component label() {
+            return Component.translatable(this.translationKey);
+        }
+    }
 
     private final Inventory inventory;
     private final BlockPos deskPos;
@@ -91,6 +110,77 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
         List<TeamData> teams = new ArrayList<>(TeitokuHelper.getClientTeamData().values());
         teams.sort(Comparator.comparingInt(TeamData::getTeamId));
         return teams;
+    }
+
+    public TeamRelation getTeamRelation(int teamId) {
+        if (teamId <= 0) {
+            return TeamRelation.NEUTRAL;
+        }
+        if (teamId == this.getOwnTeamId()) {
+            return TeamRelation.OWN;
+        }
+
+        TeamData ownTeam = TeitokuHelper.getClientTeamData().get(this.getOwnTeamId());
+        if (ownTeam == null) {
+            return TeamRelation.NEUTRAL;
+        }
+        if (ownTeam.isAlly(teamId)) {
+            return TeamRelation.ALLIED;
+        }
+        if (ownTeam.isBanned(teamId)) {
+            return TeamRelation.HOSTILE;
+        }
+        return TeamRelation.NEUTRAL;
+    }
+
+    public Component getTeamRelationLabel(int teamId) {
+        return this.getTeamRelation(teamId).label();
+    }
+
+    public int getOwnAllyCount() {
+        TeamData ownTeam = TeitokuHelper.getClientTeamData().get(this.getOwnTeamId());
+        return ownTeam == null ? 0 : ownTeam.getAllies().size();
+    }
+
+    public int getOwnBannedCount() {
+        TeamData ownTeam = TeitokuHelper.getClientTeamData().get(this.getOwnTeamId());
+        return ownTeam == null ? 0 : ownTeam.getBanned().size();
+    }
+
+    public List<String> getWorldUnattackableClasses() {
+        Set<String> classes = TeitokuHelper.getClientWorldUnattackableClasses();
+        if (classes.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> sorted = new ArrayList<>(classes);
+        sorted.sort(String::compareToIgnoreCase);
+        return List.copyOf(sorted);
+    }
+
+    public String getCompactTeamRow(TeamData teamData) {
+        String relation = this.getTeamRelationLabel(teamData.getTeamId()).getString();
+        return "#" + teamData.getTeamId() + " "
+                + relation + " "
+                + teamData.getTeamName().trim();
+    }
+
+    public int getTeamListOffset() {
+        List<TeamData> teams = this.getKnownTeams();
+        if (teams.size() <= 8) {
+            return 0;
+        }
+
+        int currentTeamId = this.getCurrentTeamId();
+        int currentIndex = 0;
+        for (int i = 0; i < teams.size(); i++) {
+            if (teams.get(i).getTeamId() == currentTeamId) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        return Math.max(0, Math.min(currentIndex - 3, teams.size() - 8));
     }
 
     public List<String> getTargetClasses() {

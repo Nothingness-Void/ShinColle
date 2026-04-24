@@ -89,7 +89,9 @@ public final class LargeShipyardStructureHelper {
                     if (!isServantPosition(masterPos, servantPos)) {
                         continue;
                     }
-                    if (isValidMaster(level, masterPos)) {
+                    if (level.getBlockEntity(masterPos) instanceof HeavyGrudgeBlockEntity heavy
+                            && heavy.isStructureComplete()
+                            && isValidMaster(level, masterPos)) {
                         return masterPos.immutable();
                     }
                 }

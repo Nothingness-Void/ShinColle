@@ -71,7 +71,8 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         LegacyShipProjectileEntity projectile = new LegacyShipProjectileEntity(level, owner);
         LegacyShipProjectileProfile profile = owner.getAttackProfile().projectileProfile(attackKind);
         if (!profile.isPresent()) {
-            profile = fallbackProfile(attackKind);
+            throw new IllegalStateException("Missing explicit legacy projectile profile for "
+                    + owner.getSpec().textureStem() + " attack " + attackKind);
         }
 
         projectile.setAttackKind(attackKind);
@@ -506,48 +507,6 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     private float baseSpeed() {
         return this.travelSpeed * this.speedScale;
-    }
-
-    private static LegacyShipProjectileProfile fallbackProfile(LegacyShipAttackKind attackKind) {
-        return switch (attackKind) {
-            case HEAVY -> new LegacyShipProjectileProfile(
-                    LegacyShipProjectileVisual.MISSILE,
-                    LegacyShipProjectileMoveType.ARC,
-                    0.52D,
-                    0.72F,
-                    0.35F,
-                    90,
-                    0.0F,
-                    0.18F,
-                    GameplayParticleType.LAUNCH_SMOKE,
-                    GameplayParticleType.MISSILE_TRAIL,
-                    GameplayParticleType.MISSILE_IMPACT);
-            case AIR_LIGHT -> new LegacyShipProjectileProfile(
-                    LegacyShipProjectileVisual.AIRPLANE,
-                    LegacyShipProjectileMoveType.GUIDED,
-                    0.42D,
-                    0.95F,
-                    0.55F,
-                    110,
-                    0.22F,
-                    0.08F,
-                    GameplayParticleType.AIRCRAFT_LAUNCH,
-                    GameplayParticleType.AIRCRAFT_TRAIL,
-                    GameplayParticleType.AIRCRAFT_IMPACT);
-            case AIR_HEAVY -> new LegacyShipProjectileProfile(
-                    LegacyShipProjectileVisual.BOMB,
-                    LegacyShipProjectileMoveType.DROP,
-                    0.36D,
-                    0.98F,
-                    0.72F,
-                    120,
-                    0.08F,
-                    0.18F,
-                    GameplayParticleType.AIRCRAFT_LAUNCH,
-                    GameplayParticleType.BOMB_DROP,
-                    GameplayParticleType.BOMB_IMPACT);
-            default -> LegacyShipProjectileProfile.NONE;
-        };
     }
 
     private static LegacyShipAttackKind attackKindByOrdinal(int ordinal) {

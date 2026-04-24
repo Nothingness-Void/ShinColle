@@ -4,7 +4,6 @@ import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
-import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
@@ -348,14 +347,11 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
         } else if (blockEntity instanceof CraneBlockEntity crane) {
             kind = ContactKind.ROUTE;
             detail = crane.getPairedChest() == null ? "Crane: idle" : "Crane: linked";
-        } else if (blockEntity instanceof LargeShipyardBlockEntity shipyard) {
-            kind = ContactKind.FACILITY;
-            detail = "Shipyard power " + shipyard.getPowerRemained();
         } else if (blockEntity instanceof HeavyGrudgeBlockEntity heavyGrudge) {
             kind = ContactKind.FACILITY;
             detail = heavyGrudge.isStructureComplete()
                     ? "Heavy Grudge: grand shipyard"
-                    : "Heavy Grudge: core " + heavyGrudge.getRouteEnergyStored();
+                    : "Heavy Grudge: unformed";
         } else if (blockEntity instanceof LegacyCoreBlockEntity core) {
             kind = ContactKind.FACILITY;
             detail = core.isVolCore() ? "VolCore charge " + core.getStoredCharge() : "Core charge " + core.getStoredCharge();

@@ -3,18 +3,19 @@ package com.lulan.shincolle.gametest;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.authlib.GameProfile;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
 import com.lulan.shincolle.blockentity.LargeShipyardStructureHelper;
-import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.client.model.legacy.LegacyModelDefinition;
 import com.lulan.shincolle.client.model.legacy.LegacyModelSourceParser;
+import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderCatalog;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
@@ -49,8 +50,12 @@ import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import com.lulan.shincolle.network.ShipCommandAction;
 import com.lulan.shincolle.network.ShipCommandService;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
+import com.lulan.shincolle.menu.DeskReferenceMenu;
+import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
+import com.lulan.shincolle.menu.MorphInventoryMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.menu.WaypointTerminalMenu;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
@@ -62,9 +67,11 @@ import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.team.TeamSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.TeitokuEvents;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
+import com.lulan.shincolle.world.ChestLootInjector;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
 import io.netty.buffer.Unpooled;
@@ -74,6 +81,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -91,6 +100,7 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.TransientCraftingContainer;
@@ -102,17 +112,22 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -211,6 +226,110 @@ public final class GameplayParityGameTests {
         }
         if (!data.removeTargetClass("minecraft:zombie") || data.hasTargetClass("minecraft:zombie")) {
             helper.fail("target class remove should work");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void teitokuLoadsLegacyCapaTeamFormationTags(GameTestHelper helper) {
+        CompoundTag legacy = new CompoundTag();
+        legacy.putBoolean("hasRing", true);
+        legacy.putBoolean("RingOn", true);
+        legacy.putBoolean("RingFly", true);
+        legacy.putInt("PlayerUID", 42);
+        legacy.putIntArray("FormatID", new int[]{0, 2, 4, 5, 1, 3, 0, 0, 0});
+        legacy.putIntArray("TeamList1", new int[]{101, 0, 202, -1, 303, 0});
+        legacy.putByteArray("SelectState1", new byte[]{1, 1, 1, 0, 1, 0});
+        legacy.putString("uname1", "Legacy Team");
+        ListTag legacyTargetClasses = new ListTag();
+        legacyTargetClasses.add(StringTag.valueOf("minecraft:zombie"));
+        legacyTargetClasses.add(StringTag.valueOf("minecraft:skeleton"));
+        legacy.put("CustomTargetClass", legacyTargetClasses);
+        CompoundTag wrappedLegacy = new CompoundTag();
+        wrappedLegacy.put("TeitokuExtProps", legacy);
+
+        TeitokuData loaded = new TeitokuData();
+        loaded.setCurrentTeamId(1);
+        loaded.loadFromTag(wrappedLegacy);
+
+        if (!loaded.hasRing() || !loaded.isRingActive() || !loaded.isRingFlying()) {
+            helper.fail("legacy CapaTeitoku ring booleans should load from old tag names");
+            return;
+        }
+        if (loaded.getPlayerUid() != 42 || loaded.getFormationId(1) != 2 || loaded.getFormationId(3) != 5) {
+            helper.fail("legacy CapaTeitoku player UID and FormatID array should load");
+            return;
+        }
+        int[] team = loaded.getTeamShipUids(1);
+        boolean[] selected = loaded.getTeamShipSelected(1);
+        if (team[0] != 101 || team[1] != -1 || team[2] != 202 || team[4] != 303) {
+            helper.fail("legacy TeamListN values should load and normalize empty slots");
+            return;
+        }
+        if (!selected[0] || selected[1] || !selected[2] || !selected[4]) {
+            helper.fail("legacy SelectStateN values should load only for occupied ship UID slots");
+            return;
+        }
+        if (!"Legacy Team".equals(loaded.getTeamName(1))) {
+            helper.fail("legacy unameN team name should load");
+            return;
+        }
+        if (!loaded.hasTargetClass("minecraft:zombie") || !loaded.hasTargetClass("minecraft:skeleton")) {
+            helper.fail("wrapped legacy CustomTargetClass list should load");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void deskTerminalMenuProjectsTeamRelationsAndWorldRules(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        int playerUid = 8121;
+        String worldRuleKey = "shincolle:test_desk_world_rule";
+
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(playerUid);
+            data.setPlayerName(player.getGameProfile().getName());
+            data.setHasTeam(true);
+            data.setCurrentTeamId(0);
+            data.addTargetClass("minecraft:zombie");
+            data.addTargetClass("minecraft:skeleton");
+        })) {
+            return;
+        }
+
+        TeamSavedData teamData = TeamSavedData.get(helper.getLevel());
+        teamData.createTeam(playerUid, player.getGameProfile().getName(), "Desk Fleet");
+        teamData.createTeam(200, "Bravo", "Bravo");
+        teamData.createTeam(300, "Charlie", "Charlie");
+        teamData.createTeam(400, "Delta", "Delta");
+        teamData.addAllyRelationship(playerUid, 200);
+        teamData.addBannedRelationship(playerUid, 300);
+        WorldCombatRulesSavedData worldRules = WorldCombatRulesSavedData.get(helper.getLevel());
+        if (!worldRules.isUnattackable(worldRuleKey)) {
+            worldRules.toggleUnattackable(worldRuleKey);
+        }
+
+        CompoundTag payload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
+        TeitokuHelper.applyClientState(player, payload);
+
+        DeskTerminalMenu menu = new DeskTerminalMenu(0, player.getInventory(), BlockPos.ZERO, DeskReferenceMenu.BOOK_VARIANT);
+        if (menu.getOwnAllyCount() != 1
+                || menu.getOwnBannedCount() != 1
+                || menu.getTeamRelation(200) != DeskTerminalMenu.TeamRelation.ALLIED
+                || menu.getTeamRelation(300) != DeskTerminalMenu.TeamRelation.HOSTILE
+                || menu.getTeamRelation(400) != DeskTerminalMenu.TeamRelation.NEUTRAL
+                || menu.getTeamRelation(playerUid) != DeskTerminalMenu.TeamRelation.OWN) {
+            helper.fail("desk terminal menu should project legacy own/ally/hostile/neutral team relations");
+            return;
+        }
+
+        if (!menu.getTargetClasses().contains("minecraft:zombie")
+                || !menu.getWorldUnattackableClasses().contains(worldRuleKey)) {
+            helper.fail("desk terminal menu should expose synced target-class and world-rule lists");
             return;
         }
 
@@ -335,6 +454,8 @@ public final class GameplayParityGameTests {
                 0,
                 0,
                 0,
+                0,
+                0,
                 false,
                 TeitokuData.DEFAULT_FORMATION_ID,
                 ShipEquipmentProfile.EMPTY,
@@ -345,6 +466,8 @@ public final class GameplayParityGameTests {
                 false,
                 50,
                 6000,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -396,7 +519,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void marriedShipTicksDoNotInventLegacyRingAuras(GameTestHelper helper) {
+    public static void marriedShipTicksApplyLegacyRingAuras(GameTestHelper helper) {
         LegacyShipEntity submarine = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity carrier = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity escort = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
@@ -405,17 +528,20 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        UUID ownerUuid = UUID.randomUUID();
         submarine.setVariantEggMeta(40);
+        submarine.setOwner(ownerUuid, "PassiveTester", 91);
         submarine.setMarried(true);
         submarine.setShipLevel(60);
+        submarine.setGrudge(200);
         submarine.setPos(1.0D, 2.0D, 1.0D);
         helper.getLevel().addFreshEntity(submarine);
 
-        UUID ownerUuid = UUID.randomUUID();
         carrier.setVariantEggMeta(49);
         carrier.setOwner(ownerUuid, "PassiveTester", 91);
         carrier.setMarried(true);
         carrier.setShipLevel(85);
+        carrier.setGrudge(200);
         carrier.setPos(3.0D, 2.0D, 1.0D);
         helper.getLevel().addFreshEntity(carrier);
 
@@ -429,13 +555,59 @@ public final class GameplayParityGameTests {
             carrier.tick();
         }
 
-        if (submarine.hasEffect(MobEffects.INVISIBILITY)) {
-            helper.fail("married ship ticks should not invent the removed U511/Ro500 invisibility aura");
+        if (!submarine.hasEffect(MobEffects.INVISIBILITY)) {
+            helper.fail("married U511/Ro500 variants should keep the legacy self invisibility aura");
             return;
         }
 
-        if (escort.hasEffect(MobEffects.JUMP)) {
-            helper.fail("married ship ticks should not invent the removed Kaga/Akagi jump aura");
+        if (!escort.hasEffect(MobEffects.JUMP)) {
+            helper.fail("married Kaga/Akagi variants should keep the legacy jump aura for allied ships");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipRingEffectToggleSuppressesLegacyMarriagePassiveAndPersists(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        player.setPos(2.0D, 2.0D, 2.0D);
+        if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8104))) {
+            return;
+        }
+
+        LegacyShipEntity ship = createOwnedShip(helper, player, 40, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            return;
+        }
+
+        ship.setMarried(true);
+        ship.setShipLevel(90);
+        ship.setGrudge(200);
+        ShipInventoryMenu menu = new ShipInventoryMenu(7, player.getInventory(), ship.getId(), ship.getShipUid());
+        if (!menu.isRingEffectEnabled()) {
+            helper.fail("legacy marriage aura switch should default to enabled");
+            return;
+        }
+
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.toggleRingEffect(ship.getId(), ship.getShipUid()))
+                || ship.isRingEffectEnabled()) {
+            helper.fail("ship command toggle should disable the legacy marriage aura switch");
+            return;
+        }
+
+        CompoundTag saved = new CompoundTag();
+        ship.saveWithoutId(saved);
+        if (!saved.contains("WedEffect") || saved.getBoolean("WedEffect")) {
+            helper.fail("ship save data should persist the legacy WedEffect flag when the aura switch is disabled");
+            return;
+        }
+
+        for (int i = 0; i < 128; i++) {
+            ship.tick();
+        }
+        if (ship.hasEffect(MobEffects.INVISIBILITY)) {
+            helper.fail("disabled marriage aura switch should suppress legacy self aura effects");
             return;
         }
 
@@ -620,6 +792,55 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void recoveredShipEggPickupAndRedeployRequireLegacyOwner(GameTestHelper helper) {
+        ServerPlayer owner = FakePlayerFactory.get(helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "RecoveredOwner"));
+        ServerPlayer intruder = FakePlayerFactory.get(helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "RecoveredIntruder"));
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("legacy ship entity should be creatable for recovered-owner gate coverage");
+            return;
+        }
+
+        ship.setVariantEggMeta(60);
+        ship.finalizeSpawn(helper.getLevel(), helper.getLevel().getCurrentDifficultyAt(BlockPos.ZERO),
+                net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null, null);
+        ship.setOwner(owner.getUUID(), owner.getGameProfile().getName(), 7101);
+        ItemStack recoveredStack = LegacyShipSpawnEggItem.createRecoveredShipStack(ship);
+        if (recoveredStack.isEmpty()) {
+            helper.fail("recovered ship stack should resolve to the matching shipegg item");
+            return;
+        }
+
+        if (!LegacyShipSpawnEggItem.canPlayerAccessRecoveredShip(recoveredStack, owner)) {
+            helper.fail("recovered ship owner should pass the restored legacy owner gate");
+            return;
+        }
+        if (LegacyShipSpawnEggItem.canPlayerAccessRecoveredShip(recoveredStack, intruder)) {
+            helper.fail("non-owner should fail the restored recovered-egg owner gate");
+            return;
+        }
+
+        ItemEntity droppedEgg = new ItemEntity(helper.getLevel(), 1.5D, 2.0D, 1.5D, recoveredStack.copy());
+        EntityItemPickupEvent blockedPickup = new EntityItemPickupEvent(intruder, droppedEgg);
+        TeitokuEvents.onRecoveredShipEggPickup(blockedPickup);
+        if (!blockedPickup.isCanceled()) {
+            helper.fail("non-owner pickup event should be canceled for recovered ship eggs");
+            return;
+        }
+
+        EntityItemPickupEvent ownerPickup = new EntityItemPickupEvent(owner, droppedEgg);
+        TeitokuEvents.onRecoveredShipEggPickup(ownerPickup);
+        if (ownerPickup.isCanceled()) {
+            helper.fail("owner pickup event should remain allowed for recovered ship eggs");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void worldCombatRulesNormalizeAndToggle(GameTestHelper helper) {
         WorldCombatRulesSavedData data = new WorldCombatRulesSavedData();
         if (!data.toggleUnattackable(" Minecraft:Villager ")) {
@@ -664,18 +885,15 @@ public final class GameplayParityGameTests {
     public static void legacyCoreRouteEnergyAccessHonorsMode(GameTestHelper helper) {
         LegacyCoreBlockEntity core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
         if (core.receiveRouteEnergy(1200, false) != 1200 || core.getRouteEnergyStored() != 1200) {
-            helper.fail("core route energy receive should fill stored charge");
+            helper.fail("volcore route energy receive should fill the legacy power pool");
             return;
         }
-        if (core.extractRouteEnergy(400, true) != 0) {
-            helper.fail("idle core should not export route energy until set to drain mode");
+        if (core.extractRouteEnergy(400, true) != 400 || core.getRouteEnergyStored() != 1200) {
+            helper.fail("volcore route energy simulation should read from the legacy power pool without spending it");
             return;
         }
-
-        core.cycleCoreMode();
-        core.cycleCoreMode();
         if (core.extractRouteEnergy(400, false) != 400 || core.getRouteEnergyStored() != 800) {
-            helper.fail("drain mode should allow cores to export route energy");
+            helper.fail("volcore route energy extraction should spend legacy stored power without a player discharge mode");
             return;
         }
 
@@ -684,7 +902,8 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipyardRouteEnergyAccessUsesPowerPool(GameTestHelper helper) {
-        LargeShipyardBlockEntity shipyard = new LargeShipyardBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState());
+        HeavyGrudgeBlockEntity shipyard = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
+        shipyard.getContainerData().set(4, 1);
         shipyard.getContainerData().set(2, 2000);
 
         if (shipyard.extractRouteEnergy(500, false) != 500 || shipyard.getRouteEnergyStored() != 1500) {
@@ -774,16 +993,19 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void craneRouteTransfersEnergyWithoutItemContainer(GameTestHelper helper) {
         BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 4, 1));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
-        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
+            helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        }
 
         if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
             helper.fail("crane block entity should exist for route transfer");
             return;
         }
-        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
-            helper.fail("large shipyard should expose route energy for crane transfer");
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof HeavyGrudgeBlockEntity shipyard) || !shipyard.tryAssembleStructure()) {
+            helper.fail("formed heavy grudge multiblock should expose route energy for crane transfer");
             return;
         }
 
@@ -1028,22 +1250,20 @@ public final class GameplayParityGameTests {
         }
 
         core.cycleMode();
-        LegacyCoreBlockEntity.serverTick(helper.getLevel(), BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), core);
-        if (core.getStoredCharge() <= 0 || core.canProvideCharge()) {
-            helper.fail("charge mode should convert fuel into stored charge without exposing discharge output");
+        for (int i = 0; i < 32; i++) {
+            LegacyCoreBlockEntity.serverTick(helper.getLevel(), BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), core);
+        }
+        if (core.getStoredCharge() <= 0 || !core.canProvideCharge()) {
+            helper.fail("active volcore should convert grudge fuel into the legacy power pool");
             return;
         }
 
         int chargedAmount = core.getStoredCharge();
-        core.cycleMode();
-        if (!core.canProvideCharge()) {
-            helper.fail("drain mode should expose stored charge for linked systems");
-            return;
+        for (int i = 0; i < 16; i++) {
+            LegacyCoreBlockEntity.serverTick(helper.getLevel(), BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), core);
         }
-
-        LegacyCoreBlockEntity.serverTick(helper.getLevel(), BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), core);
         if (core.getStoredCharge() >= chargedAmount) {
-            helper.fail("drain mode should spend stored charge over time");
+            helper.fail("active volcore should spend stored power over time");
             return;
         }
 
@@ -1074,53 +1294,43 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void largeShipyardBuildsLargeShipEggFromCompleteRing(GameTestHelper helper) {
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 2, 4));
-        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                helper.getLevel().setBlock(shipyardPos.offset(dx, 0, dz),
-                        ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get().defaultBlockState(), Block.UPDATE_ALL);
-            }
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 4, 4));
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
+            helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
         }
 
-        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
-            helper.fail("large shipyard block entity should exist for build-loop test");
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof HeavyGrudgeBlockEntity shipyard) || !shipyard.tryAssembleStructure()) {
+            helper.fail("heavy grudge multiblock master should exist for build-loop test");
             return;
         }
 
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_GRUDGE_A, new ItemStack(ModItems.GRUDGE.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_GRUDGE_B, new ItemStack(ModItems.GRUDGE.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_ABYSSIUM_A, new ItemStack(ModItems.ABYSSMETAL.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_ABYSSIUM_B, new ItemStack(ModItems.ABYSSMETAL.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_AMMO_A, new ItemStack(ModItems.AMMO.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_AMMO_B, new ItemStack(ModItems.AMMO.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_POLYMETAL_A, new ItemStack(ModItems.ABYSSMETAL1.get(), 50));
-        shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_POLYMETAL_B, new ItemStack(ModItems.ABYSSMETAL1.get(), 50));
+        for (int material = 0; material < 4; material++) {
+            shipyard.setBuildMaterialForTest(material, LargeShipyardRecipes.MIN_AMOUNT);
+        }
         shipyard.getItems().setStackInSlot(LargeShipyardRecipes.SLOT_FUEL, new ItemStack(Items.LAVA_BUCKET));
 
-        LargeShipyardBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         if (!shipyard.isStructureComplete() || shipyard.getPowerRemained() <= 0) {
-            helper.fail("complete ring and fuel slot should make the large shipyard ready with stored power");
+            helper.fail("formed structure and fuel slot should make the large shipyard ready with stored power");
             return;
         }
 
-        shipyard.receiveRouteEnergy(LargeShipyardBlockEntity.POWER_MAX, false);
-        shipyard.setBuildType(ShipyardBuildTypes.SHIP);
+        shipyard.receiveRouteEnergy(HeavyGrudgeBlockEntity.POWER_MAX, false);
+        shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
+        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         if (shipyard.getPowerGoal() <= 0) {
-            helper.fail("large shipyard should calculate a ship build goal from inserted materials");
+            helper.fail("large shipyard should calculate a ship build goal from selected build materials");
             return;
         }
 
-        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - LargeShipyardBlockEntity.BUILD_SPEED);
-        LargeShipyardBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.BUILD_SPEED);
+        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         ItemStack output = shipyard.getItems().getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT);
         if (!output.is(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get())
                 || shipyard.getBuildType() != ShipyardBuildTypes.NONE
-                || LargeShipyardRecipes.getMaterialAmounts(shipyard.getItems())[0] != 0) {
-            helper.fail("large shipyard should spend materials and output a large ship egg when the build completes");
+                || shipyard.getBuildMaterialAmountsView()[0] != 0) {
+            helper.fail("large shipyard should spend selected build materials and output a large ship egg when the build completes");
             return;
         }
 
@@ -1174,10 +1384,13 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 2, 1));
-        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_LARGE_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
-        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof LargeShipyardBlockEntity shipyard)) {
-            helper.fail("large shipyard block entity should exist for menu data coverage");
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(4, 4, 1));
+        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
+            helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
+        }
+        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof HeavyGrudgeBlockEntity shipyard) || !shipyard.tryAssembleStructure()) {
+            helper.fail("formed heavy grudge shipyard should exist for menu data coverage");
             return;
         }
         LargeShipyardMenu shipyardMenu = new LargeShipyardMenu(4, player.getInventory(), shipyard);
@@ -1194,10 +1407,17 @@ public final class GameplayParityGameTests {
             return;
         }
         ship.setVariantEggMeta(58);
-        ship.setOwner(player);
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8122);
+            data.setPlayerName(player.getGameProfile().getName());
+            data.setHasTeam(true);
+        })) {
+            return;
+        }
         ship.setPos(2.5D, 2.0D, 2.5D);
         ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(2).get()));
         helper.getLevel().addFreshEntity(ship);
+        ship.setOwner(player);
 
         ShipInventoryMenu shipMenu = new ShipInventoryMenu(5, player.getInventory(), ship.getId());
         if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
@@ -1206,6 +1426,42 @@ public final class GameplayParityGameTests {
                 || !shipMenu.clickMenuButton(player, ShipInventoryMenu.BUTTON_TOGGLE_MODE)
                 || !ship.isOrderedToSit()) {
             helper.fail("ship inventory menu should expose combat/AI route data and mutate escort mode through the server button");
+            return;
+        }
+
+        if (!configureTeitoku(helper, player, data -> data.assignCurrentTeamSlot(0, ship.getShipUid()))) {
+            return;
+        }
+
+        CompoundTag formationPayload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
+        TeitokuHelper.applyClientState(player, formationPayload);
+        ship.setShipLevel(77);
+        ship.setMorale(4321);
+        ship.setShipFuel(1234);
+        ship.setLightAmmo(987);
+        ship.setHeavyAmmo(654);
+        ship.setGrudge(321);
+        ship.setMarried(true);
+        ship.setOrderedToSit(true);
+        ship.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
+
+        CompoundTag offlinePayload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
+        TeitokuHelper.applyClientState(player, offlinePayload);
+        FormationMenu formationMenu = new FormationMenu(6, player.getInventory());
+        FormationMenu.SlotSnapshot snapshot = formationMenu.getSlotSnapshot(0);
+        if (snapshot.empty()
+                || snapshot.shipUid() != ship.getShipUid()
+                || snapshot.shipLevel() != 77
+                || !"4321 / 16000".equals(snapshot.moraleText())
+                || !"1234 / 16000".equals(snapshot.fuelText())
+                || !"987 / 5400".equals(snapshot.lightAmmoText())
+                || !"654 / 2700".equals(snapshot.heavyAmmoText())
+                || !"321 / 16000".equals(snapshot.grudgeText())
+                || snapshot.online()
+                || snapshot.dead()
+                || !snapshot.marriageLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.marriage.yes").getString())
+                || !snapshot.modeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())) {
+            helper.fail("formation menu should project legacy ship summary fields from offline ship-cache data");
             return;
         }
 
@@ -1223,7 +1479,8 @@ public final class GameplayParityGameTests {
                         GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY),
                 ServerboundShipCommandPacket.setFollowRange(16, 106, 42),
                 ServerboundShipCommandPacket.toggleSit(0, 17, 107),
-                ServerboundShipCommandPacket.openInventory(18, 108)
+                ServerboundShipCommandPacket.openInventory(18, 108),
+                ServerboundShipCommandPacket.toggleRingEffect(19, 109)
         };
 
         for (ServerboundShipCommandPacket packet : packets) {
@@ -1618,6 +1875,30 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void heavyGrudgeSwitchesFromCoreToShipyard(GameTestHelper helper) {
+        HeavyGrudgeBlockEntity dropSource = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
+        dropSource.setMaterialStockForTest(0, 12);
+        dropSource.setBuildMaterialForTest(0, 7);
+        dropSource.setMaterialStockForTest(1, 3);
+        dropSource.getContainerData().set(2, 456);
+        ItemStack dropped = dropSource.createDroppedBlockStack();
+        if (!dropped.is(ModBlocks.BLOCK_GRUDGE_HEAVY.get().asItem())
+                || !dropped.hasTag()
+                || dropped.getTag().getIntArray("mats")[0] != 19
+                || dropped.getTag().getIntArray("mats")[1] != 3
+                || dropped.getTag().getInt("fuel") != 456) {
+            helper.fail("heavy grudge block break should preserve matsBuild + matsStock and fuel in item NBT");
+            return;
+        }
+
+        HeavyGrudgeBlockEntity restored = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
+        restored.restoreFromPlacedStack(dropped);
+        if (restored.getMaterialAmounts()[0] != 19
+                || restored.getMaterialAmounts()[1] != 3
+                || restored.getPowerRemained() != 456) {
+            helper.fail("placing a tagged heavy grudge block should restore material stock and fuel");
+            return;
+        }
+
         BlockPos master = helper.absolutePos(new BlockPos(1, 4, 1));
         helper.getLevel().setBlock(master, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
 
@@ -1626,11 +1907,16 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        heavy.getFuelItems().setStackInSlot(0, new ItemStack(ModItems.GRUDGE.get()));
-        heavy.cycleCoreMode();
+        if (heavy.receiveRouteEnergy(1000, false) != 0
+                || heavy.extractRouteEnergy(1000, false) != 0
+                || heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
+            helper.fail("unformed heavy grudge must not act as an independent energy core or expose machine inventory");
+            return;
+        }
+
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), master, helper.getLevel().getBlockState(master), heavy);
-        if (heavy.getCoreContainerData().get(1) <= 0 || heavy.isStructureComplete()) {
-            helper.fail("unformed heavy grudge should work as a standalone charging core");
+        if (heavy.isStructureComplete()) {
+            helper.fail("unformed heavy grudge should not auto-form or open standalone behavior without player assembly");
             return;
         }
 
@@ -1638,12 +1924,9 @@ public final class GameplayParityGameTests {
             helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
         }
 
-        for (int i = 0; i < 20; i++) {
-            HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), master, helper.getLevel().getBlockState(master), heavy);
-        }
-
-        if (!heavy.isStructureComplete()) {
-            helper.fail("completed legacy structure should switch heavy grudge into shipyard master mode");
+        if (!heavy.tryAssembleStructure() || !heavy.isStructureComplete()
+                || helper.getLevel().getBlockState(master).getValue(com.lulan.shincolle.block.HeavyGrudgeBlock.MBS) != 1) {
+            helper.fail("right-click assembly should switch a valid legacy structure into shipyard master mode");
             return;
         }
 
@@ -1663,8 +1946,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        for (int i = 0; i < 20; i++) {
-            HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), master, helper.getLevel().getBlockState(master), heavy);
+        if (!heavy.tryAssembleStructure()) {
+            helper.fail("valid heavy grudge structure should assemble before servant proxy checks");
+            return;
         }
 
         BlockPos servantPos = LargeShipyardStructureHelper.getServantPositions(master).get(0);
@@ -1685,7 +1969,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), master, helper.getLevel().getBlockState(master), heavy);
+        for (int i = 0; i < 8; i++) {
+            HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), master, helper.getLevel().getBlockState(master), heavy);
+        }
         if (heavy.getMaterialAmounts()[3] != 8) {
             helper.fail("materials inserted through a servant block should be absorbed by the shipyard master");
             return;
@@ -1733,6 +2019,48 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void playerFacingLangAvoidsMigrationPlaceholderWording(GameTestHelper helper) {
+        String[] languagePaths = {
+                "assets/shincolle/lang/en_us.json",
+                "assets/shincolle/lang/zh_cn.json",
+                "assets/shincolle/lang/zh_tw.json"
+        };
+        String[] bannedFragments = {
+                "placeholder",
+                "pending",
+                "later logistics migration",
+                "ported legacy equipment",
+                "legacy marriage aura",
+                "已迁移",
+                "已遷移",
+                "旧版婚戒",
+                "舊版婚戒"
+        };
+
+        for (String languagePath : languagePaths) {
+            JsonObject lang = loadJsonResource(languagePath);
+            if (lang == null) {
+                helper.fail("expected language resource to be present: " + languagePath);
+                return;
+            }
+
+            for (String key : lang.keySet()) {
+                String value = lang.get(key).getAsString();
+                String lowered = value.toLowerCase(Locale.ROOT);
+                for (String bannedFragment : bannedFragments) {
+                    if (lowered.contains(bannedFragment.toLowerCase(Locale.ROOT))) {
+                        helper.fail("player-facing language resource still contains migration placeholder wording: "
+                                + languagePath + " :: " + key + " -> " + value);
+                        return;
+                    }
+                }
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void soundsJsonOnlyReferencesPackagedOgg(GameTestHelper helper) {
         JsonObject sounds = loadJsonResource("assets/shincolle/sounds.json");
         if (sounds == null) {
@@ -1767,7 +2095,194 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void chestLootInjectorUsesLegacyConfigLootDefaults(GameTestHelper helper) {
+        List<String> bonusChest = ChestLootInjector.legacySourceKeysForTesting(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/spawn_bonus_chest"));
+        if (!bonusChest.equals(List.of(
+                "shincolle:Grudge:0",
+                "shincolle:ShipSpawnEgg:2",
+                "shincolle:Ammo:0"))) {
+            helper.fail("spawn bonus chest loot should match the 1.12 ConfigLoot defaults");
+            return;
+        }
+
+        List<String> villageBlacksmith = ChestLootInjector.legacySourceKeysForTesting(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/village/village_weaponsmith"));
+        if (!villageBlacksmith.equals(List.of(
+                "shincolle:InstantConMat:0",
+                "shincolle:BlockAbyssium:0",
+                "shincolle:BlockPolymetal:0",
+                "shincolle:ShipSpawnEgg:0"))) {
+            helper.fail("1.20 village weaponsmith should carry the old village blacksmith ShinColle loot entries");
+            return;
+        }
+
+        ResourceLocation[] modernOnlyTables = {
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/village/village_armorer"),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/village/village_toolsmith"),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/shipwreck_supply"),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/shipwreck_treasure"),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/underwater_ruin_small"),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "chests/underwater_ruin_big")
+        };
+        for (ResourceLocation table : modernOnlyTables) {
+            if (!ChestLootInjector.legacySourceKeysForTesting(table).isEmpty()) {
+                helper.fail("modern-only chest table should not receive self-created ShinColle loot: " + table);
+                return;
+            }
+        }
+
+        ResourceLocation mineshaft = ResourceLocation.fromNamespaceAndPath("minecraft", "chests/abandoned_mineshaft");
+        List<String> legacyRandomMetaSource = List.of(
+                "shincolle:TrainingBook:0",
+                "shincolle:MarriageRing:0",
+                "shincolle:ShipSpawnEgg:0",
+                "shincolle:ShipSpawnEgg:1",
+                "shincolle:EquipCannon:-1",
+                "shincolle:EquipAirplane:-1",
+                "shincolle:Torpedo:-1");
+        if (!ChestLootInjector.legacySourceKeysForTesting(mineshaft).equals(legacyRandomMetaSource)) {
+            helper.fail("mineshaft loot should keep the 1.12 random-meta equipment source entries");
+            return;
+        }
+        int expectedConcreteEntries = 4
+                + ModItems.EQUIPCANNON_DISPLAY_ITEMS.size()
+                + ModItems.EQUIPAIRPLANE_DISPLAY_ITEMS.size()
+                + ModItems.EQUIPTORPEDO_DISPLAY_ITEMS.size();
+        if (ChestLootInjector.concreteEntryCountForTesting(mineshaft) != expectedConcreteEntries) {
+            helper.fail("1.12 random metadata equipment should fan out to all modern 1.20 item variants");
+            return;
+        }
+
+        if (!ChestLootInjector.legacySourceKeysForTesting(ResourceLocation.fromNamespaceAndPath(
+                "minecraft", "chests/stronghold_corridor")).equals(legacyRandomMetaSource)
+                || !ChestLootInjector.legacySourceKeysForTesting(ResourceLocation.fromNamespaceAndPath(
+                "minecraft", "chests/end_city_treasure")).equals(legacyRandomMetaSource)) {
+            helper.fail("stronghold and end city chests should share the 1.12 ConfigLoot equipment entries");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void worldgenResourcesKeepLegacyPolymetalPlacement(GameTestHelper helper) {
+        JsonObject orePlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_ore.json");
+        JsonObject oceanBonusPlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_ore_ocean_bonus.json");
+        JsonObject oceanBonusModifier = loadJsonResource("data/shincolle/forge/biome_modifier/add_polymetal_ore_ocean_bonus.json");
+        JsonObject gravelConfigured = loadJsonResource("data/shincolle/worldgen/configured_feature/polymetal_gravel.json");
+        if (orePlaced == null || oceanBonusPlaced == null || oceanBonusModifier == null || gravelConfigured == null) {
+            helper.fail("expected polymetal worldgen resources to be packaged");
+            return;
+        }
+
+        JsonObject oreCount = placementByType(orePlaced, "minecraft:count");
+        JsonObject oceanBonusCount = placementByType(oceanBonusPlaced, "minecraft:count");
+        if (oreCount == null || oreCount.get("count").getAsInt() != 7) {
+            helper.fail("base polymetal ore count should match 1.12 ConfigHandler.polyOreBaseRate");
+            return;
+        }
+        if (oceanBonusCount == null || oceanBonusCount.get("count").getAsInt() != 14) {
+            helper.fail("ocean polymetal ore bonus should add two extra 1.12 base counts for ocean x3 behavior");
+            return;
+        }
+        if (!"#minecraft:is_ocean".equals(oceanBonusModifier.get("biomes").getAsString())) {
+            helper.fail("polymetal ore ocean bonus must only target 1.12 ocean biome semantics");
+            return;
+        }
+
+        JsonObject config = gravelConfigured.getAsJsonObject("config");
+        JsonObject radius = config.getAsJsonObject("radius").getAsJsonObject("value");
+        if (config.get("half_height").getAsInt() != 1
+                || radius.get("min_inclusive").getAsInt() != 1
+                || radius.get("max_inclusive").getAsInt() != 2) {
+            helper.fail("polymetal gravel disk should keep the 1.12 WorldGenPolyGravel radius and thickness");
+            return;
+        }
+
+        String targetBlocks = config.getAsJsonObject("target").getAsJsonArray("blocks").toString();
+        for (String required : List.of("minecraft:stone", "minecraft:gravel", "minecraft:sand", "minecraft:dirt")) {
+            if (!targetBlocks.contains(required)) {
+                helper.fail("polymetal gravel target block list is missing 1.12 base block: " + required);
+                return;
+            }
+        }
+        if (targetBlocks.contains("minecraft:clay")) {
+            helper.fail("polymetal gravel target block list must not include modern self-created clay replacement");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void forgeTagsMirrorLegacyOreDictionaryDefaults(GameTestHelper helper) {
+        String[][] expectedTagValues = {
+                {"data/forge/tags/items/ingots/abyssium.json", "shincolle:abyssmetal"},
+                {"data/forge/tags/items/nuggets/abyssium.json", "shincolle:abyssnugget"},
+                {"data/forge/tags/items/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
+                {"data/forge/tags/blocks/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
+                {"data/forge/tags/items/ingots/polymetal.json", "shincolle:abyssmetal1"},
+                {"data/forge/tags/items/nuggets/polymetal.json", "shincolle:abyssnugget1"},
+                {"data/forge/tags/items/ores/polymetal.json", "shincolle:blockpolymetalore"},
+                {"data/forge/tags/blocks/ores/polymetal.json", "shincolle:blockpolymetalore"},
+                {"data/forge/tags/items/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
+                {"data/forge/tags/blocks/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
+                {"data/forge/tags/items/grudge.json", "shincolle:grudge"},
+                {"data/forge/tags/items/grudge.json", "shincolle:grudge1"},
+                {"data/forge/tags/items/storage_blocks/grudge.json", "shincolle:blockgrudge"},
+                {"data/forge/tags/blocks/storage_blocks/grudge.json", "shincolle:blockgrudge"},
+                {"data/forge/tags/items/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
+                {"data/forge/tags/blocks/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration1"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration2"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration3"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration4"},
+                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration5"}
+        };
+
+        for (String[] expectation : expectedTagValues) {
+            if (!tagResourceContains(expectation[0], expectation[1])) {
+                helper.fail("missing 1.12 OreDictionary tag mapping: " + expectation[0] + " -> " + expectation[1]);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void registeredPhaseOneResourcesResolve(GameTestHelper helper) {
+        ResourceLocation removedLargeShipyardId = ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "blocklarge" + "shipyard");
+        if (ForgeRegistries.BLOCKS.containsKey(removedLargeShipyardId)
+                || ForgeRegistries.ITEMS.containsKey(removedLargeShipyardId)
+                || ForgeRegistries.BLOCK_ENTITY_TYPES.containsKey(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "large_shipyard"))) {
+            helper.fail("strict 1.12 parity should not register standalone " + removedLargeShipyardId);
+            return;
+        }
+
+        String removedLargeShipyardPath = "blocklarge" + "shipyard";
+        String[] removedLargeShipyardResources = {
+                "assets/shincolle/blockstates/" + removedLargeShipyardPath + ".json",
+                "assets/shincolle/models/block/" + removedLargeShipyardPath + ".json",
+                "assets/shincolle/models/block/" + removedLargeShipyardPath + "_on.json",
+                "assets/shincolle/models/item/" + removedLargeShipyardPath + ".json",
+                "data/shincolle/loot_tables/blocks/" + removedLargeShipyardPath + ".json",
+                "data/shincolle/recipes/" + removedLargeShipyardPath + ".json"
+        };
+        for (String resource : removedLargeShipyardResources) {
+            if (loadJsonResource(resource) != null) {
+                helper.fail("strict 1.12 parity should not package standalone large shipyard resource: " + resource);
+                return;
+            }
+        }
+
+        List<ResourceLocation> noDropBlockLootTables = List.of(
+                ModBlocks.BLOCK_GRUDGE_HEAVY.getId(),
+                ModBlocks.BLOCK_LIGHT_AIR.getId(),
+                ModBlocks.BLOCK_LIGHT_LIQUID.getId());
+
         for (var blockRegistration : ModBlocks.BLOCKS.getEntries()) {
             ResourceLocation id = blockRegistration.getId();
             if (!id.getPath().equals(id.getPath().toLowerCase(java.util.Locale.ROOT))) {
@@ -1789,6 +2304,30 @@ public final class GameplayParityGameTests {
             if (!resourceExists(itemModel)) {
                 helper.fail("registered block item is missing item model: " + itemModel);
                 return;
+            }
+
+            String blockLootPath = "data/" + id.getNamespace() + "/loot_tables/blocks/" + id.getPath() + ".json";
+            JsonObject blockLootTable = loadJsonResource(blockLootPath);
+            if (noDropBlockLootTables.contains(id)) {
+                if (blockLootTable != null) {
+                    helper.fail("special no-drop block should stay without a standard block loot table: " + id);
+                    return;
+                }
+            } else if (blockRegistration.get().asItem() != Items.AIR) {
+                if (blockLootTable == null) {
+                    helper.fail("registered block is missing block loot table json: " + blockLootPath);
+                    return;
+                }
+                String expectedLootItem = id.equals(ModBlocks.BLOCK_POLYMETAL_ORE.getId())
+                        ? ModItems.ABYSSMETAL1.getId().toString()
+                        : id.toString();
+                if (!blockLootTable.has("type")
+                        || !"minecraft:block".equals(blockLootTable.get("type").getAsString())
+                        || !jsonContainsString(blockLootTable, expectedLootItem)) {
+                    helper.fail("registered block loot table should be a minecraft:block table with the expected legacy drop: "
+                            + id + " -> " + expectedLootItem);
+                    return;
+                }
             }
         }
 
@@ -2188,16 +2727,26 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void perShipBehaviorCatalogKeepsLegacyMarriagePassiveDispatch(GameTestHelper helper) {
+        assertMarriagePassive(helper, 39, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_STRENGTH_AURA);
         assertMarriagePassive(helper, 40, LegacyShipBehaviorCatalog.MarriagePassive.SELF_AND_OWNER_INVISIBILITY);
         assertMarriagePassive(helper, 41, LegacyShipBehaviorCatalog.MarriagePassive.SELF_AND_OWNER_INVISIBILITY);
+        assertMarriagePassive(helper, 48, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_RESISTANCE_FIRE_AURA);
         assertMarriagePassive(helper, 49, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_JUMP_AURA);
         assertMarriagePassive(helper, 50, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_JUMP_AURA);
         assertMarriagePassive(helper, 53, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_HASTE);
         assertMarriagePassive(helper, 54, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_JUMP);
         assertMarriagePassive(helper, 55, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_STRENGTH);
         assertMarriagePassive(helper, 56, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_SPEED);
-        assertMarriagePassive(helper, 58, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+        assertMarriagePassive(helper, 58, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_NIGHT_VISION);
+        assertMarriagePassive(helper, 59, LegacyShipBehaviorCatalog.MarriagePassive.OWNER_NIGHT_VISION);
+        assertMarriagePassive(helper, 60, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+        assertMarriagePassive(helper, 61, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+        assertMarriagePassive(helper, 62, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_HEALTH_BOOST_AURA);
+        assertMarriagePassive(helper, 63, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_SATURATION_AURA);
+        assertMarriagePassive(helper, 64, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_LUCK_AURA);
+        assertMarriagePassive(helper, 65, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_NIGHT_VISION_AURA);
         assertMarriagePassive(helper, 2040, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
+        assertMarriagePassive(helper, 2039, LegacyShipBehaviorCatalog.MarriagePassive.NONE);
 
         helper.succeed();
     }
@@ -2209,21 +2758,24 @@ public final class GameplayParityGameTests {
         LegacyShipAttackProfile kaga = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(49));
         LegacyShipAttackProfile airfield = LegacyShipBehaviorCatalog.attackProfile(ShipEntitySpecs.getByEggMeta(23));
 
-        if (transport.hasRangedAttack()) {
-            helper.fail("transport ships should stay melee-only through the behavior catalog");
+        if (!transport.light() || !transport.heavy() || transport.hasAirAttack()) {
+            helper.fail("transport ships should keep 1.12 default light/heavy attacks without CV air attacks");
             return;
         }
         if (!tenryuu.light() || !tenryuu.heavy() || tenryuu.hasAirAttack()) {
             helper.fail("cruiser behavior should expose light/heavy gun attacks without carrier air strikes");
             return;
         }
-        if (!kaga.hasAirAttack() || kaga.light() || kaga.heavy()) {
-            helper.fail("carrier behavior should expose air strikes without gun attacks");
+        if (!kaga.light() || !kaga.heavy() || !kaga.hasAirAttack()) {
+            helper.fail("carrier behavior should keep 1.12 default gun attacks plus CV air strikes");
             return;
         }
         if (!airfield.light() || !airfield.heavy() || !airfield.hasAirAttack()
-                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
-            helper.fail("installation behavior should keep mixed gun/air attacks and guided heavy fire");
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.ARC
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).baseSpeed() != 0.5D
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).targetHeightFactor() != 0.1F
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).lifeTicks() != 160) {
+            helper.fail("installation behavior should keep mixed gun/air attacks and 1.12 heavy missile data");
             return;
         }
 
@@ -2444,10 +2996,14 @@ public final class GameplayParityGameTests {
         }
 
         ship.setLightAmmo(100);
-        if (!ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)
-                || ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
-                != LegacyShipEntity.CompatAttackFailureReason.COOLDOWN) {
-            helper.fail("successful player-facing attack should report cooldown while reloading");
+        target.setHealth(target.getMaxHealth());
+        boolean attacked = ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT);
+        LegacyShipEntity.CompatAttackFailureReason reloadReason =
+                ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT);
+        if (!attacked || reloadReason != LegacyShipEntity.CompatAttackFailureReason.COOLDOWN) {
+            helper.fail("successful player-facing attack should report cooldown while reloading: attacked="
+                    + attacked + ", reason=" + reloadReason + ", cooldown="
+                    + ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) + ", targetAlive=" + target.isAlive());
             return;
         }
 
@@ -2467,8 +3023,8 @@ public final class GameplayParityGameTests {
             helper.fail("friendly battleships should keep the legacy heavy missile barrage arc");
             return;
         }
-        if (kongouHostileMirror.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
-            helper.fail("hostile mirror battleships should override the default heavy launch into guided barrages");
+        if (kongouHostileMirror.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.ARC) {
+            helper.fail("hostile mirror battleships should keep the same 1.12 heavy missile movement as friendly mirrors");
             return;
         }
         if (akagi.projectileProfile(LegacyShipAttackKind.AIR_HEAVY).visual() != LegacyShipProjectileVisual.TORPEDO) {
@@ -2476,9 +3032,33 @@ public final class GameplayParityGameTests {
             return;
         }
         if (wo.projectileProfile(LegacyShipAttackKind.AIR_HEAVY).visual() != LegacyShipProjectileVisual.BOMB
-                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.GUIDED) {
-            helper.fail("abyssal carriers and installations should use bomber or guided installation overrides");
+                || airfield.projectileProfile(LegacyShipAttackKind.HEAVY).moveType() != LegacyShipProjectileMoveType.ARC) {
+            helper.fail("abyssal CV air strikes should use bomber visuals while heavy missiles keep 1.12 arc movement");
             return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void registeredProjectileProfilesAreExplicit(GameTestHelper helper) {
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            LegacyShipAttackProfile profile = LegacyShipBehaviorCatalog.attackProfile(spec);
+            if (profile.heavy()
+                    && !profile.projectileProfile(LegacyShipAttackKind.HEAVY).isPresent()) {
+                helper.fail("registered heavy attack must not rely on projectile fallback: egg=" + spec.eggMeta());
+                return;
+            }
+            if (profile.airLight()
+                    && !profile.projectileProfile(LegacyShipAttackKind.AIR_LIGHT).isPresent()) {
+                helper.fail("registered air-light attack must not rely on projectile fallback: egg=" + spec.eggMeta());
+                return;
+            }
+            if (profile.airHeavy()
+                    && !profile.projectileProfile(LegacyShipAttackKind.AIR_HEAVY).isPresent()) {
+                helper.fail("registered air-heavy attack must not rely on projectile fallback: egg=" + spec.eggMeta());
+                return;
+            }
         }
 
         helper.succeed();
@@ -2493,7 +3073,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        owner.setVariantEggMeta(50);
+        owner.setVariantEggMeta(62);
         target.setVariantEggMeta(23);
         owner.setPos(1.0D, 2.0D, 1.0D);
         target.setPos(10.0D, 2.0D, 1.0D);
@@ -2785,6 +3365,138 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void repairGoddessCargoRescueRestoresLegacyRuntimeAndTooltip(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            return;
+        }
+
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, new ItemStack(ModItems.REPAIRGODDESS.get()));
+        ship.addEffect(new MobEffectInstance(MobEffects.POISON, 200, 0, false, false, false));
+        ship.setHealth(Math.min(5.0F, ship.getMaxHealth()));
+
+        if (ship.hurt(ship.damageSources().generic(), ship.getMaxHealth() + 40.0F)) {
+            helper.fail("repair goddess rescue should cancel lethal damage instead of entering the death path");
+            return;
+        }
+
+        if (!ship.isAlive() || ship.isDeadOrDying() || Math.abs(ship.getHealth() - ship.getMaxHealth()) > 0.01F) {
+            helper.fail("repair goddess rescue should restore the ship to full legacy health");
+            return;
+        }
+        if (!ship.hasEffect(MobEffects.POISON)) {
+            helper.fail("repair goddess rescue should not clear unrelated effects");
+            return;
+        }
+        if (ship.hasEffect(MobEffects.REGENERATION)
+                || ship.hasEffect(MobEffects.ABSORPTION)
+                || ship.hasEffect(MobEffects.FIRE_RESISTANCE)) {
+            helper.fail("repair goddess rescue should not inject modern potion effects");
+            return;
+        }
+        if (!ship.getShipInventory().getItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT).isEmpty()) {
+            helper.fail("repair goddess rescue should consume one stored repair goddess from cargo");
+            return;
+        }
+
+        float rescuedHealth = ship.getHealth();
+        ship.hurt(ship.damageSources().generic(), 3.0F);
+        if (ship.getHealth() < rescuedHealth - 0.01F) {
+            helper.fail("repair goddess rescue should apply the legacy invulnerability window after triggering");
+            return;
+        }
+
+        ItemStack goddess = new ItemStack(ModItems.REPAIRGODDESS.get());
+        List<Component> tooltip = new ArrayList<>();
+        goddess.getItem().appendHoverText(goddess, helper.getLevel(), tooltip, TooltipFlag.Default.NORMAL);
+        if (!goddess.getItem().isFoil(goddess)) {
+            helper.fail("repair goddess item should retain the legacy foil effect");
+            return;
+        }
+        if (tooltip.size() != 1
+                || !tooltip.get(0).getString().equals(Component.translatable("gui.shincolle.repairgoddess").getString())) {
+            helper.fail("repair goddess tooltip should contain only the legacy rescue description");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void morphInventoryLegacySupportButtonsMutateSelectedProfile(GameTestHelper helper) {
+        ServerPlayer serverPlayer = makeServerBackedPlayer(helper, "MorphCommandCoverage");
+        Player player = serverPlayer;
+
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8610);
+            data.unlockMorph(58);
+            data.setSelectedMorphProfile(58);
+            MorphProfile profile = data.getSelectedMorphProfile();
+            if (profile != null) {
+                profile.setLevel(3);
+                profile.setExperience(40);
+                profile.setAmmoLight(0);
+                profile.setAmmoHeavy(0);
+                profile.setGrudge(0);
+                profile.setAuraEffect(false);
+                profile.setShowHeldItem(false);
+            }
+        })) {
+            return;
+        }
+
+        player.getInventory().add(new ItemStack(ModItems.AMMO.get()));
+        player.getInventory().add(new ItemStack(ModItems.AMMO2.get()));
+        player.getInventory().add(new ItemStack(ModBlocks.BLOCK_GRUDGE.get()));
+
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_LIGHT_AMMO, new CompoundTag());
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_HEAVY_AMMO, new CompoundTag());
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_GRUDGE, new CompoundTag());
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_AURA_EFFECT, new CompoundTag());
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_SHOW_HELD, new CompoundTag());
+
+        MorphProfile profile = TeitokuHelper.get(player)
+                .map(TeitokuData::getSelectedMorphProfile)
+                .orElse(null);
+        if (profile == null) {
+            helper.fail("selected morph profile should remain available after morph inventory commands");
+            return;
+        }
+
+        if (profile.getAmmoLight() != 30
+                || profile.getAmmoHeavy() != 15
+                || profile.getGrudge() != 2700
+                || !profile.hasAuraEffect()
+                || !profile.isShowHeldItem()) {
+            helper.fail("legacy morph inventory support buttons should refill supplies and toggle profile flags");
+            return;
+        }
+
+        if (player.getInventory().countItem(ModItems.AMMO.get()) != 0
+                || player.getInventory().countItem(ModItems.AMMO2.get()) != 0
+                || player.getInventory().countItem(ModBlocks.BLOCK_GRUDGE.get().asItem()) != 0) {
+            helper.fail("legacy morph supply buttons should consume the matching inventory items");
+            return;
+        }
+
+        MorphInventoryMenu menu = new MorphInventoryMenu(9, player.getInventory(), 58);
+        if (!"40 / 80".equals(menu.getExperienceText())
+                || !"30".equals(menu.getAmmoLightText())
+                || !"15".equals(menu.getAmmoHeavyText())
+                || !"2700".equals(menu.getGrudgeText())
+                || !menu.isAuraEffectEnabled()
+                || !menu.isShowHeldItemEnabled()
+                || !"ON".equals(menu.getAuraStateLabel().getString())
+                || !"ON".equals(menu.getShowHeldStateLabel().getString())) {
+            helper.fail("morph inventory menu should expose the restored legacy experience and toggle readouts");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void growthEntryRecipesResolveAndCraft(GameTestHelper helper) {
         assertCrafts(helper, "deskitembook", new ItemStack(ModItems.DESKITEMBOOK.get()),
                 stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()),
@@ -2867,8 +3579,8 @@ public final class GameplayParityGameTests {
             }
         }
         ShipEntitySpec resolved = LegacyShipConstructionHelper.resolveConstructionEgg(egg, "smallegg", RandomSource.create(24L));
-        if (resolved == null || resolved.hostile()) {
-            helper.fail("small shipyard eggs should resolve into friendly construction ships");
+        if (resolved == null || !ShipEntitySpecs.primaryPool().contains(resolved)) {
+            helper.fail("small shipyard eggs should resolve through the 1.12 ShipCalc.EquipSmall table");
             return;
         }
 
@@ -2989,9 +3701,11 @@ public final class GameplayParityGameTests {
         ShipEntitySpec abyssDestroyerCounterpart = ShipEntitySpecs.friendlyCounterpart(2);
         ShipEntitySpec airfieldCounterpart = ShipEntitySpecs.friendlyCounterpart(23);
 
-        if (smallEgg.hostile() || largeEgg.hostile()
-                || abyssDestroyerCounterpart.hostile() || airfieldCounterpart.hostile()) {
-            helper.fail("construction eggs and hostile loot counterparts should always resolve to friendly ship specs");
+        if (!ShipEntitySpecs.primaryPool().contains(smallEgg)
+                || !ShipEntitySpecs.advancedPool().contains(largeEgg)
+                || abyssDestroyerCounterpart.hostile()
+                || airfieldCounterpart.hostile()) {
+            helper.fail("random eggs must use 1.12 small/large tables, and hostile loot counterparts must resolve to friendly specs");
             return;
         }
 
@@ -3150,23 +3864,26 @@ public final class GameplayParityGameTests {
                 stack(ModItems.SHIPSPAWNEGG_ITEMS.get(0).get()), stack(ModItems.KAITAIHAMMER.get()));
         assertCrafts(helper, "instantconmat64", new ItemStack(ModItems.INSTANTCONMAT.get(), 64),
                 stack(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get()), stack(ModItems.KAITAIHAMMER.get()));
-        assertCrafts(helper, "blocklargeshipyard", new ItemStack(ModBlocks.BLOCK_LARGE_SHIPYARD.get()),
-                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()),
-                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()),
-                stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()), stack(ModBlocks.BLOCK_GRUDGE_HEAVY_DECO.get()));
+        String removedLargeShipyardRecipePath = "data/shincolle/recipes/blocklarge" + "shipyard.json";
+        if (loadJsonResource(removedLargeShipyardRecipePath) != null) {
+            helper.fail("strict 1.12 parity must not expose a standalone blocklargeshipyard recipe");
+            return;
+        }
 
         helper.succeed();
     }
 
     @GameTest(template = "empty")
-    public static void reachableShipVisualAssetsExist(GameTestHelper helper) {
-        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
-        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
-        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
+    public static void registeredShipVisualAssetsExist(GameTestHelper helper) {
+        if (LegacyShipRenderCatalog.entries().size() != ShipEntitySpecs.values().size()) {
+            helper.fail("legacy ship render catalog should cover every registered ship spec");
+            return;
+        }
 
-        for (ShipEntitySpec spec : reachableSpecs) {
-            if (!resourceExists(spec.modelSourceLocation()) || !resourceExists(spec.textureLocation())) {
-                helper.fail("reachable ship spec is missing a legacy model source or texture: egg="
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            LegacyShipRenderCatalog.RenderEntry renderEntry = LegacyShipRenderCatalog.forSpec(spec);
+            if (!resourceExists(renderEntry.modelSourceLocation()) || !resourceExists(renderEntry.textureLocation())) {
+                helper.fail("registered ship spec is missing a legacy model source or texture: egg="
                         + spec.eggMeta() + " stem=" + spec.textureStem());
                 return;
             }
@@ -3176,26 +3893,23 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void reachableShipLegacyModelSourcesParse(GameTestHelper helper) {
-        LinkedHashSet<ShipEntitySpec> reachableSpecs = new LinkedHashSet<>();
-        reachableSpecs.addAll(ShipEntitySpecs.currentPlayableFriendlyRoster());
-        reachableSpecs.addAll(HostileEncounterTable.reachableShipSpecs());
-
+    public static void registeredShipLegacyModelSourcesParse(GameTestHelper helper) {
         LegacyModelSourceParser parser = new LegacyModelSourceParser();
-        for (ShipEntitySpec spec : reachableSpecs) {
-            String source = readTextResource(spec.modelSourceLocation());
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            LegacyShipRenderCatalog.RenderEntry renderEntry = LegacyShipRenderCatalog.forSpec(spec);
+            String source = readTextResource(renderEntry.modelSourceLocation());
             if (source == null) {
-                helper.fail("reachable ship model source should be packaged: egg="
-                        + spec.eggMeta() + " stem=" + spec.modelSourceStem());
+                helper.fail("registered ship model source should be packaged: egg="
+                        + spec.eggMeta() + " stem=" + renderEntry.modelSourceStem());
                 return;
             }
 
             LegacyModelDefinition definition;
             try {
-                definition = parser.parse(spec.modelSourceStem(), source);
+                definition = parser.parse(renderEntry.modelSourceStem(), source);
             } catch (Exception exception) {
-                helper.fail("reachable ship model source should parse without fallback: egg="
-                        + spec.eggMeta() + " stem=" + spec.modelSourceStem()
+                helper.fail("registered ship model source should parse without fallback: egg="
+                        + spec.eggMeta() + " stem=" + renderEntry.modelSourceStem()
                         + " error=" + exception.getClass().getSimpleName());
                 return;
             }
@@ -3203,8 +3917,8 @@ public final class GameplayParityGameTests {
             boolean hasRenderableCube = definition.parts().values().stream()
                     .anyMatch(part -> !part.cubes().isEmpty());
             if (definition.rootParts().isEmpty() || definition.parts().isEmpty() || !hasRenderableCube) {
-                helper.fail("reachable ship model source parsed to an empty model: egg="
-                        + spec.eggMeta() + " stem=" + spec.modelSourceStem());
+                helper.fail("registered ship model source parsed to an empty model: egg="
+                        + spec.eggMeta() + " stem=" + renderEntry.modelSourceStem());
                 return;
             }
         }
@@ -3269,6 +3983,101 @@ public final class GameplayParityGameTests {
         for (ResourceLocation texture : requiredTextures) {
             if (!resourceExists(texture)) {
                 helper.fail("expected summon or mount texture to exist: " + texture);
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipSpecResolutionRejectsUnmappedFallbacks(GameTestHelper helper) {
+        try {
+            ShipEntitySpecs.getByEggMeta(-999);
+            helper.fail("unknown legacy ship egg meta should not fall back to a default spec");
+            return;
+        } catch (IllegalArgumentException expected) {
+        }
+
+        try {
+            ShipEntitySpecs.resolveEggItem("shipegg9999", RandomSource.create());
+            helper.fail("unknown shipegg item path should not fall back to a default spec");
+            return;
+        } catch (IllegalArgumentException expected) {
+        }
+
+        try {
+            ShipEntitySpecs.resolveEggItem("modern_generated_egg", RandomSource.create());
+            helper.fail("unknown ship egg item path should not fall back to a default spec");
+            return;
+        } catch (IllegalArgumentException expected) {
+        }
+
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            if (!spec.hostile()) {
+                continue;
+            }
+
+            ShipEntitySpec counterpart;
+            try {
+                counterpart = ShipEntitySpecs.friendlyCounterpart(spec);
+            } catch (IllegalArgumentException exception) {
+                helper.fail("hostile legacy ship egg meta lacks explicit 1.12 counterpart: " + spec.eggMeta());
+                return;
+            }
+
+            if (counterpart.hostile()) {
+                helper.fail("explicit 1.12 counterpart must resolve to a friendly ship: hostile="
+                        + spec.eggMeta() + ", counterpart=" + counterpart.eggMeta());
+                return;
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipyardRendererAssetsExist(GameTestHelper helper) {
+        StaticLegacyModelAsset[] requiredModels = {
+                new StaticLegacyModelAsset("ModelLargeShipyard",
+                        ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modellargeshipyard.java")),
+                new StaticLegacyModelAsset("ModelVortex",
+                        ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "legacy_model_sources/modelvortex.java"))
+        };
+        ResourceLocation[] requiredTextures = {
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/blocks/blocklargeshipyard.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/blocks/modelvortex.png"),
+                ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/blocks/modelvortexon.png")
+        };
+
+        LegacyModelSourceParser parser = new LegacyModelSourceParser();
+        for (StaticLegacyModelAsset model : requiredModels) {
+            String source = readTextResource(model.sourceLocation());
+            if (source == null) {
+                helper.fail("expected large shipyard renderer model source to exist: " + model.sourceLocation());
+                return;
+            }
+
+            LegacyModelDefinition definition;
+            try {
+                definition = parser.parse(model.modelName(), source);
+            } catch (Exception exception) {
+                helper.fail("large shipyard renderer model source should parse without fallback: "
+                        + model.sourceLocation() + " error=" + exception.getClass().getSimpleName());
+                return;
+            }
+
+            boolean hasRenderableCube = definition.parts().values().stream()
+                    .anyMatch(part -> !part.cubes().isEmpty());
+            if (definition.rootParts().isEmpty() || definition.parts().isEmpty() || !hasRenderableCube) {
+                helper.fail("large shipyard renderer model source parsed to an empty model: " + model.sourceLocation());
+                return;
+            }
+        }
+
+        for (ResourceLocation texture : requiredTextures) {
+            if (!resourceExists(texture)) {
+                helper.fail("expected large shipyard renderer texture to exist: " + texture);
                 return;
             }
         }
@@ -3505,6 +4314,10 @@ public final class GameplayParityGameTests {
         return configured[0];
     }
 
+    private static ServerPlayer makeServerBackedPlayer(GameTestHelper helper, String name) {
+        return FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), name));
+    }
+
     private static LegacyShipEntity createOwnedShip(GameTestHelper helper,
                                                     Player player,
                                                     int eggMeta,
@@ -3522,6 +4335,55 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(ship);
         ship.setOwner(player);
         return ship;
+    }
+
+    private static boolean jsonContainsString(JsonElement element, String expected) {
+        if (element == null || element.isJsonNull()) {
+            return false;
+        }
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            return expected.equals(element.getAsString());
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            for (String key : object.keySet()) {
+                if (jsonContainsString(object.get(key), expected)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                if (jsonContainsString(child, expected)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static JsonObject placementByType(JsonObject placedFeature, String type) {
+        for (JsonElement placementElement : placedFeature.getAsJsonArray("placement")) {
+            JsonObject placement = placementElement.getAsJsonObject();
+            if (type.equals(placement.get("type").getAsString())) {
+                return placement;
+            }
+        }
+        return null;
+    }
+
+    private static boolean tagResourceContains(String resourcePath, String expectedValue) {
+        JsonObject tag = loadJsonResource(resourcePath);
+        if (tag == null || !tag.has("values")) {
+            return false;
+        }
+        for (JsonElement value : tag.getAsJsonArray("values")) {
+            if (expectedValue.equals(value.getAsString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static JsonObject loadJsonResource(String resourcePath) {

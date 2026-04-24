@@ -19,8 +19,11 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
 
     private static final int SLOT_AREA_X = 12;
     private static final int SLOT_AREA_Y = 60;
-    private static final int SLOT_AREA_W = 232;
+    private static final int SLOT_AREA_W = 128;
     private static final int SLOT_LINE_H = 14;
+    private static final int SUMMARY_X = 150;
+    private static final int SUMMARY_Y = 60;
+    private static final int SUMMARY_W = 94;
 
     private EditBox teamNameInput;
     private Button prevTeamButton;
@@ -128,8 +131,12 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         for (int slot = 0; slot < TeitokuData.TEAM_SIZE; slot++) {
             int y = SLOT_AREA_Y + slot * SLOT_LINE_H + 3;
             int color = this.selectedSlot == slot ? 0xFFF3C96A : this.menu.isSlotSelected(slot) ? 0xFF9AD0A1 : 0xFFD5D7DB;
-            guiGraphics.drawString(this.font, this.menu.getSlotLabel(slot), SLOT_AREA_X + 4, y, color, false);
+            guiGraphics.drawString(this.font,
+                    this.truncate(this.menu.getSlotLabel(slot).getString(), SLOT_AREA_W - 8),
+                    SLOT_AREA_X + 4, y, color, false);
         }
+
+        this.renderSelectedShipSummary(guiGraphics);
     }
 
     @Override
@@ -148,6 +155,8 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         guiGraphics.fill(left + 8, top + 8, left + this.imageWidth - 8, top + this.imageHeight - 8, 0xFF1A2835);
         guiGraphics.fill(left + SLOT_AREA_X, top + SLOT_AREA_Y,
                 left + SLOT_AREA_X + SLOT_AREA_W, top + SLOT_AREA_Y + TeitokuData.TEAM_SIZE * SLOT_LINE_H, 0x55394A57);
+        guiGraphics.fill(left + SUMMARY_X, top + SUMMARY_Y,
+                left + SUMMARY_X + SUMMARY_W, top + SUMMARY_Y + 82, 0x333B4C5B);
 
         for (int slot = 0; slot < TeitokuData.TEAM_SIZE; slot++) {
             int rowTop = top + SLOT_AREA_Y + slot * SLOT_LINE_H;
@@ -197,7 +206,8 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         if (name.isEmpty()) {
             return;
         }
-        this.sendCommand(GameplayCommandType.DESK_RENAME_TEAM, payload -> payload.putString(GameplayCommandHandler.TAG_TEAM_NAME, name));
+        this.sendCommand(GameplayCommandType.DESK_RENAME_TEAM, payload ->
+                payload.putString(GameplayCommandHandler.TAG_TEAM_NAME, name));
     }
 
     private void openSelectedShip() {
@@ -206,7 +216,8 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
             return;
         }
 
-        this.sendCommand(GameplayCommandType.OPEN_SHIP_INVENTORY, payload -> payload.putInt(GameplayCommandHandler.TAG_SHIP_UID, shipUid));
+        this.sendCommand(GameplayCommandType.OPEN_SHIP_INVENTORY, payload ->
+                payload.putInt(GameplayCommandHandler.TAG_SHIP_UID, shipUid));
     }
 
     private void refreshTextField() {
@@ -219,9 +230,51 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         }
     }
 
+    private void renderSelectedShipSummary(GuiGraphics guiGraphics) {
+        FormationMenu.SlotSnapshot snapshot = this.menu.getSlotSnapshot(this.selectedSlot);
+        int nameColor = snapshot.dead() ? 0xFF8A8E94 : snapshot.online() ? 0xFFD9E4F2 : 0xFFE3CFA8;
+        guiGraphics.drawString(this.font,
+                this.truncate(snapshot.displayName().getString(), SUMMARY_W - 6),
+                SUMMARY_X + 3, SUMMARY_Y + 4, nameColor, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.role").append(": " + snapshot.roleLabel().getString()),
+                SUMMARY_X + 3, SUMMARY_Y + 16, 0xFFD6DCE6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.formation.position").append(": " + (snapshot.slot() + 1)),
+                SUMMARY_X + 3, SUMMARY_Y + 28, 0xFFD6DCE6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.level").append(": " + snapshot.shipLevel()),
+                SUMMARY_X + 3, SUMMARY_Y + 40, 0xFFD6DCE6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.mode").append(": " + snapshot.modeLabel().getString()),
+                SUMMARY_X + 3, SUMMARY_Y + 52, 0xFFD6DCE6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.marriage").append(": " + snapshot.marriageLabel().getString()),
+                SUMMARY_X + 3, SUMMARY_Y + 64, 0xFFD6DCE6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.morale").append(": " + snapshot.moraleText()),
+                SUMMARY_X + 3, SUMMARY_Y + 76, 0xFFC4DCA6, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.ship_inventory.supply"),
+                SUMMARY_X + 3, SUMMARY_Y + 90, 0xFFC4DCA6, false);
+        guiGraphics.drawString(this.font, "F " + snapshot.fuelText(), SUMMARY_X + 9, SUMMARY_Y + 102, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "L " + snapshot.lightAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 114, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "H " + snapshot.heavyAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 126, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "G " + snapshot.grudgeText(), SUMMARY_X + 9, SUMMARY_Y + 138, 0xFFEAD7A6, false);
+    }
+
     private void sendCommand(GameplayCommandType type, java.util.function.Consumer<CompoundTag> payloadBuilder) {
         CompoundTag payload = new CompoundTag();
         payloadBuilder.accept(payload);
         ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(type, payload));
+    }
+
+    private String truncate(String value, int width) {
+        if (this.font.width(value) <= width) {
+            return value;
+        }
+
+        String ellipsis = "...";
+        return this.font.plainSubstrByWidth(value, Math.max(0, width - this.font.width(ellipsis))) + ellipsis;
     }
 }

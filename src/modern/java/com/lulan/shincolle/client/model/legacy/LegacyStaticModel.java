@@ -24,7 +24,6 @@ public final class LegacyStaticModel {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final LegacyModelSourceParser SOURCE_PARSER = new LegacyModelSourceParser();
-    private static final LegacyStaticModel FALLBACK = createFallback();
 
     private final ModelPart root;
     private final LegacyModelDefinition definition;
@@ -46,8 +45,9 @@ public final class LegacyStaticModel {
 
             return bake(SOURCE_PARSER.parse(modelName, source));
         } catch (Exception exception) {
-            LOGGER.warn("Failed to bake legacy static model {} from {}", modelName, sourceLocation, exception);
-            return FALLBACK;
+            LOGGER.error("Failed to bake required 1.12 legacy static model {} from {}", modelName, sourceLocation, exception);
+            throw new IllegalStateException("Failed to bake required 1.12 legacy static model "
+                    + modelName + " from " + sourceLocation, exception);
         }
     }
 
@@ -103,22 +103,6 @@ public final class LegacyStaticModel {
         for (String child : part.children()) {
             addPart(childDefinition, definition, child);
         }
-    }
-
-    private static LegacyStaticModel createFallback() {
-        MeshDefinition meshDefinition = new MeshDefinition();
-        PartDefinition rootDefinition = meshDefinition.getRoot();
-        rootDefinition.addOrReplaceChild("fallback",
-                CubeListBuilder.create()
-                        .texOffs(0, 0)
-                        .addBox(-8.0F, 0.0F, -8.0F, 16.0F, 16.0F, 16.0F, new CubeDeformation(0.0F)),
-                PartPose.ZERO);
-
-        LegacyModelDefinition fallbackDefinition = new LegacyModelDefinition(64, 64, java.util.List.of(),
-                java.util.List.of("fallback"),
-                java.util.Map.of("fallback", new LegacyModelDefinition.LegacyPart("fallback", 0.0F, 0.0F, 0.0F,
-                        0.0F, 0.0F, 0.0F, java.util.List.of(), java.util.List.of())));
-        return new LegacyStaticModel(LayerDefinition.create(meshDefinition, 64, 64).bakeRoot(), fallbackDefinition);
     }
 
     private static void applyRotation(PoseStack poseStack, LegacyModelDefinition.TransformOp transformOp) {

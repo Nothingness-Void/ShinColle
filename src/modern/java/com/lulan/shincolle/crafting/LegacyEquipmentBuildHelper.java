@@ -179,8 +179,7 @@ public final class LegacyEquipmentBuildHelper {
             }
         }
 
-        EquipmentCandidate fallback = candidates.get(0);
-        return createEquipmentStack(fallback.family(), fallback.variantIndex());
+        throw new IllegalStateException("Legacy equipment roll did not select from a non-empty 1.12 probability table: " + rareType);
     }
 
     private static ItemStack createEquipmentStack(LegacyEquipmentFamily family, int index) {

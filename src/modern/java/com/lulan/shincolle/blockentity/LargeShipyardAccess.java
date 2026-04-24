@@ -21,9 +21,21 @@ public interface LargeShipyardAccess extends MenuProvider {
 
     int[] getMaterialAmounts();
 
+    int[] getBuildMaterialAmountsView();
+
+    int getInvMode();
+
+    int getSelectMat();
+
     void cycleShipMode();
 
     void cycleEquipMode();
+
+    void cycleInventoryMode();
+
+    void selectMaterial(int material);
+
+    void adjustBuildMaterial(int material, int action);
 
     default boolean usesGenericInventory() {
         return false;

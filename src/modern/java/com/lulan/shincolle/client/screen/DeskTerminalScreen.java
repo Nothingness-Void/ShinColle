@@ -7,6 +7,7 @@ import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.team.TeamData;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -33,6 +34,15 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
     private static final int STOP_BTN_Y = 28;
     private static final int STOP_BTN_W = 84;
     private static final int STOP_BTN_H = 14;
+    private static final int TEAM_LIST_X = 12;
+    private static final int TEAM_LIST_Y = 145;
+    private static final int TEAM_COL_W = 101;
+    private static final int TEAM_ROW_H = 10;
+    private static final int TARGET_LIST_X = 12;
+    private static final int TARGET_LIST_Y = 145;
+    private static final int TARGET_COL_W = 101;
+    private static final int TARGET_ROW_H = 10;
+    private static final int LIST_ROWS = 4;
 
     private @Nullable EditBox textInput;
     private @Nullable EditBox relationInput;
@@ -135,11 +145,11 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
         guiGraphics.drawString(this.font, posText, 12, 44, 0xC0C7CF, false);
 
         if (this.menu.getSelectedFunction() == DeskReferenceMenu.BOOK_VARIANT) {
-            renderTeamPage(guiGraphics);
+            this.renderTeamPage(guiGraphics);
             return;
         }
 
-        renderTargetPage(guiGraphics);
+        this.renderTargetPage(guiGraphics);
     }
 
     @Override
@@ -160,13 +170,13 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
         guiGraphics.fill(left + TEAM_BTN_X, top + TEAM_BTN_Y, left + TEAM_BTN_X + TEAM_BTN_W, top + TEAM_BTN_Y + TEAM_BTN_H, 0xAA36445A);
         guiGraphics.fill(left + FORM_BTN_X, top + FORM_BTN_Y, left + FORM_BTN_X + FORM_BTN_W, top + FORM_BTN_Y + FORM_BTN_H, 0xAA5A3C36);
         guiGraphics.fill(left + STOP_BTN_X, top + STOP_BTN_Y, left + STOP_BTN_X + STOP_BTN_W, top + STOP_BTN_Y + STOP_BTN_H, 0xAA5A2C2C);
+        guiGraphics.fill(left + TEAM_LIST_X - 2, top + TEAM_LIST_Y - 2, left + this.imageWidth - 12, top + this.imageHeight - 12, 0x33202B32);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.sendCommand(mouseX, mouseY, TEAM_BTN_X, TEAM_BTN_Y, TEAM_BTN_W, TEAM_BTN_H, GameplayCommandType.SET_CURRENT_TEAM, tag -> {
-            tag.putInt(GameplayCommandHandler.TAG_TEAM_ID, (this.menu.getCurrentTeamId() + 1) % 9);
-        })) {
+        if (this.sendCommand(mouseX, mouseY, TEAM_BTN_X, TEAM_BTN_Y, TEAM_BTN_W, TEAM_BTN_H, GameplayCommandType.SET_CURRENT_TEAM, tag ->
+                tag.putInt(GameplayCommandHandler.TAG_TEAM_ID, (this.menu.getCurrentTeamId() + 1) % 9))) {
             return true;
         }
         if (this.sendCommand(mouseX, mouseY, FORM_BTN_X, FORM_BTN_Y, FORM_BTN_W, FORM_BTN_H, GameplayCommandType.OPEN_FORMATION_SCREEN, tag -> {
@@ -177,6 +187,13 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
             tag.putInt(GameplayCommandHandler.TAG_MODE, 2);
             tag.putInt(GameplayCommandHandler.TAG_SHIP_ID, -1);
         })) {
+            return true;
+        }
+
+        if (this.menu.getSelectedFunction() == DeskReferenceMenu.BOOK_VARIANT && this.handleTeamListClick(mouseX, mouseY)) {
+            return true;
+        }
+        if (this.menu.getSelectedFunction() == DeskReferenceMenu.RADAR_VARIANT && this.handleTargetListClick(mouseX, mouseY)) {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -190,29 +207,117 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
         guiGraphics.drawString(this.font,
                 Component.translatable("gui.shincolle.desk.team.status", hasTeam, this.menu.getTeamCooldown(), ownLabel),
                 12, 122, 0xD8E6FF, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("gui.shincolle.team.allylist").append(": " + this.menu.getOwnAllyCount())
+                        .append("    ")
+                        .append(Component.translatable("gui.shincolle.team.banlist"))
+                        .append(": " + this.menu.getOwnBannedCount()),
+                12, 133, 0xB9CCD9, false);
 
-        int y = 134;
         List<TeamData> teams = this.menu.getKnownTeams();
-        for (int i = 0; i < teams.size() && i < 4; i++) {
-            TeamData team = teams.get(i);
+        int offset = this.menu.getTeamListOffset();
+        for (int index = 0; index < LIST_ROWS * 2; index++) {
+            int absoluteIndex = offset + index;
+            if (absoluteIndex >= teams.size()) {
+                break;
+            }
+
+            TeamData team = teams.get(absoluteIndex);
+            int column = index / LIST_ROWS;
+            int row = index % LIST_ROWS;
+            int x = TEAM_LIST_X + column * TEAM_COL_W;
+            int y = TEAM_LIST_Y + row * TEAM_ROW_H;
+            int color = switch (this.menu.getTeamRelation(team.getTeamId())) {
+                case OWN -> 0xFFE3C071;
+                case ALLIED -> 0xFF8FD1AF;
+                case HOSTILE -> 0xFFE48787;
+                case NEUTRAL -> 0xFFD5D7DB;
+            };
+            String rowText = this.menu.getCompactTeamRow(team);
             guiGraphics.drawString(this.font,
-                    Component.literal("#" + team.getTeamId() + "  " + team.getTeamName()),
-                    12, y, 0xEAD7A6, false);
-            y += 11;
+                    this.truncate(rowText, TEAM_COL_W - 6),
+                    x, y, color, false);
         }
     }
 
     private void renderTargetPage(GuiGraphics guiGraphics) {
         List<String> targets = this.menu.getTargetClasses();
+        List<String> worldRules = this.menu.getWorldUnattackableClasses();
+
         guiGraphics.drawString(this.font,
                 Component.translatable("gui.shincolle.desk.target.count", targets.size()),
                 12, 122, 0xD8E6FF, false);
+        guiGraphics.drawString(this.font,
+                Component.translatable("item.shincolle.optool").append(" x" + worldRules.size()),
+                126, 122, 0xD8E6FF, false);
 
-        int y = 134;
-        for (int i = 0; i < targets.size() && i < 4; i++) {
-            guiGraphics.drawString(this.font, Component.literal(targets.get(i)), 12, y, 0xEAD7A6, false);
-            y += 11;
+        for (int row = 0; row < LIST_ROWS; row++) {
+            if (row < targets.size()) {
+                guiGraphics.drawString(this.font,
+                        this.truncate(targets.get(row), TARGET_COL_W - 6),
+                        TARGET_LIST_X, TARGET_LIST_Y + row * TARGET_ROW_H, 0xFFEAD7A6, false);
+            }
+            if (row < worldRules.size()) {
+                guiGraphics.drawString(this.font,
+                        this.truncate(worldRules.get(row), TARGET_COL_W - 6),
+                        TARGET_LIST_X + TARGET_COL_W, TARGET_LIST_Y + row * TARGET_ROW_H, 0xFFB5C6E8, false);
+            }
         }
+    }
+
+    private boolean handleTeamListClick(double mouseX, double mouseY) {
+        int localX = (int) (mouseX - this.leftPos);
+        int localY = (int) (mouseY - this.topPos);
+        if (localY < TEAM_LIST_Y || localY >= TEAM_LIST_Y + LIST_ROWS * TEAM_ROW_H) {
+            return false;
+        }
+
+        int relativeX = localX - TEAM_LIST_X;
+        if (relativeX < 0 || relativeX >= TEAM_COL_W * 2) {
+            return false;
+        }
+
+        int column = relativeX / TEAM_COL_W;
+        int row = (localY - TEAM_LIST_Y) / TEAM_ROW_H;
+        int index = column * LIST_ROWS + row + this.menu.getTeamListOffset();
+        List<TeamData> teams = this.menu.getKnownTeams();
+        if (index < 0 || index >= teams.size()) {
+            return false;
+        }
+
+        TeamData team = teams.get(index);
+        if (this.relationInput != null) {
+            this.relationInput.setValue(Integer.toString(team.getTeamId()));
+        }
+        if (this.textInput != null && !team.getTeamName().isBlank()) {
+            this.textInput.setValue(team.getTeamName());
+        }
+        return true;
+    }
+
+    private boolean handleTargetListClick(double mouseX, double mouseY) {
+        int localX = (int) (mouseX - this.leftPos);
+        int localY = (int) (mouseY - this.topPos);
+        if (localY < TARGET_LIST_Y || localY >= TARGET_LIST_Y + LIST_ROWS * TARGET_ROW_H) {
+            return false;
+        }
+
+        int relativeX = localX - TARGET_LIST_X;
+        if (relativeX < 0 || relativeX >= TARGET_COL_W * 2) {
+            return false;
+        }
+
+        int column = relativeX / TARGET_COL_W;
+        int row = (localY - TARGET_LIST_Y) / TARGET_ROW_H;
+        List<String> values = column == 0 ? this.menu.getTargetClasses() : this.menu.getWorldUnattackableClasses();
+        if (row < 0 || row >= values.size()) {
+            return false;
+        }
+
+        if (this.textInput != null) {
+            this.textInput.setValue(values.get(row));
+        }
+        return true;
     }
 
     private boolean sendCommand(double mouseX, double mouseY,
@@ -259,7 +364,7 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
     }
 
     private void changeAlly(boolean add) {
-        int teamId = parseRelationTeamId();
+        int teamId = this.parseRelationTeamId();
         if (teamId <= 0) {
             return;
         }
@@ -268,7 +373,7 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
     }
 
     private void changeBan(boolean add) {
-        int teamId = parseRelationTeamId();
+        int teamId = this.parseRelationTeamId();
         if (teamId <= 0) {
             return;
         }
@@ -348,5 +453,15 @@ public class DeskTerminalScreen extends AbstractContainerScreen<DeskTerminalMenu
             this.targetRemoveButton.visible = isRadar;
             this.targetRemoveButton.active = isRadar;
         }
+    }
+
+    private String truncate(String value, int width) {
+        Font font = this.font;
+        if (font.width(value) <= width) {
+            return value;
+        }
+
+        String ellipsis = "...";
+        return font.plainSubstrByWidth(value, Math.max(0, width - font.width(ellipsis))) + ellipsis;
     }
 }

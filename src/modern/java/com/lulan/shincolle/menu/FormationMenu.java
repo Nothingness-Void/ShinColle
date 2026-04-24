@@ -1,6 +1,8 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.ShipEntitySpec;
+import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.teitoku.TeitokuData;
@@ -13,9 +15,48 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
+import javax.annotation.Nullable;
 import java.util.Optional;
+import java.util.Locale;
 
 public class FormationMenu extends AbstractContainerMenu {
+
+    public record SlotSnapshot(
+            int slot,
+            int shipUid,
+            boolean empty,
+            boolean dead,
+            boolean online,
+            Component displayName,
+            Component roleLabel,
+            int shipLevel,
+            String moraleText,
+            String fuelText,
+            String lightAmmoText,
+            String heavyAmmoText,
+            String grudgeText,
+            Component modeLabel,
+            Component marriageLabel
+    ) {
+        private static SlotSnapshot empty(int slot) {
+            return new SlotSnapshot(
+                    slot,
+                    -1,
+                    true,
+                    false,
+                    false,
+                    Component.translatable("gui.shincolle.formation.slot.empty", slot + 1),
+                    Component.translatable("gui.shincolle.ship_inventory.role.unknown"),
+                    0,
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    Component.literal("-"),
+                    Component.translatable("gui.shincolle.ship_inventory.marriage.no"));
+        }
+    }
 
     private final Inventory inventory;
 
@@ -75,6 +116,85 @@ public class FormationMenu extends AbstractContainerMenu {
         return this.withData(data -> data.countShipsInTeam(data.getCurrentTeamId())).orElse(0);
     }
 
+    public SlotSnapshot getSlotSnapshot(int slot) {
+        int shipUid = this.getShipUid(slot);
+        if (shipUid <= 0) {
+            return SlotSnapshot.empty(slot);
+        }
+
+        LegacyShipEntity ship = this.findShipByUid(shipUid);
+        if (ship != null) {
+            return new SlotSnapshot(
+                    slot,
+                    shipUid,
+                    false,
+                    false,
+                    true,
+                    ship.getName(),
+                    Component.translatable("gui.shincolle.ship_inventory.role."
+                            + ship.getSpec().archetype().name().toLowerCase(Locale.ROOT)),
+                    ship.getShipLevel(),
+                    ship.getMorale() + " / 16000",
+                    ship.getShipFuelText(),
+                    ship.getLightAmmoText(),
+                    ship.getHeavyAmmoText(),
+                    ship.getGrudgeText(),
+                    ship.getEscortModeLabel(),
+                    Component.translatable(ship.isMarried()
+                            ? "gui.shincolle.ship_inventory.marriage.yes"
+                            : "gui.shincolle.ship_inventory.marriage.no"));
+        }
+
+        ShipWorldCacheEntry cached = TeitokuHelper.getClientShipCacheEntry(shipUid);
+        if (cached == null) {
+            return new SlotSnapshot(
+                    slot,
+                    shipUid,
+                    false,
+                    false,
+                    false,
+                    Component.translatable("gui.shincolle.formation.slot.uid", slot + 1, shipUid),
+                    Component.translatable("gui.shincolle.ship_inventory.role.unknown"),
+                    0,
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    Component.literal("-"),
+                    Component.translatable("gui.shincolle.ship_inventory.marriage.no"));
+        }
+
+        ShipEntitySpec spec = this.resolveCachedSpec(cached);
+        Component roleLabel = spec == null
+                ? Component.translatable("gui.shincolle.ship_inventory.role.unknown")
+                : Component.translatable("gui.shincolle.ship_inventory.role."
+                + spec.archetype().name().toLowerCase(Locale.ROOT));
+        Component modeLabel = Component.translatable(cached.isOrderedToSit()
+                ? "gui.shincolle.entity.mode.standby"
+                : "gui.shincolle.entity.mode.follow");
+        Component marriageLabel = Component.translatable(cached.isMarried()
+                ? "gui.shincolle.ship_inventory.marriage.yes"
+                : "gui.shincolle.ship_inventory.marriage.no");
+
+        return new SlotSnapshot(
+                slot,
+                shipUid,
+                false,
+                cached.dead(),
+                cached.online(),
+                cached.resolveDisplayName(),
+                roleLabel,
+                cached.getShipLevel(),
+                cached.getMorale() + " / 16000",
+                cached.getShipFuel() + " / " + LegacyShipEntity.MAX_SHIP_FUEL,
+                cached.getLightAmmo() + " / " + LegacyShipEntity.MAX_LIGHT_AMMO,
+                cached.getHeavyAmmo() + " / " + LegacyShipEntity.MAX_HEAVY_AMMO,
+                cached.getGrudge() + " / " + LegacyShipEntity.MAX_GRUDGE,
+                modeLabel,
+                marriageLabel);
+    }
+
     @Override
     public boolean stillValid(Player player) {
         return true;
@@ -89,7 +209,7 @@ public class FormationMenu extends AbstractContainerMenu {
         for (LegacyShipEntity ship : this.inventory.player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
                 this.inventory.player.getBoundingBox().inflate(256.0D),
-                candidate -> candidate.getShipUid() == shipUid)) {
+                candidate -> candidate.getShipUid() == shipUid && !candidate.isRemoved())) {
             if (ship.canCommanderEdit(this.inventory.player)) {
                 return ship;
             }
@@ -103,5 +223,17 @@ public class FormationMenu extends AbstractContainerMenu {
             return Optional.empty();
         }
         return Optional.ofNullable(mapper.apply(data));
+    }
+
+    private @Nullable ShipEntitySpec resolveCachedSpec(@Nullable ShipWorldCacheEntry entry) {
+        if (entry == null) {
+            return null;
+        }
+
+        ShipEntitySpec spec = ShipEntitySpecs.findByEggMeta(entry.variantEggMeta());
+        if (spec == null) {
+            spec = ShipEntitySpecs.findByLegacyClassId(entry.legacyClassId());
+        }
+        return spec;
     }
 }

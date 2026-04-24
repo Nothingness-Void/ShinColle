@@ -15,11 +15,11 @@ public class LegacyShipRenderer extends MobRenderer<LegacyShipEntity, LegacyShip
 
     @Override
     public ResourceLocation getTextureLocation(LegacyShipEntity entity) {
-        return entity.getSpec().textureLocation();
+        return LegacyShipRenderCatalog.forSpec(entity.getSpec()).textureLocation();
     }
 
     @Override
     protected void scale(LegacyShipEntity entity, PoseStack poseStack, float partialTickTime) {
-        this.shadowRadius = entity.getSpec().archetype().shadowRadius();
+        this.shadowRadius = LegacyShipRenderCatalog.forSpec(entity.getSpec()).shadowRadius();
     }
 }

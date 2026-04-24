@@ -8,6 +8,9 @@ import com.lulan.shincolle.menu.DeskTerminalMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.morph.MorphHelper;
+import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.registry.ModBlocks;
+import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.team.TeamSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -17,19 +20,29 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkHooks;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 
 public final class GameplayCommandHandler {
 
     private static final double MAX_SHIP_COMMAND_RANGE_SQR = 256.0D * 256.0D;
     private static final double MAX_TARGET_COMMAND_RANGE_SQR = 256.0D * 256.0D;
     private static final double MAX_MOVE_COMMAND_RANGE_SQR = 320.0D * 320.0D;
+    private static final int LEGACY_MORPH_RESOURCE_CAP = 30000;
+    private static final int LEGACY_BASE_LIGHT_AMMO = 30;
+    private static final int LEGACY_BASE_HEAVY_AMMO = 15;
+    private static final int LEGACY_BASE_GRUDGE = 300;
+    private static final float LEGACY_EASY_MODE_MULTIPLIER = 10.0F;
+    private static final boolean LEGACY_EASY_MODE_DEFAULT = false;
 
     public static final String TAG_SHIP_ID = "ShipId";
     public static final String TAG_TARGET_ID = "TargetId";
@@ -103,6 +116,11 @@ public final class GameplayCommandHandler {
             case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
             case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);
             case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
+            case MORPH_ADD_LIGHT_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_LIGHT_AMMO);
+            case MORPH_ADD_HEAVY_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_HEAVY_AMMO);
+            case MORPH_ADD_GRUDGE -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_GRUDGE);
+            case MORPH_TOGGLE_SHOW_HELD -> handleMorphToggleShowHeld(player);
+            case MORPH_TOGGLE_AURA_EFFECT -> handleMorphToggleAuraEffect(player);
             case PLAYER_CAST_SKILL -> handlePlayerCastSkill(player, payload);
             case MORPH_CAST_ATTACK -> handleMorphAttack(player, payload);
             case MORPH_CAST_SPECIAL -> handleMorphSpecial(player, payload);
@@ -272,6 +290,35 @@ public final class GameplayCommandHandler {
         }
     }
 
+    private static void handleMorphToggleShowHeld(ServerPlayer player) {
+        if (mutateSelectedMorphProfile(player, profile -> {
+            profile.setShowHeldItem(!profile.isShowHeldItem());
+            return true;
+        })) {
+            TeitokuHelper.syncGameplayState(player);
+        }
+    }
+
+    private static void handleMorphToggleAuraEffect(ServerPlayer player) {
+        if (mutateSelectedMorphProfile(player, profile -> {
+            profile.setAuraEffect(!profile.hasAuraEffect());
+            return true;
+        })) {
+            TeitokuHelper.syncGameplayState(player);
+        }
+    }
+
+    private static void handleMorphSupply(ServerPlayer player, GameplayCommandType commandType) {
+        if (mutateSelectedMorphProfile(player, profile -> switch (commandType) {
+            case MORPH_ADD_LIGHT_AMMO -> refillMorphAmmoLight(player, profile);
+            case MORPH_ADD_HEAVY_AMMO -> refillMorphAmmoHeavy(player, profile);
+            case MORPH_ADD_GRUDGE -> refillMorphGrudge(player, profile);
+            default -> false;
+        })) {
+            TeitokuHelper.syncGameplayState(player);
+        }
+    }
+
     private static void handlePlayerCastSkill(ServerPlayer player, CompoundTag payload) {
         BlockPos blockPos = payload.contains(TAG_X) && payload.contains(TAG_Y) && payload.contains(TAG_Z)
                 ? new BlockPos(payload.getInt(TAG_X), payload.getInt(TAG_Y), payload.getInt(TAG_Z))
@@ -290,6 +337,108 @@ public final class GameplayCommandHandler {
 
     private static void handleMorphSpecial(ServerPlayer player, CompoundTag payload) {
         MorphHelper.performCompatSpecial(player, payload.getInt(TAG_TARGET_ID));
+    }
+
+    private static boolean mutateSelectedMorphProfile(ServerPlayer player, Function<MorphProfile, Boolean> updater) {
+        return TeitokuHelper.get(player)
+                .map(data -> {
+                    MorphProfile profile = data.getSelectedMorphProfile();
+                    return profile != null && updater.apply(profile);
+                })
+                .orElse(false);
+    }
+
+    private static boolean refillMorphAmmoLight(ServerPlayer player, MorphProfile profile) {
+        if (profile.getAmmoLight() >= LEGACY_MORPH_RESOURCE_CAP) {
+            return false;
+        }
+
+        float baseValue;
+        if (consumeInventoryItem(player.getInventory(), ModItems.AMMO.get())) {
+            baseValue = LEGACY_BASE_LIGHT_AMMO;
+        } else if (consumeInventoryItem(player.getInventory(), ModItems.AMMO1.get())) {
+            baseValue = LEGACY_BASE_LIGHT_AMMO * 9.0F;
+        } else {
+            return false;
+        }
+
+        if (isLegacyEasyModeEnabled()) {
+            baseValue *= LEGACY_EASY_MODE_MULTIPLIER;
+        }
+
+        profile.addAmmoLight((int) (baseValue * (1.0F + profile.buildEquipmentProfile().ammoBonus())));
+        return true;
+    }
+
+    private static boolean refillMorphAmmoHeavy(ServerPlayer player, MorphProfile profile) {
+        if (profile.getAmmoHeavy() >= LEGACY_MORPH_RESOURCE_CAP) {
+            return false;
+        }
+
+        float baseValue;
+        if (consumeInventoryItem(player.getInventory(), ModItems.AMMO2.get())) {
+            baseValue = LEGACY_BASE_HEAVY_AMMO;
+        } else if (consumeInventoryItem(player.getInventory(), ModItems.AMMO3.get())) {
+            baseValue = LEGACY_BASE_HEAVY_AMMO * 9.0F;
+        } else {
+            return false;
+        }
+
+        if (isLegacyEasyModeEnabled()) {
+            baseValue *= LEGACY_EASY_MODE_MULTIPLIER;
+        }
+
+        profile.addAmmoHeavy((int) (baseValue * (1.0F + profile.buildEquipmentProfile().ammoBonus())));
+        return true;
+    }
+
+    private static boolean refillMorphGrudge(ServerPlayer player, MorphProfile profile) {
+        if (profile.getGrudge() >= LEGACY_MORPH_RESOURCE_CAP) {
+            return false;
+        }
+
+        float baseValue;
+        if (consumeInventoryItem(player.getInventory(), ModItems.GRUDGE.get())) {
+            baseValue = LEGACY_BASE_GRUDGE;
+        } else if (consumeInventoryItem(player.getInventory(), ModBlocks.BLOCK_GRUDGE.get().asItem())) {
+            baseValue = LEGACY_BASE_GRUDGE * 9.0F;
+        } else {
+            return false;
+        }
+
+        if (isLegacyEasyModeEnabled()) {
+            baseValue *= LEGACY_EASY_MODE_MULTIPLIER;
+        }
+
+        profile.addGrudge((int) (baseValue * (1.0F + profile.buildEquipmentProfile().grudgeBonus())));
+        return true;
+    }
+
+    private static boolean consumeInventoryItem(Inventory inventory, Item item) {
+        if (inventory.player.getAbilities().instabuild) {
+            return true;
+        }
+
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.is(item)) {
+                continue;
+            }
+
+            stack.shrink(1);
+            if (stack.isEmpty()) {
+                inventory.setItem(slot, ItemStack.EMPTY);
+            } else {
+                inventory.setChanged();
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean isLegacyEasyModeEnabled() {
+        return LEGACY_EASY_MODE_DEFAULT;
     }
 
     private static void handleDeskCreate(ServerPlayer player, CompoundTag payload) {

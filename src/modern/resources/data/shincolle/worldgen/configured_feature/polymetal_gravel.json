@@ -1,12 +1,12 @@
 {
   "type": "minecraft:disk",
   "config": {
-    "half_height": 2,
+    "half_height": 1,
     "radius": {
       "type": "minecraft:uniform",
       "value": {
-        "max_inclusive": 4,
-        "min_inclusive": 2
+        "max_inclusive": 2,
+        "min_inclusive": 1
       }
     },
     "state_provider": {
@@ -24,7 +24,6 @@
         "minecraft:sand",
         "minecraft:gravel",
         "minecraft:dirt",
-        "minecraft:clay",
         "minecraft:stone"
       ]
     }

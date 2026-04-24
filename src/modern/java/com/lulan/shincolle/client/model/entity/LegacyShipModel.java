@@ -3,6 +3,7 @@ package com.lulan.shincolle.client.model.entity;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.client.model.legacy.LegacyModelDefinition;
 import com.lulan.shincolle.client.model.legacy.LegacyModelSourceParser;
+import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -35,10 +36,9 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final LegacyModelSourceParser SOURCE_PARSER = new LegacyModelSourceParser();
-    private static final BakedLegacyModel FALLBACK_MODEL = BakedLegacyModel.createFallback();
 
     private final Map<String, BakedLegacyModel> bakedModels = new LinkedHashMap<>();
-    private BakedLegacyModel currentModel = FALLBACK_MODEL;
+    private BakedLegacyModel currentModel;
 
     public LegacyShipModel() {
         super(RenderType::entityTranslucent);
@@ -47,7 +47,8 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
     @Override
     public void setupAnim(LegacyShipEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks,
                           float netHeadYaw, float headPitch) {
-        this.currentModel = this.bakedModels.computeIfAbsent(entity.getSpec().modelSourceStem(), this::loadModel);
+        this.currentModel = this.bakedModels.computeIfAbsent(
+                LegacyShipRenderCatalog.forSpec(entity.getSpec()).modelSourceStem(), this::loadModel);
         this.currentModel.resetPose();
         this.currentModel.applyHeadRotation(netHeadYaw, headPitch);
         this.currentModel.applyWalk(limbSwing, limbSwingAmount);
@@ -56,6 +57,9 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
     @Override
     public void renderToBuffer(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay,
                                float red, float green, float blue, float alpha) {
+        if (this.currentModel == null) {
+            throw new IllegalStateException("Legacy ship renderer attempted to render before a 1.12 model source was selected");
+        }
         this.currentModel.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
@@ -75,9 +79,8 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             LegacyModelDefinition definition = SOURCE_PARSER.parse(modelSourceStem, source);
             return BakedLegacyModel.bake(definition);
         } catch (Exception exception) {
-            LOGGER.warn("Failed to bake legacy ship model {}, falling back to simple placeholder", modelSourceStem,
-                    exception);
-            return FALLBACK_MODEL;
+            LOGGER.error("Failed to bake required 1.12 legacy ship model {}", modelSourceStem, exception);
+            throw new IllegalStateException("Failed to bake required 1.12 legacy ship model " + modelSourceStem, exception);
         }
     }
 
@@ -133,23 +136,6 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             }
 
             return new BakedLegacyModel(bakedRoot, bakedParts, definition.parts(), definition.transformOps());
-        }
-
-        private static BakedLegacyModel createFallback() {
-            MeshDefinition meshDefinition = new MeshDefinition();
-            PartDefinition rootDefinition = meshDefinition.getRoot();
-            CubeListBuilder bodyBuilder = CubeListBuilder.create()
-                    .texOffs(0, 0)
-                    .addBox(-4.0F, -12.0F, -2.0F, 8.0F, 12.0F, 4.0F, new CubeDeformation(0.0F))
-                    .texOffs(24, 0)
-                    .addBox(-4.0F, -20.0F, -4.0F, 8.0F, 8.0F, 8.0F, new CubeDeformation(0.0F));
-            rootDefinition.addOrReplaceChild("fallback", bodyBuilder, PartPose.ZERO);
-            ModelPart bakedRoot = LayerDefinition.create(meshDefinition, 64, 64).bakeRoot();
-            Map<String, ModelPart> bakedParts = Map.of("fallback", bakedRoot.getChild("fallback"));
-            Map<String, LegacyModelDefinition.LegacyPart> definitions = Map.of("fallback",
-                    new LegacyModelDefinition.LegacyPart("fallback", 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
-                            List.of(), List.of()));
-            return new BakedLegacyModel(bakedRoot, bakedParts, definitions, List.of());
         }
 
         private static void addPart(PartDefinition parentDefinition, LegacyModelDefinition definition, String partName) {

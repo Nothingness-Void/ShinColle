@@ -101,6 +101,15 @@ public class PolymetalServantBlockEntity extends BlockEntity implements RouteEne
         return LargeShipyardStructureHelper.findMasterForServant(this.level, this.worldPosition);
     }
 
+    public void setMasterPos(@Nullable BlockPos masterPos) {
+        this.masterPos = masterPos == null ? null : masterPos.immutable();
+        this.setChanged();
+        if (this.level != null) {
+            BlockState state = this.getBlockState();
+            this.level.sendBlockUpdated(this.worldPosition, state, state, Block.UPDATE_ALL);
+        }
+    }
+
     public @Nullable HeavyGrudgeBlockEntity getMaster() {
         if (this.level == null) {
             return null;

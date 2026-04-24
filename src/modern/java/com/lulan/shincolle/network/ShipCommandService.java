@@ -80,6 +80,7 @@ public final class ShipCommandService {
             case SET_FOLLOW_RANGE -> setFollowRange(player, packet.shipId(), packet.shipUid(), packet.value());
             case TOGGLE_SIT -> toggleSit(player, packet.mode(), packet.shipId(), packet.shipUid());
             case OPEN_SHIP_INVENTORY -> openShipInventory(player, packet.shipId(), packet.shipUid());
+            case TOGGLE_RING_EFFECT -> toggleRingEffect(player, packet.shipId(), packet.shipUid());
         };
     }
 
@@ -297,6 +298,17 @@ public final class ShipCommandService {
         return ShipCommandResult.SUCCESS;
     }
 
+    private static ShipCommandResult toggleRingEffect(Player player, int shipId, int shipUid) {
+        LegacyShipEntity ship = resolveOwnedShip(player, shipId, shipUid);
+        if (ship == null) {
+            return ShipCommandResult.NO_COMMANDABLE_SHIP;
+        }
+
+        ship.setRingEffectEnabled(!ship.isRingEffectEnabled());
+        markShipDirty(ship);
+        return ShipCommandResult.SUCCESS;
+    }
+
     private static @Nullable LegacyShipEntity resolveOwnedShip(Player player, int entityId, int shipUid) {
         LegacyShipEntity ship = null;
         if (entityId >= 0 && player.level().getEntity(entityId) instanceof LegacyShipEntity byEntityId) {
@@ -374,6 +386,7 @@ public final class ShipCommandService {
             case SET_FOLLOW_RANGE -> "chat.shincolle.ship_command.action.follow_range";
             case TOGGLE_SIT -> "chat.shincolle.ship_command.action.toggle_sit";
             case OPEN_SHIP_INVENTORY -> "chat.shincolle.ship_command.action.open_inventory";
+            case TOGGLE_RING_EFFECT -> "chat.shincolle.ship_command.action.toggle_ring_effect";
         };
     }
 

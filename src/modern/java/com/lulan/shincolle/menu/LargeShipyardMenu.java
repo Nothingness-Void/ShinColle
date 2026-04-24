@@ -1,7 +1,7 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.blockentity.LargeShipyardAccess;
-import com.lulan.shincolle.blockentity.LargeShipyardBlockEntity;
+import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
 import com.lulan.shincolle.registry.ModMenus;
@@ -25,6 +25,11 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
 
     public static final int BUTTON_SHIP_MODE = 0;
     public static final int BUTTON_EQUIP_MODE = 1;
+    public static final int BUTTON_INVENTORY_MODE = 2;
+    public static final int BUTTON_SELECT_MATERIAL_BASE = 3;
+    public static final int BUTTON_SELECT_MATERIAL_END = 6;
+    public static final int BUTTON_ADJUST_MATERIAL_BASE = 7;
+    public static final int BUTTON_ADJUST_MATERIAL_END = 14;
 
     private static final int TILE_SLOT_COUNT = LargeShipyardRecipes.SLOT_COUNT;
     private static final int PLAYER_SLOT_START = TILE_SLOT_COUNT;
@@ -44,7 +49,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
         this.inventory = inventory;
         this.shipyardPos = shipyardPos.immutable();
         this.data = data;
-        checkContainerDataCount(data, 6);
+        checkContainerDataCount(data, 8);
         this.addDataSlots(data);
 
         boolean genericInventory = this.getShipyard() != null && this.getShipyard().usesGenericInventory();
@@ -76,7 +81,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
             return new LargeShipyardMenu(containerId, inventory, shipyard);
         }
 
-        return new LargeShipyardMenu(containerId, inventory, pos, new ItemStackHandler(LargeShipyardRecipes.SLOT_COUNT), new SimpleContainerData(6));
+        return new LargeShipyardMenu(containerId, inventory, pos, new ItemStackHandler(LargeShipyardRecipes.SLOT_COUNT), new SimpleContainerData(8));
     }
 
     public @Nullable LargeShipyardAccess getShipyard() {
@@ -112,7 +117,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public boolean hasRemainedPower() {
-        return this.getPowerRemained() > LargeShipyardBlockEntity.BUILD_SPEED;
+        return this.getPowerRemained() > HeavyGrudgeBlockEntity.BUILD_SPEED;
     }
 
     public boolean hasBuildMode() {
@@ -124,7 +129,15 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public boolean isCoreLinked() {
-        return this.data.get(5) != 0;
+        return false;
+    }
+
+    public int getInvMode() {
+        return this.data.get(6);
+    }
+
+    public int getSelectMat() {
+        return this.data.get(7);
     }
 
     public boolean isOutputBlocked() {
@@ -155,7 +168,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public int getPowerRemainingScaled(int height) {
-        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / LargeShipyardBlockEntity.POWER_MAX);
+        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / HeavyGrudgeBlockEntity.POWER_MAX);
     }
 
     public String getBuildTimeString() {
@@ -163,7 +176,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
             return "00:00";
         }
 
-        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) LargeShipyardBlockEntity.BUILD_SPEED) * 0.05F));
+        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) HeavyGrudgeBlockEntity.BUILD_SPEED) * 0.05F));
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
@@ -175,6 +188,14 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
             return 0;
         }
         return shipyard.getMaterialAmounts()[materialIndex];
+    }
+
+    public int getBuildMaterialAmount(int materialIndex) {
+        LargeShipyardAccess shipyard = this.getShipyard();
+        if (shipyard == null || materialIndex < 0 || materialIndex > 3) {
+            return 0;
+        }
+        return shipyard.getBuildMaterialAmountsView()[materialIndex];
     }
 
     @Override
@@ -192,8 +213,15 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
         switch (id) {
             case BUTTON_SHIP_MODE -> shipyard.cycleShipMode();
             case BUTTON_EQUIP_MODE -> shipyard.cycleEquipMode();
+            case BUTTON_INVENTORY_MODE -> shipyard.cycleInventoryMode();
             default -> {
-                return false;
+                if (id >= BUTTON_SELECT_MATERIAL_BASE && id <= BUTTON_SELECT_MATERIAL_END) {
+                    shipyard.selectMaterial(id - BUTTON_SELECT_MATERIAL_BASE);
+                } else if (id >= BUTTON_ADJUST_MATERIAL_BASE && id <= BUTTON_ADJUST_MATERIAL_END) {
+                    shipyard.adjustBuildMaterial(shipyard.getSelectMat(), id - BUTTON_ADJUST_MATERIAL_BASE);
+                } else {
+                    return false;
+                }
             }
         }
 

@@ -3,6 +3,7 @@ package com.lulan.shincolle;
 import com.mojang.logging.LogUtils;
 import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.client.renderer.blockentity.DeskBlockEntityRenderer;
+import com.lulan.shincolle.client.renderer.blockentity.HeavyGrudgeBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.blockentity.SmallShipyardBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipAircraftRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipProjectileRenderer;
@@ -105,6 +106,7 @@ public class ShinColle {
                 MenuScreens.register(ModMenus.SMALL_SHIPYARD.get(), SmallShipyardScreen::new);
                 MenuScreens.register(ModMenus.SHIP_INVENTORY.get(), ShipInventoryScreen::new);
                 BlockEntityRenderers.register(ModBlockEntities.DESK.get(), DeskBlockEntityRenderer::new);
+                BlockEntityRenderers.register(ModBlockEntities.GRUDGE_HEAVY.get(), HeavyGrudgeBlockEntityRenderer::new);
                 BlockEntityRenderers.register(ModBlockEntities.SMALL_SHIPYARD.get(), SmallShipyardBlockEntityRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP.get(), LegacyShipRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_PROJECTILE.get(), LegacyShipProjectileRenderer::new);

@@ -47,8 +47,11 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String LEGACY_HEAVY_AMMO_TAG = "NumAmmoHeavy";
     private static final String LEGACY_GRUDGE_TAG = "NumGrudge";
     private static final String SHIP_MARRIED_TAG = "ShipMarried";
+    private static final String WED_EFFECT_TAG = "WedEffect";
     private static final String MODERN_HEALTH_TAG = "ModernHealth";
     private static final String MODERN_ATTACK_TAG = "ModernAttack";
+    private static final String MODERN_DEFENSE_TAG = "ModernDefense";
+    private static final String MODERN_ATTACK_SPEED_TAG = "ModernAttackSpeed";
     private static final String MODERN_SPEED_TAG = "ModernSpeed";
     private static final String MODERN_RANGE_TAG = "ModernRange";
     private static final String ROUTE_ENERGY_TAG = "RouteEnergy";
@@ -333,6 +336,21 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 : "gui.shincolle.ship_inventory.marriage.no");
     }
 
+    public boolean isRingEffectEnabled() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.isRingEffectEnabled();
+        }
+
+        return this.getCachedBoolean(this.getCachedEntityTag(), WED_EFFECT_TAG, true);
+    }
+
+    public Component getRingEffectLabel() {
+        return Component.translatable(this.isRingEffectEnabled()
+                ? "gui.shincolle.ship_inventory.behavior.on"
+                : "gui.shincolle.ship_inventory.behavior.off");
+    }
+
     public int getModernizationCount() {
         LegacyShipEntity ship = this.getShip();
         if (ship != null) {
@@ -342,6 +360,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         CompoundTag tag = this.getCachedEntityTag();
         return this.getCachedInt(tag, MODERN_HEALTH_TAG, 0)
                 + this.getCachedInt(tag, MODERN_ATTACK_TAG, 0)
+                + this.getCachedInt(tag, MODERN_DEFENSE_TAG, 0)
+                + this.getCachedInt(tag, MODERN_ATTACK_SPEED_TAG, 0)
                 + this.getCachedInt(tag, MODERN_SPEED_TAG, 0)
                 + this.getCachedInt(tag, MODERN_RANGE_TAG, 0);
     }
@@ -637,6 +657,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 this.getCachedInt(tag, SHIP_MORALE_TAG, 0),
                 this.getCachedInt(tag, MODERN_HEALTH_TAG, 0),
                 this.getCachedInt(tag, MODERN_ATTACK_TAG, 0),
+                this.getCachedInt(tag, MODERN_DEFENSE_TAG, 0),
+                this.getCachedInt(tag, MODERN_ATTACK_SPEED_TAG, 0),
                 this.getCachedInt(tag, MODERN_SPEED_TAG, 0),
                 this.getCachedInt(tag, MODERN_RANGE_TAG, 0),
                 this.getCachedBoolean(tag, SHIP_MARRIED_TAG, false),
