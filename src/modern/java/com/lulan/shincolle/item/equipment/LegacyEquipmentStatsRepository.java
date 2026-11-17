@@ -80,6 +80,11 @@ public final class LegacyEquipmentStatsRepository {
 
     public record MiscData(int carrierGroup, String rareType, int rareMean, int developNum, int developMaterial, int enchantType) {
 
+        /** The legacy EquipMisc.EQUIP_TYPE value (1 cannon, 2 misc, 3 aircraft). */
+        public int equipmentType() {
+            return this.carrierGroup;
+        }
+
         public boolean notForCarrier() {
             return this.carrierGroup == 1;
         }

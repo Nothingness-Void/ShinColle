@@ -1,12 +1,14 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
+import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
@@ -38,6 +40,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String HEALTH_TAG = "Health";
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
+    private static final String SHIP_EXPERIENCE_TAG = "ShipExperience";
     private static final String SHIP_MORALE_TAG = "ShipMorale";
     private static final String SHIP_FUEL_TAG = "ShipFuel";
     private static final String SHIP_LIGHT_AMMO_TAG = "ShipLightAmmo";
@@ -60,6 +63,9 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
     private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
     private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
+    private static final String LEGACY_EXTENDED_PROPERTIES_TAG = "ShipExtProps";
+    private static final String LEGACY_MINOR_TAG = "Minor";
+    private static final String LEGACY_EXPERIENCE_TAG = "Exp";
 
     private static final int EQUIPMENT_SLOT_START = 0;
     private static final int CARGO_SLOT_START = EQUIPMENT_SLOT_START + LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
@@ -154,7 +160,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
             return stack.getItem() instanceof LegacyEquipmentItem;
         }
 
-        return ShipEquipmentProfile.canEquip(spec.archetype(), stack);
+        return ShipEquipmentProfile.canEquip(spec, stack);
     }
 
     public Component getOwnerLabel() {
@@ -251,7 +257,15 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     public Component getRoleLabel() {
         LegacyShipEntity ship = this.getShip();
         if (ship != null) {
+            if (ship.isLegacyRaiden()) {
+                return Component.translatable("gui.shincolle.ship_inventory.role.raiden");
+            }
             return Component.translatable("gui.shincolle.ship_inventory.role." + ship.getSpec().archetype().name().toLowerCase(java.util.Locale.ROOT));
+        }
+
+        CompoundTag cachedTag = this.getCachedEntityTag();
+        if (cachedTag != null && cachedTag.getBoolean("LegacyRaiden")) {
+            return Component.translatable("gui.shincolle.ship_inventory.role.raiden");
         }
 
         ShipEntitySpec spec = this.resolveCachedSpec(this.getShipCacheEntry());
@@ -264,7 +278,20 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
 
     public int getShipLevel() {
         LegacyShipEntity ship = this.getShip();
-        return ship != null ? ship.getShipLevel() : this.getCachedInt(this.getCachedEntityTag(), SHIP_LEVEL_TAG, 0);
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return ship != null ? ship.getShipLevel() : cached != null ? cached.getShipLevel() : 0;
+    }
+
+    public String getExperienceText() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.getShipExperience() + " / " + ship.getShipExperienceNext();
+        }
+
+        CompoundTag tag = this.getCachedEntityTag();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        int level = Math.max(1, cached != null ? cached.getShipLevel() : this.getCachedInt(tag, SHIP_LEVEL_TAG, 1));
+        return this.getCachedExperience(tag) + " / " + com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog.experienceToNext(level);
     }
 
     public Component getMoraleLabel() {
@@ -278,45 +305,79 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
             return Component.literal("-");
         }
 
-        return Component.translatable("gui.shincolle.ship_inventory.morale." + this.resolveMoraleTier(this.getCachedInt(tag, SHIP_MORALE_TAG, 0)));
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        int morale = cached != null ? cached.getMorale() : this.getCachedInt(tag, SHIP_MORALE_TAG, 0);
+        return Component.translatable("gui.shincolle.ship_inventory.morale." + this.resolveMoraleTier(morale));
     }
 
     public String getMoraleText() {
         LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         return ship != null ? ship.getMorale() + " / 16000"
-                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedInt(this.getCachedEntityTag(), SHIP_MORALE_TAG, 0) + " / 16000";
+                : cached == null || cached.entityTag().isEmpty() ? "-" : cached.getMorale() + " / 16000";
     }
 
     public String getFuelText() {
         LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         return ship != null ? ship.getShipFuelText()
-                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_FUEL_TAG, null, LegacyShipEntity.MAX_SHIP_FUEL);
+                : cached == null || cached.entityTag().isEmpty() ? "-" : cached.getShipFuel() + " / " + LegacyShipEntity.MAX_SHIP_FUEL;
     }
 
     public String getLightAmmoText() {
         LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         return ship != null ? ship.getLightAmmoText()
-                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG, LegacyShipEntity.MAX_LIGHT_AMMO);
+                : cached == null || cached.entityTag().isEmpty() ? "-" : cached.getLightAmmo() + " / " + LegacyShipEntity.MAX_LIGHT_AMMO;
     }
 
     public String getHeavyAmmoText() {
         LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         return ship != null ? ship.getHeavyAmmoText()
-                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG, LegacyShipEntity.MAX_HEAVY_AMMO);
+                : cached == null || cached.entityTag().isEmpty() ? "-" : cached.getHeavyAmmo() + " / " + LegacyShipEntity.MAX_HEAVY_AMMO;
     }
 
     public String getGrudgeText() {
         LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         return ship != null ? ship.getGrudgeText()
-                : this.getCachedEntityTag().isEmpty() ? "-" : this.getCachedResourceText(SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG, LegacyShipEntity.MAX_GRUDGE);
+                : cached == null || cached.entityTag().isEmpty() ? "-" : cached.getGrudge() + " / " + LegacyShipEntity.MAX_GRUDGE;
+    }
+
+    public String getFoodSaturationText() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.getFoodSaturation() + " / " + ship.getFoodSaturationMax();
+        }
+
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        if (cached == null || cached.entityTag().isEmpty()) {
+            return "-";
+        }
+
+        ShipEntitySpec spec = this.resolveCachedSpec(cached);
+        int maxFood = spec == null ? 10 : LegacyShipBehaviorCatalog.foodSaturationMaxFor(spec);
+        return cached.getFoodSaturation() + " / " + maxFood;
+    }
+
+    public int getCombatRationLevel() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.getCombatRationLevel();
+        }
+
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return cached == null ? LegacyShipEntity.DEFAULT_COMBAT_RATION_LEVEL : cached.getCombatRationLevel();
     }
 
     public String getSupplyTierText() {
         LegacyShipEntity ship = this.getShip();
-        int fuel = ship != null ? ship.getShipFuel() : this.getCachedResourceValue(SHIP_FUEL_TAG, null, LegacyShipEntity.MAX_SHIP_FUEL);
-        int light = ship != null ? ship.getLightAmmo() : this.getCachedResourceValue(SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG, LegacyShipEntity.MAX_LIGHT_AMMO);
-        int heavy = ship != null ? ship.getHeavyAmmo() : this.getCachedResourceValue(SHIP_HEAVY_AMMO_TAG, LEGACY_HEAVY_AMMO_TAG, LegacyShipEntity.MAX_HEAVY_AMMO);
-        int grudge = ship != null ? ship.getGrudge() : this.getCachedResourceValue(SHIP_GRUDGE_TAG, LEGACY_GRUDGE_TAG, LegacyShipEntity.MAX_GRUDGE);
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        int fuel = ship != null ? ship.getShipFuel() : cached != null ? cached.getShipFuel() : LegacyShipEntity.MAX_SHIP_FUEL;
+        int light = ship != null ? ship.getLightAmmo() : cached != null ? cached.getLightAmmo() : LegacyShipEntity.MAX_LIGHT_AMMO;
+        int heavy = ship != null ? ship.getHeavyAmmo() : cached != null ? cached.getHeavyAmmo() : LegacyShipEntity.MAX_HEAVY_AMMO;
+        int grudge = ship != null ? ship.getGrudge() : cached != null ? cached.getGrudge() : LegacyShipEntity.MAX_GRUDGE;
         int ammoTier = this.resourceTier(light + heavy, LegacyShipEntity.MAX_LIGHT_AMMO + LegacyShipEntity.MAX_HEAVY_AMMO);
         return "F" + this.resourceTier(fuel, LegacyShipEntity.MAX_SHIP_FUEL)
                 + " A" + ammoTier
@@ -331,7 +392,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                     : "gui.shincolle.ship_inventory.marriage.no");
         }
 
-        return Component.translatable(this.getCachedBoolean(this.getCachedEntityTag(), SHIP_MARRIED_TAG, false)
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return Component.translatable(cached != null && cached.isMarried()
                 ? "gui.shincolle.ship_inventory.marriage.yes"
                 : "gui.shincolle.ship_inventory.marriage.no");
     }
@@ -342,13 +404,34 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
             return ship.isRingEffectEnabled();
         }
 
-        return this.getCachedBoolean(this.getCachedEntityTag(), WED_EFFECT_TAG, true);
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return cached == null || cached.isRingEffectEnabled();
     }
 
     public Component getRingEffectLabel() {
         return Component.translatable(this.isRingEffectEnabled()
                 ? "gui.shincolle.ship_inventory.behavior.on"
                 : "gui.shincolle.ship_inventory.behavior.off");
+    }
+
+    public boolean isTimeKeeper() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.isTimeKeeper();
+        }
+
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return cached == null || cached.isTimeKeeper();
+    }
+
+    public boolean isAutoPump() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.isAutoPump();
+        }
+
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return cached != null && cached.isAutoPump();
     }
 
     public int getModernizationCount() {
@@ -364,6 +447,14 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 + this.getCachedInt(tag, MODERN_ATTACK_SPEED_TAG, 0)
                 + this.getCachedInt(tag, MODERN_SPEED_TAG, 0)
                 + this.getCachedInt(tag, MODERN_RANGE_TAG, 0);
+    }
+
+    public int getShipKills() {
+        LegacyShipEntity ship = this.getShip();
+        if (ship != null) {
+            return ship.getShipKills();
+        }
+        return this.getCachedInt(this.getCachedEntityTag(), "ShipKills", 0);
     }
 
     public int getRescueCount() {
@@ -421,6 +512,17 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 this.getBehaviorState().torpedoSpeedLevel());
     }
 
+    public int getWaypointStayMode() {
+        LegacyShipEntity ship = this.getShip();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        return ship != null ? ship.getWaypointStayMode() : cached != null ? cached.getWaypointStayMode() : 0;
+    }
+
+    public String getWaypointStayText() {
+        int mode = this.getWaypointStayMode();
+        return mode + " / " + WaypointBlockEntity.formatStayTicks(WaypointBlockEntity.stayModeToTicks(mode));
+    }
+
     public Component getMarriageBonusLabel() {
         LegacyShipEntity ship = this.getShip();
         if (ship != null) {
@@ -429,7 +531,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                     : "gui.shincolle.ship_inventory.marriage.bonus.none");
         }
 
-        if (!this.getCachedBoolean(this.getCachedEntityTag(), SHIP_MARRIED_TAG, false)) {
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        if (cached == null || !cached.isMarried()) {
             return Component.translatable("gui.shincolle.ship_inventory.marriage.bonus.none");
         }
 
@@ -443,8 +546,9 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         }
 
         CompoundTag tag = this.getCachedEntityTag();
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
         int flags = 0;
-        if (this.getCachedBoolean(tag, AI_AUTO_TARGET_TAG, true)) {
+        if (cached != null ? cached.isAiAutoTarget() : this.getCachedBoolean(tag, AI_AUTO_TARGET_TAG, true)) {
             flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
         }
         if (this.getCachedBoolean(tag, AI_ALLOW_PVP_TAG, false)) {
@@ -452,6 +556,9 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         }
         if (this.getCachedBoolean(tag, AI_AUTO_SUPPLY_TAG, true)) {
             flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY;
+        }
+        if (cached != null && cached.isAiPickItem()) {
+            flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_PICK_ITEM;
         }
         if (this.getCachedBoolean(tag, AI_ROUTE_STAY_TAG, true)) {
             flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
@@ -644,7 +751,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
 
     private LegacyShipStats getCachedLegacyStats() {
         CompoundTag tag = this.getCachedEntityTag();
-        ShipEntitySpec spec = this.resolveCachedSpec(this.getShipCacheEntry());
+        ShipWorldCacheEntry cached = this.getShipCacheEntry();
+        ShipEntitySpec spec = this.resolveCachedSpec(cached);
         if (tag.isEmpty() || spec == null) {
             return null;
         }
@@ -653,8 +761,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 spec.legacyClassId(),
                 spec.archetype(),
                 spec.hostile(),
-                Math.max(1, this.getCachedInt(tag, SHIP_LEVEL_TAG, 1)),
-                this.getCachedInt(tag, SHIP_MORALE_TAG, 0),
+                Math.max(1, cached != null ? cached.getShipLevel() : this.getCachedInt(tag, SHIP_LEVEL_TAG, 1)),
+                cached != null ? cached.getMorale() : this.getCachedInt(tag, SHIP_MORALE_TAG, 0),
                 this.getCachedInt(tag, MODERN_HEALTH_TAG, 0),
                 this.getCachedInt(tag, MODERN_ATTACK_TAG, 0),
                 this.getCachedInt(tag, MODERN_DEFENSE_TAG, 0),
@@ -663,7 +771,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
                 this.getCachedInt(tag, MODERN_RANGE_TAG, 0),
                 this.getCachedBoolean(tag, SHIP_MARRIED_TAG, false),
                 this.resolveCachedFormationId(),
-                ShipEquipmentProfile.fromInventory(this.shipInventory, spec.archetype()),
+                ShipEquipmentProfile.fromInventory(this.shipInventory, spec),
                 java.util.List.of());
     }
 
@@ -716,6 +824,25 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
 
     private int getCachedInt(CompoundTag tag, String key, int defaultValue) {
         return tag.contains(key) ? tag.getInt(key) : defaultValue;
+    }
+
+    private int getCachedExperience(CompoundTag tag) {
+        if (tag.contains(SHIP_EXPERIENCE_TAG)) {
+            return tag.getInt(SHIP_EXPERIENCE_TAG);
+        }
+        if (tag.contains(LEGACY_EXPERIENCE_TAG)) {
+            return tag.getInt(LEGACY_EXPERIENCE_TAG);
+        }
+        if (tag.contains(LEGACY_EXTENDED_PROPERTIES_TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+            CompoundTag extended = tag.getCompound(LEGACY_EXTENDED_PROPERTIES_TAG);
+            if (extended.contains(LEGACY_MINOR_TAG, net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+                CompoundTag minor = extended.getCompound(LEGACY_MINOR_TAG);
+                if (minor.contains(LEGACY_EXPERIENCE_TAG)) {
+                    return minor.getInt(LEGACY_EXPERIENCE_TAG);
+                }
+            }
+        }
+        return 0;
     }
 
     private int getCachedResourceValue(String key, @Nullable String legacyKey, int defaultValue) {

@@ -2,6 +2,7 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.registry.ModSoundEvents;
@@ -160,7 +161,7 @@ public class TargetWrenchItem extends Item {
             return;
         }
 
-        if (!withinDistance(fromPos, toPos, WAYPOINT_PAIR_DISTANCE)) {
+        if (!withinDistance(fromPos, toPos, ShinColleConfig.pairDistWp())) {
             player.displayClientMessage(Component.translatable("chat.shincolle.wrench.wptoofar"), true);
             return;
         }
@@ -191,7 +192,7 @@ public class TargetWrenchItem extends Item {
             return;
         }
 
-        if (!withinDistance(routeNodePos, containerPos, CONTAINER_PAIR_DISTANCE)) {
+        if (!withinDistance(routeNodePos, containerPos, ShinColleConfig.pairDistChest())) {
             player.displayClientMessage(Component.translatable("chat.shincolle.wrench.toofar"), true);
             return;
         }

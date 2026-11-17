@@ -5,7 +5,11 @@ import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.registry.ModSoundEvents;
+import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -13,8 +17,10 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -66,8 +72,14 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
     private static final int EFFECT_FLAG_FLARE = 1;
     private static final int EFFECT_FLAG_SEARCHLIGHT = 1 << 1;
-    private static final int DEFAULT_MAX_LIFE_TICKS = 20 * 40;
-    private static final int DEFAULT_INITIAL_STRAIGHT_TICKS = 18;
+    // BasicEntityAirplane returns at tick 1200 and BasicEntitySummon expires at 1800.
+    private static final int LEGACY_RETURN_TICKS = 20 * 60;
+    private static final int DEFAULT_MAX_LIFE_TICKS = 20 * 90;
+    private static final int DEFAULT_INITIAL_STRAIGHT_TICKS = 34;
+    private static final int LEGACY_LIGHT_AIRCRAFT_AMMO = 9;
+    private static final int LEGACY_HEAVY_AIRCRAFT_AMMO = 3;
+    private static final double LEGACY_INITIAL_HORIZONTAL_SPEED = 0.375D;
+    private static final double LEGACY_INITIAL_VERTICAL_SPEED = 0.1D;
 
     private int maxLifeTicks = DEFAULT_MAX_LIFE_TICKS;
     private int attackCooldown;
@@ -76,6 +88,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     private float speedScale = 1.0F;
     private float turnBlend = 0.16F;
     private float targetHeightFactor = 0.55F;
+    private boolean returnedToOwner;
 
     protected LegacyShipAircraftEntity(EntityType<? extends LegacyShipAircraftEntity> entityType, Level level) {
         super(entityType, level);
@@ -100,10 +113,11 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         aircraft.setOwnerId(owner.getId());
         aircraft.setTargetId(target.getId());
         aircraft.targetHeightFactor = profile.targetHeightFactor();
-        aircraft.maxLifeTicks = Math.max(DEFAULT_MAX_LIFE_TICKS, profile.lifeTicks() * 8);
-        aircraft.initialStraightTicks = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 22 : DEFAULT_INITIAL_STRAIGHT_TICKS;
-        aircraft.remainingAttacks = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 1 : 2;
-        aircraft.attackCooldown = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 14 : 10;
+        aircraft.maxLifeTicks = DEFAULT_MAX_LIFE_TICKS;
+        aircraft.initialStraightTicks = DEFAULT_INITIAL_STRAIGHT_TICKS;
+        aircraft.remainingAttacks = attackKind == LegacyShipAttackKind.AIR_HEAVY
+                ? LEGACY_HEAVY_AIRCRAFT_AMMO : LEGACY_LIGHT_AIRCRAFT_AMMO;
+        aircraft.attackCooldown = 0;
         aircraft.speedScale = (float) owner.getEquipmentBehaviorState().projectileSpeedMultiplier(attackKind);
         aircraft.turnBlend = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 0.12F : 0.18F;
 
@@ -115,17 +129,14 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             effectFlags |= EFFECT_FLAG_SEARCHLIGHT;
         }
         aircraft.setEffectFlags(effectFlags);
+        aircraft.refreshDimensions();
 
-        double launchY = owner.getY() + owner.getBbHeight() * profile.launchHeightFactor();
+        double launchY = owner.getY() + owner.getBbHeight()
+                * LegacyShipBehaviorCatalog.aircraftLaunchHeightFactorFor(owner.getSpec(), attackKind);
         aircraft.moveTo(owner.getX(), launchY, owner.getZ(), owner.getYRot(), owner.getXRot());
 
-        Vec3 launchTarget = target.position().add(0.0D, target.getBbHeight() * profile.targetHeightFactor(), 0.0D);
-        Vec3 launchVector = launchTarget.subtract(aircraft.position());
-        if (launchVector.lengthSqr() < 1.0E-4D) {
-            launchVector = owner.getLookAngle();
-        }
-        launchVector = launchVector.normalize().scale(aircraft.baseSpeed()).add(0.0D, attackKind == LegacyShipAttackKind.AIR_HEAVY ? 0.14D : 0.08D, 0.0D);
-        aircraft.setDeltaMovement(launchVector);
+        aircraft.setDeltaMovement(legacyInitialStraightMovement(
+                aircraft.position(), target, owner.getLookAngle()));
         return aircraft;
     }
 
@@ -153,13 +164,21 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         this.setOwnerId(tag.getInt(OWNER_ID_TAG));
         this.setTargetId(tag.getInt(TARGET_ID_TAG));
         this.setReturning(tag.getBoolean(RETURNING_TAG));
-        this.maxLifeTicks = tag.contains(MAX_LIFE_TICKS_TAG) ? Math.max(40, tag.getInt(MAX_LIFE_TICKS_TAG)) : DEFAULT_MAX_LIFE_TICKS;
+        this.maxLifeTicks = tag.contains(MAX_LIFE_TICKS_TAG)
+                ? Math.max(DEFAULT_MAX_LIFE_TICKS, tag.getInt(MAX_LIFE_TICKS_TAG))
+                : DEFAULT_MAX_LIFE_TICKS;
         this.attackCooldown = Math.max(0, tag.getInt(ATTACK_COOLDOWN_TAG));
-        this.remainingAttacks = Math.max(0, tag.getInt(REMAINING_ATTACKS_TAG));
-        this.initialStraightTicks = Math.max(0, tag.getInt(INITIAL_STRAIGHT_TICKS_TAG));
+        int defaultRemainingAttacks = this.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY
+                ? LEGACY_HEAVY_AIRCRAFT_AMMO : LEGACY_LIGHT_AIRCRAFT_AMMO;
+        this.remainingAttacks = tag.contains(REMAINING_ATTACKS_TAG)
+                ? Math.max(0, tag.getInt(REMAINING_ATTACKS_TAG)) : defaultRemainingAttacks;
+        this.initialStraightTicks = tag.contains(INITIAL_STRAIGHT_TICKS_TAG)
+                ? Math.max(DEFAULT_INITIAL_STRAIGHT_TICKS, tag.getInt(INITIAL_STRAIGHT_TICKS_TAG))
+                : DEFAULT_INITIAL_STRAIGHT_TICKS;
         this.speedScale = tag.contains(SPEED_SCALE_TAG) ? tag.getFloat(SPEED_SCALE_TAG) : 1.0F;
         this.turnBlend = tag.contains(TURN_BLEND_TAG) ? tag.getFloat(TURN_BLEND_TAG) : 0.16F;
         this.targetHeightFactor = tag.contains(TARGET_HEIGHT_FACTOR_TAG) ? tag.getFloat(TARGET_HEIGHT_FACTOR_TAG) : 0.55F;
+        this.refreshDimensions();
     }
 
     @Override
@@ -186,7 +205,16 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     public void tick() {
         super.tick();
 
+        if (!this.isReturning() && this.tickCount >= LEGACY_RETURN_TICKS) {
+            this.setTargetId(-1);
+            this.setReturning(true);
+        }
+
         if (this.tickCount > this.maxLifeTicks) {
+            LegacyShipEntity owner = this.getOwnerShip();
+            if (owner != null) {
+                this.returnAircraftToOwner(owner);
+            }
             this.discard();
             return;
         }
@@ -199,8 +227,17 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
         LegacyShipEntity owner = this.getOwnerShip();
         if (owner == null || !owner.isAlive()) {
+            if (owner != null) {
+                this.returnAircraftToOwner(owner);
+            }
             this.discard();
             return;
+        }
+
+        if (LegacyShipBehaviorCatalog.aircraftVariantLaunchSoundAtTick(owner.getSpec(), this.tickCount)) {
+            float pitch = 0.7F / (this.random.nextFloat() * 0.4F + 0.8F);
+            this.level().playSound(null, this.blockPosition(), ModSoundEvents.SHIP_AIRCRAFT.get(),
+                    owner.getSoundSource(), 0.4F, pitch);
         }
 
         LivingEntity target = this.resolveAttackTarget(owner);
@@ -213,14 +250,16 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         }
 
         if (!this.isReturning() && target != null && this.canStrikeTarget(owner, target)) {
-            boolean struck = owner.performCompatAircraftStrike(target, this.getAttackKind(), this.getProjectileVisual(),
-                    this.getHitParticleType(), this.hasFlarePayload(), this.hasSearchlightPayload());
+            boolean struck = owner.performCompatAircraftStrike(this, target, this.getAttackKind(),
+                    this.getProjectileVisual(), this.getHitParticleType(), this.hasFlarePayload(),
+                    this.hasSearchlightPayload());
             if (struck) {
                 this.remainingAttacks--;
-                if (this.remainingAttacks <= 0 || this.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY) {
+                if (this.remainingAttacks <= 0) {
                     this.setReturning(true);
                 }
-                this.attackCooldown = this.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY ? 18 : 24;
+                // EntityAIShipAircraftAttack uses the shared heavy channel for both airframes.
+                this.attackCooldown = LegacyShipCombatHelper.attackDelay(owner, LegacyShipAttackKind.AIR_HEAVY);
             }
         }
 
@@ -242,6 +281,22 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     @Override
     public boolean displayFireAnimation() {
         return false;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (key == DATA_ATTACK_KIND || key == DATA_PROJECTILE_VISUAL || key == DATA_OWNER_ID) {
+            this.refreshDimensions();
+        }
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        float baseSize = this.getProjectileVisual() == LegacyShipProjectileVisual.BOMB
+                && !this.usesLegacySpecialCarrierAirframe() ? 0.6F : 0.5F;
+        float scale = this.legacyHostileAirframeScale();
+        return EntityDimensions.scalable(baseSize * scale, baseSize * scale);
     }
 
     public LegacyShipAttackKind getAttackKind() {
@@ -284,6 +339,11 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         return this.entityData.get(DATA_TARGET_ID);
     }
 
+    public boolean usesLegacySpecialCarrierAirframe() {
+        LegacyShipEntity owner = this.getOwnerShip();
+        return owner != null && LegacyShipBehaviorCatalog.usesLegacySpecialCarrierAirframe(owner.getSpec());
+    }
+
     protected abstract net.minecraft.resources.ResourceLocation getTextureLocation();
 
     protected float getRenderScale() {
@@ -299,7 +359,21 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     }
 
     protected double getTargetingRange() {
-        return this.isHeavyAirframe() ? 28.0D : 20.0D;
+        return 24.0D;
+    }
+
+    private float legacyHostileAirframeScale() {
+        LegacyShipEntity owner = this.getOwnerShip();
+        if (owner == null || !owner.isHostileVariant()) {
+            return 1.0F;
+        }
+
+        return switch (Mth.clamp(owner.getLegacyHostileScaleLevel(), 0, 3)) {
+            case 1 -> 2.0F;
+            case 2 -> 3.0F;
+            case 3 -> 4.0F;
+            default -> 1.0F;
+        };
     }
 
     private void setAttackKind(LegacyShipAttackKind attackKind) {
@@ -332,6 +406,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
     private void setOwnerId(int ownerId) {
         this.entityData.set(DATA_OWNER_ID, ownerId);
+        this.refreshDimensions();
     }
 
     private void setTargetId(int targetId) {
@@ -362,19 +437,18 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             return null;
         }
 
-        if (owner.getTarget() != null && owner.getTarget().isAlive() && owner.canEngage(owner.getTarget())
-                && this.hasLineOfSight(owner.getTarget())) {
+        if (owner.getTarget() != null && owner.getTarget().isAlive() && owner.canEngage(owner.getTarget())) {
             this.setTargetId(owner.getTarget().getId());
             return owner.getTarget();
         }
 
-        if (this.tickCount % 8 != 0) {
+        if (this.tickCount % 16 != 0) {
             return null;
         }
 
         List<LivingEntity> nearbyTargets = this.level().getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(this.getTargetingRange(), this.getTargetingRange() * 0.5D, this.getTargetingRange()),
-                candidate -> candidate != null && candidate.isAlive() && candidate != owner && owner.canEngage(candidate) && this.hasLineOfSight(candidate));
+                candidate -> candidate != null && candidate.isAlive() && candidate != owner && owner.canEngage(candidate));
         nearbyTargets.sort(Comparator.comparingDouble(this::distanceToSqr));
         if (nearbyTargets.isEmpty()) {
             return null;
@@ -397,9 +471,19 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     }
 
     private void updateMotion(LegacyShipEntity owner, @Nullable LivingEntity target) {
+        if (this.tickCount < this.initialStraightTicks && !this.isReturning()) {
+            if (target != null) {
+                Vec3 initialMovement = legacyInitialStraightMovement(
+                        this.position(), target, this.getDeltaMovement());
+                this.setDeltaMovement(initialMovement);
+                this.updateRotation(initialMovement);
+            }
+            return;
+        }
+
         Vec3 desiredPos;
         if (this.isReturning()) {
-            desiredPos = owner.position().add(0.0D, owner.getBbHeight() + 1.25D, 0.0D);
+            desiredPos = owner.position().add(0.0D, owner.getBbHeight() + 1.0D, 0.0D);
         } else if (target != null) {
             desiredPos = target.position().add(0.0D, target.getBbHeight() * this.targetHeightFactor, 0.0D);
         } else {
@@ -416,12 +500,8 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             current = desired.normalize().scale(this.baseSpeed());
         }
 
-        Vec3 blended;
-        if (this.tickCount < this.initialStraightTicks && !this.isReturning()) {
-            blended = current.add(0.0D, this.isHeavyAirframe() ? 0.015D : 0.01D, 0.0D);
-        } else {
-            blended = current.scale(1.0D - this.turnBlend).add(desired.normalize().scale(this.baseSpeed() * this.turnBlend));
-        }
+        Vec3 blended = current.scale(1.0D - this.turnBlend)
+                .add(desired.normalize().scale(this.baseSpeed() * this.turnBlend));
 
         if (blended.lengthSqr() < 1.0E-6D) {
             blended = desired.normalize().scale(this.baseSpeed());
@@ -430,8 +510,33 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         }
 
         this.setDeltaMovement(blended);
-        float yaw = (float) (Mth.atan2(blended.x, blended.z) * (180.0D / Math.PI));
-        float pitch = (float) (-Mth.atan2(blended.y, Math.sqrt(blended.x * blended.x + blended.z * blended.z)) * (180.0D / Math.PI));
+        this.updateRotation(blended);
+    }
+
+    private static Vec3 legacyInitialStraightMovement(Vec3 origin, LivingEntity target, Vec3 fallback) {
+        double distX = target.getX() - origin.x;
+        double distZ = target.getZ() - origin.z;
+        double horizontalDistance = Math.sqrt(distX * distX + distZ * distZ);
+        if (horizontalDistance < 1.0E-6D) {
+            distX = fallback.x;
+            distZ = fallback.z;
+            horizontalDistance = Math.sqrt(distX * distX + distZ * distZ);
+        }
+        if (horizontalDistance < 1.0E-6D) {
+            distX = 0.0D;
+            distZ = 1.0D;
+            horizontalDistance = 1.0D;
+        }
+
+        return new Vec3(
+                distX / horizontalDistance * LEGACY_INITIAL_HORIZONTAL_SPEED,
+                LEGACY_INITIAL_VERTICAL_SPEED,
+                distZ / horizontalDistance * LEGACY_INITIAL_HORIZONTAL_SPEED);
+    }
+
+    private void updateRotation(Vec3 movement) {
+        float yaw = (float) (Mth.atan2(movement.x, movement.z) * (180.0D / Math.PI));
+        float pitch = (float) (-Mth.atan2(movement.y, Math.sqrt(movement.x * movement.x + movement.z * movement.z)) * (180.0D / Math.PI));
         this.setYRot(yaw);
         this.setXRot(pitch);
         this.yRotO = yaw;
@@ -443,9 +548,19 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             return;
         }
 
-        if (this.distanceToSqr(owner) <= (owner.getBbWidth() + 1.8F) * (owner.getBbWidth() + 1.8F)) {
+        double returnRange = owner.getBbHeight() + 2.0D;
+        if (this.distanceToSqr(owner) <= returnRange * returnRange) {
+            this.returnAircraftToOwner(owner);
             this.discard();
         }
+    }
+
+    private void returnAircraftToOwner(LegacyShipEntity owner) {
+        if (this.returnedToOwner) {
+            return;
+        }
+        this.returnedToOwner = true;
+        owner.recoverAircraft(this.getAttackKind(), this.remainingAttacks);
     }
 
     private boolean hasLineOfSight(LivingEntity target) {
@@ -457,7 +572,10 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
     private void spawnTrailParticles() {
         GameplayParticleType particleType = this.getTrailParticleType();
-        if (particleType == GameplayParticleType.NONE || this.tickCount < 2) {
+        LegacyShipEntity owner = this.getOwnerShip();
+        if (particleType == GameplayParticleType.NONE || this.tickCount < 2
+                || !LegacyShipBehaviorCatalog.aircraftTrailParticleEnabledFor(
+                owner == null ? null : owner.getSpec(), this.getAttackKind(), this.tickCount)) {
             return;
         }
 
@@ -499,6 +617,39 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
     public net.minecraft.resources.ResourceLocation textureLocation() {
         return this.getTextureLocation();
+    }
+
+    @Override
+    public boolean hurt(DamageSource damageSource, float amount) {
+        if (!this.level().isClientSide()) {
+            LegacyShipEntity owner = this.getOwnerShip();
+            if (owner != null && !owner.isHostileVariant()) {
+                Entity attacker = damageSource.getEntity();
+                if (attacker instanceof Player attackerPlayer) {
+                    if (owner.isOwnedBy(attackerPlayer)) {
+                        return super.hurt(damageSource, amount);
+                    }
+                    if (!ShinColleConfig.friendlyFire()) {
+                        return false;
+                    }
+                }
+                if (attacker != null
+                        && owner.isAlliedTo(attacker)
+                        && !(attacker instanceof Player player && owner.isOwnedBy(player))) {
+                    return false;
+                }
+            }
+        }
+        return super.hurt(damageSource, amount);
+    }
+
+    @Override
+    public boolean killedEntity(ServerLevel level, LivingEntity entity) {
+        LegacyShipEntity owner = this.getOwnerShip();
+        if (owner != null) {
+            owner.incrementShipKills();
+        }
+        return super.killedEntity(level, entity);
     }
 
     public float renderScale() {

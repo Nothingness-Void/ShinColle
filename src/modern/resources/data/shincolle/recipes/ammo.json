@@ -7,10 +7,10 @@
       "item": "shincolle:grudge"
     },
     "i": {
-      "item": "minecraft:iron_ingot"
+      "tag": "forge:ingots/iron"
     },
     "p": {
-      "item": "minecraft:gunpowder"
+      "tag": "forge:gunpowder"
     }
   },
   "pattern": [

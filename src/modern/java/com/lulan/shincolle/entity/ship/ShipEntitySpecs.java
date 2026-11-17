@@ -21,22 +21,22 @@ public final class ShipEntitySpecs {
     private static final int[] CONSTRUCTION_LARGE_EGG_POOL = {39, 48, 49, 50, 62, 63, 64, 65, 60, 61};
     private static final Map<Integer, Integer> FRIENDLY_COUNTERPARTS = new HashMap<>();
 
-    public static final ShipEntitySpec DEFAULT = register(2, "EntityDestroyerI", ShipArchetype.DESTROYER, true);
+    public static final ShipEntitySpec DEFAULT = register(2, "EntityDestroyerI", ShipArchetype.DESTROYER, false);
 
     static {
-        register(3, "EntityDestroyerRo", ShipArchetype.DESTROYER, true);
-        register(4, "EntityDestroyerHa", ShipArchetype.DESTROYER, true);
-        register(5, "EntityDestroyerNi", ShipArchetype.DESTROYER, true);
-        register(11, "EntityHeavyCruiserRi", ShipArchetype.CRUISER, true);
-        register(12, "EntityHeavyCruiserNe", ShipArchetype.CRUISER, true);
-        register(14, "EntityCarrierWo", ShipArchetype.CARRIER, true);
-        register(15, "EntityBattleshipRu", ShipArchetype.BATTLESHIP, true);
-        register(16, "EntityBattleshipTa", ShipArchetype.BATTLESHIP, true);
-        register(17, "EntityBattleshipRe", ShipArchetype.BATTLESHIP, true);
-        register(18, "EntityTransportWa", ShipArchetype.TRANSPORT, true);
-        register(19, "EntitySubmKa", ShipArchetype.SUBMARINE, true);
-        register(20, "EntitySubmYo", ShipArchetype.SUBMARINE, true);
-        register(21, "EntitySubmSo", ShipArchetype.SUBMARINE, true);
+        register(3, "EntityDestroyerRo", ShipArchetype.DESTROYER, false);
+        register(4, "EntityDestroyerHa", ShipArchetype.DESTROYER, false);
+        register(5, "EntityDestroyerNi", ShipArchetype.DESTROYER, false);
+        register(11, "EntityHeavyCruiserRi", ShipArchetype.CRUISER, false);
+        register(12, "EntityHeavyCruiserNe", ShipArchetype.CRUISER, false);
+        register(14, "EntityCarrierWo", ShipArchetype.CARRIER, false);
+        register(15, "EntityBattleshipRu", ShipArchetype.BATTLESHIP, false);
+        register(16, "EntityBattleshipTa", ShipArchetype.BATTLESHIP, false);
+        register(17, "EntityBattleshipRe", ShipArchetype.BATTLESHIP, false);
+        register(18, "EntityTransportWa", ShipArchetype.TRANSPORT, false);
+        register(19, "EntitySubmKa", ShipArchetype.SUBMARINE, false);
+        register(20, "EntitySubmYo", ShipArchetype.SUBMARINE, false);
+        register(21, "EntitySubmSo", ShipArchetype.SUBMARINE, false);
         register(22, "EntityCarrierHime", ShipArchetype.PRINCESS, true);
         register(23, "EntityAirfieldHime", ShipArchetype.INSTALLATION, true);
         register(28, "EntityBattleshipHime", ShipArchetype.PRINCESS, true);
@@ -45,7 +45,7 @@ public final class ShipEntitySpecs {
         register(31, "EntityIsolatedHime", ShipArchetype.INSTALLATION, true);
         register(32, "EntityMidwayHime", ShipArchetype.PRINCESS, true);
         register(33, "EntityNorthernHime", ShipArchetype.PRINCESS, true);
-        register(35, "EntityCarrierWDemon", ShipArchetype.PRINCESS, true);
+        register(35, "EntityCarrierWDemon", ShipArchetype.CARRIER, false);
         register(38, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, false);
         register(2038, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, true);
         register(39, "EntityBattleshipNagato", ShipArchetype.BATTLESHIP, false);
@@ -188,9 +188,6 @@ public final class ShipEntitySpecs {
         mapCounterpart(16, 62);
         mapCounterpart(17, 48);
         mapCounterpart(18, 58);
-        mapCounterpart(19, 40);
-        mapCounterpart(20, 41);
-        mapCounterpart(21, 40);
         mapCounterpart(22, 50);
         mapCounterpart(23, 49);
         mapCounterpart(28, 48);
@@ -199,7 +196,6 @@ public final class ShipEntitySpecs {
         mapCounterpart(31, 50);
         mapCounterpart(32, 48);
         mapCounterpart(33, 39);
-        mapCounterpart(35, 50);
         mapCounterpart(46, 41);
         mapCounterpart(51, 60);
         mapCounterpart(74, 40);

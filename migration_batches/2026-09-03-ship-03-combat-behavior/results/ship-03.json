@@ -1,0 +1,49 @@
+{
+  "batch": "SHIP-03",
+  "status": "COMPLETE",
+  "date": "2026-09-03",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [16, 17, 18, 19, 20],
+  "focus": ["attack selection", "combat cadence", "miss/crit", "resource accounting", "aircraft recovery", "drop/runtime"],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 254,
+    "passed": 254,
+    "failed": 0
+  },
+  "focusedTests": [
+    "ship03TransportSubmarinesAndCarrierHimeKeepLegacyCombatBoundaries",
+    "transportWaKeepsLegacyCargoAndFleetSupplyRules",
+    "carrierHimeKeepsLegacyMeleeMissileLaunch",
+    "fiveSubmarineProjectileVariantsKeepLegacyMoveAndSpeedRules",
+    "legacySubmarineVariantsKeepFriendlyRoleAndRingBehavior",
+    "legacyAttackCostsFollowShipClassAndMoraleRules"
+  ],
+  "changes": [
+    {
+      "file": "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java",
+      "summary": "Map Transport Wa AP idle cost 3 and Submarine Ka/Yo/So SS idle cost 4 into the shared runtime tick."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java",
+      "summary": "Preserve Carrier Hime's legacy aircraft launch height factor of 0.9 for both air channels."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java",
+      "summary": "Add one batch-level contract test for the five selected ship rows."
+    }
+  ],
+  "clientSmoke": "not_applicable: no client, resource, renderer, particle, or screen changes",
+  "log": "run/logs/latest.log",
+  "noLegacyChanges": true,
+  "notes": [
+    "Legacy easyMode cargo multipliers remain a parity backlog item because the frozen modern source set has no matching setting.",
+    "Exact old friendly-CV resource semantics for Carrier Hime remain blocked by the legacy friendly-base versus modern hostile-spec model split.",
+    "Projectile-style heavy misses remain misses through the existing missedShot projectile path."
+  ]
+}

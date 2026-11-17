@@ -1,6 +1,11 @@
 package com.lulan.shincolle.network;
 
+import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
+import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
 import com.lulan.shincolle.menu.DeskReferenceMenu;
@@ -52,6 +57,7 @@ public final class GameplayCommandHandler {
     public static final String TAG_SLOT_TO = "ToSlot";
     public static final String TAG_SELECTED = "Selected";
     public static final String TAG_MODE = "Mode";
+    public static final String TAG_GUARD_TYPE = "GuardType";
     public static final String TAG_X = "X";
     public static final String TAG_Y = "Y";
     public static final String TAG_Z = "Z";
@@ -63,11 +69,18 @@ public final class GameplayCommandHandler {
     public static final String TAG_FOLLOW_RANGE = "FollowRange";
     public static final String TAG_ATTACK_KIND = "AttackKind";
     public static final String TAG_SKILL_SLOT = "SkillSlot";
+    public static final String TAG_FORMATION_ID = "FormationId";
+    public static final String TAG_RADAR_ZOOM = "RadarZoom";
+    public static final String TAG_BOOK_CHAPTER = "BookChapter";
+    public static final String TAG_BOOK_PAGE = "BookPage";
+    public static final String TAG_HIT_HEIGHT = "HitHeight";
+    public static final String TAG_HIT_ANGLE = "HitAngle";
 
     public static final int AI_FLAG_AUTO_TARGET = 1;
     public static final int AI_FLAG_ALLOW_PVP = 1 << 1;
     public static final int AI_FLAG_AUTO_SUPPLY = 1 << 2;
     public static final int AI_FLAG_ROUTE_STAY = 1 << 3;
+    public static final int AI_FLAG_PICK_ITEM = 1 << 4;
 
     private GameplayCommandHandler() {
     }
@@ -154,6 +167,18 @@ public final class GameplayCommandHandler {
             }
             case OPTOOL_TOGGLE_UNATTACKABLE -> handleOpToolToggleUnattackable(player, payload);
             case OPTOOL_PRINT_UNATTACKABLE -> handleOpToolPrintUnattackable(player);
+            case SET_FORMATION -> TeitokuHelper.setFormationId(player, resolveFormationId(payload));
+            case SET_UNIT_NAME -> TeitokuHelper.setUnitName(player,
+                    payload.contains(TAG_TEAM_ID) ? payload.getInt(TAG_TEAM_ID) : -1,
+                    sanitizeTeamName(payload.getString(TAG_TEAM_NAME)));
+            case SYNC_DESK_FUNC -> handleSyncDeskFunc(player, payload);
+            case OPEN_MOUNT_SHIP_INVENTORY -> handleOpenMountShipInventory(player);
+            case MOUNT_MOVE -> handleMountMove(player, payload);
+            case SET_SHIP_HIT_ZONE -> handleSetShipHitZone(player, payload);
+            case REQUEST_DESK_RADAR -> {
+                handleRequestDeskRadar(player);
+                return;
+            }
             default -> {
             }
         }
@@ -223,8 +248,13 @@ public final class GameplayCommandHandler {
             return;
         }
 
+        int oldMode = com.lulan.shincolle.item.PointerItem.getMode(player.getMainHandItem());
         int mode = Mth.clamp(payload.getInt(TAG_MODE), 0, 5);
         com.lulan.shincolle.item.PointerItem.setMode(player.getMainHandItem(), mode);
+        if (Math.abs(mode - oldMode) % 3 != 0
+                && com.lulan.shincolle.item.PointerItem.getCommandMode(mode) == 0) {
+            TeitokuHelper.focusFirstShipInCurrentTeam(player);
+        }
         player.displayClientMessage(Component.translatable("chat.shincolle.pointer.mode_changed",
                 com.lulan.shincolle.item.PointerItem.getModeName(mode)), true);
     }
@@ -438,7 +468,7 @@ public final class GameplayCommandHandler {
     }
 
     private static boolean isLegacyEasyModeEnabled() {
-        return LEGACY_EASY_MODE_DEFAULT;
+        return ShinColleConfig.easyMode();
     }
 
     private static void handleDeskCreate(ServerPlayer player, CompoundTag payload) {
@@ -505,6 +535,10 @@ public final class GameplayCommandHandler {
     }
 
     private static void handleOpToolToggleUnattackable(ServerPlayer player, CompoundTag payload) {
+        if (!player.hasPermissions(2)) {
+            player.displayClientMessage(Component.translatable("chat.shincolle.optool.no_permission"), true);
+            return;
+        }
         String targetClass = sanitizeTargetClass(payload.getString(TAG_TARGET_CLASS));
         if (targetClass.isBlank() && player.level().getEntity(payload.getInt(TAG_TARGET_ID)) instanceof LivingEntity living) {
             targetClass = sanitizeTargetClass(TeitokuHelper.resolveTargetClass(living));
@@ -537,6 +571,70 @@ public final class GameplayCommandHandler {
             normalized = normalized.substring(0, 96);
         }
         return normalized;
+    }
+
+    private static int resolveFormationId(CompoundTag payload) {
+        return payload.contains(TAG_FORMATION_ID)
+                ? payload.getInt(TAG_FORMATION_ID)
+                : payload.getInt(TAG_MODE);
+    }
+
+    private static void handleSyncDeskFunc(ServerPlayer player, CompoundTag payload) {
+        BlockPos pos = new BlockPos(payload.getInt(TAG_X), payload.getInt(TAG_Y), payload.getInt(TAG_Z));
+        if (!player.level().isLoaded(pos)
+                || player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) > 64.0D) {
+            return;
+        }
+        if (player.level().getBlockEntity(pos) instanceof DeskBlockEntity desk) {
+            desk.syncFunc(
+                    payload.getInt(TAG_MODE),
+                    payload.getInt(TAG_RADAR_ZOOM),
+                    payload.getInt(TAG_BOOK_CHAPTER),
+                    payload.getInt(TAG_BOOK_PAGE));
+        }
+    }
+
+    public static @javax.annotation.Nullable LegacyShipEntity resolveMountInventoryShip(ServerPlayer player) {
+        if (player.getVehicle() instanceof LegacyShipMountEntity shipMount) {
+            return shipMount.getHostShip();
+        }
+        if (player.getVehicle() instanceof LegacyShipEntity ship) {
+            return ship;
+        }
+        if (player.getFirstPassenger() instanceof LegacyShipEntity passengerShip) {
+            return passengerShip;
+        }
+        return null;
+    }
+
+    private static void handleOpenMountShipInventory(ServerPlayer player) {
+        ShipCommandService.openShipInventoryForPlayer(player, resolveMountInventoryShip(player));
+    }
+
+    private static void handleMountMove(ServerPlayer player, CompoundTag payload) {
+        int keyMask = payload.getInt(TAG_MODE) & 31;
+        if (player.getVehicle() instanceof LegacyShipMountEntity shipMount) {
+            LegacyShipEntity host = shipMount.getHostShip();
+            if (host != null && !host.isHostileVariant() && host.isOwnedBy(player)) {
+                shipMount.applyLegacyMountMove(keyMask);
+            }
+        } else if (player.getVehicle() instanceof LegacyMountEntity mount && mount.isOwnedBy(player)) {
+            mount.applyLegacyMountMove(keyMask);
+        }
+    }
+
+    private static void handleSetShipHitZone(ServerPlayer player, CompoundTag payload) {
+        if (!(player.level().getEntity(payload.getInt(TAG_SHIP_ID)) instanceof LegacyShipEntity ship)) {
+            return;
+        }
+        if (ship.isHostileVariant() || player.distanceToSqr(ship) > 64.0D) {
+            return;
+        }
+        ship.setLegacyHitZone(payload.getInt(TAG_HIT_HEIGHT), payload.getInt(TAG_HIT_ANGLE));
+    }
+
+    private static void handleRequestDeskRadar(ServerPlayer player) {
+        ModNetwork.syncGameplayState(player, TeitokuHelper.buildDeskRadarPayloadTag(player));
     }
 
     private static String sanitizeTeamName(String raw) {

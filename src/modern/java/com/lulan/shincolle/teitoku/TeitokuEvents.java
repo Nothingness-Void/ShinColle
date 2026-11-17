@@ -2,13 +2,16 @@ package com.lulan.shincolle.teitoku;
 
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
+import com.lulan.shincolle.item.MarriageRingItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
@@ -20,7 +23,12 @@ import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimension
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.items.IItemHandler;
+
+import java.lang.reflect.Method;
+import java.util.Optional;
 
 @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class TeitokuEvents {
@@ -118,8 +126,52 @@ public final class TeitokuEvents {
             }
         }
 
+        tickOptionalCuriosMarriageRing(serverPlayer);
+
         if (shouldSync) {
             TeitokuHelper.syncGameplayState(serverPlayer);
         }
+    }
+
+    private static void tickOptionalCuriosMarriageRing(ServerPlayer serverPlayer) {
+        if (hasActiveVanillaMarriageRing(serverPlayer) || !ModList.get().isLoaded("curios")) {
+            return;
+        }
+        try {
+            Class<?> curiosApiClass = Class.forName("top.theillusivec4.curios.api.CuriosApi");
+            Method getInventoryMethod = curiosApiClass.getMethod("getCuriosInventory", LivingEntity.class);
+            Object lazyOptional = getInventoryMethod.invoke(null, serverPlayer);
+            if (lazyOptional == null) {
+                return;
+            }
+            Object resolvedObj = lazyOptional.getClass().getMethod("resolve").invoke(lazyOptional);
+            if (!(resolvedObj instanceof Optional<?> resolved) || resolved.isEmpty()) {
+                return;
+            }
+            Object curiosHandler = resolved.get();
+            Object equippedObj = curiosHandler.getClass().getMethod("getEquippedCurios").invoke(curiosHandler);
+            if (equippedObj instanceof IItemHandler itemHandler) {
+                int slots = itemHandler.getSlots();
+                for (int i = 0; i < slots; i++) {
+                    ItemStack stack = itemHandler.getStackInSlot(i);
+                    if (stack.getItem() instanceof MarriageRingItem && MarriageRingItem.isActive(stack)) {
+                        MarriageRingItem.tickActiveRingEffects(serverPlayer, stack);
+                        break;
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+        }
+    }
+
+    private static boolean hasActiveVanillaMarriageRing(Player player) {
+        Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.getItem() instanceof MarriageRingItem && MarriageRingItem.isActive(stack)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

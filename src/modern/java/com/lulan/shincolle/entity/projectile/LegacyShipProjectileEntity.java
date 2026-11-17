@@ -1,6 +1,11 @@
 package com.lulan.shincolle.entity.projectile;
 
+import java.util.List;
+
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
+import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
+import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.network.CombatFxDispatcher;
@@ -22,6 +27,7 @@ import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -44,19 +50,37 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_EFFECT_FLAGS =
             SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_LEGACY_MOTION_OVERRIDE =
+            SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> DATA_LEGACY_ARC_ACCELERATION_1 =
+            SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_LEGACY_ARC_ACCELERATION_2 =
+            SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> DATA_LEGACY_ARC_RISE_TICKS =
+            SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.INT);
+
+    private static final double LEGACY_ARC_ACCELERATION_LIMIT = 0.15D;
 
     private static final int EFFECT_FLAG_FLARE = 1;
     private static final int EFFECT_FLAG_SEARCHLIGHT = 1 << 1;
 
     private float damage;
     private int targetId = -1;
+    private Vec3 legacyTargetPosition = Vec3.ZERO;
     private int lifeTicks = 80;
     private boolean missedShot;
     private boolean resolvedImpact;
+    private boolean blackHoleOnImpact;
+    private boolean clusterMissile;
+    private boolean clusterSubMissile;
+    private boolean impactEffectSpawned;
+    private boolean reportMissFeedback = true;
+    private double knockbackStrength = 0.15D;
     private float speedScale = 1.0F;
     private float guidanceBlend = 0.18F;
     private float travelSpeed = 0.52F;
     private float targetHeightFactor = 0.35F;
+    private double impactRadius = 3.5D;
 
     public LegacyShipProjectileEntity(EntityType<? extends LegacyShipProjectileEntity> entityType, Level level) {
         super(entityType, level);
@@ -68,28 +92,66 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     public static LegacyShipProjectileEntity create(Level level, LegacyShipEntity owner, LivingEntity target,
                                                     LegacyShipAttackKind attackKind, float damage, boolean missedShot) {
+        return create(level, owner, target, attackKind, damage, missedShot,
+                owner.getAttackProfile().projectileProfile(attackKind), null, 0.15D, true, 3.5D);
+    }
+
+    public static LegacyShipProjectileEntity create(Level level, LegacyShipEntity owner, LivingEntity target,
+                                                    LegacyShipAttackKind attackKind, float damage, boolean missedShot,
+                                                    LegacyShipProjectileProfile profile, @Nullable Vec3 targetPosition,
+                                                    double knockbackStrength, boolean reportMissFeedback) {
+        return create(level, owner, target, attackKind, damage, missedShot, profile, targetPosition,
+                knockbackStrength, reportMissFeedback, 0.0D, Vec3.ZERO);
+    }
+
+    public static LegacyShipProjectileEntity create(Level level, LegacyShipEntity owner,
+                                                    @Nullable LivingEntity target,
+                                                     LegacyShipAttackKind attackKind, float damage, boolean missedShot,
+                                                     LegacyShipProjectileProfile profile, @Nullable Vec3 targetPosition,
+                                                     double knockbackStrength, boolean reportMissFeedback,
+                                                     double impactRadius) {
+        return create(level, owner, target, attackKind, damage, missedShot, profile, targetPosition,
+                knockbackStrength, reportMissFeedback, impactRadius, Vec3.ZERO);
+    }
+
+    public static LegacyShipProjectileEntity create(Level level, LegacyShipEntity owner,
+                                                     @Nullable LivingEntity target,
+                                                     LegacyShipAttackKind attackKind, float damage, boolean missedShot,
+                                                     LegacyShipProjectileProfile profile, @Nullable Vec3 targetPosition,
+                                                     double knockbackStrength, boolean reportMissFeedback,
+                                                     double impactRadius, @Nullable Vec3 launchOffset) {
         LegacyShipProjectileEntity projectile = new LegacyShipProjectileEntity(level, owner);
-        LegacyShipProjectileProfile profile = owner.getAttackProfile().projectileProfile(attackKind);
         if (!profile.isPresent()) {
             throw new IllegalStateException("Missing explicit legacy projectile profile for "
                     + owner.getSpec().textureStem() + " attack " + attackKind);
         }
+        if (target == null && targetPosition == null) {
+            throw new IllegalArgumentException("A legacy projectile needs a target or fixed target position");
+        }
 
         projectile.setAttackKind(attackKind);
         projectile.setProjectileVisual(profile.visual());
-        projectile.setMoveType(profile.moveType());
         projectile.setLaunchParticleType(profile.launchParticleType());
         projectile.setTrailParticleType(profile.trailParticleType());
         projectile.setHitParticleType(profile.hitParticleType());
         projectile.damage = damage;
         projectile.missedShot = missedShot;
-        projectile.targetId = target.getId();
+        projectile.blackHoleOnImpact = LegacyShipBehaviorCatalog.usesBlackHoleHeavyMissile(owner, attackKind);
+        projectile.clusterMissile = LegacyShipBehaviorCatalog.usesClusterHeavyMissile(owner, attackKind);
+        projectile.reportMissFeedback = reportMissFeedback;
+        projectile.knockbackStrength = Math.max(0.0D, knockbackStrength);
+        projectile.targetId = target == null ? -1 : target.getId();
         projectile.targetHeightFactor = profile.targetHeightFactor();
         projectile.lifeTicks = profile.lifeTicks();
         projectile.travelSpeed = (float) profile.baseSpeed();
+        projectile.impactRadius = Math.max(0.0D, impactRadius);
+        if (projectile.clusterMissile) {
+            projectile.impactRadius = Math.max(projectile.impactRadius, 3.5D);
+        }
 
         ShipEquipmentBehaviorState behaviorState = owner.getEquipmentBehaviorState();
-        projectile.speedScale = (float) behaviorState.projectileSpeedMultiplier(attackKind);
+        projectile.speedScale = 1.0F;
+        projectile.travelSpeed = (float) behaviorState.legacyProjectileSpeed(profile.baseSpeed());
         projectile.guidanceBlend = Math.max(profile.guidanceBlend(),
                 (float) (attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY
                         ? behaviorState.airGuidanceBlend()
@@ -103,16 +165,37 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
         projectile.setEffectFlags(effectFlags);
 
-        double launchY = owner.getY() + owner.getBbHeight() * profile.launchHeightFactor();
-        projectile.moveTo(owner.getX(), launchY, owner.getZ(), owner.getYRot(), owner.getXRot());
+        Vec3 resolvedLaunchOffset = launchOffset == null ? Vec3.ZERO : launchOffset;
+        double launchY = owner.getY() + owner.getBbHeight() * profile.launchHeightFactor() + resolvedLaunchOffset.y;
+        projectile.moveTo(owner.getX() + resolvedLaunchOffset.x, launchY,
+                owner.getZ() + resolvedLaunchOffset.z, owner.getYRot(), owner.getXRot());
 
-        Vec3 targetPos = projectile.resolveTargetPos(target, profile, missedShot);
+        Vec3 targetPos = targetPosition != null
+                ? targetPosition
+                : projectile.resolveTargetPos(target, profile, missedShot);
+        projectile.legacyTargetPosition = targetPos;
+        double targetYForMoveType = target == null ? targetPos.y : target.getY();
+        LegacyShipProjectileMoveType moveType = LegacyShipBehaviorCatalog.legacySubmarineProjectileMoveTypeFor(
+                owner.getSpec(), owner.getY(), owner.getLegacyLiquidDepth(), targetYForMoveType,
+                profile.moveType());
+        if (moveType == LegacyShipProjectileMoveType.TORPEDO
+                && targetPos.distanceTo(projectile.position()) < 4.0D) {
+            moveType = LegacyShipProjectileMoveType.DIRECT;
+        }
+        projectile.setMoveType(moveType);
         Vec3 launchVector = targetPos.subtract(projectile.position());
-        if (profile.moveType() == LegacyShipProjectileMoveType.ARC || profile.moveType() == LegacyShipProjectileMoveType.DROP) {
+        if (moveType == LegacyShipProjectileMoveType.ARC || moveType == LegacyShipProjectileMoveType.DROP) {
             launchVector = launchVector.add(0.0D, profile.launchArcLift(), 0.0D);
         }
 
-        projectile.shoot(launchVector.x, launchVector.y, launchVector.z, projectile.baseSpeed(), 0.0F);
+        if (moveType == LegacyShipProjectileMoveType.TORPEDO) {
+            projectile.configureLegacyTorpedoMotion(targetPos);
+        } else {
+            projectile.shoot(launchVector.x, launchVector.y, launchVector.z, projectile.baseSpeed(), 0.0F);
+        }
+        if (moveType == LegacyShipProjectileMoveType.ARC) {
+            projectile.configureLegacyArcMotion(targetPos, profile.launchArcLift());
+        }
         return projectile;
     }
 
@@ -126,18 +209,44 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         this.entityData.define(DATA_TRAIL_PARTICLE, GameplayParticleType.NONE.ordinal());
         this.entityData.define(DATA_HIT_PARTICLE, GameplayParticleType.HIT_EXPLOSION.ordinal());
         this.entityData.define(DATA_EFFECT_FLAGS, 0);
+        this.entityData.define(DATA_LEGACY_MOTION_OVERRIDE, false);
+        this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_1, 0.0F);
+        this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_2, 0.0F);
+        this.entityData.define(DATA_LEGACY_ARC_RISE_TICKS, 0);
     }
 
     @Override
     public void tick() {
+        Vec3 legacyMotion = this.hasLegacyMotionOverride() ? this.getDeltaMovement() : null;
         super.tick();
+
+        if (legacyMotion != null && !this.isRemoved()) {
+            this.advanceLegacyMotion(legacyMotion);
+        }
 
         if (this.tickCount > this.lifeTicks) {
             if (!this.level().isClientSide()) {
-                this.emitMissFx(this.position());
+                if (this.impactRadius > 0.0D) {
+                    this.resolveAreaImpact(this.position());
+                } else {
+                    this.emitMissFx(this.position());
+                }
             }
             this.discard();
             return;
+        }
+
+        if (!this.level().isClientSide() && this.clusterMissile) {
+            // EntityAbyssMissile releases type-3 sub-missiles before its expanded collision check.
+            this.spawnClusterSubMissile();
+        }
+
+        // EntityAbyssMissile checks its expanded entity box after movement and after five ticks.
+        if (!this.level().isClientSide() && this.tickCount > 5 && !this.isRemoved()) {
+            this.resolveLegacyContactAtCurrentPosition();
+            if (this.isRemoved()) {
+                return;
+            }
         }
 
         if (this.level().isClientSide()) {
@@ -146,6 +255,36 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
 
         this.updateFlightPath();
+    }
+
+    private void resolveLegacyContactAtCurrentPosition() {
+        if (this.resolvedImpact || this.missedShot) {
+            return;
+        }
+
+        Entity owner = this.getOwner();
+        if (!(owner instanceof LegacyShipEntity ship)) {
+            return;
+        }
+
+        AABB collisionBox = this.getBoundingBox().inflate(1.0D, 1.5D, 1.0D);
+        for (LivingEntity candidate : this.level().getEntitiesOfClass(
+                LivingEntity.class,
+                collisionBox,
+                entity -> this.isLegacyContactTarget(ship, entity))) {
+            this.onHitEntity(new EntityHitResult(candidate, this.position()));
+            return;
+        }
+    }
+
+    private boolean isLegacyContactTarget(LegacyShipEntity ship, LivingEntity candidate) {
+        if (candidate == ship || !candidate.isAlive() || !candidate.isPickable()) {
+            return false;
+        }
+        if (candidate == ship.getVehicle() || ship.getPassengers().contains(candidate)) {
+            return false;
+        }
+        return !LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, candidate) && !ship.isAlliedTo(candidate);
     }
 
     @Override
@@ -158,13 +297,23 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             return;
         }
 
-        this.resolvedImpact = true;
+        if (this.impactRadius > 0.0D) {
+            if (!this.isLegacyContactTarget(ship, livingTarget)) {
+                this.discard();
+                return;
+            }
+            this.resolveAreaImpact(result.getLocation());
+            this.discard();
+            return;
+        }
 
         if (!ship.canEngage(livingTarget)) {
             this.discard();
             return;
         }
 
+        this.resolvedImpact = true;
+        this.spawnImpactEffect(ship, result.getLocation());
         boolean attacked = livingTarget.hurt(this.damageSources().thrown(this, ship), this.damage);
         Vec3 motion = this.getDeltaMovement();
         CombatFxDispatcher.sendParticle(livingTarget, this.getHitParticleType(),
@@ -173,11 +322,12 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
         if (attacked) {
             ship.setLastHurtMob(livingTarget);
+            LegacyShipBehaviorCatalog.applyAttackEffect(ship, livingTarget);
             CombatFxDispatcher.sendCombatReact(ship, livingTarget, CombatReactType.HIT,
                     this.getAttackKind(), this.getProjectileVisual());
             if (this.getAttackKind() == LegacyShipAttackKind.HEAVY || this.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY) {
-                double knockbackStrength = 0.4D;
-                livingTarget.knockback(knockbackStrength, ship.getX() - livingTarget.getX(), ship.getZ() - livingTarget.getZ());
+                livingTarget.knockback(this.knockbackStrength,
+                        ship.getX() - livingTarget.getX(), ship.getZ() - livingTarget.getZ());
             }
             if (this.hasFlarePayload()) {
                 CombatFxDispatcher.sendParticle(livingTarget, GameplayParticleType.FLARE_BURST,
@@ -198,7 +348,15 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
         if (result.getType() != HitResult.Type.ENTITY) {
             if (!this.level().isClientSide()) {
-                this.emitMissFx(result.getLocation());
+                Entity owner = this.getOwner();
+                if (owner instanceof LegacyShipEntity ship) {
+                    if (this.impactRadius > 0.0D) {
+                        this.resolveAreaImpact(result.getLocation());
+                    } else {
+                        this.spawnImpactEffect(ship, result.getLocation());
+                        this.emitMissFx(result.getLocation());
+                    }
+                }
             }
             this.discard();
         }
@@ -207,6 +365,10 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     @Override
     protected boolean canHitEntity(Entity entity) {
         if (!super.canHitEntity(entity) || entity == this.getOwner() || !(entity instanceof LivingEntity)) {
+            return false;
+        }
+
+        if (this.clusterMissile) {
             return false;
         }
 
@@ -244,6 +406,10 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     @Override
     protected float getGravity() {
+        if (this.hasLegacyMotionOverride()) {
+            return 0.0F;
+        }
+
         return switch (this.getMoveType()) {
             case ARC -> 0.015F;
             case DROP -> 0.05F;
@@ -263,12 +429,25 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         tag.putInt("EffectFlags", this.getEffectFlags());
         tag.putFloat("Damage", this.damage);
         tag.putInt("TargetId", this.targetId);
+        tag.putDouble("LegacyTargetX", this.legacyTargetPosition.x);
+        tag.putDouble("LegacyTargetY", this.legacyTargetPosition.y);
+        tag.putDouble("LegacyTargetZ", this.legacyTargetPosition.z);
         tag.putInt("LifeTicks", this.lifeTicks);
         tag.putBoolean("MissedShot", this.missedShot);
+        tag.putBoolean("BlackHoleOnImpact", this.blackHoleOnImpact);
+        tag.putBoolean("ClusterMissile", this.clusterMissile);
+        tag.putBoolean("ClusterSubMissile", this.clusterSubMissile);
+        tag.putBoolean("ReportMissFeedback", this.reportMissFeedback);
+        tag.putDouble("KnockbackStrength", this.knockbackStrength);
         tag.putFloat("SpeedScale", this.speedScale);
         tag.putFloat("GuidanceBlend", this.guidanceBlend);
         tag.putFloat("TravelSpeed", this.travelSpeed);
         tag.putFloat("TargetHeightFactor", this.targetHeightFactor);
+        tag.putDouble("ImpactRadius", this.impactRadius);
+        tag.putBoolean("LegacyMotionOverride", this.hasLegacyMotionOverride());
+        tag.putDouble("LegacyArcAcceleration1", this.getLegacyArcAcceleration1());
+        tag.putDouble("LegacyArcAcceleration2", this.getLegacyArcAcceleration2());
+        tag.putInt("LegacyArcRiseTicks", this.getLegacyArcRiseTicks());
     }
 
     @Override
@@ -283,12 +462,32 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         this.setEffectFlags(tag.getInt("EffectFlags"));
         this.damage = tag.getFloat("Damage");
         this.targetId = tag.getInt("TargetId");
+        this.legacyTargetPosition = tag.contains("LegacyTargetX")
+                && tag.contains("LegacyTargetY")
+                && tag.contains("LegacyTargetZ")
+                ? new Vec3(tag.getDouble("LegacyTargetX"), tag.getDouble("LegacyTargetY"),
+                        tag.getDouble("LegacyTargetZ"))
+                : Vec3.ZERO;
         this.lifeTicks = tag.getInt("LifeTicks");
         this.missedShot = tag.getBoolean("MissedShot");
+        this.blackHoleOnImpact = tag.getBoolean("BlackHoleOnImpact");
+        this.clusterMissile = tag.getBoolean("ClusterMissile");
+        this.clusterSubMissile = tag.getBoolean("ClusterSubMissile");
+        this.reportMissFeedback = !tag.contains("ReportMissFeedback") || tag.getBoolean("ReportMissFeedback");
+        this.knockbackStrength = tag.contains("KnockbackStrength")
+                ? Math.max(0.0D, tag.getDouble("KnockbackStrength")) : 0.15D;
         this.speedScale = tag.contains("SpeedScale") ? tag.getFloat("SpeedScale") : 1.0F;
         this.guidanceBlend = tag.contains("GuidanceBlend") ? tag.getFloat("GuidanceBlend") : 0.18F;
         this.travelSpeed = tag.contains("TravelSpeed") ? tag.getFloat("TravelSpeed") : 0.52F;
         this.targetHeightFactor = tag.contains("TargetHeightFactor") ? tag.getFloat("TargetHeightFactor") : 0.35F;
+        this.impactRadius = tag.contains("ImpactRadius") ? Math.max(0.0D, tag.getDouble("ImpactRadius")) : 3.5D;
+        this.entityData.set(DATA_LEGACY_MOTION_OVERRIDE, tag.getBoolean("LegacyMotionOverride"));
+        this.entityData.set(DATA_LEGACY_ARC_ACCELERATION_1,
+                tag.contains("LegacyArcAcceleration1") ? (float) tag.getDouble("LegacyArcAcceleration1") : 0.0F);
+        this.entityData.set(DATA_LEGACY_ARC_ACCELERATION_2,
+                tag.contains("LegacyArcAcceleration2") ? (float) tag.getDouble("LegacyArcAcceleration2") : 0.0F);
+        this.entityData.set(DATA_LEGACY_ARC_RISE_TICKS,
+                tag.contains("LegacyArcRiseTicks") ? Math.max(0, tag.getInt("LegacyArcRiseTicks")) : 0);
     }
 
     public LegacyShipAttackKind getAttackKind() {
@@ -317,6 +516,26 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     public int getIntendedTargetId() {
         return this.targetId;
+    }
+
+    public Vec3 getLegacyTargetPosition() {
+        return this.legacyTargetPosition;
+    }
+
+    public boolean isMissedShot() {
+        return this.missedShot;
+    }
+
+    public boolean hasBlackHoleImpactEffect() {
+        return this.blackHoleOnImpact;
+    }
+
+    public double getImpactRadius() {
+        return this.impactRadius;
+    }
+
+    public double getKnockbackStrength() {
+        return this.knockbackStrength;
     }
 
     public boolean hasFlarePayload() {
@@ -359,13 +578,237 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         this.entityData.set(DATA_EFFECT_FLAGS, effectFlags);
     }
 
+    private boolean hasLegacyMotionOverride() {
+        return this.entityData.get(DATA_LEGACY_MOTION_OVERRIDE);
+    }
+
+    private void setLegacyMotionOverride(boolean enabled) {
+        this.entityData.set(DATA_LEGACY_MOTION_OVERRIDE, enabled);
+    }
+
+    private double getLegacyArcAcceleration1() {
+        return this.entityData.get(DATA_LEGACY_ARC_ACCELERATION_1).doubleValue();
+    }
+
+    private double getLegacyArcAcceleration2() {
+        return this.entityData.get(DATA_LEGACY_ARC_ACCELERATION_2).doubleValue();
+    }
+
+    private int getLegacyArcRiseTicks() {
+        return this.entityData.get(DATA_LEGACY_ARC_RISE_TICKS);
+    }
+
+    private void setLegacyArcParameters(double acceleration1, double acceleration2, int riseTicks) {
+        this.entityData.set(DATA_LEGACY_ARC_ACCELERATION_1, (float) acceleration1);
+        this.entityData.set(DATA_LEGACY_ARC_ACCELERATION_2, (float) acceleration2);
+        this.entityData.set(DATA_LEGACY_ARC_RISE_TICKS, Math.max(0, riseTicks));
+    }
+
+    private void configureLegacyArcMotion(Vec3 targetPosition, float arcHeightRatio) {
+        this.setLegacyMotionOverride(true);
+        this.setLegacyArcParameters(0.0D, 0.0D, 0);
+
+        Vec3 distanceVector = targetPosition.subtract(this.position());
+        double distance = distanceVector.length();
+        double speed = this.baseSpeed();
+        if (distance <= 1.0E-7D || speed <= 1.0E-7D) {
+            this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+            this.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+
+        Vec3 directMotion = distanceVector.normalize().scale(speed);
+        if (distance < 4.0D) {
+            this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+            this.setDeltaMovement(directMotion);
+            return;
+        }
+
+        if (arcHeightRatio <= 0.0F) {
+            this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+            this.setDeltaMovement(directMotion);
+            return;
+        }
+
+        double horizontalX = distanceVector.x;
+        double horizontalZ = distanceVector.z;
+        double horizontalDistance = Math.sqrt(horizontalX * horizontalX + horizontalZ * horizontalZ);
+        if (horizontalDistance <= 4.0D) {
+            // EntityAbyssMissile keeps moveType=1 here, but uses direct XYZ motion with zero acceleration.
+            this.setDeltaMovement(directMotion);
+            return;
+        }
+
+        horizontalX /= horizontalDistance;
+        horizontalZ /= horizontalDistance;
+        double travelTicks = horizontalDistance / speed;
+        double additionalHeight = distance * arcHeightRatio;
+        double verticalDistance = Math.abs(this.getY() - targetPosition.y);
+        double heightRatio = Math.sqrt(additionalHeight / (additionalHeight + verticalDistance));
+        int riseTicks;
+        int fallTicks;
+        double verticalSpeed;
+        double acceleration1;
+        double acceleration2;
+
+        if (this.getY() - targetPosition.y < 1.0D) {
+            heightRatio = Math.sqrt(additionalHeight / (additionalHeight + verticalDistance));
+            riseTicks = Mth.floor(travelTicks / (1.0D + heightRatio));
+            fallTicks = Mth.floor(travelTicks * heightRatio / (1.0D + heightRatio));
+            if (riseTicks <= 0 || fallTicks <= 0) {
+                this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+                this.setDeltaMovement(directMotion);
+                return;
+            }
+            verticalSpeed = 2.0D * (additionalHeight + verticalDistance) / riseTicks;
+            acceleration1 = -verticalSpeed / riseTicks;
+            acceleration2 = -2.0D * additionalHeight / (fallTicks * fallTicks);
+        } else {
+            heightRatio = Math.sqrt(additionalHeight / (additionalHeight + verticalDistance));
+            riseTicks = Mth.floor(travelTicks * heightRatio / (1.0D + heightRatio));
+            fallTicks = Mth.floor(travelTicks / (1.0D + heightRatio));
+            if (riseTicks <= 0 || fallTicks <= 0) {
+                this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+                this.setDeltaMovement(directMotion);
+                return;
+            }
+            acceleration1 = -2.0D * additionalHeight / (riseTicks * riseTicks);
+            verticalSpeed = -acceleration1 * riseTicks;
+            acceleration2 = -2.0D * (additionalHeight + verticalDistance) / (fallTicks * fallTicks);
+        }
+
+        if (Math.abs(acceleration1) > LEGACY_ARC_ACCELERATION_LIMIT
+                || Math.abs(acceleration2) > LEGACY_ARC_ACCELERATION_LIMIT) {
+            this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+            this.setDeltaMovement(directMotion);
+            return;
+        }
+
+        this.setDeltaMovement(horizontalX * speed, verticalSpeed, horizontalZ * speed);
+        this.setLegacyArcParameters(acceleration1, acceleration2, riseTicks);
+    }
+
+    private void configureLegacyTorpedoMotion(Vec3 targetPosition) {
+        Vec3 distanceVector = targetPosition.subtract(this.position());
+        if (distanceVector.lengthSqr() <= 1.0E-7D) {
+            this.setMoveType(LegacyShipProjectileMoveType.DIRECT);
+            this.setDeltaMovement(Vec3.ZERO);
+            this.setLegacyMotionOverride(false);
+            return;
+        }
+
+        Vec3 direction = distanceVector.normalize();
+        this.setLegacyMotionOverride(true);
+        this.setLegacyArcParameters(-0.035D, -0.035D, 0);
+        this.setDeltaMovement(direction.x * 0.6D, 0.1D, direction.z * 0.6D);
+    }
+
+    private void advanceLegacyMotion(Vec3 currentMotion) {
+        double acceleration = this.tickCount <= this.getLegacyArcRiseTicks()
+                ? this.getLegacyArcAcceleration1()
+                : this.getLegacyArcAcceleration2();
+        this.setDeltaMovement(currentMotion.x, currentMotion.y + acceleration, currentMotion.z);
+    }
+
+    private void spawnImpactEffect(LegacyShipEntity ship, Vec3 impactPosition) {
+        if (!this.blackHoleOnImpact || this.impactEffectSpawned || this.level().isClientSide()) {
+            return;
+        }
+
+        this.impactEffectSpawned = LegacyShipBehaviorCatalog.spawnBlackHoleEffect(
+                ship, impactPosition) != null;
+    }
+
+    private void resolveAreaImpact(Vec3 impactPosition) {
+        if (this.resolvedImpact || this.level().isClientSide()) {
+            return;
+        }
+
+        if (this.missedShot) {
+            this.emitMissFx(impactPosition);
+            return;
+        }
+
+        this.resolvedImpact = true;
+        Entity owner = this.getOwner();
+        if (!(owner instanceof LegacyShipEntity ship)) {
+            return;
+        }
+
+        this.spawnImpactEffect(ship, impactPosition);
+        AABB impactBox = new AABB(impactPosition, impactPosition).inflate(this.impactRadius);
+        List<LivingEntity> areaTargets = this.level().getEntitiesOfClass(
+                LivingEntity.class,
+                impactBox,
+                candidate -> candidate != ship
+                        && candidate.isAlive()
+                        && !candidate.isInvulnerable()
+                        && ship.canEngage(candidate));
+        for (LivingEntity livingTarget : areaTargets) {
+            float damage = LegacyShipCombatHelper.applyTargetDamageModifier(
+                    ship.getLegacyStats(), livingTarget, this.damage);
+            LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollProjectileImpactAttack(
+                    ship, livingTarget, damage);
+            if (roll.miss()) {
+                continue;
+            }
+            boolean attacked = livingTarget.hurt(ship.damageSources().mobAttack(ship), roll.damage());
+            if (attacked) {
+                ship.setLastHurtMob(livingTarget);
+                LegacyShipBehaviorCatalog.applyAttackEffect(ship, livingTarget);
+                livingTarget.knockback(this.knockbackStrength,
+                        ship.getX() - livingTarget.getX(), ship.getZ() - livingTarget.getZ());
+            }
+        }
+
+        Vec3 motion = this.getDeltaMovement();
+        CombatFxDispatcher.sendParticle(ship, this.getHitParticleType(),
+                impactPosition.x, impactPosition.y, impactPosition.z,
+                motion.x, motion.y, motion.z);
+    }
+
     private void updateFlightPath() {
+        if (this.clusterSubMissile) {
+            Vec3 motion = this.getDeltaMovement();
+            this.setDeltaMovement(motion.x * 0.95D, motion.y - 0.06D, motion.z * 0.95D);
+            return;
+        }
+
         switch (this.getMoveType()) {
             case GUIDED -> this.updateGuidedFlight();
             case DROP -> this.updateBombDropFlight();
             default -> {
             }
         }
+    }
+
+    /** Mirrors EntityAbyssMissile's type-3 five-wave sub-missile release. */
+    private void spawnClusterSubMissile() {
+        if (this.missedShot || this.tickCount <= 6 || this.tickCount >= 41
+                || (this.tickCount & 7) != 0 || this.level().isClientSide()) {
+            return;
+        }
+
+        Entity owner = this.getOwner();
+        if (!(owner instanceof LegacyShipEntity ship)) {
+            return;
+        }
+
+        LivingEntity target = this.getIntendedTarget();
+        Vec3 motion = this.getDeltaMovement();
+        Vec3 targetPosition = this.position().add(motion);
+        LegacyShipProjectileEntity subMissile = create(
+                this.level(), ship, target, LegacyShipAttackKind.HEAVY,
+                this.damage * 0.5F, false,
+                LegacyShipAttackProfile.clusterSubMissileProfile(), targetPosition,
+                this.knockbackStrength, false, 3.5D);
+        subMissile.clusterMissile = false;
+        subMissile.clusterSubMissile = true;
+        subMissile.moveTo(this.getX(),
+                this.getY() - 0.65D - Math.abs(motion.y),
+                this.getZ(), this.getYRot(), this.getXRot());
+        subMissile.setDeltaMovement(motion);
+        this.level().addFreshEntity(subMissile);
     }
 
     private void updateGuidedFlight() {
@@ -424,6 +867,12 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
                 this.level().addParticle(ParticleTypes.SMOKE, x, y, z, -motion.x * 0.04D, -motion.y * 0.04D, -motion.z * 0.04D);
                 this.level().addParticle(ParticleTypes.FLAME, x, y, z, -motion.x * 0.02D, -motion.y * 0.02D, -motion.z * 0.02D);
             }
+            case LEGACY_RAILGUN -> {
+                this.level().addParticle(ParticleTypes.FLAME, this.getX(), this.getY(), this.getZ(),
+                        motion.x * 0.02D, motion.y * 0.02D, motion.z * 0.02D);
+                this.level().addParticle(ParticleTypes.ELECTRIC_SPARK, this.getX(), this.getY(), this.getZ(),
+                        motion.x * 0.04D, motion.y * 0.04D, motion.z * 0.04D);
+            }
             case AIRCRAFT_TRAIL -> this.level().addParticle(ParticleTypes.CLOUD, x, y, z, -motion.x * 0.02D, 0.0D, -motion.z * 0.02D);
             case BOMB_DROP -> this.level().addParticle(ParticleTypes.SMOKE, x, y, z, 0.0D, -0.01D, 0.0D);
             case TORPEDO_WAKE -> {
@@ -454,7 +903,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
 
         LivingEntity intendedTarget = this.getIntendedTarget();
-        if (intendedTarget != null && intendedTarget.isAlive()) {
+        if (this.reportMissFeedback && intendedTarget != null && intendedTarget.isAlive()) {
             CombatFxDispatcher.sendCombatReact(ship, intendedTarget, CombatReactType.MISS,
                     this.getAttackKind(), this.getProjectileVisual());
             CombatFxDispatcher.sendParticle(intendedTarget, GameplayParticleType.TEXT_MISS,
@@ -490,16 +939,6 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             targetX += this.random.nextDouble() * horizontalSpread * 2.0D - horizontalSpread;
             targetY += this.random.nextDouble() * 5.0D;
             targetZ += this.random.nextDouble() * horizontalSpread * 2.0D - horizontalSpread;
-        }
-
-        if (profile.moveType() == LegacyShipProjectileMoveType.ARC) {
-            double distance = this.position().distanceTo(new Vec3(targetX, targetY, targetZ));
-            if (distance < 6.0D) {
-                Vec3 stretch = new Vec3(targetX - this.getX(), targetY - this.getY(), targetZ - this.getZ()).normalize().scale(6.0D - distance);
-                targetX += stretch.x;
-                targetY += stretch.y;
-                targetZ += stretch.z;
-            }
         }
 
         return new Vec3(targetX, targetY, targetZ);

@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_ammo",
+  "key": {
+    "g": {
+      "item": "shincolle:grudge"
+    },
+    "i": {
+      "item": "shincolle:abyssmetal"
+    },
+    "p": {
+      "tag": "forge:gunpowder"
+    }
+  },
+  "pattern": [
+    "iii",
+    "igi",
+    "ipi"
+  ],
+  "result": {
+    "count": 24,
+    "item": "shincolle:ammo"
+  }
+}

@@ -76,6 +76,14 @@ public class ShipCacheSavedData extends SavedData {
         return List.copyOf(this.shipByUid.values());
     }
 
+    public boolean removeShip(int shipUid) {
+        if (shipUid <= 0 || this.shipByUid.remove(shipUid) == null) {
+            return false;
+        }
+        this.setDirty();
+        return true;
+    }
+
     @Override
     public CompoundTag save(CompoundTag tag) {
         ListTag list = new ListTag();

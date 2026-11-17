@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "shincolle:blockabyssium",
+    "shincolle:blockgrudge",
+    "shincolle:blockgrudgeheavy",
+    "shincolle:blockgrudgeheavydeco",
+    "shincolle:blockgrudgexp",
+    "shincolle:blockpolymetal",
+    "shincolle:blockvolblock"
+  ]
+}

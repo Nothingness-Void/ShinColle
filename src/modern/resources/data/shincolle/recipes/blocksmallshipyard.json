@@ -10,7 +10,7 @@
       "item": "minecraft:lava_bucket"
     },
     "o": {
-      "item": "minecraft:obsidian"
+      "tag": "forge:obsidian"
     }
   },
   "pattern": [

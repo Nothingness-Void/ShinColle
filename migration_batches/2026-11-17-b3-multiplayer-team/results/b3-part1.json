@@ -1,0 +1,41 @@
+{
+  "batch": "B3-MULTIPLAYER-TEAM",
+  "slice": "Part 1 - Core Team Lifecycle, Broadcast & Block Ally/OP Permissions",
+  "date": "2026-11-17",
+  "status": "PART1_COMPLETED_PART2_PENDING",
+  "jdk": "17.0.3.1 (C:\\Program Files\\Java\\jdk-17.0.3.1)",
+  "commands": [
+    {
+      "name": "diff_hygiene_and_readonly_check",
+      "command": "git diff --check ; git status -s -- src/main/",
+      "exit_code": 0,
+      "legacy_src_main_modified": false
+    },
+    {
+      "name": "full_build_and_gametest",
+      "command": ".\\gradlew.bat cleanProcessResources build verifyItemModelCoverage runGameTestServer --no-daemon",
+      "exit_code": 0,
+      "summary": "BUILD SUCCESSFUL in 1m; All 284 required tests passed :)",
+      "gametest_total": 284,
+      "gametest_passed": 284,
+      "gametest_failed": 0,
+      "gametest_skipped": 0
+    }
+  ],
+  "added_gametests": [
+    "gameplayparitygametests.b3TeamLifecycleCooldownAndNameValidation",
+    "gameplayparitygametests.b3TeamAllyBannedExistenceAndBlockOwnershipPermissions"
+  ],
+  "modified_modern_files": [
+    "src/modern/java/com/lulan/shincolle/teitoku/TeitokuData.java",
+    "src/modern/java/com/lulan/shincolle/teitoku/TeitokuSavedData.java",
+    "src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java",
+    "src/modern/java/com/lulan/shincolle/team/TeamSavedData.java",
+    "src/modern/java/com/lulan/shincolle/ownership/PlayerOwnerData.java",
+    "src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java"
+  ],
+  "remaining_part2_scope": [
+    "PVP & friendly-fire target/damage gates (TargetHelper, ConfigHandler shipAttackPlayer / friendlyFire, projectile/summon contact rules)",
+    "OwnerPaperItem / KaitaiHammer / LegacyShipEntity OP level-2+ and ally interaction parity checks"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "batch": "SHIP-07",
+  "status": "COMPLETE",
+  "date": "2026-09-04",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [48, 49, 51, 52, 53],
+  "focus": [
+    "Akagi aircraft and inherited Zero/T behavior",
+    "CA Hime night and push boundaries",
+    "six-destroyer rider state and fuel cleanup",
+    "legacy model source bake and showEquip branches",
+    "target, resource and hostile-state boundaries"
+  ],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "cleanProcessResources": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 263,
+    "passed": 263,
+    "failed": 0,
+    "focused": [
+      "ship07SelectedModelsBakeAndKeepLegacyShowEquipBranches",
+      "ship07DestroyerRiderFuelBoundaryMatchesLegacyOverrides",
+      "caHimeRefreshesNightStatsOnLegacyCadence",
+      "sixDestroyerRiderStateFollowsLegacyMasks",
+      "akatsukiDismountsRidersOnLegacyFuelOrDamage",
+      "sixDestroyerRidersBreakFormationAfterDamage",
+      "sixDestroyerRidersUseLegacyPassengerPositions",
+      "sixDestroyerEyeHeightsMatchLegacyClasses",
+      "friendlyIkazuchiAndInazumaKeepLegacyRaidenPairing",
+      "carrierAircraftCapacityAndRuntimeFollowLegacyCvRules"
+    ]
+  },
+  "clientSmoke": {
+    "status": "STARTUP_RESOURCE_RELOAD_AND_MODEL_LOG_GATE_PASS",
+    "java": "17.0.3.1",
+    "gl": "NVIDIA GeForce RTX 5060 / OpenGL 4.6",
+    "shincolleInitialization": "PASS",
+    "resourceReload": "PASS",
+    "modelTextureFallbackErrors": 0,
+    "modelBakeErrors": 0,
+    "inWorldManualInteraction": "NOT_PERFORMED_NATIVE_WINDOW_NOT_EXPOSED",
+    "processExit": "INTERRUPTED_AFTER_SMOKE",
+    "log": "run/logs/latest.log"
+  },
+  "noLegacyChanges": true,
+  "notes": [
+    "The five selected old showEquip branches are projected through LegacyShipModelStateCatalog and continue to use the legacy source parser.",
+    "Rider-side no-fuel cleanup now mirrors Hibiki, Ikazuchi and Inazuma updateFuelState overrides.",
+    "The hostile far-chase and player-notification policy was outside this batch and was not changed.",
+    "Manual in-world inspection remains a V0 task because the native window was not exposed to the available automation surface."
+  ]
+}

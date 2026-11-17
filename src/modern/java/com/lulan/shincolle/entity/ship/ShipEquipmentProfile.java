@@ -39,13 +39,21 @@ public record ShipEquipmentProfile(
             0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
             0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0);
 
+    public static ShipEquipmentProfile fromInventory(Container inventory, ShipEntitySpec spec) {
+        return fromInventory(inventory, LegacyShipBehaviorCatalog.equipmentTypeFor(spec));
+    }
+
     public static ShipEquipmentProfile fromInventory(Container inventory, ShipArchetype archetype) {
+        return fromInventory(inventory, equipmentTypeForArchetype(archetype));
+    }
+
+    private static ShipEquipmentProfile fromInventory(Container inventory, int equipmentType) {
         float[] totals = new float[STAT_COUNT];
         int equippedCount = 0;
 
         for (int slot = 0; slot < Math.min(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, inventory.getContainerSize()); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (!(stack.getItem() instanceof LegacyEquipmentItem equipmentItem) || !canEquip(archetype, stack)) {
+            if (!(stack.getItem() instanceof LegacyEquipmentItem equipmentItem) || !canEquip(equipmentType, equipmentItem)) {
                 continue;
             }
 
@@ -67,7 +75,13 @@ public record ShipEquipmentProfile(
     }
 
     public static boolean canEquip(ShipArchetype archetype, ItemStack stack) {
-        return stack.getItem() instanceof LegacyEquipmentItem equipmentItem && canEquip(archetype, equipmentItem);
+        return stack.getItem() instanceof LegacyEquipmentItem equipmentItem
+                && canEquip(equipmentTypeForArchetype(archetype), equipmentItem);
+    }
+
+    public static boolean canEquip(ShipEntitySpec spec, ItemStack stack) {
+        return stack.getItem() instanceof LegacyEquipmentItem equipmentItem
+                && canEquip(LegacyShipBehaviorCatalog.equipmentTypeFor(spec), equipmentItem);
     }
 
     public float stat(int index) {
@@ -105,23 +119,25 @@ public record ShipEquipmentProfile(
         return values;
     }
 
-    private static boolean canEquip(ShipArchetype archetype, LegacyEquipmentItem equipmentItem) {
+    private static boolean canEquip(int equipmentType, LegacyEquipmentItem equipmentItem) {
         LegacyEquipmentStatsRepository.MiscData miscData = equipmentItem.getMiscData();
 
         if (miscData != null) {
-            if (miscData.carrierOnly() && archetype != ShipArchetype.CARRIER && archetype != ShipArchetype.PRINCESS) {
-                return false;
-            }
-
-            if (miscData.notForCarrier() && (archetype == ShipArchetype.CARRIER || archetype == ShipArchetype.PRINCESS)) {
+            // EquipCalc accepts type 2 on every ship and otherwise requires an exact type match.
+            if (equipmentType != 2 && miscData.equipmentType() != 2
+                    && equipmentType != miscData.equipmentType()) {
                 return false;
             }
         }
 
         return switch (equipmentItem.family()) {
-            case AIRPLANE, CATAPULT -> archetype == ShipArchetype.CARRIER || archetype == ShipArchetype.PRINCESS;
+            case AIRPLANE, CATAPULT -> equipmentType == 2 || equipmentType == 3;
             default -> true;
         };
+    }
+
+    private static int equipmentTypeForArchetype(ShipArchetype archetype) {
+        return archetype == ShipArchetype.CARRIER || archetype == ShipArchetype.PRINCESS ? 3 : 1;
     }
 
     public double maxHealthBonus() {
@@ -186,6 +202,14 @@ public record ShipEquipmentProfile(
     }
 
     public @Nullable String firstRestrictionReason(ShipArchetype archetype, ItemStack stack) {
+        return firstRestrictionReason(equipmentTypeForArchetype(archetype), stack);
+    }
+
+    public @Nullable String firstRestrictionReason(ShipEntitySpec spec, ItemStack stack) {
+        return firstRestrictionReason(LegacyShipBehaviorCatalog.equipmentTypeFor(spec), stack);
+    }
+
+    private @Nullable String firstRestrictionReason(int equipmentType, ItemStack stack) {
         if (!(stack.getItem() instanceof LegacyEquipmentItem equipmentItem)) {
             return null;
         }
@@ -194,17 +218,15 @@ public record ShipEquipmentProfile(
         LegacyEquipmentStatsRepository.MiscData miscData = equipmentItem.getMiscData();
 
         if ((family == LegacyEquipmentFamily.AIRPLANE || family == LegacyEquipmentFamily.CATAPULT)
-                && archetype != ShipArchetype.CARRIER && archetype != ShipArchetype.PRINCESS) {
+                && equipmentType == 1) {
             return "gui.shincolle.ship_inventory.equip_restrict.carrier";
         }
 
-        if (miscData != null && miscData.carrierOnly()
-                && archetype != ShipArchetype.CARRIER && archetype != ShipArchetype.PRINCESS) {
+        if (miscData != null && miscData.equipmentType() == 3 && equipmentType == 1) {
             return "gui.shincolle.ship_inventory.equip_restrict.carrier";
         }
 
-        if (miscData != null && miscData.notForCarrier()
-                && (archetype == ShipArchetype.CARRIER || archetype == ShipArchetype.PRINCESS)) {
+        if (miscData != null && miscData.equipmentType() == 1 && equipmentType == 3) {
             return "gui.shincolle.ship_inventory.equip_restrict.no_carrier";
         }
 

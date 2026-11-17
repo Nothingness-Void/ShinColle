@@ -7,6 +7,7 @@ import com.lulan.shincolle.block.HeavyGrudgeBlock;
 import com.lulan.shincolle.block.LegacyCoreBlock;
 import com.lulan.shincolle.block.PolymetalServantBlock;
 import com.lulan.shincolle.block.SmallShipyardBlock;
+import com.lulan.shincolle.block.TemporaryLightBlock;
 import com.lulan.shincolle.block.WaypointBlock;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.item.HeavyGrudgeBlockItem;
@@ -94,20 +95,23 @@ public final class ModBlocks {
                     .sound(SoundType.SAND)));
 
     public static final RegistryObject<Block> BLOCK_LIGHT_AIR = register("blocklightair",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new TemporaryLightBlock(false, BlockBehaviour.Properties.of()
                     .mapColor(MapColor.NONE)
                     .replaceable()
                     .instabreak()
+                    .lightLevel(state -> 15)
                     .noOcclusion()
-                    .noCollission()));
+                    .noCollission()
+                    .noLootTable()));
 
     public static final RegistryObject<Block> BLOCK_LIGHT_LIQUID = register("blocklightliquid",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new TemporaryLightBlock(true, BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WATER)
-                    .replaceable()
                     .instabreak()
+                    .lightLevel(state -> 15)
                     .noOcclusion()
-                    .noCollission()));
+                    .noCollission()
+                    .noLootTable()));
 
     public static final RegistryObject<Block> BLOCK_POLYMETAL = register("blockpolymetal",
             () -> new PolymetalServantBlock(BlockBehaviour.Properties.of()

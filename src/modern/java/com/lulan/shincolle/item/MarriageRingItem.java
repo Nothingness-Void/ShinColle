@@ -68,7 +68,13 @@ public class MarriageRingItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-        if (!(entity instanceof Player player) || !isActive(stack)) {
+        if (entity instanceof Player player && isActive(stack)) {
+            tickActiveRingEffects(player, stack);
+        }
+    }
+
+    public static void tickActiveRingEffects(Player player, ItemStack stack) {
+        if (player == null || stack == null || stack.isEmpty() || !isActive(stack)) {
             return;
         }
 
@@ -77,11 +83,17 @@ public class MarriageRingItem extends Item {
             return;
         }
 
-        if ((player.tickCount & 127) == 0 && data.getMarriageNum() >= 0 && player.getAirSupply() < player.getMaxAirSupply()) {
+        int[] ringAbility = TeitokuHelper.getEffectiveRingAbility(player.level());
+        int breatheThreshold = ringAbility.length > 0 ? ringAbility[0] : 0;
+        if (breatheThreshold >= 0
+                && (player.tickCount & 127) == 0
+                && data.getMarriageNum() >= breatheThreshold
+                && player.getAirSupply() < player.getMaxAirSupply()) {
             player.setAirSupply(player.getMaxAirSupply());
         }
 
-        if (!(player instanceof ServerPlayer serverPlayer) || data.getMarriageNum() < 6) {
+        int flyThreshold = ringAbility.length > 1 ? ringAbility[1] : 6;
+        if (!(player instanceof ServerPlayer serverPlayer) || flyThreshold < 0 || data.getMarriageNum() < flyThreshold) {
             return;
         }
 

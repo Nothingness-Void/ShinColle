@@ -3,9 +3,17 @@
   "category": "food",
   "group": "shincolle_rations",
   "key": {
-    "b": {
-      "item": "minecraft:bread"
-    },
+    "b": [
+      {
+        "item": "minecraft:bread"
+      },
+      {
+        "tag": "forge:flour"
+      },
+      {
+        "tag": "forge:cooked_rice"
+      }
+    ],
     "c": {
       "item": "minecraft:golden_carrot"
     },
@@ -13,12 +21,11 @@
       "item": "shincolle:grudge"
     },
     "w": {
-      "item": "minecraft:wheat"
+      "tag": "forge:crops/wheat"
     }
   },
   "pattern": [
-    "www",
-    "bgc",
+    "bcg",
     "www"
   ],
   "result": {

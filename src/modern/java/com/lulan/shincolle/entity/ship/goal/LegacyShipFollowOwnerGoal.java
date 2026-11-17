@@ -36,9 +36,8 @@ public class LegacyShipFollowOwnerGoal extends Goal {
         Player resolvedOwner = this.ship.getOwnerPlayer();
 
         if (resolvedOwner == null
-                || this.ship.isHostileVariant()
-                || this.ship.isOrderedToSit()
-                || this.ship.shouldPreferAutonomousRoute()
+                || !this.canFollowOwner()
+                || resolvedOwner.level() != this.ship.level()
                 || resolvedOwner.isSpectator()) {
             return false;
         }
@@ -54,13 +53,12 @@ public class LegacyShipFollowOwnerGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        if (this.owner == null || this.ship.isOrderedToSit() || this.ship.isHostileVariant() || this.ship.shouldPreferAutonomousRoute()) {
+        if (this.owner == null || !this.canFollowOwner() || this.owner.level() != this.ship.level()) {
             return false;
         }
 
         float stop = this.dynamicStopDistance();
         return this.owner.isAlive()
-                && !this.ship.getNavigation().isDone()
                 && this.ship.distanceToSqr(this.owner) > (double) (stop * stop);
     }
 
@@ -154,5 +152,15 @@ public class LegacyShipFollowOwnerGoal extends Goal {
 
     private float dynamicTeleportDistance() {
         return Math.max(this.teleportDistance, this.ship.getAiFollowRange() * (float) this.ship.getFollowMovementSpeedModifier());
+    }
+
+    private boolean canFollowOwner() {
+        return !this.ship.isHostileVariant()
+                && this.ship.canFollow()
+                && !this.ship.isOrderedToSit()
+                && !this.ship.isPassenger()
+                && !this.ship.isLeashed()
+                && !this.ship.hasActiveCommandState()
+                && this.ship.getGrudge() > 0;
     }
 }

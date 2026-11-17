@@ -13,7 +13,7 @@
       "tag": "minecraft:wool"
     },
     "o": {
-      "item": "minecraft:obsidian"
+      "tag": "forge:obsidian"
     }
   },
   "pattern": [

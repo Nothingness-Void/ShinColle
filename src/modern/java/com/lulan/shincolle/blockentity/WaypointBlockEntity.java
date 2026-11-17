@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
@@ -24,6 +25,11 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     private static final String LAST_WAYPOINT_TAG = "LastWaypoint";
     private static final String NEXT_WAYPOINT_TAG = "NextWaypoint";
     private static final String PAIRED_CHEST_TAG = "PairedChest";
+    private static final String LEGACY_OWNER_UID_TAG = "pid";
+    private static final String LEGACY_STAY_MODE_TAG = "wpstay";
+    private static final String LEGACY_LAST_WAYPOINT_TAG = "lastPos";
+    private static final String LEGACY_NEXT_WAYPOINT_TAG = "nextPos";
+    private static final String LEGACY_PAIRED_CHEST_TAG = "chestPos";
     private static final int MAX_STAY_MODE = 16;
 
     @Nullable
@@ -44,10 +50,26 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     public void load(CompoundTag tag) {
         super.load(tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
-        this.stayMode = Mth.clamp(tag.getInt(STAY_MODE_TAG), 0, MAX_STAY_MODE);
+        if (this.owner == null && tag.contains(LEGACY_OWNER_UID_TAG, Tag.TAG_INT)) {
+            int legacyUid = Math.max(0, tag.getInt(LEGACY_OWNER_UID_TAG));
+            if (legacyUid > 0) {
+                this.owner = new PlayerOwnerData(null, "", legacyUid);
+            }
+        }
+
+        this.stayMode = Mth.clamp(readInt(tag, STAY_MODE_TAG, LEGACY_STAY_MODE_TAG), 0, MAX_STAY_MODE);
         this.lastWaypoint = readOptionalPos(tag, LAST_WAYPOINT_TAG);
+        if (this.lastWaypoint == null) {
+            this.lastWaypoint = readLegacyPos(tag, LEGACY_LAST_WAYPOINT_TAG);
+        }
         this.nextWaypoint = readOptionalPos(tag, NEXT_WAYPOINT_TAG);
+        if (this.nextWaypoint == null) {
+            this.nextWaypoint = readLegacyPos(tag, LEGACY_NEXT_WAYPOINT_TAG);
+        }
         this.pairedChest = readOptionalPos(tag, PAIRED_CHEST_TAG);
+        if (this.pairedChest == null) {
+            this.pairedChest = readLegacyPos(tag, LEGACY_PAIRED_CHEST_TAG);
+        }
     }
 
     @Override
@@ -159,6 +181,19 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
         return seconds + "s";
     }
 
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        this.saveAdditional(tag);
+        return tag;
+    }
+
+    @Override
+    @Nullable
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
     private void markUpdated() {
         this.setChanged();
 
@@ -174,6 +209,19 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
         }
 
         return NbtUtils.readBlockPos(tag.getCompound(key));
+    }
+
+    private static int readInt(CompoundTag tag, String key, String legacyKey) {
+        return tag.contains(key, Tag.TAG_INT) ? tag.getInt(key) : tag.getInt(legacyKey);
+    }
+
+    private static @Nullable BlockPos readLegacyPos(CompoundTag tag, String key) {
+        int[] values = tag.getIntArray(key);
+        if (values.length != 3 || values[1] <= 0) {
+            return null;
+        }
+
+        return new BlockPos(values[0], values[1], values[2]);
     }
 
     private static void writeOptionalPos(CompoundTag tag, String key, @Nullable BlockPos pos) {

@@ -13,6 +13,10 @@ public class LegacyShipRangedAttackGoal extends Goal {
     private int onSightTime;
     private int lostSightTime;
     private int timeToRecalcPath;
+    private int lightWarmupTicks;
+    private int heavyWarmupTicks;
+    private int airWarmupTicks;
+    private LivingEntity warmupTarget;
 
     public LegacyShipRangedAttackGoal(LegacyShipEntity ship, double speedModifier) {
         this.ship = ship;
@@ -44,6 +48,14 @@ public class LegacyShipRangedAttackGoal extends Goal {
         this.onSightTime = 0;
         this.lostSightTime = 0;
         this.timeToRecalcPath = 0;
+
+        LivingEntity target = this.ship.getTarget();
+        if (target != this.warmupTarget) {
+            this.warmupTarget = target;
+            this.lightWarmupTicks = Math.max(20, this.ship.getCompatAttackAimTime());
+            this.heavyWarmupTicks = Math.max(40, this.ship.getCompatAttackAimTime() * 2);
+            this.airWarmupTicks = 20;
+        }
     }
 
     @Override
@@ -65,6 +77,16 @@ public class LegacyShipRangedAttackGoal extends Goal {
             return;
         }
 
+        if (this.lightWarmupTicks > 0) {
+            this.lightWarmupTicks--;
+        }
+        if (this.heavyWarmupTicks > 0) {
+            this.heavyWarmupTicks--;
+        }
+        if (this.airWarmupTicks > 0) {
+            this.airWarmupTicks--;
+        }
+
         double range = this.ship.getCompatAttackRange();
         double rangeSqr = range * range;
         double distanceSqr = this.ship.distanceToSqr(target);
@@ -73,6 +95,12 @@ public class LegacyShipRangedAttackGoal extends Goal {
         this.onSightTime = onSight ? this.onSightTime + 1 : 0;
         this.lostSightTime = onSight ? 0 : this.lostSightTime + 1;
         this.ship.getLookControl().setLookAt(target, 30.0F, 30.0F);
+
+        if (!onSight && this.ship.isAiOnSightChase()) {
+            this.ship.setTarget(null);
+            this.ship.getNavigation().stop();
+            return;
+        }
 
         if (!onSight && this.ship.isHostileVariant() && this.lostSightTime >= this.adjustedTickDelay(40)) {
             this.ship.setTarget(null);
@@ -95,9 +123,13 @@ public class LegacyShipRangedAttackGoal extends Goal {
         }
 
         if (this.onSightTime >= this.ship.getCompatAttackAimTime()) {
-            this.ship.tryCompatCannonAttack(target);
+            this.ship.tryCompatCannonAttack(target,
+                    this.lightWarmupTicks <= 0,
+                    this.heavyWarmupTicks <= 0);
         }
 
-        this.ship.tryCompatAirAttack(target);
+        if (this.airWarmupTicks <= 0) {
+            this.ship.tryCompatAirAttack(target);
+        }
     }
 }

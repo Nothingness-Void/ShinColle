@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 public final class LegacyModelSourceParser {
 
     private static final String NUMBER = "[-+]?\\d+(?:\\.\\d+)?(?:[FfDd])?";
+    private static final Pattern SCALE_PRODUCT = Pattern.compile(
+            "(?:(?:this\\.)?scale\\s*\\*\\s*(" + NUMBER + ")|(" + NUMBER + ")\\s*\\*\\s*(?:this\\.)?scale)");
 
     private static final Pattern TEXTURE_WIDTH = Pattern.compile("(?:this\\.)?textureWidth\\s*=\\s*(\\d+)\\s*;");
     private static final Pattern TEXTURE_HEIGHT = Pattern.compile("(?:this\\.)?textureHeight\\s*=\\s*(\\d+)\\s*;");
@@ -234,6 +236,12 @@ public final class LegacyModelSourceParser {
 
     private static Float resolveTransformArg(String token, float scale, float offsetY) {
         String normalized = token.trim();
+        Matcher scaleProduct = SCALE_PRODUCT.matcher(normalized);
+
+        if (scaleProduct.matches() && !Float.isNaN(scale)) {
+            String factor = scaleProduct.group(1) != null ? scaleProduct.group(1) : scaleProduct.group(2);
+            return scale * parseNumber(factor);
+        }
 
         if (normalized.equals("scale") || normalized.equals("this.scale")) {
             return Float.isNaN(scale) ? null : scale;

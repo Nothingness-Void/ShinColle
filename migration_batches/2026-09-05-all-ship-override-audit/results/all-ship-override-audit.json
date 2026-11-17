@@ -1,0 +1,39 @@
+{
+  "batch": "ALL-SHIP-OVERRIDE-AUDIT",
+  "date": "2026-09-05",
+  "status": "PASS",
+  "scope": "45 legacy base class IDs and 64 registered ship variants",
+  "legacyRegisteredVariants": 64,
+  "modernRegisteredSpecs": 64,
+  "matrixBaseClassIds": 45,
+  "hostileVariants": 30,
+  "hostileMobVariants": 19,
+  "overrideGaps": 0,
+  "unexplainedPerShipDispatchGaps": 0,
+  "codeChanges": true,
+  "differences": [
+    "Legacy ship-only light/type damage adjustment was absent from the modern ship hurt path.",
+    "Modern aircraft strikes did not preserve the legacy AIRPLANE attack source type."
+  ],
+  "migratedSemantics": {
+    "legacyDamageTypeMappingsCovered": 64,
+    "transportDamageType": "UNDEFINED",
+    "battleshipReDamageType": "AVIATION",
+    "installationAndAviationHimeDamageType": "AVIATION",
+    "rensouhouDamageType": "DESTROYER",
+    "rensouhouLargeDamageType": "BATTLESHIP",
+    "aircraftDamageType": "AIRPLANE",
+    "lightFormulaRuntimeOrderPreserved": true,
+    "lightDamageAppliedAt": "LegacyShipEntity.hurt after defense reduction"
+  },
+  "tests": {
+    "javaHome": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+    "gitDiffCheck": "PASS",
+    "compileJava": "PASS",
+    "processResources": "PASS",
+    "runGameTestServer": "PASS",
+    "requiredTests": 270
+  },
+  "legacyTreesClean": true,
+  "next": "Return to SP-CLOSE / V0 T4 native client acceptance."
+}

@@ -1,0 +1,101 @@
+{
+  "batch": "B6-INTERMOD-DETAILS",
+  "date": "2026-11-18",
+  "status": "COMPLETED",
+  "javaHome": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "deliverables": {
+    "commands": [
+      "/shipchangeowner (/shipch)",
+      "/shipemotes (/em, /emo, /emote, /emotes, 35 EMO_ALIASES)",
+      "/ship list|get|del",
+      "/shipkill",
+      "/shipattrs",
+      "/shipcleardrop",
+      "/shipinfo",
+      "/shipstopai (/shipstop)",
+      "/shipupdateowneruid"
+    ],
+    "dynamicLight": [
+      "TemporaryLightBlock",
+      "LightBlockEntity (120 ticks, air/water/flowing water restore)",
+      "LightBlockHelper",
+      "Searchlight & Flare light placement + canSearchlight/canFlare config gates"
+    ],
+    "configAndSystemSync": [
+      "TeitokuHelper SystemConfig sync & client effective getters (RingAbility, EasyMode, CloseGuiDist, RadarUpdate, PolyAsMn)",
+      "PolyAsMnCondition (shincolle:poly_as_mn) & LegacyItemMatchHelper.matchesTag",
+      "ShinColleConfig hooks wired in GameplayCommandHandler, TargetWrenchItem, DeskTerminalMenu, DeskReferenceScreen, HostileEncounterSpawner, LegacyShipCombatHelper, MorphHelper, MarriageRingItem, ShinColleSoundHelper"
+    ],
+    "uiAndIntermod": [
+      "ShipKills tracking (ship + Rensouhou + Aircraft) & ShipInventoryMenu/Screen display",
+      "Raiden merged role label & en_us/zh_cn/zh_tw lang keys",
+      "Curios zero-compile-dep reflective soft-hook (TeitokuEvents.tickOptionalCuriosMarriageRing)",
+      "Metamorph native MorphHelper + MorphCompatBridge.NOOP/SoftDependencyBridge",
+      "IC2 replacement via RouteEnergyAccess + ForgeCapabilities.ITEM_HANDLER/FLUID_HANDLER"
+    ],
+    "historicalSourceGapClassIds": {
+      "count": 40,
+      "referenceAudit": "migration_batches/2026-09-04-ship-universe-audit/results/ship-universe-audit.json",
+      "entries": [
+        { "id": 4, "constant": "CLHO", "nameMap": "EntityLightCruiserHo" },
+        { "id": 5, "constant": "CLHE", "nameMap": "EntityLightCruiserHe" },
+        { "id": 6, "constant": "CLTO", "nameMap": "EntityLightCruiserTo" },
+        { "id": 7, "constant": "CLTSU", "nameMap": "EntityLightCruiserTsu" },
+        { "id": 8, "constant": "CLTCHI", "nameMap": "EntityLightCruiserChi" },
+        { "id": 11, "constant": "CVLNU", "nameMap": "EntityCarrierNu" },
+        { "id": 22, "constant": "ArmoredCVHime", "nameMap": "EntityArmoredCarrierHime" },
+        { "id": 23, "constant": "AnchorageHime", "nameMap": "EntityAnchorageHime" },
+        { "id": 24, "constant": "HarbourWD", "nameMap": "EntityHarbourWD" },
+        { "id": 25, "constant": "AnchorageWD", "nameMap": "EntityAnchorageWD" },
+        { "id": 32, "constant": "SouthernHime", "nameMap": "EntitySouthernHime" },
+        { "id": 34, "constant": "CLDemon", "nameMap": "EntityLightCruiserDemon" },
+        { "id": 35, "constant": "BBWD", "nameMap": "EntityBattleshipWD" },
+        { "id": 40, "constant": "STHime", "nameMap": "EntitySeaplaneHime" },
+        { "id": 41, "constant": "AirdefenseHime", "nameMap": "EntityAirdefenseHime" },
+        { "id": 42, "constant": "APMamiya", "nameMap": "EntityAPMamiya" },
+        { "id": 43, "constant": "CLHime", "nameMap": "EntityCLHime" },
+        { "id": 45, "constant": "DDWD", "nameMap": "EntityDestroyerWD" },
+        { "id": 50, "constant": "SupplyDepotHime", "nameMap": "EntitySDHime" },
+        { "id": 55, "constant": "Raiden", "nameMap": "Entity (merged form state only)" },
+        { "id": 64, "constant": "DDNA", "nameMap": "EntityDestroyerNa" },
+        { "id": 65, "constant": "DDAH", "nameMap": "EntityDestroyerAH" },
+        { "id": 66, "constant": "STWH", "nameMap": "EntitySeaplaneWH" },
+        { "id": 67, "constant": "NorthernWH", "nameMap": "EntityNorthernWH" },
+        { "id": 68, "constant": "JellyfishHime", "nameMap": "EntityJellyfishHime" },
+        { "id": 69, "constant": "EscortHime", "nameMap": "EntityEscortHime" },
+        { "id": 70, "constant": "EuropeanHime", "nameMap": "EntityEuropeanHime" },
+        { "id": 71, "constant": "CentralHime", "nameMap": "EntityCentralHime" },
+        { "id": 73, "constant": "FrenchHime", "nameMap": "EntityFrenchHime" },
+        { "id": 74, "constant": "NightStraitHime", "nameMap": "EntityNightStraitHime" },
+        { "id": 75, "constant": "EntombedAAHime", "nameMap": "EntityEntombedAAHime" },
+        { "id": 76, "constant": "NorthlandHime", "nameMap": "EntityNorthlandHime" },
+        { "id": 77, "constant": "SupplyDepotSH", "nameMap": "EntitySDSH" },
+        { "id": 78, "constant": "SSSH", "nameMap": "EntitySubmSH" },
+        { "id": 79, "constant": "BBSH", "nameMap": "EntityBattleshipSH" },
+        { "id": 80, "constant": "CASH", "nameMap": "EntityCASH" },
+        { "id": 81, "constant": "CVSH", "nameMap": "EntityCarrierSH" },
+        { "id": 82, "constant": "HarbourSH", "nameMap": "EntityHarbourSH" },
+        { "id": 83, "constant": "LycorisHime", "nameMap": "EntityLycorisHime" },
+        { "id": 84, "constant": "TwinHime", "nameMap": null }
+      ]
+    }
+  },
+  "checks": {
+    "gitDiffCheckExit": 0,
+    "legacySrcMainModified": false,
+    "gradleCommand": ".\\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon",
+    "gradleExit": 0,
+    "durationSeconds": 47,
+    "gameTests": {
+      "total": 289,
+      "passed": 289,
+      "failed": 0,
+      "skipped": 0,
+      "newTests": [
+        "b6SlashShipCommandsParity",
+        "b6DynamicLightBlocksSearchlightAndFlareDecay",
+        "b6SystemConfigPolyAsMnShipKillsAndRaidenLabel"
+      ]
+    }
+  }
+}

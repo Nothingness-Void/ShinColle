@@ -42,7 +42,7 @@ public class KaitaiHammerItem extends Item {
             return true;
         }
 
-        if (!ship.performKaitai(player, stack)) {
+        if (!ship.performKaitaiKill(player, stack)) {
             player.displayClientMessage(Component.translatable("chat.shincolle.entity.owner_locked",
                     Component.literal(ship.getOwnerName()).withStyle(ChatFormatting.GOLD)), true);
         }

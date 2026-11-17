@@ -46,6 +46,15 @@ public class LegacyMountEntity extends Entity {
     public static final int STYLE_MIDWAY = 6;
     public static final int STYLE_SUBMARINE = 7;
 
+    public static final int KEY_FORWARD = 1;
+    public static final int KEY_BACK = 2;
+    public static final int KEY_LEFT = 4;
+    public static final int KEY_RIGHT = 8;
+    public static final int KEY_JUMP = 16;
+
+    private int keyPressed;
+    private int keyTick;
+
     public LegacyMountEntity(EntityType<? extends LegacyMountEntity> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = false;
@@ -109,6 +118,11 @@ public class LegacyMountEntity extends Entity {
             return;
         }
 
+        if (com.lulan.shincolle.entity.ship.LegacyShipEntity.isStopAi()) {
+            this.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+
         Entity rider = this.getControllingPassenger();
         if (!(rider instanceof Player player)) {
             this.setDeltaMovement(this.getDeltaMovement().multiply(0.6D, 0.0D, 0.6D));
@@ -120,12 +134,48 @@ public class LegacyMountEntity extends Entity {
         this.yRotO = this.getYRot();
         this.setRot(this.getYRot(), this.getXRot());
 
-        Vec3 movement = resolveMovement(player);
+        Vec3 movement = this.keyTick > 0
+                ? resolveKeyMovement(player, this.keyPressed, player.isSprinting() ? 0.42D : 0.31D,
+                        this.onGround() || this.isInWater() || this.isInLava())
+                : resolveMovement(player);
+        if (this.keyTick > 0) {
+            this.keyTick--;
+        }
         this.setDeltaMovement(movement);
         this.move(MoverType.SELF, movement);
         if (!this.level().noCollision(this, this.getBoundingBox())) {
             this.setDeltaMovement(Vec3.ZERO);
         }
+    }
+
+    public void applyLegacyMountMove(int keyMask) {
+        this.keyPressed = keyMask;
+        this.keyTick = keyMask != 0 ? 10 : 0;
+    }
+
+    public int getKeyPressed() {
+        return this.keyPressed;
+    }
+
+    public int getKeyTick() {
+        return this.keyTick;
+    }
+
+    public static Vec3 resolveKeyMovement(Player rider, int keyMask, double speed, boolean jumpAllowed) {
+        float forward = ((keyMask & KEY_FORWARD) != 0 ? 1.0F : 0.0F)
+                - ((keyMask & KEY_BACK) != 0 ? 1.0F : 0.0F);
+        if (forward < 0.0F) {
+            forward *= 0.3F;
+        }
+        float strafe = (((keyMask & KEY_LEFT) != 0 ? 1.0F : 0.0F)
+                - ((keyMask & KEY_RIGHT) != 0 ? 1.0F : 0.0F)) * 0.8F;
+        float yawRadians = rider.getYRot() * ((float) Math.PI / 180.0F);
+        double sin = Mth.sin(yawRadians);
+        double cos = Mth.cos(yawRadians);
+        double moveX = (double) (strafe * cos - forward * sin) * speed;
+        double moveZ = (double) (forward * cos + strafe * sin) * speed;
+        double moveY = jumpAllowed && (keyMask & KEY_JUMP) != 0 ? 0.42D : 0.0D;
+        return new Vec3(moveX, moveY, moveZ);
     }
 
     @Override

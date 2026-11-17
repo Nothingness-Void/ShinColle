@@ -7,7 +7,7 @@
       "item": "shincolle:grudge"
     },
     {
-      "item": "minecraft:paper"
+      "tag": "forge:paper"
     }
   ],
   "result": {

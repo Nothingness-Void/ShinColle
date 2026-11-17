@@ -106,6 +106,14 @@ public class OwnerPaperItem extends Item {
             }
         }
 
+        for (ServerLevel serverLevel : level.getServer().getAllLevels()) {
+            for (ServerPlayer onlinePlayer : serverLevel.players()) {
+                if (TeitokuHelper.getPlayerUid(onlinePlayer) == targetUid) {
+                    return Optional.of(new Signer(targetUid, onlinePlayer.getUUID(), onlinePlayer.getGameProfile().getName()));
+                }
+            }
+        }
+
         return Optional.empty();
     }
 

@@ -82,6 +82,11 @@ final class MorphSpecialCatalog {
             case TATSUTA_CONTROL_AOE -> new Behavior(cooldown, MorphSpecialCatalog::performTatsutaSpecial);
             case HEAVY_CRUISER_BARRAGE -> new Behavior(cooldown, MorphSpecialCatalog::performHeavyCruiserSpecial);
             case KONGOU_COMBO -> new Behavior(cooldown, MorphSpecialCatalog::performKongouClassSpecial);
+            case BATTLESHIP_RU_BARRAGE -> null;
+            case BATTLESHIP_TA_RENSOUHOU -> null;
+            case SUBMARINE_HIME_DOUBLE_MISSILE -> null;
+            case CARRIER_HIME_MELEE_MISSILE -> null;
+            case NORTHERN_HIME_FLOATING_FORT -> null;
             case NONE -> null;
         };
     }

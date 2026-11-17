@@ -8,9 +8,13 @@ import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.menu.DeskReferenceMenu;
 import com.lulan.shincolle.morph.MorphRuntimeState;
+import com.lulan.shincolle.network.GameplayCommandType;
+import com.lulan.shincolle.network.ModNetwork;
+import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -30,7 +34,9 @@ import net.minecraft.world.item.ItemStack;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMenu> {
 
@@ -65,12 +71,38 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
     private int bookPage;
     private int radarZoomIndex;
     private int selectedRadarIndex = -1;
+    private int radarRefreshTick;
 
     public DeskReferenceScreen(DeskReferenceMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = 240;
         this.imageHeight = 194;
         this.inventoryLabelY = 1000;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        this.radarRefreshTick = 0;
+        if (this.menu.getVariant() == DeskReferenceMenu.RADAR_VARIANT) {
+            ModNetwork.sendToServer(new ServerboundGameplayCommandPacket(
+                    GameplayCommandType.REQUEST_DESK_RADAR,
+                    new net.minecraft.nbt.CompoundTag()));
+        }
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (this.menu.getVariant() == DeskReferenceMenu.RADAR_VARIANT) {
+            this.radarRefreshTick++;
+            if (this.radarRefreshTick >= Math.max(20, TeitokuHelper.getEffectiveRadarUpdateTicks(this.minecraft != null ? this.minecraft.level : null))) {
+                this.radarRefreshTick = 0;
+                ModNetwork.sendToServer(new ServerboundGameplayCommandPacket(
+                        GameplayCommandType.REQUEST_DESK_RADAR,
+                        new net.minecraft.nbt.CompoundTag()));
+            }
+        }
     }
 
     @Override
@@ -244,6 +276,7 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
             return List.of();
         }
         List<RadarContact> contacts = new ArrayList<>();
+        Set<String> seenKeys = new HashSet<>();
         int selfTeamId = data != null ? data.getPlayerUid() : 0;
         double maxRadius = RADAR_ZOOMS[0];
         double maxRadiusSq = maxRadius * maxRadius;
@@ -257,15 +290,19 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
             Relation relation = classifyRelation(ship, selfTeamId, ownTeam, player);
             int distance = Mth.floor((float) ship.distanceTo(player));
             String healthText = Mth.floor(ship.getHealth()) + "/" + Mth.floor(ship.getMaxHealth());
+            int sx = Mth.floor((float) ship.getX());
+            int sy = Mth.floor((float) ship.getY());
+            int sz = Mth.floor((float) ship.getZ());
+            seenKeys.add(radarContactKey(ContactKind.SHIP, sx, sy, sz));
             contacts.add(new RadarContact(
                     ship.getName().getString(),
                     distance,
                     healthText,
                     relation,
                     ContactKind.SHIP,
-                    Mth.floor((float) ship.getX()),
-                    Mth.floor((float) ship.getY()),
-                    Mth.floor((float) ship.getZ()),
+                    sx,
+                    sy,
+                    sz,
                     ship.getX() - player.getX(),
                     ship.getZ() - player.getZ()));
         }
@@ -276,23 +313,103 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                 item -> item.isAlive() && item.distanceToSqr(player) <= maxRadiusSq);
         for (ItemEntity item : items) {
             ItemStack stack = item.getItem();
+            int ix = Mth.floor((float) item.getX());
+            int iy = Mth.floor((float) item.getY());
+            int iz = Mth.floor((float) item.getZ());
+            seenKeys.add(radarContactKey(ContactKind.ITEM, ix, iy, iz));
             contacts.add(new RadarContact(
                     stack.isEmpty() ? "Item" : stack.getHoverName().getString(),
                     Mth.floor((float) item.distanceTo(player)),
                     "Stack: " + Math.max(1, stack.getCount()),
                     Relation.ITEM,
                     ContactKind.ITEM,
-                    Mth.floor((float) item.getX()),
-                    Mth.floor((float) item.getY()),
-                    Mth.floor((float) item.getZ()),
+                    ix,
+                    iy,
+                    iz,
                     item.getX() - player.getX(),
                     item.getZ() - player.getZ()));
         }
 
-        contacts.addAll(this.collectFacilityContacts(player));
+        for (RadarContact facility : this.collectFacilityContacts(player)) {
+            seenKeys.add(radarContactKey(facility.kind(), facility.x(), facility.y(), facility.z()));
+            contacts.add(facility);
+        }
+
+        for (TeitokuHelper.DeskRadarContactSnapshot snapshot : TeitokuHelper.getClientDeskRadarContacts()) {
+            ContactKind kind = parseSnapshotKind(snapshot.kind());
+            if (!seenKeys.add(radarContactKey(kind, snapshot.x(), snapshot.y(), snapshot.z()))) {
+                continue;
+            }
+            double relX = snapshot.x() + 0.5D - player.getX();
+            double relZ = snapshot.z() + 0.5D - player.getZ();
+            if (relX * relX + relZ * relZ > maxRadiusSq) {
+                continue;
+            }
+            double dy = snapshot.y() - player.getY();
+            int distance = Mth.floor((float) Math.sqrt(relX * relX + dy * dy + relZ * relZ));
+            Relation relation = classifySnapshotRelation(snapshot, selfTeamId, ownTeam);
+            contacts.add(new RadarContact(
+                    snapshot.name(),
+                    distance,
+                    snapshot.statusText(),
+                    relation,
+                    kind,
+                    snapshot.x(),
+                    snapshot.y(),
+                    snapshot.z(),
+                    relX,
+                    relZ));
+        }
 
         contacts.sort(Comparator.comparingInt(RadarContact::distance).thenComparing(RadarContact::name));
         return contacts;
+    }
+
+    private static String radarContactKey(ContactKind kind, int x, int y, int z) {
+        return kind.name() + ":" + x + ":" + y + ":" + z;
+    }
+
+    private static ContactKind parseSnapshotKind(String kind) {
+        if ("SHIP".equalsIgnoreCase(kind)) {
+            return ContactKind.SHIP;
+        }
+        if ("ITEM".equalsIgnoreCase(kind)) {
+            return ContactKind.ITEM;
+        }
+        if ("ROUTE".equalsIgnoreCase(kind)) {
+            return ContactKind.ROUTE;
+        }
+        return ContactKind.FACILITY;
+    }
+
+    private static Relation classifySnapshotRelation(TeitokuHelper.DeskRadarContactSnapshot snapshot,
+                                                     int selfTeamId,
+                                                     @Nullable TeamData ownTeam) {
+        if ("ITEM".equalsIgnoreCase(snapshot.kind())) {
+            return Relation.ITEM;
+        }
+        if ("ROUTE".equalsIgnoreCase(snapshot.kind()) || "FACILITY".equalsIgnoreCase(snapshot.kind())) {
+            if (ownTeam != null && snapshot.ownerUid() > 0 && snapshot.ownerUid() != selfTeamId
+                    && ownTeam.isAlly(snapshot.ownerUid())) {
+                return Relation.ALLY;
+            }
+            return Relation.OWN;
+        }
+        if (snapshot.hostile()) {
+            return Relation.HOSTILE;
+        }
+        if (selfTeamId > 0 && snapshot.ownerUid() == selfTeamId) {
+            return Relation.OWN;
+        }
+        if (ownTeam != null && snapshot.ownerUid() > 0) {
+            if (ownTeam.isBanned(snapshot.ownerUid())) {
+                return Relation.HOSTILE;
+            }
+            if (ownTeam.isAlly(snapshot.ownerUid())) {
+                return Relation.ALLY;
+            }
+        }
+        return Relation.NEUTRAL;
     }
 
     private List<RadarContact> collectFacilityContacts(Player player) {
@@ -783,8 +900,11 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
     }
 
     private List<String> getWorldBlockedClasses() {
-        if (this.minecraft == null || this.minecraft.getSingleplayerServer() == null || this.minecraft.player == null) {
+        if (this.minecraft == null || this.minecraft.player == null) {
             return List.of();
+        }
+        if (this.minecraft.getSingleplayerServer() == null) {
+            return List.copyOf(TeitokuHelper.getClientWorldUnattackableClasses());
         }
 
         var serverLevel = this.minecraft.getSingleplayerServer().getLevel(this.minecraft.player.level().dimension());

@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.ship.goal;
 
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -21,6 +22,7 @@ public class LegacyShipPickItemGoal extends Goal {
     private ItemEntity targetItem;
     private int nextSearchTick;
     private int timeToRecalcPath;
+    private int pickupCooldown;
 
     public LegacyShipPickItemGoal(LegacyShipEntity ship, double speedModifier) {
         this.ship = ship;
@@ -38,7 +40,7 @@ public class LegacyShipPickItemGoal extends Goal {
         }
 
         this.targetItem = this.findNearestItem();
-        this.nextSearchTick = this.ship.tickCount + this.adjustedTickDelay(12);
+        this.nextSearchTick = this.ship.tickCount + this.adjustedTickDelay(16);
         return this.targetItem != null;
     }
 
@@ -46,8 +48,7 @@ public class LegacyShipPickItemGoal extends Goal {
     public boolean canContinueToUse() {
         return this.canRunPickupLogic()
                 && this.targetItem != null
-                && this.targetItem.isAlive()
-                && this.hasCargoSpaceFor(this.targetItem.getItem());
+                && this.targetItem.isAlive();
     }
 
     @Override
@@ -70,11 +71,15 @@ public class LegacyShipPickItemGoal extends Goal {
         }
 
         if (--this.timeToRecalcPath <= 0) {
-            this.timeToRecalcPath = this.adjustedTickDelay(10);
+            this.timeToRecalcPath = this.adjustedTickDelay(16);
             this.ship.getNavigation().moveTo(this.targetItem, this.speedModifier);
         }
 
-        if (this.ship.distanceToSqr(this.targetItem) <= PICKUP_REACH_SQR) {
+        if (this.pickupCooldown > 0) {
+            this.pickupCooldown--;
+        }
+
+        if (this.pickupCooldown <= 0 && this.ship.distanceToSqr(this.targetItem) < PICKUP_REACH_SQR) {
             this.pickupTargetItem();
         }
     }
@@ -82,8 +87,11 @@ public class LegacyShipPickItemGoal extends Goal {
     private boolean canRunPickupLogic() {
         return this.ship.canExecuteCombatGoal()
                 && !this.ship.isHostileVariant()
-                && this.ship.isAiAutoSupply()
+                && LegacyShipBehaviorCatalog.supportsItemPickup(this.ship.getSpec())
+                && this.ship.isAiPickItem()
                 && !this.ship.isOrderedToSit()
+                && !this.ship.isPassenger()
+                && this.ship.getShipFuel() > 0
                 && !this.ship.hasActiveCommandState()
                 && this.ship.getTarget() == null
                 && this.hasAnyCargoSpace();
@@ -92,21 +100,7 @@ public class LegacyShipPickItemGoal extends Goal {
     private boolean hasAnyCargoSpace() {
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getShipInventory().getContainerSize(); slot++) {
             ItemStack stack = this.ship.getShipInventory().getItem(slot);
-            if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasCargoSpaceFor(ItemStack sourceStack) {
-        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getShipInventory().getContainerSize(); slot++) {
-            ItemStack current = this.ship.getShipInventory().getItem(slot);
-            if (current.isEmpty()) {
-                return true;
-            }
-            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
+            if (stack.isEmpty()) {
                 return true;
             }
         }
@@ -115,21 +109,26 @@ public class LegacyShipPickItemGoal extends Goal {
     }
 
     private @Nullable ItemEntity findNearestItem() {
-        double range = Math.min(24.0D,
-                Math.max(6.0D, this.ship.getAiFollowRange() * 0.75D + this.ship.getCompatAttackRange() * 0.35D));
+        double pickupRangeBase = LegacyShipBehaviorCatalog.pickupRangeBaseFor(this.ship.getSpec());
+        double range = Math.min(pickupRangeBase + this.ship.getAiFollowRange(),
+                pickupRangeBase + this.ship.getCompatAttackRange() * 0.5D);
         List<ItemEntity> nearbyItems = this.ship.level().getEntitiesOfClass(ItemEntity.class,
                 this.ship.getBoundingBox().inflate(range, range * 0.5D + 1.0D, range),
                 item -> item != null
                         && item.isAlive()
-                        && !item.hasPickUpDelay()
-                        && !item.getItem().isEmpty()
-                        && this.hasCargoSpaceFor(item.getItem()));
+                        && !item.getItem().isEmpty());
         nearbyItems.sort(Comparator.comparingDouble(this.ship::distanceToSqr));
         return nearbyItems.isEmpty() ? null : nearbyItems.get(0);
     }
 
     private void pickupTargetItem() {
         if (this.targetItem == null) {
+            return;
+        }
+
+        this.pickupCooldown = this.getPickupCooldown();
+        if (this.targetItem.hasPickUpDelay()) {
+            this.ship.getNavigation().stop();
             return;
         }
 
@@ -153,12 +152,19 @@ public class LegacyShipPickItemGoal extends Goal {
         stack.shrink(moved);
         this.ship.take(this.targetItem, moved);
         this.ship.level().playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
-                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), 0.2F,
+                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), 1.0F,
                 ((this.ship.getRandom().nextFloat() - this.ship.getRandom().nextFloat()) * 0.7F + 1.0F) * 2.0F);
+        this.ship.playLegacyItemPickupVoice();
+        this.ship.addShipExperience(LegacyShipBehaviorCatalog.pickupExperience());
 
         if (stack.isEmpty()) {
             this.targetItem.discard();
             this.targetItem = null;
         }
+    }
+
+    private int getPickupCooldown() {
+        float attackSpeed = Math.max(1.0F, this.ship.getLegacyStats().attackSpeed());
+        return Math.max(0, (int) (10.0F / attackSpeed));
     }
 }

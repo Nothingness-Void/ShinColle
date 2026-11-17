@@ -1,0 +1,60 @@
+{
+  "batch": "SHIP-09",
+  "status": "COMPLETE",
+  "date": "2026-09-04",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [60, 61, 62, 63, 72],
+  "focus": [
+    "Kongou-family runtime, combat, aura and hostile cannon boundaries",
+    "legacy battleship model showEquip state and parser/bake path",
+    "SSNH dual missile, depth, morale and riding state",
+    "shared heavy miss boundary"
+  ],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "cleanProcessResources": 0,
+    "processResources": 0,
+    "runGameTestServer": 0,
+    "verifyItemModelCoverage": "NOT_REQUIRED_MODEL_STATE_ONLY"
+  },
+  "gameTests": {
+    "required": 265,
+    "passed": 265,
+    "failed": 0,
+    "focused": [
+      "ship09KongouFamilyModelsAndRuntimeBoundariesMatchLegacy",
+      "kongouFamilyFiveShipCombatHooksKeepLegacyCannonFeedback",
+      "hostileDestroyerAndKongouModelStatesKeepLegacyDefaults",
+      "catalogHeavyMissesRemainProjectileOnly",
+      "submarineHimeKeepsLegacyGeometryAndRingBehavior",
+      "ssnhLightAttackLaunchesDoubleMissile"
+    ]
+  },
+  "clientSmoke": {
+    "status": "STARTUP_RESOURCE_RELOAD_AND_MODEL_LOG_GATE_PASS",
+    "java": "17.0.3.1",
+    "gl": "NVIDIA GeForce RTX 5060 / OpenGL 4.6",
+    "shincolleInitialization": "PASS",
+    "resourceReload": "PASS",
+    "modelTextureFallbackErrors": 0,
+    "modelBakeErrors": 0,
+    "shincolleErrorScan": "PASS",
+    "knownNonBlockingWarnings": [
+      "vanilla goat horn sound entries",
+      "Realms authorization parse",
+      "rendertype_entity_translucent_emissive sampler"
+    ],
+    "inWorldManualInteraction": "NOT_PERFORMED_NATIVE_WINDOW_NOT_EXPOSED",
+    "processExit": "INTERRUPTED_AFTER_SMOKE",
+    "log": "run/logs/latest.log"
+  },
+  "noLegacyChanges": true,
+  "notes": [
+    "The four Kongou-family showEquip branches now route through LegacyShipModelStateCatalog and the existing parser/bake path.",
+    "The hostile Hiei engine point now uses the legacy scale-dependent Y coordinate and particle scale.",
+    "SSNH uses the existing legacy pending-target riding state, including fuel, timeout, path and passenger boundaries.",
+    "The current catalog heavy-miss path already preserves projectile-style miss semantics; no duplicate fix was added.",
+    "Manual in-world inspection remains V0 because the native window was not exposed to automation."
+  ]
+}

@@ -9,7 +9,11 @@ public enum ShipCommandAction {
     SET_FOLLOW_RANGE,
     TOGGLE_SIT,
     OPEN_SHIP_INVENTORY,
-    TOGGLE_RING_EFFECT;
+    TOGGLE_RING_EFFECT,
+    SET_WAYPOINT_STAY,
+    SET_TIME_KEEPER,
+    SET_AUTO_PUMP,
+    SET_COMBAT_RATION_LEVEL;
 
     public static ShipCommandAction fromOrdinal(int ordinal) {
         ShipCommandAction[] values = values();

@@ -1,0 +1,19 @@
+{
+  "batch": "SHIP-01",
+  "date": "2026-09-03",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [0, 1, 2, 3, 9],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 250,
+    "passed": 250,
+    "failed": 0
+  },
+  "clientSmoke": "not_applicable",
+  "log": "run/logs/latest.log"
+}

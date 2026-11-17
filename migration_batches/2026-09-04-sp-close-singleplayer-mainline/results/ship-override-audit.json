@@ -1,0 +1,95 @@
+{
+  "batch": "SP-CLOSE",
+  "audit": "concrete-ship-override-inventory",
+  "date": "2026-09-04",
+  "legacyReadOnly": true,
+  "legacyRoots": [
+    "src/main/java/com/lulan/shincolle/entity/battleship",
+    "src/main/java/com/lulan/shincolle/entity/carrier",
+    "src/main/java/com/lulan/shincolle/entity/cruiser",
+    "src/main/java/com/lulan/shincolle/entity/destroyer",
+    "src/main/java/com/lulan/shincolle/entity/hime",
+    "src/main/java/com/lulan/shincolle/entity/submarine",
+    "src/main/java/com/lulan/shincolle/entity/transport"
+  ],
+  "inventory": {
+    "friendlyConcreteClasses": 45,
+    "hostileMobVariants": 19,
+    "modernSpecRows": 45,
+    "matrixLockedRows": 45,
+    "matrixNextRows": 0,
+    "matrixPartialRows": 0,
+    "status": "COVERAGE_ALIGNED"
+  },
+  "comparisons": [
+    {
+      "domain": "constructor-and-attack-profile",
+      "legacyEntrypoints": ["constructor", "getEquipType", "setAIList", "attack-type flags", "model state"],
+      "modernEntrypoints": ["ShipEntitySpecs", "LegacyShipAttackProfile", "LegacyShipBehaviorCatalog.attackProfile", "LegacyShipEntity.refreshFromVariant"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "carrier-aircraft",
+      "classIds": [21, 28, 29, 30, 31, 33, 47, 48],
+      "legacyEntrypoints": ["calcShipAttributesAddRaw", "getAttackAirplane", "applySoundAtAttacker", "onLivingUpdate"],
+      "modernEntrypoints": ["aircraftLightCapacityFor", "aircraftHeavyCapacityFor", "usesLegacySpecialCarrierAirframe", "usesLegacyCarrierAircraftBowSound", "tickLegacyClientBehavior"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "hime-passives-and-mounts",
+      "classIds": [20, 21, 26, 27, 28, 29, 30, 31, 33],
+      "legacyEntrypoints": ["onLivingUpdate", "hasShipMounts", "summonMountEntity", "getAttackBaseDamage"],
+      "modernEntrypoints": ["tickHimeBehavior", "tickLegacyShipMountBehavior", "LegacyShipMountEntity", "meleeDamageMultiplierFor", "heavyDamageMultiplierFor"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "special-combat-hooks",
+      "classIds": [13, 14, 20, 31, 36, 37, 44, 46, 56, 57, 58, 59, 60, 61, 62, 63, 72],
+      "legacyEntrypoints": ["attackEntityWithAmmo", "attackEntityWithHeavyAmmo", "attackEntityAsMob", "updateSkillAttack", "summonMissile"],
+      "modernEntrypoints": ["entityCombatHookForClassId", "performCombatHook", "performBlockTargetCombatHook", "LegacyShipAttackProfile", "LegacyShipProjectileEntity"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "destroyer-rider-and-gattai",
+      "classIds": [51, 52, 53, 54],
+      "legacyEntrypoints": ["tryGattai", "tryRaidenGattai", "checkRiderType", "checkRidingState", "updateFuelState"],
+      "modernEntrypoints": ["tickLegacyRiderBehavior", "trySixDestroyerGattai", "tryRaidenGattai", "tickHostileRaidenBehavior", "dismountSixDestroyerRiders"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "submarine-and-transport-runtime",
+      "classIds": [16, 17, 18, 19, 38, 39, 44, 72],
+      "legacyEntrypoints": ["consumeSupplyItems", "attackEntityWithAmmo", "summonMissile", "getInvisibleLevel", "getEntityFloatingDepth"],
+      "modernEntrypoints": ["tickTransportWaBehavior", "consumeTransportSupply", "tickSubmarineInvisibilityBehavior", "tickSubmarineHimeBehavior", "legacySubmarineProjectileMoveTypeFor"],
+      "status": "MATCHED"
+    },
+    {
+      "domain": "cruiser-reaction-and-post-hit-motion",
+      "classIds": [9, 10, 15, 58, 59],
+      "legacyEntrypoints": ["attackEntityFrom", "findTargetPush", "applyAttackPostMotion", "calcShipAttributesAddEquip"],
+      "modernEntrypoints": ["attackerReactionEffectFor", "tickLegacyPushBehavior", "applyLegacyPostAttackMotion", "usesBlackHoleHeavyMissile"],
+      "status": "MATCHED"
+    }
+  ],
+  "unresolved": [
+    {
+      "domain": "optional-legacy-config-switches",
+      "examples": ["Mode_Easy", "Attack_Player_ShipMob"],
+      "status": "PARITY_BACKLOG",
+      "reason": "The single-player mainline uses the legacy default behavior; exposing every historical config switch is outside this closure batch."
+    },
+    {
+      "domain": "real-client-in-world-acceptance",
+      "status": "PENDING_NATIVE_CLIENT",
+      "reason": "The current automation environment has no accessible Minecraft native window."
+    }
+  ],
+  "codeChange": "NONE",
+  "verification": {
+    "staticAudit": "PASS",
+    "requiredGameTests": 266,
+    "lastGameTestResult": "All 266 required tests passed",
+    "legacyJavaDiff": "EMPTY",
+    "legacyResourceDiff": "EMPTY"
+  }
+}

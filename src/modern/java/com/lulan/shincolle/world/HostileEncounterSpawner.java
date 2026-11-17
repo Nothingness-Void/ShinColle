@@ -1,6 +1,7 @@
 package com.lulan.shincolle.world;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.registry.ModEntityTypes;
@@ -97,7 +98,7 @@ public final class HostileEncounterSpawner {
             return;
         }
 
-        teitokuData.setBossCooldown(LEGACY_BOSS_COOLDOWN);
+        teitokuData.setBossCooldown(ShinColleConfig.bossCooldown());
         if (level.getRandom().nextInt(4) != 0) {
             TeitokuHelper.syncGameplayState(player);
             return;
@@ -113,10 +114,12 @@ public final class HostileEncounterSpawner {
             }
 
             boolean spawnedBoss = false;
-            for (int i = 0; i < LEGACY_BOSS_GROUPS; i++) {
+            int bossGroups = ShinColleConfig.spawnBossNum();
+            int escortGroups = ShinColleConfig.spawnMobNum();
+            for (int i = 0; i < bossGroups; i++) {
                 spawnedBoss |= spawnEncounterAt(level, anchor, player, HostileEncounterTable.bossProfile(level.getRandom())) != null;
             }
-            for (int i = 0; i < LEGACY_ESCORT_GROUPS; i++) {
+            for (int i = 0; i < escortGroups; i++) {
                 spawnEncounterAt(level, anchor, player, HostileEncounterTable.commonProfile(level.getRandom()));
             }
 

@@ -1,5 +1,6 @@
 package com.lulan.shincolle.sound;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -32,7 +33,7 @@ public final class ShinColleSoundHelper {
     }
 
     public static void playShipVoice(Level level, @Nullable Player player, ShipSoundType type, float volume, float pitch) {
-        playForPlayer(level, player, getShipVoice(type), volume, pitch);
+        playForPlayer(level, player, getShipVoice(type), volume * ShinColleConfig.volumeShip(), pitch);
     }
 
     public static float variedPitch(Player player, float center, float spread) {

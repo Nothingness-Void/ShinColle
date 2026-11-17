@@ -1,0 +1,9 @@
+{
+  "batch": "2026-09-02-hostile-target-audit",
+  "status": "audited-no-change",
+  "date": "2026-09-02",
+  "code_change": false,
+  "client_smoke": false,
+  "static_result": "legacy target/actionbar paths mapped to existing modern filters",
+  "open_user_report": "hostile boss pursuit feels too persistent in creative flight"
+}

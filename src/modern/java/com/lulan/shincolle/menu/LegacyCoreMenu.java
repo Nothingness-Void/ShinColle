@@ -46,7 +46,7 @@ public class LegacyCoreMenu extends AbstractContainerMenu {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 int slotIndex = col + row * 3;
-                this.addSlot(new SlotItemHandler(items, slotIndex, 18 + col * 18, 22 + row * 18) {
+                this.addSlot(new SlotItemHandler(items, slotIndex, 62 + col * 18, 19 + row * 18) {
                     @Override
                     public boolean mayPlace(ItemStack stack) {
                         LegacyCoreAccess core = LegacyCoreMenu.this.getCore();
@@ -58,12 +58,12 @@ public class LegacyCoreMenu extends AbstractContainerMenu {
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 92 + row * 18));
+                this.addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
             }
         }
 
         for (int hotbarSlot = 0; hotbarSlot < 9; hotbarSlot++) {
-            this.addSlot(new Slot(inventory, hotbarSlot, 8 + hotbarSlot * 18, 150));
+            this.addSlot(new Slot(inventory, hotbarSlot, 8 + hotbarSlot * 18, 142));
         }
     }
 

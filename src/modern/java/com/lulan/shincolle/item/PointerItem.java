@@ -1,6 +1,7 @@
 package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
@@ -74,11 +75,25 @@ public class PointerItem extends Item {
             return InteractionResult.sidedSuccess(player.level().isClientSide());
         }
 
-        sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
-                getCommandMode(mode),
-                ServerboundShipCommandPacket.NO_ENTITY,
-                ServerboundShipCommandPacket.NO_UID,
-                context.getClickedPos()));
+        net.minecraft.core.BlockPos targetPos = context.getClickedPos();
+        if (context.getLevel().getFluidState(targetPos).isEmpty()
+                && !(context.getLevel().getBlockEntity(targetPos) instanceof RouteNode)) {
+            targetPos = targetPos.relative(context.getClickedFace());
+        }
+
+        if (player.isSprinting()) {
+            sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
+                    getCommandMode(mode),
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID,
+                    targetPos));
+        } else {
+            sendShipCommand(player, ServerboundShipCommandPacket.guardBlock(
+                    getCommandMode(mode),
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID,
+                    targetPos));
+        }
         return InteractionResult.sidedSuccess(player.level().isClientSide());
     }
 
@@ -114,11 +129,18 @@ public class PointerItem extends Item {
         }
 
         if (shouldMoveToEntity(player, interactionTarget)) {
-            sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
+            ServerboundShipCommandPacket command = player.isSprinting()
+                    ? ServerboundShipCommandPacket.moveTo(
                     commandMode,
                     ServerboundShipCommandPacket.NO_ENTITY,
                     ServerboundShipCommandPacket.NO_UID,
-                    interactionTarget.blockPosition()));
+                    interactionTarget.blockPosition())
+                    : ServerboundShipCommandPacket.guardBlock(
+                    commandMode,
+                    ServerboundShipCommandPacket.NO_ENTITY,
+                    ServerboundShipCommandPacket.NO_UID,
+                    interactionTarget.blockPosition());
+            sendShipCommand(player, command);
             return InteractionResult.CONSUME;
         }
 

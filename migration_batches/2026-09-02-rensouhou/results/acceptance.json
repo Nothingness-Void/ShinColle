@@ -1,0 +1,15 @@
+{
+  "batch": "2026-09-02-rensouhou",
+  "status": "passed",
+  "date": "2026-09-02",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "commands": [
+    "git diff --check",
+    ".\\gradlew.bat compileJava",
+    ".\\gradlew.bat processResources",
+    ".\\gradlew.bat runGameTestServer"
+  ],
+  "required_tests": 248,
+  "client_smoke": false,
+  "log": "build/batch-rensouhou-final.log"
+}

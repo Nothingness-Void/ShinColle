@@ -68,6 +68,10 @@ public final class LegacyStaticModel {
         poseStack.popPose();
     }
 
+    public void renderRaw(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay) {
+        this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
     private static LegacyStaticModel bake(LegacyModelDefinition definition) {
         MeshDefinition meshDefinition = new MeshDefinition();
         PartDefinition rootDefinition = meshDefinition.getRoot();

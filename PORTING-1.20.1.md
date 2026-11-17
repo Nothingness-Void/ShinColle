@@ -4,7 +4,7 @@ This branch is the first staged port from Minecraft 1.12.2 to Minecraft 1.20.1 o
 
 Before continuing any migration work, re-read `PORTING-MISTAKES.md`.
 That file is the persistent guardrail for mistakes already made during this port.
-For the newest implementation handoff, read `AI-HANDOFF.md`.
+For the current implementation state and next task, read `CURRENT_STATE.md` and `ROADMAP.md`.
 
 ## What changed in this baseline
 

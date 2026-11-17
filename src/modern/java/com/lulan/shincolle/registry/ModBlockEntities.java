@@ -5,6 +5,7 @@ import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
 import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
+import com.lulan.shincolle.blockentity.LightBlockEntity;
 import com.lulan.shincolle.blockentity.PolymetalServantBlockEntity;
 import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
@@ -31,6 +32,10 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(LegacyCoreBlockEntity::newVolCore, ModBlocks.BLOCK_VOL_CORE.get()).build(null));
     public static final RegistryObject<BlockEntityType<WaypointBlockEntity>> WAYPOINT = BLOCK_ENTITIES.register("waypoint",
             () -> BlockEntityType.Builder.of(WaypointBlockEntity::new, ModBlocks.BLOCK_WAYPOINT.get()).build(null));
+    public static final RegistryObject<BlockEntityType<LightBlockEntity>> LIGHT_BLOCK = BLOCK_ENTITIES.register("light_block",
+            () -> BlockEntityType.Builder.of(LightBlockEntity::new,
+                    ModBlocks.BLOCK_LIGHT_AIR.get(),
+                    ModBlocks.BLOCK_LIGHT_LIQUID.get()).build(null));
 
     private ModBlockEntities() {
     }

@@ -65,12 +65,28 @@ public class TeamSavedData extends SavedData {
             return new TeamData();
         }
 
+        if (leaderName != null && !leaderName.isBlank()) {
+            this.removeStaleTeamsByLeaderName(teamId, leaderName);
+        }
+
         TeamData team = this.getOrCreateTeam(teamId, leaderName);
         if (teamName != null && !teamName.isBlank()) {
             team.setTeamName(teamName.trim());
             this.setDirty();
         }
         return team;
+    }
+
+    private void removeStaleTeamsByLeaderName(int keepTeamId, String leaderName) {
+        java.util.List<Integer> staleIds = new java.util.ArrayList<>();
+        for (TeamData existing : this.teamById.values()) {
+            if (existing.getTeamId() != keepTeamId && leaderName.equals(existing.getLeaderName())) {
+                staleIds.add(existing.getTeamId());
+            }
+        }
+        for (int staleId : staleIds) {
+            this.removeTeam(staleId);
+        }
     }
 
     public boolean removeTeam(int teamId) {

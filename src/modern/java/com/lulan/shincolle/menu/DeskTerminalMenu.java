@@ -192,7 +192,8 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
     @Override
     public boolean stillValid(Player player) {
         if (player.level().getBlockEntity(this.deskPos) instanceof DeskBlockEntity) {
-            return player.distanceToSqr(this.deskPos.getX() + 0.5D, this.deskPos.getY() + 0.5D, this.deskPos.getZ() + 0.5D) <= 64.0D;
+            return player.distanceToSqr(this.deskPos.getX() + 0.5D, this.deskPos.getY() + 0.5D, this.deskPos.getZ() + 0.5D)
+                    <= (double) TeitokuHelper.getEffectiveCloseGuiDist(player.level());
         }
         // Allow detached desk terminal sessions opened by command items.
         return true;

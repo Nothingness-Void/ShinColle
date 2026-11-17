@@ -5,7 +5,8 @@ public enum LegacyShipProjectileMoveType {
     DIRECT,
     ARC,
     GUIDED,
-    DROP;
+    DROP,
+    TORPEDO;
 
     public static LegacyShipProjectileMoveType byOrdinal(int ordinal) {
         LegacyShipProjectileMoveType[] values = values();

@@ -1,0 +1,47 @@
+{
+  "batch_id": "B5-ORE-TAGS",
+  "date": "2026-11-16",
+  "status": "DONE",
+  "base_commit": "3c9fe42d",
+  "legacy_dirty": false,
+  "checks": {
+    "git_diff_check": "PASS (exit 0)",
+    "cleanProcessResources": "PASS",
+    "processResources": "PASS",
+    "compileJava": "PASS",
+    "verifyItemModelCoverage": "PASS",
+    "runGameTestServer": "PASS (94/94 passed, 0 failed, 0 skipped)",
+    "client_smoke": "DEFERRED (GUI coordinates/UV checked statically; interactive client not launched)"
+  },
+  "added_tests": [
+    "b5OreTagResourcesAndConditionalRecipesParity",
+    "b5LegacyOreTagRecipesParity",
+    "b5CraneAndTaskOreTagFilterMatchingParity"
+  ],
+  "updated_tests": [
+    "forgeTagsMirrorLegacyOreDictionaryDefaults",
+    "growthEntryRecipesResolveAndCraft",
+    "combatRationCookedMeatTagOnlyAcceptsCookedInputs"
+  ],
+  "scope_summary": {
+    "forge_tag_files_added": 9,
+    "recipes_updated": 18,
+    "recipes_added_active": 13,
+    "recipes_added_conditional": 13,
+    "java_files_added": [
+      "src/modern/java/com/lulan/shincolle/crafting/LegacyItemMatchHelper.java"
+    ],
+    "java_files_updated": [
+      "src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java",
+      "src/modern/java/com/lulan/shincolle/menu/CraneTerminalMenu.java",
+      "src/modern/java/com/lulan/shincolle/client/screen/CraneTerminalScreen.java",
+      "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java",
+      "src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java"
+    ],
+    "lang_files_updated": [
+      "src/modern/resources/assets/shincolle/lang/en_us.json",
+      "src/modern/resources/assets/shincolle/lang/zh_cn.json",
+      "src/modern/resources/assets/shincolle/lang/zh_tw.json"
+    ]
+  }
+}

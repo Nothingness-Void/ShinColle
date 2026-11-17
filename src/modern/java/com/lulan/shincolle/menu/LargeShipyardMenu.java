@@ -52,17 +52,11 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
         checkContainerDataCount(data, 8);
         this.addDataSlots(data);
 
-        boolean genericInventory = this.getShipyard() != null && this.getShipyard().usesGenericInventory();
+        boolean genericInventory = this.getShipyard() == null || this.getShipyard().usesGenericInventory();
         this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_OUTPUT, 168, 51, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_FUEL, 9, 83, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_GRUDGE_A, 25, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_GRUDGE_B, 43, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_ABYSSIUM_A, 61, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_ABYSSIUM_B, 79, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_AMMO_A, 97, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_AMMO_B, 115, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_POLYMETAL_A, 133, 116, genericInventory));
-        this.addSlot(new LargeShipyardSlot(items, LargeShipyardRecipes.SLOT_POLYMETAL_B, 151, 116, genericInventory));
+        for (int i = 1; i <= 9; i++) {
+            this.addSlot(new LargeShipyardSlot(items, i, 7 + i * 18, 116, genericInventory));
+        }
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
@@ -258,7 +252,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
         } else {
             boolean moved = false;
             LargeShipyardAccess shipyard = this.getShipyard();
-            if (shipyard != null && shipyard.usesGenericInventory()) {
+            if (shipyard == null || shipyard.usesGenericInventory()) {
                 moved = this.moveItemStackTo(stack, LargeShipyardRecipes.SLOT_FUEL, TILE_SLOT_COUNT, false);
             } else {
                 int material = LargeShipyardRecipes.materialSlot(stack);

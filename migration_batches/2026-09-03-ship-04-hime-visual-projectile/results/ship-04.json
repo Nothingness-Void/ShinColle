@@ -1,0 +1,40 @@
+{
+  "batch": "SHIP-04",
+  "status": "COMPLETE",
+  "date": "2026-09-03",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [21, 26, 27, 28, 29],
+  "focus": ["hime model source/bake", "model state bits", "aircraft visuals", "cluster missile", "railgun", "black-hole static effect", "feedback boundary"],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "cleanProcessResources": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 256,
+    "passed": 256,
+    "failed": 0,
+    "focused": [
+      "ship04HimeLegacySourcesAndProjectileFamilies",
+      "ship04HimeModelStateUsesLegacyShowEquipBits"
+    ]
+  },
+  "clientSmoke": {
+    "status": "STARTUP_RESOURCE_RELOAD_PASS",
+    "java": "17.0.3.1",
+    "gl": "NVIDIA GeForce RTX 5060 / OpenGL 4.6",
+    "shincolleInitialization": "PASS",
+    "resourceReload": "PASS",
+    "modelTextureFallbackErrors": 0,
+    "inWorldManualInteraction": "NOT_PERFORMED_NATIVE_WINDOW_NOT_EXPOSED",
+    "log": "run/logs/latest.log"
+  },
+  "noLegacyChanges": true,
+  "notes": [
+    "Harbour Hime legacy type-2 railgun head uses the appended LEGACY_RAILGUN particle type; existing particle ordinals are preserved.",
+    "The old render path maps EntityAbyssMissile type-2 to the shared missile model, so no new projectile model was invented.",
+    "In-world client interaction remains a V0 manual follow-up because the desktop automation surface did not expose the native Minecraft window."
+  ]
+}

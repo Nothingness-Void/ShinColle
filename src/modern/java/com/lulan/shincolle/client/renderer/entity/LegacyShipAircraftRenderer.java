@@ -3,6 +3,7 @@ package com.lulan.shincolle.client.renderer.entity;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.client.model.legacy.LegacyStaticModel;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -21,12 +22,16 @@ import java.util.Map;
 
 public class LegacyShipAircraftRenderer extends EntityRenderer<LegacyShipAircraftEntity> {
 
+    private static final ResourceLocation MODEL_AIRPLANE = ResourceLocation.fromNamespaceAndPath(
+            ShinColle.MOD_ID, "legacy_model_sources/modelairplane.java");
     private static final ResourceLocation MODEL_AIRPLANE_ZERO = ResourceLocation.fromNamespaceAndPath(
             ShinColle.MOD_ID, "legacy_model_sources/modelairplanezero.java");
     private static final ResourceLocation MODEL_AIRPLANE_T = ResourceLocation.fromNamespaceAndPath(
             ShinColle.MOD_ID, "legacy_model_sources/modelairplanet.java");
     private static final ResourceLocation MODEL_TAKOYAKI = ResourceLocation.fromNamespaceAndPath(
             ShinColle.MOD_ID, "legacy_model_sources/modeltakoyaki.java");
+    private static final ResourceLocation TEXTURE_AIRPLANE = ResourceLocation.fromNamespaceAndPath(
+            ShinColle.MOD_ID, "textures/entity/entityaircraft.png");
     private static final ResourceLocation TEXTURE_AIRPLANE_ZERO = ResourceLocation.fromNamespaceAndPath(
             ShinColle.MOD_ID, "textures/entity/entityairplanezero.png");
     private static final ResourceLocation TEXTURE_AIRPLANE_T = ResourceLocation.fromNamespaceAndPath(
@@ -36,9 +41,11 @@ public class LegacyShipAircraftRenderer extends EntityRenderer<LegacyShipAircraf
 
     private final Map<LegacyShipProjectileVisual, LegacyStaticModel> models =
             new EnumMap<>(LegacyShipProjectileVisual.class);
+    private final LegacyStaticModel genericAirplaneModel;
 
     public LegacyShipAircraftRenderer(EntityRendererProvider.Context context) {
         super(context);
+        this.genericAirplaneModel = LegacyStaticModel.load("ModelAirplane", MODEL_AIRPLANE);
         this.models.put(LegacyShipProjectileVisual.AIRPLANE,
                 LegacyStaticModel.load("ModelAirplaneZero", MODEL_AIRPLANE_ZERO));
         this.models.put(LegacyShipProjectileVisual.TORPEDO,
@@ -63,17 +70,24 @@ public class LegacyShipAircraftRenderer extends EntityRenderer<LegacyShipAircraf
         poseStack.scale(renderScale, renderScale, renderScale);
 
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(this.getTextureLocation(entity)));
-        this.modelFor(visual).render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
+        this.modelFor(entity, visual).render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }
 
     @Override
     public ResourceLocation getTextureLocation(LegacyShipAircraftEntity entity) {
-        return textureFor(entity.getProjectileVisual());
+        return textureFor(entity, entity.getProjectileVisual());
     }
 
-    private LegacyStaticModel modelFor(LegacyShipProjectileVisual visual) {
+    private LegacyStaticModel modelFor(LegacyShipAircraftEntity entity, LegacyShipProjectileVisual visual) {
+        if (visual == LegacyShipProjectileVisual.AIRPLANE && !entity.usesLegacySpecialCarrierAirframe()) {
+            return this.genericAirplaneModel;
+        }
+        if (entity.usesLegacySpecialCarrierAirframe()
+                && entity.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY) {
+            return this.models.get(LegacyShipProjectileVisual.TORPEDO);
+        }
         return switch (visual) {
             case TORPEDO -> this.models.get(LegacyShipProjectileVisual.TORPEDO);
             case BOMB -> this.models.get(LegacyShipProjectileVisual.BOMB);
@@ -81,7 +95,15 @@ public class LegacyShipAircraftRenderer extends EntityRenderer<LegacyShipAircraf
         };
     }
 
-    private static ResourceLocation textureFor(LegacyShipProjectileVisual visual) {
+    private static ResourceLocation textureFor(LegacyShipAircraftEntity entity,
+                                               LegacyShipProjectileVisual visual) {
+        if (visual == LegacyShipProjectileVisual.AIRPLANE && !entity.usesLegacySpecialCarrierAirframe()) {
+            return TEXTURE_AIRPLANE;
+        }
+        if (entity.usesLegacySpecialCarrierAirframe()
+                && entity.getAttackKind() == LegacyShipAttackKind.AIR_HEAVY) {
+            return TEXTURE_AIRPLANE_T;
+        }
         return switch (visual) {
             case TORPEDO -> TEXTURE_AIRPLANE_T;
             case BOMB -> TEXTURE_TAKOYAKI;

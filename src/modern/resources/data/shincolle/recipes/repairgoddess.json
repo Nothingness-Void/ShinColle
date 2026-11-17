@@ -4,7 +4,7 @@
   "group": "shincolle_growth_upgrade",
   "key": {
     "d": {
-      "item": "minecraft:diamond_block"
+      "tag": "forge:storage_blocks/diamond"
     },
     "g": {
       "item": "shincolle:blockgrudge"

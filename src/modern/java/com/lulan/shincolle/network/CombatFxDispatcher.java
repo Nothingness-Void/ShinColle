@@ -42,6 +42,14 @@ public final class CombatFxDispatcher {
     public static void sendParticle(Entity reference, GameplayParticleType particleType,
                                     double x, double y, double z,
                                     double velocityX, double velocityY, double velocityZ) {
+        sendParticle(reference, particleType, x, y, z, velocityX, velocityY, velocityZ, 0);
+    }
+
+    /** Sends a legacy particle family with its old integer subtype preserved. */
+    public static void sendParticle(Entity reference, GameplayParticleType particleType,
+                                    double x, double y, double z,
+                                    double velocityX, double velocityY, double velocityZ,
+                                    int variant) {
         if (!(reference.level() instanceof ServerLevel)) {
             return;
         }
@@ -49,8 +57,16 @@ public final class CombatFxDispatcher {
         ClientboundSpawnParticlePacket packet = new ClientboundSpawnParticlePacket(
                 particleType,
                 x, y, z,
-                velocityX, velocityY, velocityZ);
+                velocityX, velocityY, velocityZ,
+                variant);
         ModNetwork.sendToTrackingAndSelf(reference, packet);
+    }
+
+    /** Mirrors BasicEntityShip.applyParticleEmotion through the modern particle bus. */
+    public static void sendLegacyEmotion(Entity reference, int legacyEmotionType) {
+        sendParticle(reference, GameplayParticleType.LEGACY_EMOTION,
+                reference.getX(), reference.getY() + reference.getBbHeight() * 0.45D, reference.getZ(),
+                0.0D, 0.0D, 0.0D, legacyEmotionType);
     }
 }
 

@@ -1,0 +1,57 @@
+{
+  "batch": "SHIP-05",
+  "status": "COMPLETE",
+  "date": "2026-09-04",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [30, 31, 33, 36, 37],
+  "focus": [
+    "special runtime",
+    "servant lifecycle",
+    "carrier recovery",
+    "target and cadence",
+    "legacy model state bits",
+    "hostile projectile damage boundary"
+  ],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "cleanProcessResources": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 258,
+    "passed": 258,
+    "failed": 0,
+    "focused": [
+      "ship05SpecialModelStateUsesLegacyShowEquipBits",
+      "ship05SpecialRuntimeCatalogKeepsLegacyBoundaries",
+      "northernHimeSummonsLegacyFloatingFort",
+      "shimakazeLightAttackSummonsLegacyRensouhou",
+      "shimakazeHeavyAttackLaunchesFiveLegacyMissiles",
+      "shimakazeRensouhouStateKeepsLegacyLimitsAndNbt",
+      "nagatoMoraleEventMatchesLegacyNearbyTargets",
+      "nagatoHeavyStrikeUsesLegacyFourPhaseCycle",
+      "carrierAircraftCapacityAndRuntimeFollowLegacyCvRules"
+    ]
+  },
+  "clientSmoke": {
+    "status": "STARTUP_RESOURCE_RELOAD_AND_INTEGRATED_CONNECTION_PASS",
+    "java": "17.0.3.1",
+    "gl": "NVIDIA GeForce RTX 5060 / OpenGL 4.6",
+    "shincolleInitialization": "PASS",
+    "resourceReload": "PASS",
+    "integratedSinglePlayerConnection": "PASS",
+    "modelTextureFallbackErrors": 0,
+    "inWorldManualInteraction": "NOT_PERFORMED_NATIVE_WINDOW_NOT_EXPOSED",
+    "processExit": "INTERRUPTED_AFTER_SMOKE",
+    "log": "run/logs/latest.log"
+  },
+  "noLegacyChanges": true,
+  "notes": [
+    "Northern Hime now uses the exact legacy launchHeight = height rule for both air channels.",
+    "Hostile Rensouhou uses modern thrown damage with itself as the direct attacker, matching EntityRensouhouMob's projectile flag; friendly Rensouhou remains mob damage.",
+    "The existing heavy special path already carries roll.miss() into the projectile, so a duplicate miss rewrite was intentionally not made.",
+    "Manual in-world visual and interaction verification remains a V0 task because the available automation surface did not expose the native window for inspection."
+  ]
+}

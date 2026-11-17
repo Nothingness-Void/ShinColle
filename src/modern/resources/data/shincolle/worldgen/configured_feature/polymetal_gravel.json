@@ -21,10 +21,8 @@
     "target": {
       "type": "minecraft:matching_blocks",
       "blocks": [
-        "minecraft:sand",
-        "minecraft:gravel",
-        "minecraft:dirt",
-        "minecraft:stone"
+        "minecraft:stone",
+        "minecraft:gravel"
       ]
     }
   }

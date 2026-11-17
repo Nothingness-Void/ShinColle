@@ -1,6 +1,9 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.EntityHitResult;
 import com.lulan.shincolle.item.PointerItem;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
@@ -45,6 +48,41 @@ public final class PointerClientEvents {
             sendCommand(GameplayCommandType.SET_POINTER_MODE, payload ->
                     payload.putInt(GameplayCommandHandler.TAG_MODE, nextMode));
         }
+    }
+
+    @SubscribeEvent
+    public static void onClientTickHitZone(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || minecraft.screen != null || (player.tickCount & 3) != 0) {
+            return;
+        }
+
+        ItemStack pointer = player.getMainHandItem();
+        if (!(pointer.getItem() instanceof PointerItem) || !PointerItem.isCaressMode(PointerItem.getMode(pointer))) {
+            return;
+        }
+
+        if (!(minecraft.hitResult instanceof EntityHitResult entityHit)
+                || !(entityHit.getEntity() instanceof LegacyShipEntity ship)
+                || ship.isHostileVariant()) {
+            return;
+        }
+
+        double relY = Mth.clamp((entityHit.getLocation().y - ship.getY()) / Math.max(0.1D, ship.getBbHeight()), 0.0D, 1.0D);
+        int hitHeight = Mth.clamp((int) Math.round(relY * 100.0D), 0, 100);
+        float lookYaw = (float) (Math.toDegrees(Math.atan2(player.getZ() - ship.getZ(), player.getX() - ship.getX())) - 90.0D);
+        int hitAngle = Math.round(Mth.wrapDegrees(lookYaw - ship.getYRot()));
+
+        sendCommand(GameplayCommandType.SET_SHIP_HIT_ZONE, payload -> {
+            payload.putInt(GameplayCommandHandler.TAG_SHIP_ID, ship.getId());
+            payload.putInt(GameplayCommandHandler.TAG_HIT_HEIGHT, hitHeight);
+            payload.putInt(GameplayCommandHandler.TAG_HIT_ANGLE, hitAngle);
+        });
     }
 
     @SubscribeEvent

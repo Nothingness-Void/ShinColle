@@ -1,0 +1,22 @@
+{
+  "batch": "MODERN-GAP-AUDIT",
+  "date": "2026-09-05",
+  "status": "CLOSED_FOLLOW_UP_COMPLETE",
+  "scope": "active registered ship classes and shared modern runtime hooks",
+  "finding": {
+    "id": "ALL-SHIP-IDLE-SUPPLY",
+    "severity": "P1",
+    "legacy": "BasicEntityShip.updateConsumeItem at src/main/java/com/lulan/shincolle/entity/BasicEntityShip.java:1562-1604",
+    "modern": "LegacyShipEntity.tickLegacyMovementAndIdleConsumption plus LegacyShipBehaviorCatalog.legacyIdleGrudgeConsumptionFor",
+    "cause": "Only nine previously covered class IDs returned a non-negative idle cost; the modern hostile flag also conflated old Hime BasicEntityShip subclasses with hostile Mob subclasses.",
+    "followUpBatch": "migration_batches/2026-09-05-all-ship-idle-supply",
+    "followUpStatus": "implemented; dedicated regression and global suite passed"
+  },
+  "globalSuite": {
+    "tests": 269,
+    "passed": 269,
+    "failed": 0,
+    "separateBatch": "COMBAT-REGRESSION-SUITE",
+    "separateBatchStatus": "completed"
+  }
+}

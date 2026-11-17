@@ -1,0 +1,68 @@
+{
+  "batch": "SHIP-UNIVERSE-AUDIT",
+  "date": "2026-09-04",
+  "definition": "active legacy ship universe is the concrete set registered by ModEntity.regShipEntity",
+  "legacy": {
+    "registeredRows": 64,
+    "friendlyRows": 45,
+    "hostileRows": 19,
+    "registeredSourceClassesMissing": [],
+    "baseClassIds": [
+      0, 1, 2, 3, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      26, 27, 28, 29, 30, 31, 33, 36, 37, 38, 39, 44, 46, 47, 48,
+      49, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 72
+    ],
+    "u511MobUsesBaseClassState": true
+  },
+  "modern": {
+    "specRows": 64,
+    "friendlyRows": 45,
+    "hostileRows": 19,
+    "baseClassIds": [
+      0, 1, 2, 3, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      26, 27, 28, 29, 30, 31, 33, 36, 37, 38, 39, 44, 46, 47, 48,
+      49, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 72
+    ]
+  },
+  "matrix": {
+    "rows": 45,
+    "baseClassIds": [
+      0, 1, 2, 3, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      26, 27, 28, 29, 30, 31, 33, 36, 37, 38, 39, 44, 46, 47, 48,
+      49, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 72
+    ]
+  },
+  "comparison": {
+    "legacyBaseIdsMissingFromModern": [],
+    "modernBaseIdsNotInLegacy": [],
+    "legacyBaseIdsMissingFromMatrix": [],
+    "matrixBaseIdsNotInLegacy": [],
+    "legacyRegisteredSourceClassesMissing": [],
+    "historicalNameMapOnlyCount": 40,
+    "historicalNameMapOnlyClassIds": [
+      4, 5, 6, 7, 8, 11, 22, 23, 24, 25, 32, 34, 35, 40, 41, 42, 43,
+      45, 50, 55, 64, 65, 66, 67, 68, 69, 70, 71, 73, 74, 75, 76, 77,
+      78, 79, 80, 81, 82, 83, 84
+    ],
+    "historicalNameMapOnlyStatus": "HISTORICAL_SOURCE_GAP",
+    "gitHistoryEntityFileHitsForHistoricalNames": [],
+    "checkedRefs": [
+      "mc-1.12.2",
+      "upstream/master",
+      "upstream/mc-1.12.2",
+      "upstream/mc-1.10.2",
+      "upstream/mc-1.7.10",
+      "upstream/mc-1.7.10-old"
+    ],
+    "remoteUpstreamTags": []
+  },
+  "checks": {
+    "git diff --check": 0,
+    "codeChanges": 0,
+    "compileJava": "NOT_RUN_NO_CODE_CHANGE",
+    "processResources": "NOT_RUN_NO_RESOURCE_CHANGE",
+    "runGameTestServer": "NOT_RUN_NO_RUNTIME_CHANGE",
+    "clientSmoke": "NOT_RUN_NO_CLIENT_CHANGE",
+    "legacyTreesClean": true
+  }
+}

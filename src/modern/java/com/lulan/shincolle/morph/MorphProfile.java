@@ -208,7 +208,7 @@ public class MorphProfile {
     }
 
     public ShipEquipmentProfile buildEquipmentProfile() {
-        return ShipEquipmentProfile.fromInventory(this.createEquipmentContainerCopy(), this.getSpec().archetype());
+        return ShipEquipmentProfile.fromInventory(this.createEquipmentContainerCopy(), this.getSpec());
     }
 
     public ShipEquipmentBehaviorState buildBehaviorState() {

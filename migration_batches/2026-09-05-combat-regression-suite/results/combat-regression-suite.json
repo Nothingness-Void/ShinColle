@@ -1,0 +1,60 @@
+{
+  "batch": "COMBAT-REGRESSION-SUITE",
+  "date": "2026-09-05",
+  "status": "COMPLETED",
+  "scope": [
+    "Nagato nearby-target morale event",
+    "Tenryuu heavy skill phase",
+    "Tatsuta heavy skill phase",
+    "Yamato two-phase beam",
+    "Submarine Hime double-missile projectile assertion"
+  ],
+  "legacy": {
+    "nagato": "src/main/java/com/lulan/shincolle/entity/battleship/EntityBattleshipNGT.java",
+    "tenryuu": "src/main/java/com/lulan/shincolle/entity/cruiser/EntityCLTenryuu.java",
+    "tatsuta": "src/main/java/com/lulan/shincolle/entity/cruiser/EntityCLTatsuta.java",
+    "yamato": "src/main/java/com/lulan/shincolle/entity/battleship/EntityBattleshipYMT.java",
+    "submarineHime": [
+      "src/main/java/com/lulan/shincolle/entity/hime/EntitySubmHime.java",
+      "src/main/java/com/lulan/shincolle/entity/other/EntityAbyssMissile.java",
+      "src/main/java/com/lulan/shincolle/utility/CombatHelper.java"
+    ]
+  },
+  "modern": {
+    "catalog": "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java",
+    "entity": "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java",
+    "projectile": "src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java",
+    "tests": "src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java"
+  },
+  "decisions": {
+    "nagato": "test fixture isolation at y=200; production 16x12x16 search unchanged",
+    "tenryuu": "test cooldown loop sets non-boundary tickCount because direct GameTest tick does not increment ServerLevel tickCount",
+    "tatsuta": "test cooldown loop sets non-boundary tickCount because direct GameTest tick does not increment ServerLevel tickCount",
+    "yamato": "test cooldown loop sets non-boundary tickCount because direct GameTest tick does not increment ServerLevel tickCount",
+    "submarineHime": "test uses the legacy distance/acceleration expectation; ARC may retain its type while using direct motion"
+  },
+  "changes": {
+    "production": "none",
+    "tests": [
+      "isolate Nagato fixture from neighboring GameTest entities",
+      "simulate server tick progression during direct cooldown loops",
+      "derive Submarine Hime missile move expectation from the old EntityAbyssMissile constructor rules"
+    ]
+  },
+  "verification": {
+    "java": "C:/Program Files/Java/jdk-17.0.3.1",
+    "gitDiffCheck": 0,
+    "compileJava": 0,
+    "processResources": 0,
+    "runGameTestServer": 0,
+    "gameTests": {
+      "required": 269,
+      "passed": 269,
+      "failed": 0
+    },
+    "legacyTreesClean": true,
+    "clientSmoke": "NOT_RUN_NO_CLIENT_RESOURCE_CHANGE",
+    "v0": "PENDING_NATIVE_CLIENT"
+  },
+  "next": "V0_NATIVE_CLIENT_MANUAL_ACCEPTANCE"
+}

@@ -1,0 +1,27 @@
+{
+  "batch": "HEAVY-SPECIAL-MISS",
+  "date": "2026-09-04",
+  "legacyReadOnly": true,
+  "status": "NO_CODE_CHANGE_REQUIRED",
+  "legacyEntry": {
+    "file": "src/main/java/com/lulan/shincolle/entity/BasicEntityShipHostile.java",
+    "method": "attackEntityWithHeavyAmmo",
+    "behavior": "roll miss, scatter projectile target, spawn missile; no direct target hurt"
+  },
+  "modernEntry": {
+    "file": "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java",
+    "method": "performCatalogSpecialAttack",
+    "behavior": "preserve roll.miss in launched projectile; direct hurt is non-justLaunch only"
+  },
+  "regressionTests": [
+    "heavyProjectileMissesRemainProjectileOnly",
+    "catalogHeavyMissesRemainProjectileOnly"
+  ],
+  "verification": {
+    "lastRequiredGameTests": 266,
+    "lastGameTestResult": "All 266 required tests passed",
+    "legacyJavaDiff": "EMPTY",
+    "legacyResourceDiff": "EMPTY"
+  },
+  "conclusion": "The reported direct-damage miss path is absent from the current worktree; do not add a duplicate fix."
+}

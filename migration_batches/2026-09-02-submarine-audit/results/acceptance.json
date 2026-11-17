@@ -1,0 +1,15 @@
+{
+  "batch": "2026-09-02-submarine-audit",
+  "status": "audited-no-change",
+  "date": "2026-09-02",
+  "code_change": false,
+  "client_smoke": false,
+  "covered": [
+    "SSNH",
+    "U-511",
+    "Ro-500",
+    "Yo",
+    "Hime submarine paths"
+  ],
+  "retest_trigger": "submarine projectile, stealth, visibility, or shared combat helper changes"
+}

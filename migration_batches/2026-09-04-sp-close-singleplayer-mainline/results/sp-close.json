@@ -1,0 +1,65 @@
+{
+  "batch": "SP-CLOSE",
+  "date": "2026-09-04",
+  "scope": "M0-M9 single-player mainline plus V0",
+  "legacyReadOnly": true,
+  "shipInventoryAudit": {
+    "legacyConcreteShipClasses": 45,
+    "legacyHostileMobClasses": 19,
+    "modernSpecAndMatrixRows": 45,
+    "matrixLockedRows": 45,
+    "nextRows": 0,
+    "partialRows": 0,
+    "status": "COVERAGE_ALIGNED"
+  },
+  "specialOverrideAudit": {
+    "result": "ship-override-audit.json",
+    "status": "MATCHED_NO_CODE_CHANGE",
+    "legacyConcreteShipClasses": 45,
+    "hostileMobVariants": 19
+  },
+  "tracks": {
+    "M0": "PASS_SP_MAINLINE",
+    "M1": "PASS_SP_MAINLINE",
+    "M2": "PASS_SP_MAINLINE",
+    "M3": "PASS_SP_MAINLINE",
+    "M4": "PASS_SP_MAINLINE",
+    "M5": "PASS_SP_MAINLINE",
+    "M6": "PASS_SP_MAINLINE",
+    "M7": "PASS_SP_MAINLINE",
+    "M8": "PASS_SP_MAINLINE",
+    "M9": "PASS_SP_MAINLINE",
+    "V0": "PENDING_NATIVE_CLIENT"
+  },
+  "verification": [
+    {
+      "command": "git diff --check",
+      "status": "PASS",
+      "notes": "Existing line-ending warnings only; no whitespace errors."
+    },
+    {
+      "command": "compileJava",
+      "status": "PASS",
+      "java": "17.0.3.1"
+    },
+    {
+      "command": "processResources",
+      "status": "PASS",
+      "java": "17.0.3.1"
+    },
+    {
+      "command": "runGameTestServer",
+      "status": "PASS",
+      "java": "17.0.3.1",
+      "requiredTests": 266,
+      "summary": "All 266 required tests passed"
+    }
+  ],
+  "client": {
+    "startupSmoke": "PASS_FROM_PRIOR_SHIP_BATCHES",
+    "inWorldV0": "PENDING",
+    "reason": "The current CUA environment exposes no Minecraft native window for manual in-world interaction."
+  },
+  "hostileTargetAudit": "LOCKED_NO_CHANGE",
+  "decision": "M0-M9 have single-player static and automated evidence; final SP mainline completion waits for V0."
+}

@@ -4,7 +4,7 @@
   "group": "shincolle_shiptank",
   "key": {
     "m": {
-      "item": "minecraft:obsidian"
+      "tag": "forge:obsidian"
     },
     "t": {
       "item": "shincolle:shiptank"

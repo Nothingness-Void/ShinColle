@@ -206,7 +206,7 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         if (name.isEmpty()) {
             return;
         }
-        this.sendCommand(GameplayCommandType.DESK_RENAME_TEAM, payload ->
+        this.sendCommand(GameplayCommandType.SET_UNIT_NAME, payload ->
                 payload.putString(GameplayCommandHandler.TAG_TEAM_NAME, name));
     }
 

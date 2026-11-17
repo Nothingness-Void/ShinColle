@@ -20,13 +20,14 @@ public class LegacyShipOwnerHurtTargetGoal extends TargetGoal {
     public boolean canUse() {
         Player owner = this.ship.getOwnerPlayer();
 
-        if (owner == null || this.ship.isHostileVariant() || this.ship.isOrderedToSit()) {
+        if (owner == null || this.ship.isHostileVariant() || this.ship.isOrderedToSit()
+                || this.ship.hasActiveCommandState()) {
             return false;
         }
 
         this.ownerLastHurt = owner.getLastHurtMob();
         int ownerTimestamp = owner.getLastHurtMobTimestamp();
-        return ownerTimestamp != this.timestamp && this.ship.canEngage(this.ownerLastHurt);
+        return ownerTimestamp != this.timestamp && this.ship.canCommandOrRevengeEngage(this.ownerLastHurt);
     }
 
     @Override

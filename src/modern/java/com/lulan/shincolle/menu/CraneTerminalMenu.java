@@ -26,6 +26,11 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
     public static final int BUTTON_ENERGY_MODE = 3;
     public static final int BUTTON_TOGGLE_LOAD = 4;
     public static final int BUTTON_TOGGLE_UNLOAD = 5;
+    public static final int BUTTON_TOGGLE_META = 6;
+    public static final int BUTTON_TOGGLE_OREDICT = 7;
+    public static final int BUTTON_TOGGLE_NBT = 8;
+    public static final int BUTTON_POWER = 9;
+    public static final int BUTTON_WAIT_MODE_DECR = 10;
     private static final int SLOT_FILTER_START = 0;
     private static final int SLOT_FILTER_END = SLOT_FILTER_START + CraneBlockEntity.FILTER_SLOT_COUNT;
 
@@ -119,6 +124,36 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
         return crane == null || crane.isUnloadEnabled();
     }
 
+    public boolean isCheckMetadata() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null && crane.isCheckMetadata();
+    }
+
+    public boolean isCheckOredict() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null && crane.isCheckOredict();
+    }
+
+    public boolean isCheckNbt() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null && crane.isCheckNbt();
+    }
+
+    public Component getCheckMetadataStateLabel() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getCheckMetadataStateLabel() : Component.translatable("gui.shincolle.crane.state.disabled");
+    }
+
+    public Component getCheckOredictStateLabel() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getCheckOredictStateLabel() : Component.translatable("gui.shincolle.crane.state.disabled");
+    }
+
+    public Component getCheckNbtStateLabel() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getCheckNbtStateLabel() : Component.translatable("gui.shincolle.crane.state.disabled");
+    }
+
     public @Nullable BlockPos getLastWaypoint() {
         CraneBlockEntity crane = this.getCrane();
         return crane != null ? crane.getLastWaypoint() : null;
@@ -163,6 +198,11 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
         return crane != null && crane.isFilterInverted(slot);
     }
 
+    public boolean isActive() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null && crane.isActive();
+    }
+
     @Override
     public boolean clickMenuButton(Player player, int id) {
         if (!(player.level().getBlockEntity(this.cranePos) instanceof CraneBlockEntity crane)) {
@@ -176,11 +216,16 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
 
         switch (id) {
             case BUTTON_WAIT_MODE -> crane.cycleWaitMode();
+            case BUTTON_WAIT_MODE_DECR -> crane.cycleWaitMode(false);
             case BUTTON_REDSTONE_MODE -> crane.cycleRedstoneMode();
             case BUTTON_LIQUID_MODE -> crane.cycleLiquidMode();
             case BUTTON_ENERGY_MODE -> crane.cycleEnergyMode();
             case BUTTON_TOGGLE_LOAD -> crane.toggleLoadEnabled();
             case BUTTON_TOGGLE_UNLOAD -> crane.toggleUnloadEnabled();
+            case BUTTON_TOGGLE_META -> crane.toggleCheckMetadata();
+            case BUTTON_TOGGLE_OREDICT -> crane.toggleCheckOredict();
+            case BUTTON_TOGGLE_NBT -> crane.toggleCheckNbt();
+            case BUTTON_POWER -> crane.toggleActive();
             default -> {
                 return false;
             }

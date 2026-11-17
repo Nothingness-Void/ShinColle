@@ -1,5 +1,8 @@
 package com.lulan.shincolle.client;
 
+import com.lulan.shincolle.client.particle.LegacyEmotionParticle;
+import com.lulan.shincolle.client.particle.LegacyTeamMarkerParticle;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.network.ClientboundCombatReactPacket;
 import com.lulan.shincolle.network.ClientboundSpawnParticlePacket;
@@ -17,6 +20,17 @@ public final class GameplayClientEffects {
     private GameplayClientEffects() {
     }
 
+    /** Spawns the entity-bound legacy ParticleTeam marker on the local client. */
+    public static void spawnLegacyTeamMarker(Entity host, int legacyMarkerType) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (host == null || !(minecraft.level instanceof ClientLevel)) {
+            return;
+        }
+        ClientLevel level = (ClientLevel) minecraft.level;
+        minecraft.particleEngine.add(new LegacyTeamMarkerParticle(
+                level, host, 1.0F, legacyMarkerType));
+    }
+
     public static void handleCombatReact(ClientboundCombatReactPacket packet) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
@@ -31,7 +45,8 @@ public final class GameplayClientEffects {
             spawnCombatReact(level, anchor, packet);
         }
 
-        if (minecraft.player != null && packet.involvesEntity(minecraft.player.getId())) {
+        Entity attacker = level.getEntity(packet.attackerId());
+        if (minecraft.player != null && packet.allowsPlayerActionbar(minecraft.player, attacker)) {
             minecraft.player.displayClientMessage(toMessage(packet.reactType()), true);
         }
     }
@@ -54,6 +69,12 @@ public final class GameplayClientEffects {
                         packet.velocityX(), packet.velocityY(), packet.velocityZ(), 4, 0.04D, 0.15D);
                 spawnDirectedBurst(level, ParticleTypes.FLAME, packet.x(), packet.y(), packet.z(),
                         packet.velocityX(), packet.velocityY(), packet.velocityZ(), 2, 0.03D, 0.08D);
+            }
+            case LEGACY_RAILGUN -> {
+                spawnDirectedBurst(level, ParticleTypes.FLAME, packet.x(), packet.y(), packet.z(),
+                        packet.velocityX(), packet.velocityY(), packet.velocityZ(), 4, 0.03D, 0.1D);
+                spawnDirectedBurst(level, ParticleTypes.ELECTRIC_SPARK, packet.x(), packet.y(), packet.z(),
+                        packet.velocityX(), packet.velocityY(), packet.velocityZ(), 3, 0.04D, 0.08D);
             }
             case MISSILE_IMPACT -> {
                 spawnBurst(level, ParticleTypes.EXPLOSION, packet.x(), packet.y(), packet.z(), 4, 0.1D);
@@ -85,18 +106,224 @@ public final class GameplayClientEffects {
                 spawnBurst(level, ParticleTypes.EXPLOSION, packet.x(), packet.y(), packet.z(), 3, 0.08D);
             }
             case FLARE_BURST -> {
-                spawnBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(), 8, 0.2D);
-                spawnBurst(level, ParticleTypes.FLAME, packet.x(), packet.y(), packet.z(), 6, 0.16D);
+                if (ShinColleConfig.canFlare()) {
+                    spawnBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(), 8, 0.2D);
+                    spawnBurst(level, ParticleTypes.FLAME, packet.x(), packet.y(), packet.z(), 6, 0.16D);
+                }
             }
             case SEARCHLIGHT_MARK -> {
-                spawnBurst(level, ParticleTypes.ELECTRIC_SPARK, packet.x(), packet.y(), packet.z(), 7, 0.18D);
-                spawnBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(), 3, 0.08D);
+                if (ShinColleConfig.canSearchlight()) {
+                    spawnBurst(level, ParticleTypes.ELECTRIC_SPARK, packet.x(), packet.y(), packet.z(), 7, 0.18D);
+                    spawnBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(), 3, 0.08D);
+                }
             }
+            case BEAM_TRAIL -> {
+                spawnDirectedBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(),
+                        packet.velocityX(), packet.velocityY(), packet.velocityZ(), 5, 0.06D, 0.12D);
+                spawnDirectedBurst(level, ParticleTypes.ELECTRIC_SPARK, packet.x(), packet.y(), packet.z(),
+                        packet.velocityX(), packet.velocityY(), packet.velocityZ(), 3, 0.04D, 0.08D);
+            }
+            case BEAM_IMPACT -> {
+                spawnBurst(level, ParticleTypes.EXPLOSION, packet.x(), packet.y(), packet.z(), 5, 0.14D);
+                spawnBurst(level, ParticleTypes.END_ROD, packet.x(), packet.y(), packet.z(), 10, 0.22D);
+            }
+            case BLACK_HOLE -> {
+                spawnBurst(level, ParticleTypes.PORTAL, packet.x(), packet.y(), packet.z(), 18, 0.45D);
+                spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 8, 0.28D);
+            }
+            case LEGACY_CANNON -> spawnLegacyCannonSmoke(level, packet);
+            case LEGACY_DOUBLE_CANNON -> spawnLegacyDoubleCannonSmoke(level, packet);
+            case LEGACY_NORTHERN_CANNON -> spawnLegacyNorthernCannon(level, packet);
+            case LEGACY_NORTHERN_HIT -> spawnLegacyNorthernHit(level, packet);
+            case LEGACY_RE_LASER -> spawnLegacyReLaser(level, packet);
+            // The hime heal branches used the legacy type-4 green/red sparkle
+            // around the healed entity.
+            case HEALING_SPARKLE -> spawnBurst(level, ParticleTypes.HAPPY_VILLAGER,
+                    packet.x(), packet.y(), packet.z(), 8, 0.24D);
+            case LEGACY_EMOTION -> spawnLegacyEmotion(level, packet);
             case TEXT_MISS -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 4, 0.09D);
             case TEXT_CRIT -> spawnBurst(level, ParticleTypes.CRIT, packet.x(), packet.y(), packet.z(), 5, 0.1D);
             case TEXT_DOUBLE -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, packet.x(), packet.y(), packet.z(), 4, 0.08D);
             case TEXT_TRIPLE -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, packet.x(), packet.y(), packet.z(), 6, 0.12D);
             case TEXT_DODGE -> spawnBurst(level, ParticleTypes.CLOUD, packet.x(), packet.y(), packet.z(), 4, 0.08D);
+        }
+    }
+
+    private static void spawnLegacyEmotion(ClientLevel level, ClientboundSpawnParticlePacket packet) {
+        if (packet.variant() == 28) {
+            Minecraft.getInstance().particleEngine.add(new LegacyEmotionParticle(
+                    level,
+                    packet.x(), packet.y(), packet.z(),
+                    packet.velocityX(), packet.velocityY(), packet.velocityZ()));
+            return;
+        }
+
+        switch (packet.variant()) {
+            case 1 -> spawnBurst(level, ParticleTypes.HEART,
+                    packet.x(), packet.y(), packet.z(), 3, 0.14D);
+            case 7 -> spawnBurst(level, ParticleTypes.NOTE,
+                    packet.x(), packet.y(), packet.z(), 2, 0.12D);
+            case 16 -> spawnBurst(level, ParticleTypes.HAPPY_VILLAGER,
+                    packet.x(), packet.y(), packet.z(), 4, 0.16D);
+            case 31 -> spawnBurst(level, ParticleTypes.DAMAGE_INDICATOR,
+                    packet.x(), packet.y(), packet.z(), 2, 0.12D);
+            case 29 -> spawnBurst(level, ParticleTypes.SMOKE,
+                    packet.x(), packet.y(), packet.z(), 2, 0.10D);
+            default -> spawnBurst(level, ParticleTypes.SMOKE,
+                    packet.x(), packet.y(), packet.z(), 2, 0.10D);
+        }
+    }
+
+    /** Recreates the legacy type-5 six-stream large-smoke cannon burst. */
+    private static void spawnLegacyCannonSmoke(ClientLevel level,
+                                                ClientboundSpawnParticlePacket packet) {
+        double width = packet.velocityX();
+        double length = packet.velocityY();
+        double height = packet.velocityZ();
+        double yaw = Math.toRadians(packet.variant() / 1000.0D);
+        double cos = Math.cos(yaw);
+        double sin = Math.sin(yaw);
+
+        // CalcHelper.rotateXZByAxis(length, width, yaw) returns [world-z, world-x].
+        double firstZ = length * cos + width * sin;
+        double firstX = width * cos - length * sin;
+        double secondZ = length * cos - width * sin;
+        double secondX = -width * cos - length * sin;
+        double smokeVelocityZ = 0.25D * cos;
+        double smokeVelocityX = -0.25D * sin;
+
+        for (int index = 0; index < 24; index++) {
+            double randomX = level.random.nextDouble() * 2.0D - 1.0D;
+            double randomY = level.random.nextDouble() * 2.0D - 1.0D;
+            double randomZ = level.random.nextDouble() * 2.0D - 1.0D;
+            double randomSpeed = level.random.nextDouble() * 2.0D;
+
+            addLegacyCannonSmoke(level, packet, firstX, firstZ,
+                    randomX, randomY, randomZ, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+            addLegacyCannonSmoke(level, packet, secondX, secondZ,
+                    randomX, randomZ, randomY, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+            addLegacyCannonSmoke(level, packet, firstX, firstZ,
+                    randomY, randomX, randomZ, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+            addLegacyCannonSmoke(level, packet, secondX, secondZ,
+                    randomY, randomZ, randomX, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+            addLegacyCannonSmoke(level, packet, firstX, firstZ,
+                    randomZ, randomX, randomY, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+            addLegacyCannonSmoke(level, packet, secondX, secondZ,
+                    randomZ, randomY, randomX, height, smokeVelocityX, smokeVelocityZ, randomSpeed);
+        }
+    }
+
+    private static void addLegacyCannonSmoke(ClientLevel level,
+                                              ClientboundSpawnParticlePacket packet,
+                                              double xOffset, double zOffset,
+                                              double randomX, double randomY, double randomZ,
+                                              double height, double velocityX, double velocityZ,
+                                              double speed) {
+        level.addParticle(ParticleTypes.LARGE_SMOKE,
+                packet.x() + xOffset + randomX,
+                packet.y() + height + randomY,
+                packet.z() + zOffset + randomZ,
+                velocityX * speed, 0.05D * speed, velocityZ * speed);
+    }
+
+    /** Recreates legacy particle type 19, the double large-smoke cannon stream. */
+    private static void spawnLegacyDoubleCannonSmoke(ClientLevel level,
+                                                      ClientboundSpawnParticlePacket packet) {
+        double lookX = packet.velocityX();
+        double spacing = packet.velocityY();
+        double lookZ = packet.velocityZ();
+        double yaw = -Math.atan2(lookX, lookZ);
+        double firstZ = spacing * Math.sin(yaw);
+        double firstX = spacing * Math.cos(yaw);
+        double secondZ = -firstZ;
+        double secondX = -firstX;
+
+        for (int index = 0; index < 15; index++) {
+            double randomY = level.random.nextFloat() - 0.5D;
+            double firstSpeed = level.random.nextFloat();
+            double secondSpeed = level.random.nextFloat();
+            addLegacyDoubleCannonSmoke(level, packet, lookX, lookZ, firstX, firstZ,
+                    index, 0.6D, randomY, firstSpeed);
+            addLegacyDoubleCannonSmoke(level, packet, lookX, lookZ, secondX, secondZ,
+                    index, 0.6D, randomY, secondSpeed);
+            addLegacyDoubleCannonSmoke(level, packet, lookX, lookZ, firstX, firstZ,
+                    index, 0.9D, randomY, secondSpeed);
+            addLegacyDoubleCannonSmoke(level, packet, lookX, lookZ, secondX, secondZ,
+                    index, 0.9D, randomY, firstSpeed);
+        }
+    }
+
+    private static void addLegacyDoubleCannonSmoke(ClientLevel level,
+                                                    ClientboundSpawnParticlePacket packet,
+                                                    double lookX, double lookZ,
+                                                    double xOffset, double zOffset,
+                                                    int index, double height,
+                                                    double randomY, double speed) {
+        level.addParticle(ParticleTypes.LARGE_SMOKE,
+                packet.x() + lookX - 0.5D + 0.05D * index + xOffset,
+                packet.y() + height + randomY,
+                packet.z() + lookZ - 0.5D + 0.05D * index + zOffset,
+                lookX * 0.3D * speed, 0.05D * speed, lookZ * 0.3D * speed);
+    }
+
+    /** Recreates legacy particle type 31, the Northern Hime snow spray. */
+    private static void spawnLegacyNorthernCannon(ClientLevel level,
+                                                  ClientboundSpawnParticlePacket packet) {
+        double lookX = packet.velocityX();
+        double lookZ = packet.velocityZ();
+        for (int index = 0; index < 22; index++) {
+            double randomY = level.random.nextFloat() - 0.5D;
+            double firstSpeed = level.random.nextFloat();
+            double secondSpeed = level.random.nextFloat();
+            addLegacyNorthernSnow(level, packet, lookX, lookZ, index, 0.7D, randomY, firstSpeed);
+            addLegacyNorthernSnow(level, packet, lookX, lookZ, index, 0.9D, randomY, secondSpeed);
+        }
+    }
+
+    private static void addLegacyNorthernSnow(ClientLevel level,
+                                              ClientboundSpawnParticlePacket packet,
+                                              double lookX, double lookZ,
+                                              int index, double height,
+                                              double randomY, double speed) {
+        level.addParticle(ParticleTypes.ITEM_SNOWBALL,
+                packet.x() + lookX - 0.5D + 0.05D * index,
+                packet.y() + height + randomY,
+                packet.z() + lookZ - 0.5D + 0.05D * index,
+                lookX * 0.3D * speed, 0.05D * speed, lookZ * 0.3D * speed);
+    }
+
+    /** Recreates legacy particle type 30, the Northern Hime snow hit. */
+    private static void spawnLegacyNorthernHit(ClientLevel level,
+                                                ClientboundSpawnParticlePacket packet) {
+        for (int index = 0; index < 15; index++) {
+            double randomX = level.random.nextFloat() * 2.0D - 1.0D;
+            double randomY = level.random.nextFloat() * 2.0D - 1.0D;
+            double randomZ = level.random.nextFloat() * 2.0D - 1.0D;
+            level.addParticle(ParticleTypes.ITEM_SNOWBALL,
+                    packet.x() + randomX, packet.y() + 0.8D + randomY, packet.z() + randomZ,
+                    0.0D, 0.5D, 0.0D);
+        }
+    }
+
+    /** Modern directed equivalent of legacy type 6's adjustable purple laser. */
+    private static void spawnLegacyReLaser(ClientLevel level,
+                                           ClientboundSpawnParticlePacket packet) {
+        double distance = packet.variant() / 1000.0D;
+        if (distance <= 1.0E-4D) {
+            return;
+        }
+
+        int count = Math.max(8, Math.min(64, (int) Math.ceil(distance * 5.0D)));
+        for (int index = 0; index < count; index++) {
+            double progress = (index + 0.5D) / count;
+            double jitter = (level.random.nextDouble() - 0.5D) * 0.035D;
+            level.addParticle(ParticleTypes.DRAGON_BREATH,
+                    packet.x() + packet.velocityX() * distance * progress + jitter,
+                    packet.y() + packet.velocityY() * distance * progress + jitter,
+                    packet.z() + packet.velocityZ() * distance * progress + jitter,
+                    packet.velocityX() * 0.02D,
+                    packet.velocityY() * 0.02D,
+                    packet.velocityZ() * 0.02D);
         }
     }
 

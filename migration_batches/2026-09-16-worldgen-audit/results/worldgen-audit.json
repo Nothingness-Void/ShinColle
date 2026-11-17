@@ -1,0 +1,25 @@
+{
+  "batch": "WORLDGEN-AUDIT",
+  "auditedDate": "2026-09-16",
+  "reverifiedDate": "2026-11-16",
+  "status": "DONE",
+  "legacyTreesClean": true,
+  "codeChanges": [
+    "src/modern/resources/data/shincolle/worldgen/configured_feature/polymetal_gravel.json"
+  ],
+  "buildResourceMatchesSource": true,
+  "checks": {
+    "gitDiffCheck": "passed",
+    "compileJava": "passed",
+    "processResources": "passed",
+    "verifyItemModelCoverage": "passed",
+    "runGameTestServer": {
+      "status": "passed",
+      "totalHeadTests": 91,
+      "passed": 91,
+      "failed": 0,
+      "resolvedBy": "GAMETEST-REPAIR-B4"
+    }
+  },
+  "next": "B5-ORE-TAGS"
+}

@@ -3,23 +3,17 @@
   "category": "misc",
   "group": "shincolle_ammo",
   "key": {
-    "g": {
-      "item": "shincolle:grudge"
-    },
-    "i": {
-      "item": "minecraft:gold_ingot"
-    },
-    "p": {
-      "item": "minecraft:gunpowder"
+    "a": {
+      "item": "shincolle:ammo"
     }
   },
   "pattern": [
-    "iii",
-    "igi",
-    "ipi"
+    "aaa",
+    "aaa",
+    "aaa"
   ],
   "result": {
-    "count": 32,
+    "count": 1,
     "item": "shincolle:ammo1"
   }
 }

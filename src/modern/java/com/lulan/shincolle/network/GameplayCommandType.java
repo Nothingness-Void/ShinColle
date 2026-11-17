@@ -44,7 +44,14 @@ public enum GameplayCommandType {
     DESK_ADD_BANNED,
     DESK_REMOVE_BANNED,
     OPTOOL_TOGGLE_UNATTACKABLE,
-    OPTOOL_PRINT_UNATTACKABLE;
+    OPTOOL_PRINT_UNATTACKABLE,
+    SET_FORMATION,
+    SET_UNIT_NAME,
+    SYNC_DESK_FUNC,
+    OPEN_MOUNT_SHIP_INVENTORY,
+    MOUNT_MOVE,
+    SET_SHIP_HIT_ZONE,
+    REQUEST_DESK_RADAR;
 
     public static GameplayCommandType fromOrdinal(int ordinal) {
         GameplayCommandType[] values = values();

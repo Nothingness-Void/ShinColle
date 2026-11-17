@@ -8,7 +8,14 @@ import java.util.function.Supplier;
 
 public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
                                              double x, double y, double z,
-                                             double velocityX, double velocityY, double velocityZ) {
+                                             double velocityX, double velocityY, double velocityZ,
+                                             int variant) {
+
+    public ClientboundSpawnParticlePacket(GameplayParticleType particleType,
+                                           double x, double y, double z,
+                                           double velocityX, double velocityY, double velocityZ) {
+        this(particleType, x, y, z, velocityX, velocityY, velocityZ, 0);
+    }
 
     public static void encode(ClientboundSpawnParticlePacket packet, FriendlyByteBuf buffer) {
         buffer.writeVarInt(packet.particleType.ordinal());
@@ -18,6 +25,7 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         buffer.writeDouble(packet.velocityX);
         buffer.writeDouble(packet.velocityY);
         buffer.writeDouble(packet.velocityZ);
+        buffer.writeVarInt(packet.variant);
     }
 
     public static ClientboundSpawnParticlePacket decode(FriendlyByteBuf buffer) {
@@ -28,7 +36,8 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         double velocityX = buffer.readDouble();
         double velocityY = buffer.readDouble();
         double velocityZ = buffer.readDouble();
-        return new ClientboundSpawnParticlePacket(type, x, y, z, velocityX, velocityY, velocityZ);
+        int variant = buffer.readVarInt();
+        return new ClientboundSpawnParticlePacket(type, x, y, z, velocityX, velocityY, velocityZ, variant);
     }
 
     public static void handle(ClientboundSpawnParticlePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {

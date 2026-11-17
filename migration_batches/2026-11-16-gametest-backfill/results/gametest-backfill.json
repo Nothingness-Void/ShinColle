@@ -1,0 +1,39 @@
+{
+  "batch_id": "GAMETEST-BACKFILL",
+  "date": "2026-11-16",
+  "status": "DONE",
+  "base_commit": "3c9fe42d",
+  "legacy_dirty": false,
+  "blob_source": "4d70aebad7532c05ebc34a588c84caedb1bd4102",
+  "checks": {
+    "git_diff_check": "PASS (exit 0)",
+    "compileJava": "PASS (exit 0, duration 10s)",
+    "runGameTestServer": "PASS (exit 0, duration 36s, 276/276 passed, 0 failed, 0 skipped)"
+  },
+  "summary": {
+    "baseline_test_count": 94,
+    "recovered_test_methods": 182,
+    "recovered_helper_methods": 8,
+    "recovered_imports": 29,
+    "total_gametests": 276,
+    "passed": 276,
+    "failed": 0,
+    "skipped": 0
+  },
+  "coverage_batches": [
+    "SHIP-01",
+    "SHIP-02",
+    "SHIP-03",
+    "SHIP-04",
+    "SHIP-05",
+    "SHIP-06",
+    "SHIP-07",
+    "SHIP-08",
+    "SHIP-09",
+    "SP-CLOSE",
+    "COMBAT-REGRESSION-SUITE",
+    "ALL-SHIP-OVERRIDE-AUDIT",
+    "SHIP-ATTACK-PROFILE-AUDIT"
+  ],
+  "production_code_changes": []
+}

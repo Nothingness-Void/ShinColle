@@ -26,6 +26,12 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
     private static final int TOGGLE_W = 11;
     private static final int TOGGLE_H = 11;
     private static final int UNLOAD_Y = 83;
+    private static final int META_X = 23;
+    private static final int META_Y = 22;
+    private static final int OREDICT_X = 37;
+    private static final int OREDICT_Y = 22;
+    private static final int NBT_X = 51;
+    private static final int NBT_Y = 22;
     private static final int REDSTONE_X = 65;
     private static final int REDSTONE_Y = 22;
     private static final int LIQUID_X = 23;
@@ -65,12 +71,26 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         guiGraphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
 
+        if (this.menu.isActive()) {
+            guiGraphics.blit(TEXTURE, this.leftPos + 7, this.topPos + 6, 176, 0, 13, 13);
+        }
+
         if (!this.menu.isLoadEnabled()) {
             guiGraphics.fill(this.leftPos + 8, this.topPos + 65, this.leftPos + 168, this.topPos + 81, 0x66300000);
         }
 
         if (!this.menu.isUnloadEnabled()) {
             guiGraphics.fill(this.leftPos + 8, this.topPos + 96, this.leftPos + 168, this.topPos + 112, 0x66000030);
+        }
+
+        if (this.menu.isCheckMetadata()) {
+            guiGraphics.blit(TEXTURE, this.leftPos + META_X, this.topPos + META_Y, 176, 13, TOGGLE_W, TOGGLE_H);
+        }
+        if (this.menu.isCheckOredict()) {
+            guiGraphics.blit(TEXTURE, this.leftPos + OREDICT_X, this.topPos + OREDICT_Y, 176, 24, TOGGLE_W, TOGGLE_H);
+        }
+        if (this.menu.isCheckNbt()) {
+            guiGraphics.blit(TEXTURE, this.leftPos + NBT_X, this.topPos + NBT_Y, 176, 46, TOGGLE_W, TOGGLE_H);
         }
 
         drawToggleLamp(guiGraphics, REDSTONE_X, REDSTONE_Y, colorForMode(this.menu.getRedstoneModeLabel()));
@@ -96,8 +116,15 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.handleRegionClick(mouseX, mouseY, MODE_X, MODE_Y, MODE_W, MODE_H, CraneTerminalMenu.BUTTON_WAIT_MODE)) {
+        if (this.handleRegionClick(mouseX, mouseY, 7, 6, 13, 13, CraneTerminalMenu.BUTTON_POWER)) {
             return true;
+        }
+
+        if (inside((int) (mouseX - this.leftPos), (int) (mouseY - this.topPos), MODE_X, MODE_Y, MODE_W, MODE_H)) {
+            int buttonId = (button == 1) ? CraneTerminalMenu.BUTTON_WAIT_MODE_DECR : CraneTerminalMenu.BUTTON_WAIT_MODE;
+            if (this.handleRegionClick(mouseX, mouseY, MODE_X, MODE_Y, MODE_W, MODE_H, buttonId)) {
+                return true;
+            }
         }
 
         if (this.handleRegionClick(mouseX, mouseY, LOAD_X, LOAD_Y, TOGGLE_W, TOGGLE_H, CraneTerminalMenu.BUTTON_TOGGLE_LOAD)) {
@@ -105,6 +132,18 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
         }
 
         if (this.handleRegionClick(mouseX, mouseY, LOAD_X, UNLOAD_Y, TOGGLE_W, TOGGLE_H, CraneTerminalMenu.BUTTON_TOGGLE_UNLOAD)) {
+            return true;
+        }
+
+        if (this.handleRegionClick(mouseX, mouseY, META_X - 1, META_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_META)) {
+            return true;
+        }
+
+        if (this.handleRegionClick(mouseX, mouseY, OREDICT_X - 1, OREDICT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_OREDICT)) {
+            return true;
+        }
+
+        if (this.handleRegionClick(mouseX, mouseY, NBT_X - 1, NBT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_NBT)) {
             return true;
         }
 
@@ -146,6 +185,12 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
         int localX = mouseX - this.leftPos;
         int localY = mouseY - this.topPos;
 
+        if (inside(localX, localY, 7, 6, 13, 13)) {
+            renderComponentTooltip(guiGraphics, List.of(
+                    Component.literal("Power: ").append(Component.translatable(this.menu.isActive() ? "gui.shincolle.crane.state.enabled" : "gui.shincolle.crane.state.disabled"))), mouseX, mouseY);
+            return;
+        }
+
         if (inside(localX, localY, MODE_X, MODE_Y, MODE_W, MODE_H)) {
             renderComponentTooltip(guiGraphics, List.of(
                     this.menu.getWaitModeLabel(),
@@ -164,6 +209,27 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
             renderComponentTooltip(guiGraphics, List.of(
                     Component.translatable("gui.shincolle.crane.button.unload", this.menu.getUnloadStateLabel()),
                     Component.translatable("gui.shincolle.crane.note.filter")), mouseX, mouseY);
+            return;
+        }
+
+        if (inside(localX, localY, META_X - 1, META_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
+            renderComponentTooltip(guiGraphics, List.of(
+                    Component.translatable("gui.shincolle.crane.usemeta"),
+                    this.menu.getCheckMetadataStateLabel()), mouseX, mouseY);
+            return;
+        }
+
+        if (inside(localX, localY, OREDICT_X - 1, OREDICT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
+            renderComponentTooltip(guiGraphics, List.of(
+                    Component.translatable("gui.shincolle.crane.useoredict"),
+                    this.menu.getCheckOredictStateLabel()), mouseX, mouseY);
+            return;
+        }
+
+        if (inside(localX, localY, NBT_X - 1, NBT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
+            renderComponentTooltip(guiGraphics, List.of(
+                    Component.translatable("gui.shincolle.crane.usenbt"),
+                    this.menu.getCheckNbtStateLabel()), mouseX, mouseY);
             return;
         }
 

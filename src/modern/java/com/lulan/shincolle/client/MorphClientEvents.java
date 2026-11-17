@@ -1,6 +1,9 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
@@ -275,6 +278,66 @@ public final class MorphClientEvents {
 
         private static void sendEmptyCommand(GameplayCommandType type) {
             ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(type, new CompoundTag()));
+        }
+
+        private static int lastMountKeyMask;
+
+        @SubscribeEvent
+        public static void onClientTickMountControl(TickEvent.ClientTickEvent event) {
+            if (event.phase != TickEvent.Phase.END) {
+                return;
+            }
+
+            Minecraft minecraft = Minecraft.getInstance();
+            LocalPlayer player = minecraft.player;
+            if (player == null) {
+                lastMountKeyMask = 0;
+                return;
+            }
+
+            boolean ridingShipMount = player.getVehicle() instanceof LegacyShipMountEntity;
+            boolean ridingMorphMount = player.getVehicle() instanceof LegacyMountEntity;
+            boolean carryingOrRidingShip = ridingShipMount
+                    || player.getVehicle() instanceof LegacyShipEntity
+                    || player.getFirstPassenger() instanceof LegacyShipEntity;
+
+            if (minecraft.screen == null && carryingOrRidingShip) {
+                while (minecraft.options.keyInventory.consumeClick()) {
+                    sendEmptyCommand(GameplayCommandType.OPEN_MOUNT_SHIP_INVENTORY);
+                }
+            }
+
+            if (!(ridingShipMount || ridingMorphMount)) {
+                lastMountKeyMask = 0;
+                return;
+            }
+
+            int keyMask = 0;
+            if (minecraft.screen == null) {
+                if (minecraft.options.keyUp.isDown()) {
+                    keyMask |= LegacyMountEntity.KEY_FORWARD;
+                }
+                if (minecraft.options.keyDown.isDown()) {
+                    keyMask |= LegacyMountEntity.KEY_BACK;
+                }
+                if (minecraft.options.keyLeft.isDown()) {
+                    keyMask |= LegacyMountEntity.KEY_LEFT;
+                }
+                if (minecraft.options.keyRight.isDown()) {
+                    keyMask |= LegacyMountEntity.KEY_RIGHT;
+                }
+                if (minecraft.options.keyJump.isDown()) {
+                    keyMask |= LegacyMountEntity.KEY_JUMP;
+                }
+            }
+
+            if ((keyMask != 0 && (player.tickCount % 2 == 0 || keyMask != lastMountKeyMask))
+                    || (keyMask == 0 && lastMountKeyMask != 0)) {
+                CompoundTag payload = new CompoundTag();
+                payload.putInt(GameplayCommandHandler.TAG_MODE, keyMask);
+                ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.MOUNT_MOVE, payload));
+            }
+            lastMountKeyMask = keyMask;
         }
 
         private static boolean isHoldingOpTool(LocalPlayer player) {

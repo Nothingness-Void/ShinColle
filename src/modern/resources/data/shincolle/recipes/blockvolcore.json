@@ -10,7 +10,7 @@
       "item": "shincolle:blockgrudgeheavy"
     },
     "o": {
-      "item": "minecraft:obsidian"
+      "tag": "forge:obsidian"
     }
   },
   "pattern": [

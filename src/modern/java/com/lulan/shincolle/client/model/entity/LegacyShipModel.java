@@ -5,6 +5,8 @@ import com.lulan.shincolle.client.model.legacy.LegacyModelDefinition;
 import com.lulan.shincolle.client.model.legacy.LegacyModelSourceParser;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipModelTransformCatalog;
+import com.lulan.shincolle.entity.ship.LegacyShipModelStateCatalog;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.logging.LogUtils;
@@ -39,6 +41,7 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
 
     private final Map<String, BakedLegacyModel> bakedModels = new LinkedHashMap<>();
     private BakedLegacyModel currentModel;
+    private LegacyShipModelTransformCatalog.RenderTransform currentTransform;
 
     public LegacyShipModel() {
         super(RenderType::entityTranslucent);
@@ -49,7 +52,10 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
                           float netHeadYaw, float headPitch) {
         this.currentModel = this.bakedModels.computeIfAbsent(
                 LegacyShipRenderCatalog.forSpec(entity.getSpec()).modelSourceStem(), this::loadModel);
+        this.currentTransform = LegacyShipModelTransformCatalog.forModel(
+                this.currentModel.modelSourceStem, entity.getLegacyHostileScaleLevel()).orElse(null);
         this.currentModel.resetPose();
+        this.currentModel.applyLegacyModelState(entity.getModelState());
         this.currentModel.applyHeadRotation(netHeadYaw, headPitch);
         this.currentModel.applyWalk(limbSwing, limbSwingAmount);
     }
@@ -60,7 +66,8 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
         if (this.currentModel == null) {
             throw new IllegalStateException("Legacy ship renderer attempted to render before a 1.12 model source was selected");
         }
-        this.currentModel.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+        this.currentModel.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha,
+                this.currentTransform);
     }
 
     private BakedLegacyModel loadModel(String modelSourceStem) {
@@ -77,7 +84,7 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             }
 
             LegacyModelDefinition definition = SOURCE_PARSER.parse(modelSourceStem, source);
-            return BakedLegacyModel.bake(definition);
+            return BakedLegacyModel.bake(modelSourceStem, definition);
         } catch (Exception exception) {
             LOGGER.error("Failed to bake required 1.12 legacy ship model {}", modelSourceStem, exception);
             throw new IllegalStateException("Failed to bake required 1.12 legacy ship model " + modelSourceStem, exception);
@@ -88,6 +95,7 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
         private static final float DEG_TO_RAD = (float) (Math.PI / 180.0D);
 
         private final ModelPart root;
+        private final String modelSourceStem;
         private final Map<String, ModelPart> parts;
         private final Map<String, LegacyModelDefinition.LegacyPart> definitions;
         private final List<String> headParts;
@@ -101,10 +109,11 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
         private final List<String> flushParts;
         private final List<LegacyModelDefinition.TransformOp> transformOps;
 
-        private BakedLegacyModel(ModelPart root, Map<String, ModelPart> parts,
+        private BakedLegacyModel(String modelSourceStem, ModelPart root, Map<String, ModelPart> parts,
                                  Map<String, LegacyModelDefinition.LegacyPart> definitions,
                                  List<LegacyModelDefinition.TransformOp> transformOps) {
             this.root = root;
+            this.modelSourceStem = modelSourceStem;
             this.parts = parts;
             this.definitions = definitions;
             this.transformOps = transformOps;
@@ -119,7 +128,7 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             this.flushParts = findNamedParts(parts, "Flush0", "Flush1");
         }
 
-        private static BakedLegacyModel bake(LegacyModelDefinition definition) {
+        private static BakedLegacyModel bake(String modelSourceStem, LegacyModelDefinition definition) {
             MeshDefinition meshDefinition = new MeshDefinition();
             PartDefinition rootDefinition = meshDefinition.getRoot();
 
@@ -135,7 +144,8 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
                 collectParts(bakedRoot.getChild(rootPart), definition, rootPart, bakedParts);
             }
 
-            return new BakedLegacyModel(bakedRoot, bakedParts, definition.parts(), definition.transformOps());
+            return new BakedLegacyModel(modelSourceStem, bakedRoot, bakedParts,
+                    definition.parts(), definition.transformOps());
         }
 
         private static void addPart(PartDefinition parentDefinition, LegacyModelDefinition definition, String partName) {
@@ -259,6 +269,13 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             }
         }
 
+        private void applyLegacyModelState(int modelState) {
+            for (Map.Entry<String, ModelPart> entry : this.parts.entrySet()) {
+                entry.getValue().visible = LegacyShipModelStateCatalog.isPartVisible(
+                        this.modelSourceStem, entry.getKey(), modelState);
+            }
+        }
+
         private void applyWalk(float limbSwing, float limbSwingAmount) {
             float walkStrength = Mth.clamp(limbSwingAmount, 0.0F, 1.0F);
             float armSwing = Mth.cos(limbSwing * 0.6662F) * 0.32F * walkStrength;
@@ -297,17 +314,49 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
         }
 
         private void render(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay,
-                            float red, float green, float blue, float alpha) {
+                            float red, float green, float blue, float alpha,
+                            LegacyShipModelTransformCatalog.RenderTransform runtimeTransform) {
             poseStack.pushPose();
+            boolean hasScale = false;
+            boolean hasTranslate = false;
+
+            if (runtimeTransform != null && this.transformOps.stream()
+                    .noneMatch(op -> op.operation() == LegacyModelDefinition.TransformOp.Operation.SCALE)) {
+                poseStack.scale(runtimeTransform.scaleX(), runtimeTransform.scaleY(), runtimeTransform.scaleZ());
+                hasScale = true;
+            }
 
             for (LegacyModelDefinition.TransformOp transformOp : this.transformOps) {
                 switch (transformOp.operation()) {
-                    case SCALE -> poseStack.scale(transformOp.x(), transformOp.y(), transformOp.z());
-                    case TRANSLATE -> poseStack.translate(transformOp.x(), transformOp.y(), transformOp.z());
+                    case SCALE -> {
+                        if (runtimeTransform != null) {
+                            poseStack.scale(runtimeTransform.scaleX(), runtimeTransform.scaleY(),
+                                    runtimeTransform.scaleZ());
+                            hasScale = true;
+                        } else {
+                            poseStack.scale(transformOp.x(), transformOp.y(), transformOp.z());
+                        }
+                    }
+                    case TRANSLATE -> {
+                        if (runtimeTransform != null && transformOp.x() == 0.0F && transformOp.z() == 0.0F) {
+                            poseStack.translate(0.0F, runtimeTransform.offsetY(), 0.0F);
+                            hasTranslate = true;
+                        } else {
+                            poseStack.translate(transformOp.x(), transformOp.y(), transformOp.z());
+                        }
+                    }
                     case ROTATE -> applyRotation(poseStack, transformOp);
                     default -> {
                     }
                 }
+            }
+
+            if (runtimeTransform != null && !hasScale) {
+                poseStack.scale(runtimeTransform.scaleX(), runtimeTransform.scaleY(), runtimeTransform.scaleZ());
+            }
+
+            if (runtimeTransform != null && !hasTranslate) {
+                poseStack.translate(0.0F, runtimeTransform.offsetY(), 0.0F);
             }
 
             this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);

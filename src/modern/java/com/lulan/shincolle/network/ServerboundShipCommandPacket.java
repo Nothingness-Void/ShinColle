@@ -23,6 +23,10 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
         return new ServerboundShipCommandPacket(ShipCommandAction.MOVE_TO_POS, mode, shipId, shipUid, NO_ENTITY, pos, 0);
     }
 
+    public static ServerboundShipCommandPacket guardBlock(int mode, int shipId, int shipUid, BlockPos pos) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.MOVE_TO_POS, mode, shipId, shipUid, NO_ENTITY, pos, 1);
+    }
+
     public static ServerboundShipCommandPacket guard(int mode, int shipId, int shipUid, int targetId) {
         return new ServerboundShipCommandPacket(ShipCommandAction.GUARD_ENTITY, mode, shipId, shipUid, targetId, null, 0);
     }
@@ -53,6 +57,23 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
 
     public static ServerboundShipCommandPacket setFollowRange(int shipId, int shipUid, int followRange) {
         return new ServerboundShipCommandPacket(ShipCommandAction.SET_FOLLOW_RANGE, 0, shipId, shipUid, NO_ENTITY, null, followRange);
+    }
+
+    public static ServerboundShipCommandPacket setWaypointStay(int shipId, int shipUid, int stayMode) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SET_WAYPOINT_STAY, 0, shipId, shipUid, NO_ENTITY, null, stayMode);
+    }
+
+    public static ServerboundShipCommandPacket setTimeKeeper(int shipId, int shipUid, boolean enabled) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SET_TIME_KEEPER, 0, shipId, shipUid, NO_ENTITY, null, enabled ? 1 : 0);
+    }
+
+    public static ServerboundShipCommandPacket setAutoPump(int shipId, int shipUid, boolean enabled) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SET_AUTO_PUMP, 0, shipId, shipUid, NO_ENTITY, null, enabled ? 1 : 0);
+    }
+
+    public static ServerboundShipCommandPacket setCombatRationLevel(int shipId, int shipUid, int level) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SET_COMBAT_RATION_LEVEL, 0,
+                shipId, shipUid, NO_ENTITY, null, level);
     }
 
     public static void encode(ServerboundShipCommandPacket packet, FriendlyByteBuf buffer) {

@@ -1,6 +1,9 @@
 package com.lulan.shincolle.ownership;
 
+import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.teitoku.TeitokuSavedData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -56,7 +59,48 @@ public record PlayerOwnerData(UUID uuid, String name, int uid) {
     }
 
     public boolean canEdit(Player player) {
-        return this.uuid == null || Objects.equals(this.uuid, player.getUUID());
+        if (player == null) {
+            return false;
+        }
+        if (player.hasPermissions(2)) {
+            return true;
+        }
+
+        int ownerUid = this.resolveOwnerUid(player);
+        if (this.uuid != null) {
+            return Objects.equals(this.uuid, player.getUUID())
+                    || (ownerUid > 0 && isAlliedOperator(player, ownerUid));
+        }
+
+        return this.uid <= 0
+                || TeitokuHelper.getPlayerUid(player) == this.uid
+                || (ownerUid > 0 && isAlliedOperator(player, ownerUid));
+    }
+
+    private int resolveOwnerUid(Player viewer) {
+        if (this.uid > 0) {
+            return this.uid;
+        }
+        if (this.uuid != null && viewer.level() instanceof ServerLevel serverLevel) {
+            return TeitokuSavedData.get(serverLevel).getUid(this.uuid);
+        }
+        return 0;
+    }
+
+    private static boolean isAlliedOperator(Player player, int ownerUid) {
+        int playerUid = TeitokuHelper.getPlayerUid(player);
+        if (playerUid <= 0) {
+            return false;
+        }
+        if (playerUid == ownerUid) {
+            return true;
+        }
+        if (player.level() instanceof ServerLevel serverLevel) {
+            return TeitokuHelper.isAlly(serverLevel, ownerUid, playerUid);
+        }
+
+        TeamData ownerTeam = TeitokuHelper.getClientTeamData().get(ownerUid);
+        return ownerTeam != null && ownerTeam.isAlly(playerUid);
     }
 
     public Component displayLabel() {

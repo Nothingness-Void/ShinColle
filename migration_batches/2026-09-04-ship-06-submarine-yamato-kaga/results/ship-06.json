@@ -1,0 +1,56 @@
+{
+  "batch": "SHIP-06",
+  "status": "COMPLETE",
+  "date": "2026-09-04",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [38, 39, 44, 46, 47],
+  "focus": [
+    "submarine runtime and projectile path",
+    "submarine hime dual missile",
+    "Yamato beam and model scale",
+    "Kaga aircraft and model scale",
+    "legacy model source/state/bake",
+    "host and miss damage boundaries"
+  ],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "cleanProcessResources": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 261,
+    "passed": 261,
+    "failed": 0,
+    "focused": [
+      "ship06SubmarineYamatoKagaLegacyModelsKeepExactSourceAndStateRules",
+      "ship06SelectedModelScaleBranchesMatchLegacySource",
+      "ship06SubmarineHimeAndBeamProjectileBoundariesMatchLegacy",
+      "fiveSubmarineProjectileVariantsKeepLegacyMoveAndSpeedRules",
+      "himeSubmarineProjectilePathUsesLegacyDepthSelection",
+      "submarineHimeLightAttackLaunchesDoubleMissile",
+      "ssnhLightAttackLaunchesDoubleMissile",
+      "carrierAircraftCapacityAndRuntimeFollowLegacyCvRules"
+    ]
+  },
+  "clientSmoke": {
+    "status": "STARTUP_RESOURCE_RELOAD_AND_INTEGRATED_CONNECTION_PASS",
+    "java": "17.0.3.1",
+    "gl": "NVIDIA GeForce RTX 5060 / OpenGL 4.6",
+    "shincolleInitialization": "PASS",
+    "resourceReload": "PASS",
+    "integratedSinglePlayerConnection": "PASS",
+    "modelTextureFallbackErrors": 0,
+    "inWorldManualInteraction": "NOT_PERFORMED_NATIVE_WINDOW_NOT_EXPOSED",
+    "processExit": "INTERRUPTED_AFTER_SMOKE",
+    "log": "run/logs/latest.log"
+  },
+  "noLegacyChanges": true,
+  "notes": [
+    "The legacy SSNH miss branch uses nextFloat and can legitimately retain ARC after target scatter; the test now computes the legacy constructor fallback instead of hardcoding DIRECT.",
+    "Yamato and Kaga scale-level render branches are projected through LegacyShipModelTransformCatalog without replacing the legacy model parser.",
+    "The hostile far-chase and player-notification policy was outside this batch and was not changed.",
+    "Manual in-world inspection remains a V0 task because the native window was not exposed to the available automation surface."
+  ]
+}

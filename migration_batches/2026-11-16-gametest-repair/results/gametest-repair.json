@@ -1,0 +1,26 @@
+{
+  "batch_id": "GAMETEST-REPAIR-B4",
+  "date": "2026-11-16",
+  "status": "DONE",
+  "base_commit": "3c9fe42d",
+  "legacy_dirty": false,
+  "checks": {
+    "git_diff_check": "PASS (exit 0)",
+    "compileJava": "PASS",
+    "processResources": "UP-TO-DATE / PASS",
+    "verifyItemModelCoverage": "PASS",
+    "runGameTestServer": "PASS (91/91 passed, 0 failed, 0 skipped)"
+  },
+  "repaired_tests": [
+    "worldgenResourcesKeepLegacyPolymetalPlacement",
+    "hostileSpecFlagsMatchLegacySemantics",
+    "shipCommandServiceReportsFailureReasons",
+    "shipCommandServiceRejectsUnauthorizedFarAndDeadShips",
+    "perShipBehaviorCatalogRoutesAttackProfiles",
+    "perShipBehaviorCatalogRoutesSpecialCombatHooks",
+    "hostileBossUsesLegacyPlayerTargetRules",
+    "shipPickupGoalStoresNearbyDrops",
+    "shipPickupGoalYieldsToOrdersCombatAndSupplyFlag"
+  ],
+  "production_code_changes": []
+}

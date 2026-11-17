@@ -39,10 +39,12 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
         String buildTime = this.menu.getBuildTimeString();
         guiGraphics.drawString(this.font, buildTime, 176 - this.font.width(buildTime) / 2, 77, 0x404040, false);
 
-        this.drawCentered(guiGraphics, Integer.toString(this.menu.getMaterialAmount(0)), 73, 20, materialColor(this.menu.getMaterialAmount(0)));
-        this.drawCentered(guiGraphics, Integer.toString(this.menu.getMaterialAmount(1)), 73, 39, materialColor(this.menu.getMaterialAmount(1)));
-        this.drawCentered(guiGraphics, Integer.toString(this.menu.getMaterialAmount(2)), 73, 58, materialColor(this.menu.getMaterialAmount(2)));
-        this.drawCentered(guiGraphics, Integer.toString(this.menu.getMaterialAmount(3)), 73, 77, materialColor(this.menu.getMaterialAmount(3)));
+        for (int i = 0; i < 4; i++) {
+            int buildAmt = this.menu.getBuildMaterialAmount(i);
+            int stockAmt = this.menu.getMaterialAmount(i);
+            this.drawCentered(guiGraphics, Integer.toString(buildAmt), 73, 20 + i * 19, materialColor(buildAmt));
+            this.drawCentered(guiGraphics, Integer.toString(stockAmt), 125, 20 + i * 19, 0xE0C54E);
+        }
 
         guiGraphics.drawString(this.font,
                 Component.translatable(this.menu.isStructureComplete()
@@ -78,6 +80,19 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
         }
 
         renderModeOverlay(guiGraphics, this.menu.getBuildType(), this.animationTick / 6 % 6);
+
+        int selectMat = this.menu.getSelectMat();
+        if (selectMat >= 0 && selectMat <= 3) {
+            // Material adjust buttons panel at (50, 8 + selectMat * 19)
+            guiGraphics.blit(TEXTURE, this.leftPos + 50, this.topPos + 8 + selectMat * 19, 0, 223, 48, 30);
+            // Material selection frame at (27, 14 + selectMat * 19)
+            guiGraphics.blit(TEXTURE, this.leftPos + 27, this.topPos + 14 + selectMat * 19, 208, 64, 18, 18);
+        }
+
+        // Inventory mode overlay (23, 92) when in output mode
+        if (this.menu.getInvMode() == 1) {
+            guiGraphics.blit(TEXTURE, this.leftPos + 23, this.topPos + 92, 208, 82, 25, 20);
+        }
     }
 
     @Override
@@ -90,7 +105,73 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
             return true;
         }
 
+        if (!this.menu.canEdit()) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+
+        double localX = mouseX - this.leftPos;
+        double localY = mouseY - this.topPos;
+
+        // Inventory mode button (23, 93) to (48, 112)
+        if (inside((int) localX, (int) localY, 23, 93, 25, 20)) {
+            this.sendButtonClick(LargeShipyardMenu.BUTTON_INVENTORY_MODE);
+            return true;
+        }
+
+        // Material selection buttons (rows 0..3)
+        for (int i = 0; i < 4; i++) {
+            int rowY = 14 + i * 19;
+            if (inside((int) localX, (int) localY, 27, rowY, 18, 18)
+                    || inside((int) localX, (int) localY, 51, rowY + 5, 46, 8)) {
+                this.sendButtonClick(LargeShipyardMenu.BUTTON_SELECT_MATERIAL_BASE + i);
+                return true;
+            }
+        }
+
+        // Material adjustment buttons (+1000..-1)
+        int selectMat = this.menu.getSelectMat();
+        if (selectMat >= 0 && selectMat <= 3) {
+            int topRowY = 8 + selectMat * 19;
+            int botRowY = 28 + selectMat * 19;
+
+            if (localY >= topRowY && localY <= topRowY + 10) {
+                if (localX >= 50 && localX < 62) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 0);
+                    return true;
+                } else if (localX >= 62 && localX < 74) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 1);
+                    return true;
+                } else if (localX >= 74 && localX < 86) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 2);
+                    return true;
+                } else if (localX >= 86 && localX < 98) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 3);
+                    return true;
+                }
+            } else if (localY >= botRowY && localY <= botRowY + 10) {
+                if (localX >= 50 && localX < 62) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 4);
+                    return true;
+                } else if (localX >= 62 && localX < 74) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 5);
+                    return true;
+                } else if (localX >= 74 && localX < 86) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 6);
+                    return true;
+                } else if (localX >= 86 && localX < 98) {
+                    this.sendButtonClick(LargeShipyardMenu.BUTTON_ADJUST_MATERIAL_BASE + 7);
+                    return true;
+                }
+            }
+        }
+
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private void sendButtonClick(int buttonId) {
+        if (this.minecraft != null && this.minecraft.gameMode != null) {
+            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, buttonId);
+        }
     }
 
     private boolean handleModeClick(double mouseX, double mouseY, int relX, int buttonId) {
@@ -104,12 +185,8 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
             return false;
         }
 
-        if (this.minecraft != null && this.minecraft.gameMode != null) {
-            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, buttonId);
-            return true;
-        }
-
-        return false;
+        this.sendButtonClick(buttonId);
+        return true;
     }
 
     private void renderHoverTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
@@ -165,9 +242,11 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
     }
 
     private static int materialColor(int amount) {
-        if (amount >= 100) {
-            return amount >= 120 ? 0xF0F0F0 : 0xE0C54E;
+        if (amount < 100) {
+            return 0xD15C5C;
+        } else if (amount == 1000) {
+            return 0xE0C54E;
         }
-        return 0xD15C5C;
+        return 0xF0F0F0;
     }
 }

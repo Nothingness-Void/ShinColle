@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
 import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import net.minecraft.core.BlockPos;
@@ -35,6 +36,9 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private static final String ENERGY_MODE_TAG = "EnergyMode";
     private static final String FILTER_ITEMS_TAG = "FilterItems";
     private static final String FILTER_MODE_MASK_TAG = "FilterModeMask";
+    private static final String CHECK_METADATA_TAG = "meta";
+    private static final String CHECK_OREDICT_TAG = "dict";
+    private static final String CHECK_NBT_TAG = "nbt";
     private static final int MAX_WAIT_MODE = 24;
     private static final int MAX_THREE_STATE_MODE = 2;
     public static final int FILTER_SLOT_COUNT = 18;
@@ -49,6 +53,10 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private BlockPos pairedChest;
     private boolean loadEnabled = true;
     private boolean unloadEnabled = true;
+    private boolean active = true;
+    private boolean checkMetadata;
+    private boolean checkOredict;
+    private boolean checkNbt;
     private int waitMode;
     private int redstoneMode;
     private int liquidMode;
@@ -74,6 +82,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         this.pairedChest = readOptionalPos(tag, PAIRED_CHEST_TAG);
         this.loadEnabled = !tag.contains(LOAD_ENABLED_TAG) || tag.getBoolean(LOAD_ENABLED_TAG);
         this.unloadEnabled = !tag.contains(UNLOAD_ENABLED_TAG) || tag.getBoolean(UNLOAD_ENABLED_TAG);
+        this.active = !tag.contains("active") || tag.getBoolean("active");
         this.waitMode = Mth.clamp(tag.getInt(WAIT_MODE_TAG), 0, MAX_WAIT_MODE);
         this.redstoneMode = Mth.clamp(tag.getInt(REDSTONE_MODE_TAG), 0, MAX_THREE_STATE_MODE);
         this.liquidMode = Mth.clamp(tag.getInt(LIQUID_MODE_TAG), 0, MAX_THREE_STATE_MODE);
@@ -82,6 +91,9 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
             this.filterItems.deserializeNBT(tag.getCompound(FILTER_ITEMS_TAG));
         }
         this.filterModeMask = tag.getInt(FILTER_MODE_MASK_TAG);
+        this.checkMetadata = tag.getBoolean(CHECK_METADATA_TAG);
+        this.checkOredict = tag.getBoolean(CHECK_OREDICT_TAG);
+        this.checkNbt = tag.getBoolean(CHECK_NBT_TAG);
     }
 
     @Override
@@ -97,12 +109,16 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         writeOptionalPos(tag, PAIRED_CHEST_TAG, this.pairedChest);
         tag.putBoolean(LOAD_ENABLED_TAG, this.loadEnabled);
         tag.putBoolean(UNLOAD_ENABLED_TAG, this.unloadEnabled);
+        tag.putBoolean("active", this.active);
         tag.putInt(WAIT_MODE_TAG, this.waitMode);
         tag.putInt(REDSTONE_MODE_TAG, this.redstoneMode);
         tag.putInt(LIQUID_MODE_TAG, this.liquidMode);
         tag.putInt(ENERGY_MODE_TAG, this.energyMode);
         tag.put(FILTER_ITEMS_TAG, this.filterItems.serializeNBT());
         tag.putInt(FILTER_MODE_MASK_TAG, this.filterModeMask);
+        tag.putBoolean(CHECK_METADATA_TAG, this.checkMetadata);
+        tag.putBoolean(CHECK_OREDICT_TAG, this.checkOredict);
+        tag.putBoolean(CHECK_NBT_TAG, this.checkNbt);
     }
 
     @Override
@@ -207,8 +223,79 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         this.markUpdated();
     }
 
+    public boolean isCheckMetadata() {
+        return this.checkMetadata;
+    }
+
+    public void setCheckMetadata(boolean checkMetadata) {
+        this.checkMetadata = checkMetadata;
+        this.markUpdated();
+    }
+
+    public void toggleCheckMetadata() {
+        this.checkMetadata = !this.checkMetadata;
+        this.markUpdated();
+    }
+
+    public boolean isCheckOredict() {
+        return this.checkOredict;
+    }
+
+    public void setCheckOredict(boolean checkOredict) {
+        this.checkOredict = checkOredict;
+        this.markUpdated();
+    }
+
+    public void toggleCheckOredict() {
+        this.checkOredict = !this.checkOredict;
+        this.markUpdated();
+    }
+
+    public boolean isCheckNbt() {
+        return this.checkNbt;
+    }
+
+    public void setCheckNbt(boolean checkNbt) {
+        this.checkNbt = checkNbt;
+        this.markUpdated();
+    }
+
+    public void toggleCheckNbt() {
+        this.checkNbt = !this.checkNbt;
+        this.markUpdated();
+    }
+
+    public Component getCheckMetadataStateLabel() {
+        return enabledLabel(this.checkMetadata);
+    }
+
+    public Component getCheckOredictStateLabel() {
+        return enabledLabel(this.checkOredict);
+    }
+
+    public Component getCheckNbtStateLabel() {
+        return enabledLabel(this.checkNbt);
+    }
+
+    public boolean isActive() {
+        return this.active;
+    }
+
+    public void toggleActive() {
+        this.active = !this.active;
+        this.markUpdated();
+    }
+
     public void cycleWaitMode() {
-        this.waitMode = (this.waitMode + 1) % (MAX_WAIT_MODE + 1);
+        this.cycleWaitMode(true);
+    }
+
+    public void cycleWaitMode(boolean forward) {
+        if (forward) {
+            this.waitMode = (this.waitMode + 1) % (MAX_WAIT_MODE + 1);
+        } else {
+            this.waitMode = (this.waitMode - 1 + (MAX_WAIT_MODE + 1)) % (MAX_WAIT_MODE + 1);
+        }
         this.markUpdated();
     }
 
@@ -292,7 +379,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
             }
 
             boolean inverted = this.isFilterInverted(slot);
-            boolean matches = ItemStack.isSameItemSameTags(candidate, filter);
+            boolean matches = LegacyItemMatchHelper.matchesTargetItem(
+                    candidate, filter, this.checkMetadata, this.checkOredict, this.checkNbt);
             if (inverted && matches) {
                 return false;
             }

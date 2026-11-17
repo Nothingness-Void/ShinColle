@@ -7,7 +7,7 @@
       "item": "shincolle:abyssmetal"
     },
     "o": {
-      "item": "minecraft:obsidian"
+      "tag": "forge:obsidian"
     }
   },
   "pattern": [

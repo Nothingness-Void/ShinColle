@@ -1,0 +1,61 @@
+{
+  "batchId": "2026-11-16-b1-gui-parity",
+  "milestone": "M2: B1-GUI-PARITY",
+  "timestamp": "2026-11-16T11:29:00Z",
+  "audit": {
+    "legacyGuiClassesAudited": 10,
+    "legacyContainerClassesAudited": 9,
+    "modernScreensAudited": 11,
+    "modernMenusAudited": 11
+  },
+  "modifications": [
+    {
+      "file": "src/modern/java/com/lulan/shincolle/menu/LargeShipyardMenu.java",
+      "changes": "Removed invalid slot at (9, 83); placed 9 input tray slots along y=116 at 7 + i * 18 for i=1..9; ensured total 46 slots."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java",
+      "changes": "Added click handling and rendering for BUTTON_INVENTORY_MODE, BUTTON_SELECT_MATERIAL_BASE, and BUTTON_ADJUST_MATERIAL_BASE; rendered stock amounts at x=125 in yellow 0xE0C54E."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/menu/LegacyCoreMenu.java",
+      "changes": "Realigned 3x3 fuel grid slots to (62 + col * 18, 19 + row * 18), player inventory to (8 + col * 18, 84 + row * 18), and hotbar to (8 + hotbarSlot * 18, 142)."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/client/screen/LegacyCoreScreen.java",
+      "changes": "Realigned charge bar to (38, 59 - chargeBar, 12, chargeBar) with height scaled to 31; added power toggle button at (7, 6, 13, 13) with active overlay UV (12, 166, 13, 13)."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java",
+      "changes": "Added active state tracking, isActive(), toggleActive(), and directional cycleWaitMode(boolean forward)."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/menu/CraneTerminalMenu.java",
+      "changes": "Added BUTTON_POWER (9) and BUTTON_WAIT_MODE_DECR (10); exposed isActive()."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/client/screen/CraneTerminalScreen.java",
+      "changes": "Added power toggle button at (7, 6, 13, 13) with active overlay UV (176, 0, 13, 13); added right-click decrement for wait mode button; added power status tooltip."
+    },
+    {
+      "file": "src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java",
+      "changes": "Verified multiplayer safety guarding getSingleplayerServer() against null."
+    }
+  ],
+  "verification": {
+    "compileJava": {
+      "command": "$env:JAVA_HOME = 'C:\\Program Files\\Java\\jdk-17.0.3.1'; .\\gradlew compileJava",
+      "exitCode": 0,
+      "status": "BUILD SUCCESSFUL"
+    },
+    "runGameTestServer": {
+      "command": "$env:JAVA_HOME = 'C:\\Program Files\\Java\\jdk-17.0.3.1'; .\\gradlew runGameTestServer",
+      "exitCode": 0,
+      "status": "BUILD SUCCESSFUL",
+      "totalTests": 276,
+      "passedTests": 276,
+      "failedTests": 0,
+      "regressions": 0
+    }
+  }
+}

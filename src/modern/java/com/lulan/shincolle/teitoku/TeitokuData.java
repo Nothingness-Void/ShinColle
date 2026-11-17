@@ -45,6 +45,7 @@ public class TeitokuData {
     private static final String PLAYER_SKILL_RUNTIME_TAG = "PlayerSkillRuntime";
 
     public static final int DEFAULT_BOSS_COOLDOWN = 4800;
+    public static final int INITIAL_TEAM_COOLDOWN = 20;
     public static final int DEFAULT_TEAM_COOLDOWN = 6000;
     public static final int DEFAULT_FORMATION_ID = 0;
     public static final int MAX_FORMATION_ID = 5;
@@ -59,7 +60,7 @@ public class TeitokuData {
     private boolean ringFlying;
     private int marriageNum;
     private int bossCooldown = DEFAULT_BOSS_COOLDOWN;
-    private int teamCooldown = DEFAULT_TEAM_COOLDOWN;
+    private int teamCooldown = INITIAL_TEAM_COOLDOWN;
     private boolean hasTeam;
     private int currentTeamId;
     private int pointerSlotCursor;
@@ -130,7 +131,7 @@ public class TeitokuData {
         this.ringFlying = source.getBoolean(RING_FLYING_TAG);
         this.marriageNum = Math.max(0, source.getInt(MARRIAGE_NUM_TAG));
         this.bossCooldown = source.contains(BOSS_COOLDOWN_TAG) ? source.getInt(BOSS_COOLDOWN_TAG) : DEFAULT_BOSS_COOLDOWN;
-        this.teamCooldown = source.contains(TEAM_COOLDOWN_TAG) ? source.getInt(TEAM_COOLDOWN_TAG) : DEFAULT_TEAM_COOLDOWN;
+        this.teamCooldown = source.contains(TEAM_COOLDOWN_TAG) ? source.getInt(TEAM_COOLDOWN_TAG) : INITIAL_TEAM_COOLDOWN;
         this.hasTeam = source.contains(HAS_TEAM_TAG) ? source.getBoolean(HAS_TEAM_TAG) : this.playerUid > 0;
         this.currentTeamId = normalizeTeamId(source.getInt(CURRENT_TEAM_ID_TAG));
 

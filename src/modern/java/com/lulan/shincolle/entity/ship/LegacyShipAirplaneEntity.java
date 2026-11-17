@@ -8,7 +8,7 @@ import net.minecraft.world.level.Level;
 public class LegacyShipAirplaneEntity extends LegacyShipAircraftEntity {
 
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityairplanezero.png");
+            ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/entity/entityaircraft.png");
 
     public LegacyShipAirplaneEntity(EntityType<? extends LegacyShipAirplaneEntity> entityType, Level level) {
         super(entityType, level);

@@ -16,6 +16,8 @@ public final class LegacyShipStatTables {
     public static final double[] SCALE_SHIP = {1D, 1D, 1D, 1D, 1D, 1D};
     public static final double[] SCALE_MOB_SMALL = {250D, 25D, 0.15D, 0.7D, 0.45D, 12D};
     public static final double[] SCALE_MOB_LARGE = {500D, 50D, 0.30D, 0.9D, 0.4D, 15D};
+    public static final double[] SCALE_BOSS_SMALL = {1600D, 120D, 0.5D, 1.6D, 0.38D, 18D};
+    public static final double[] SCALE_BOSS_LARGE = {3200D, 240D, 0.75D, 2D, 0.35D, 22D};
     public static final double[] LIMIT_SHIP_ATTRS = {
             -1D, -1D, -1D, -1D, -1D,
             0.95D, 4D, 0.6D, 64D, 0.95D,
@@ -204,6 +206,18 @@ public final class LegacyShipStatTables {
         return switch (archetype) {
             case DESTROYER, SUBMARINE -> SCALE_MOB_SMALL;
             default -> SCALE_MOB_LARGE;
+        };
+    }
+
+    public static double[] hostileScaleFor(ShipArchetype archetype, int scaleLevel) {
+        if (scaleLevel < 0) {
+            return hostileScaleFor(archetype);
+        }
+        return switch (Math.min(3, scaleLevel)) {
+            case 1 -> SCALE_MOB_LARGE;
+            case 2 -> SCALE_BOSS_SMALL;
+            case 3 -> SCALE_BOSS_LARGE;
+            default -> SCALE_MOB_SMALL;
         };
     }
 

@@ -1,0 +1,27 @@
+{
+  "batch": "SHIP-02",
+  "date": "2026-09-03",
+  "java": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+  "scope": [10, 12, 13, 14, 15],
+  "focus": ["command", "route", "guard", "target", "legacy waypoint NBT"],
+  "checks": {
+    "git diff --check": 0,
+    "compileJava": 0,
+    "processResources": 0,
+    "runGameTestServer": 0
+  },
+  "gameTests": {
+    "required": 253,
+    "passed": 253,
+    "failed": 0
+  },
+  "focusedTests": [
+    "ship02CommandBoundariesCoverFiveLegacyVariants",
+    "waypointRouteBacktracksUsingLegacyLastWaypoint",
+    "legacyWaypointNbtMigratesOwnerAndRouteLinks",
+    "shipCommandServiceRejectsUnauthorizedFarAndDeadShips",
+    "shipCommandServiceReportsFailureReasons"
+  ],
+  "clientSmoke": "not_applicable: no client, resource, renderer, particle, or screen changes",
+  "log": "run/logs/latest.log"
+}

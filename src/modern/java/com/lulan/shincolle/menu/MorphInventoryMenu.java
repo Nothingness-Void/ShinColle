@@ -138,7 +138,7 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
 
         return stack.isEmpty()
                 || stack.is(Items.AIR)
-                || ShipEquipmentProfile.canEquip(profile.getSpec().archetype(), stack);
+                || ShipEquipmentProfile.canEquip(profile.getSpec(), stack);
     }
 
     public LegacyShipStats getLegacyStats() {

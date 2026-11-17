@@ -98,6 +98,21 @@ public record ShipEquipmentBehaviorState(
                 transport);
     }
 
+    public ShipEquipmentBehaviorState withSearchlightLevel(int level) {
+        return new ShipEquipmentBehaviorState(
+                this.airRadarLevel,
+                this.surfaceRadarLevel,
+                this.sonarLevel,
+                this.fcsLevel,
+                this.flareLevel,
+                Math.max(0, level),
+                this.catapultLevel,
+                this.turbineLevel,
+                this.torpedoSpeedLevel,
+                this.autonomousRoute,
+                this.transportTier);
+    }
+
     public int detectionRangeBonus() {
         return Mth.clamp(this.airRadarLevel * 4 + this.surfaceRadarLevel * 4 + this.sonarLevel * 6 + this.fcsLevel * 5 + this.searchlightLevel * 2,
                 0,
@@ -189,6 +204,11 @@ public record ShipEquipmentBehaviorState(
             multiplier += this.catapultLevel * 0.04D + this.airRadarLevel * 0.015D;
         }
         return Mth.clamp(multiplier, 1.0D, 1.35D);
+    }
+
+    /** Mirrors EquipCalc's additive missile-speed bonus before launch. */
+    public double legacyProjectileSpeed(double baseSpeed) {
+        return Math.max(0.0D, baseSpeed) + this.torpedoSpeedLevel * 0.025D;
     }
 
     public double airGuidanceBlend() {

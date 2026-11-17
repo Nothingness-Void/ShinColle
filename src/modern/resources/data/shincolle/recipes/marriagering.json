@@ -4,10 +4,10 @@
   "group": "shincolle_growth_upgrade",
   "key": {
     "a": {
-      "item": "shincolle:abyssmetal"
+      "item": "shincolle:abyssnugget"
     },
     "s": {
-      "item": "minecraft:nether_star"
+      "tag": "forge:nether_stars"
     }
   },
   "pattern": [

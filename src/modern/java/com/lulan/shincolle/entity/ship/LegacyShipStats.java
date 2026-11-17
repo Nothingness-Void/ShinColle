@@ -42,10 +42,53 @@ public final class LegacyShipStats {
                                          int formationId,
                                          ShipEquipmentProfile equipmentProfile,
                                          Collection<MobEffectInstance> activeEffects) {
+        return create(legacyClassId, archetype, hostileVariant,
+                level, moraleValue,
+                healthBonus, attackBonus, defenseBonus, attackSpeedBonus,
+                moveBonus, rangeBonus,
+                married,
+                formationId,
+                equipmentProfile,
+                activeEffects,
+                false,
+                -1);
+    }
+
+    public static LegacyShipStats create(int legacyClassId, ShipArchetype archetype, boolean hostileVariant,
+                                         int level, int moraleValue,
+                                         int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
+                                         int moveBonus, int rangeBonus,
+                                         boolean married,
+                                         int formationId,
+                                         ShipEquipmentProfile equipmentProfile,
+                                         Collection<MobEffectInstance> activeEffects,
+                                         boolean night) {
+        return create(legacyClassId, archetype, hostileVariant,
+                level, moraleValue,
+                healthBonus, attackBonus, defenseBonus, attackSpeedBonus,
+                moveBonus, rangeBonus,
+                married,
+                formationId,
+                equipmentProfile,
+                activeEffects,
+                night,
+                -1);
+    }
+
+    public static LegacyShipStats create(int legacyClassId, ShipArchetype archetype, boolean hostileVariant,
+                                         int level, int moraleValue,
+                                         int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
+                                         int moveBonus, int rangeBonus,
+                                         boolean married,
+                                         int formationId,
+                                         ShipEquipmentProfile equipmentProfile,
+                                         Collection<MobEffectInstance> activeEffects,
+                                         boolean night,
+                                         int hostileScaleLevel) {
         int resolvedLevel = Math.max(1, level);
         float[] raw = hostileVariant
-                ? buildHostileRaw(legacyClassId, archetype)
-                : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, defenseBonus, attackSpeedBonus, moveBonus, rangeBonus);
+                ? buildHostileRaw(legacyClassId, archetype, night, hostileScaleLevel)
+                : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, defenseBonus, attackSpeedBonus, moveBonus, rangeBonus, night);
         float[] equip = equipmentProfile.toArray();
         float[] marriage = LegacyShipStatTables.copyMarriageStats(married);
         float[] morale = LegacyShipStatTables.copyMoraleStats(moraleValue);
@@ -62,7 +105,7 @@ public final class LegacyShipStats {
 
     private static float[] buildFriendlyRaw(int legacyClassId, int level,
                                             int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
-                                            int moveBonus, int rangeBonus) {
+                                            int moveBonus, int rangeBonus, boolean night) {
         float[] raw = getResetRawValue();
         float[] base = LegacyShipStatTables.copyBaseStats(legacyClassId);
 
@@ -102,16 +145,36 @@ public final class LegacyShipStats {
         raw[LegacyShipStatTables.Attr.AMMO] = 1F;
         raw[LegacyShipStatTables.Attr.HPRES] = 1F;
         raw[LegacyShipStatTables.Attr.KB] = level * 0.005F;
+        raw[LegacyShipStatTables.Attr.DODGE] +=
+                LegacyShipBehaviorCatalog.rawDodgeBonusFor(legacyClassId, false, night);
+        raw[LegacyShipStatTables.Attr.CRI] +=
+                LegacyShipBehaviorCatalog.rawCriticalBonusFor(legacyClassId, false, night);
+        raw[LegacyShipStatTables.Attr.MISS] +=
+                LegacyShipBehaviorCatalog.rawMissBonusFor(legacyClassId, false, night);
+        raw[LegacyShipStatTables.Attr.DHIT] +=
+                LegacyShipBehaviorCatalog.rawDoubleHitBonusFor(legacyClassId, false);
+        raw[LegacyShipStatTables.Attr.THIT] +=
+                LegacyShipBehaviorCatalog.rawTripleHitBonusFor(legacyClassId, false, night);
 
         return raw;
     }
 
-    private static float[] buildHostileRaw(int legacyClassId, ShipArchetype archetype) {
+    private static float[] buildHostileRaw(int legacyClassId, ShipArchetype archetype,
+                                           boolean night, int hostileScaleLevel) {
         float[] raw = getResetRawValue();
-        int friendlyClassId = legacyClassId - 2000;
+        // ShipEntitySpec stores the normalized legacy class id for both
+        // variants; direct stat callers may still pass the old +2000 id.
+        int friendlyClassId = legacyClassId >= 2000 ? legacyClassId - 2000 : legacyClassId;
         float[] hostileModifier = LegacyShipStatTables.copyHostileModifier(friendlyClassId);
-        double[] scale = LegacyShipStatTables.hostileScaleFor(archetype);
-        float kb = archetype == ShipArchetype.DESTROYER || archetype == ShipArchetype.SUBMARINE ? 0.2F : 0.4F;
+        double[] scale = LegacyShipStatTables.hostileScaleFor(archetype, hostileScaleLevel);
+        float kb = hostileScaleLevel >= 0
+                ? switch (Math.min(3, hostileScaleLevel)) {
+                    case 1 -> 0.4F;
+                    case 2 -> 0.85F;
+                    case 3 -> 1.0F;
+                    default -> 0.2F;
+                }
+                : archetype == ShipArchetype.DESTROYER || archetype == ShipArchetype.SUBMARINE ? 0.2F : 0.4F;
 
         raw[LegacyShipStatTables.Attr.HP] = (float) (scale[LegacyShipStatTables.BaseAttr.HP] * hostileModifier[LegacyShipStatTables.BaseAttr.HP]);
         raw[LegacyShipStatTables.Attr.ATK_L] = (float) (scale[LegacyShipStatTables.BaseAttr.ATK] * hostileModifier[LegacyShipStatTables.BaseAttr.ATK]);
@@ -134,6 +197,10 @@ public final class LegacyShipStats {
         raw[LegacyShipStatTables.Attr.AMMO] = 1F;
         raw[LegacyShipStatTables.Attr.HPRES] = 1F;
         raw[LegacyShipStatTables.Attr.KB] = kb;
+        raw[LegacyShipStatTables.Attr.CRI] +=
+                LegacyShipBehaviorCatalog.rawCriticalBonusFor(friendlyClassId, true, night);
+        raw[LegacyShipStatTables.Attr.THIT] +=
+                LegacyShipBehaviorCatalog.rawTripleHitBonusFor(friendlyClassId, true, night);
 
         return raw;
     }
@@ -341,7 +408,8 @@ public final class LegacyShipStats {
     }
 
     public float meleeDamage() {
-        return Math.max(1F, this.attackLight() * 0.125F);
+        return Math.max(1F, this.attackLight() * 0.125F
+                * LegacyShipBehaviorCatalog.meleeDamageMultiplierFor(this.legacyClassId, this.hostileVariant));
     }
 
     public float[] copyBuffed() {

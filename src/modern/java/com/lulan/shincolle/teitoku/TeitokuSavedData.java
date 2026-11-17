@@ -81,6 +81,10 @@ public class TeitokuSavedData extends SavedData {
         return data;
     }
 
+    public int getUid(UUID uuid) {
+        return uuid == null ? 0 : this.playerUidMap.getOrDefault(uuid, 0);
+    }
+
     public int getOrCreateUid(ServerPlayer player) {
         return this.getOrCreateUid(player.getUUID(), player.getGameProfile().getName());
     }

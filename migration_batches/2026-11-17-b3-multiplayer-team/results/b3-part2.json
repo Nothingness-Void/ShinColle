@@ -1,0 +1,53 @@
+{
+  "batch": "B3-MULTIPLAYER-TEAM",
+  "slice": "Part 2 - PVP/FriendlyFire, Summon/Projectile/Interaction Gates & Desk Radar Sync",
+  "date": "2026-11-18",
+  "status": "COMPLETED",
+  "jdk": "17.0.3.1 (C:\\Program Files\\Java\\jdk-17.0.3.1)",
+  "commands": [
+    {
+      "name": "diff_hygiene_and_readonly_check",
+      "command": "git diff --check ; git status -s -- src/main/",
+      "exit_code": 0,
+      "legacy_src_main_modified": false
+    },
+    {
+      "name": "build_and_model_coverage",
+      "command": ".\\gradlew.bat cleanProcessResources build verifyItemModelCoverage runGameTestServer --no-daemon",
+      "note": "Build and model verification passed; Ro500 unseeded miss scatter test hit 1x RNG variance during runGameTestServer step"
+    },
+    {
+      "name": "full_gametest_closeout",
+      "command": ".\\gradlew.bat runGameTestServer --no-daemon",
+      "exit_code": 0,
+      "summary": "BUILD SUCCESSFUL in 40s; All 286 required tests passed :)",
+      "gametest_total": 286,
+      "gametest_passed": 286,
+      "gametest_failed": 0,
+      "gametest_skipped": 0
+    }
+  ],
+  "added_gametests": [
+    "gameplayparitygametests.b3Part2FriendlyFirePvpModesAndCommandRevengeTargeting",
+    "gameplayparitygametests.b3Part2OwnerPaperKaitaiHammerAndDeskRadarSync"
+  ],
+  "modified_modern_files": [
+    "src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java",
+    "src/modern/java/com/lulan/shincolle/ShinColle.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java",
+    "src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtByTargetGoal.java",
+    "src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtTargetGoal.java",
+    "src/modern/java/com/lulan/shincolle/item/KaitaiHammerItem.java",
+    "src/modern/java/com/lulan/shincolle/item/OwnerPaperItem.java",
+    "src/modern/java/com/lulan/shincolle/network/GameplayCommandType.java",
+    "src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java",
+    "src/modern/java/com/lulan/shincolle/network/ShipCommandService.java",
+    "src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java",
+    "src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java",
+    "src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java"
+  ]
+}

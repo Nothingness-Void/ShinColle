@@ -7,7 +7,7 @@
       "item": "shincolle:grudge"
     },
     "i": {
-      "item": "minecraft:iron_ingot"
+      "tag": "forge:ingots/iron"
     },
     "p": {
       "item": "minecraft:blaze_powder"
@@ -19,7 +19,7 @@
     "ipi"
   ],
   "result": {
-    "count": 2,
+    "count": 4,
     "item": "shincolle:ammo2"
   }
 }

@@ -1,0 +1,65 @@
+{
+  "batch": "V0-CLIENT-GATE",
+  "date": "2026-09-05",
+  "closedDate": "2026-09-16",
+  "status": "DONE",
+  "scope": "Java 17 client startup and V0 native-window single-player acceptance",
+  "environment": {
+    "javaHome": "C:\\Program Files\\Java\\jdk-17.0.3.1",
+    "command": ".\\gradlew.bat runClient",
+    "worktree": "D:\\文档\\ShinColle",
+    "legacyTreesClean": true
+  },
+  "startup": {
+    "processTitle": "Minecraft* Forge 1.20.1",
+    "windowHandleObserved": true,
+    "responding": true,
+    "opengl": "4.6",
+    "forge": "47.4.18",
+    "shincolleInitialization": true,
+    "resourceReload": true,
+    "openal": true,
+    "textureAtlases": true,
+    "shincolleCrashOrMissingAssetSignal": false
+  },
+  "automation": {
+    "cuaApps": [],
+    "nativeWindowControllable": false,
+    "inWorldInteractionExecuted": false,
+    "latestAttempt": {
+      "startedAt": "2026-09-05T15:49:57+09:00",
+      "resourceInitializationObserved": true,
+      "cuaStateChecks": 2,
+      "nativeWindowControllable": false,
+      "inWorldInteractionExecuted": false
+    }
+  },
+  "staticCompletenessAudit": {
+    "matrixRows": 45,
+    "matrixUniqueClassIds": 45,
+    "matrixNonLockedRows": 0,
+    "modernPrimarySpecs": 45,
+    "modernRegisteredSpecs": 64,
+    "friendlySpecs": 34,
+    "hostileSpecs": 30,
+    "uniqueTextureStems": 45,
+    "matrixToModernSpecGaps": 0,
+    "duplicatePrimarySpecs": 0,
+    "newDifferenceFound": false
+  },
+  "acceptance": {
+    "clientStartup": "PASS",
+    "resourceInitialization": "PASS",
+    "inWorldGeneration": "PASS_USER_VERIFIED_2026_09_16",
+    "commandsAndGui": "PASS_USER_VERIFIED_2026_09_16",
+    "combatProjectilesAndFeedback": "PASS_USER_VERIFIED_2026_09_16",
+    "saveRestore": "PASS_USER_VERIFIED_2026_09_16",
+    "v0": "DONE_USER_CONFIRMED_2026_09_16"
+  },
+  "termination": {
+    "clientStopped": true,
+    "javaProcessesRemaining": false
+  },
+  "codeChanges": false,
+  "next": "SP mainline closed; transition to parity backlog."
+}
