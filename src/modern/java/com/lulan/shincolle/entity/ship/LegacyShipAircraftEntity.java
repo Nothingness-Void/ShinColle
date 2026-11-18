@@ -8,7 +8,9 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -50,6 +52,8 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     private static final String SPEED_SCALE_TAG = "SpeedScale";
     private static final String TURN_BLEND_TAG = "TurnBlend";
     private static final String TARGET_HEIGHT_FACTOR_TAG = "TargetHeightFactor";
+    private static final String HEALTH_TAG = "Health";
+    private static final String MAX_HEALTH_TAG = "MaxHealth";
 
     private static final EntityDataAccessor<Integer> DATA_ATTACK_KIND =
             SynchedEntityData.defineId(LegacyShipAircraftEntity.class, EntityDataSerializers.INT);
@@ -88,6 +92,8 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     private float speedScale = 1.0F;
     private float turnBlend = 0.16F;
     private float targetHeightFactor = 0.55F;
+    private float maxHp = 20.0F;
+    private float hp = 20.0F;
     private boolean returnedToOwner;
 
     protected LegacyShipAircraftEntity(EntityType<? extends LegacyShipAircraftEntity> entityType, Level level) {
@@ -120,6 +126,9 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         aircraft.attackCooldown = 0;
         aircraft.speedScale = (float) owner.getEquipmentBehaviorState().projectileSpeedMultiplier(attackKind);
         aircraft.turnBlend = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 0.12F : 0.18F;
+        aircraft.maxHp = Math.max(1.0F, owner.getShipLevel()
+                + owner.getMaxHealth() * (aircraft.isHeavyAirframe() ? 0.15F : 0.1F));
+        aircraft.hp = aircraft.maxHp;
 
         int effectFlags = 0;
         if (owner.getEquipmentBehaviorState().flareLevel() > 0) {
@@ -178,6 +187,8 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         this.speedScale = tag.contains(SPEED_SCALE_TAG) ? tag.getFloat(SPEED_SCALE_TAG) : 1.0F;
         this.turnBlend = tag.contains(TURN_BLEND_TAG) ? tag.getFloat(TURN_BLEND_TAG) : 0.16F;
         this.targetHeightFactor = tag.contains(TARGET_HEIGHT_FACTOR_TAG) ? tag.getFloat(TARGET_HEIGHT_FACTOR_TAG) : 0.55F;
+        this.maxHp = tag.contains(MAX_HEALTH_TAG) ? Math.max(1.0F, tag.getFloat(MAX_HEALTH_TAG)) : 20.0F;
+        this.hp = tag.contains(HEALTH_TAG) ? Math.max(0.0F, tag.getFloat(HEALTH_TAG)) : this.maxHp;
         this.refreshDimensions();
     }
 
@@ -199,6 +210,8 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         tag.putFloat(SPEED_SCALE_TAG, this.speedScale);
         tag.putFloat(TURN_BLEND_TAG, this.turnBlend);
         tag.putFloat(TARGET_HEIGHT_FACTOR_TAG, this.targetHeightFactor);
+        tag.putFloat(HEALTH_TAG, this.hp);
+        tag.putFloat(MAX_HEALTH_TAG, this.maxHp);
     }
 
     @Override
@@ -258,8 +271,10 @@ public abstract class LegacyShipAircraftEntity extends Entity {
                 if (this.remainingAttacks <= 0) {
                     this.setReturning(true);
                 }
-                // EntityAIShipAircraftAttack uses the shared heavy channel for both airframes.
-                this.attackCooldown = LegacyShipCombatHelper.attackDelay(owner, LegacyShipAttackKind.AIR_HEAVY);
+                // EntityAIShipAircraftAttack uses 100 / aircraft.SPD + 35 with aircraft SPD = ship.SPD * (2.5F or 3.0F).
+                float aircraftSpd = Math.max(0.01F, owner.getLegacyStats().attackSpeed()
+                        * (this.isHeavyAirframe() ? 2.5F : 3.0F));
+                this.attackCooldown = Math.max(1, (int) (100.0F / aircraftSpd) + 35);
             }
         }
 
@@ -603,6 +618,14 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     }
 
     protected double baseSpeed() {
+        LegacyShipEntity owner = this.getOwnerShip();
+        if (owner != null) {
+            double ownerMov = owner.getLegacyStats().moveSpeed();
+            double legacySpeed = this.isHeavyAirframe()
+                    ? (ownerMov * 0.1D + 0.23D)
+                    : (ownerMov * 0.2D + 0.3D);
+            return Math.max(0.1D, legacySpeed * this.speedScale);
+        }
         return Math.max(0.24D, (this.isHeavyAirframe() ? 0.4D : 0.44D) * this.speedScale);
     }
 
@@ -620,27 +643,98 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     }
 
     @Override
+    public boolean isPickable() {
+        return this.isAlive();
+    }
+
+    @Override
     public boolean hurt(DamageSource damageSource, float amount) {
-        if (!this.level().isClientSide()) {
-            LegacyShipEntity owner = this.getOwnerShip();
-            if (owner != null && !owner.isHostileVariant()) {
-                Entity attacker = damageSource.getEntity();
-                if (attacker instanceof Player attackerPlayer) {
-                    if (owner.isOwnedBy(attackerPlayer)) {
-                        return super.hurt(damageSource, amount);
-                    }
-                    if (!ShinColleConfig.friendlyFire()) {
-                        return false;
-                    }
-                }
-                if (attacker != null
-                        && owner.isAlliedTo(attacker)
-                        && !(attacker instanceof Player player && owner.isOwnedBy(player))) {
-                    return false;
-                }
+        if (this.level().isClientSide()) {
+            return false;
+        }
+
+        LegacyShipEntity owner = this.getOwnerShip();
+        if (owner == null) {
+            this.discard();
+            return false;
+        }
+
+        if (damageSource.is(DamageTypes.IN_WALL)
+                || damageSource.is(DamageTypes.STARVE)
+                || damageSource.is(DamageTypes.CACTUS)
+                || damageSource.is(DamageTypes.FALL)) {
+            return false;
+        }
+        if (damageSource.is(DamageTypes.FELL_OUT_OF_WORLD)) {
+            this.returnAircraftToOwner(owner);
+            this.discard();
+            return false;
+        }
+
+        Entity attacker = damageSource.getEntity();
+        if (!owner.isHostileVariant() && attacker instanceof Player attackerPlayer && owner.isOwnedBy(attackerPlayer)) {
+            return this.applyAircraftDamage(amount);
+        }
+        if (this.isInvulnerableTo(damageSource) || attacker == null || attacker.equals(this)) {
+            return false;
+        }
+
+        if (!owner.isHostileVariant()) {
+            if (attacker instanceof Player && !ShinColleConfig.friendlyFire()) {
+                return false;
+            }
+            if (owner.isAlliedTo(attacker)
+                    && !(attacker instanceof Player player && owner.isOwnedBy(player))) {
+                return false;
             }
         }
-        return super.hurt(damageSource, amount);
+
+        // EntityAirplane has a 33% chance to dodge heavy hits (> 50% max HP).
+        if (!this.isHeavyAirframe() && amount > this.maxHp * 0.5F && this.random.nextInt(3) == 0) {
+            return false;
+        }
+
+        float dodgeChance = owner.getLegacyStats().dodge() + (this.isHeavyAirframe() ? 0.2F : 0.3F);
+        if (this.random.nextFloat() <= dodgeChance) {
+            return false;
+        }
+
+        float reducedAtk = amount;
+        if (!damageSource.is(DamageTypeTags.BYPASSES_ARMOR)
+                && !damageSource.is(DamageTypes.MAGIC)
+                && !damageSource.is(DamageTypes.WITHER)
+                && !damageSource.is(DamageTypes.DRAGON_BREATH)) {
+            float def = owner.getLegacyStats().defense() * 0.5F;
+            float factor = 1.0F - def + (this.random.nextFloat() * 0.5F - 0.25F);
+            reducedAtk = amount * Math.max(0.0F, factor);
+        }
+        if (reducedAtk < 1.0F && reducedAtk > 0.0F) {
+            reducedAtk = 1.0F;
+        } else if (reducedAtk <= 0.0F) {
+            reducedAtk = 0.0F;
+        }
+
+        return this.applyAircraftDamage(reducedAtk);
+    }
+
+    private boolean applyAircraftDamage(float amount) {
+        if (amount <= 0.0F || !this.isAlive()) {
+            return false;
+        }
+        this.hp -= amount;
+        if (this.hp <= 0.0F) {
+            this.hp = 0.0F;
+            this.discard();
+        }
+        return true;
+    }
+
+    public float getAircraftHealth() {
+        return this.hp;
+    }
+
+    public float getAircraftMaxHealth() {
+        return this.maxHp;
     }
 
     @Override

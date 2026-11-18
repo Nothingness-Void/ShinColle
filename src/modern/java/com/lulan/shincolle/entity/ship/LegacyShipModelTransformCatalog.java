@@ -18,7 +18,15 @@ public final class LegacyShipModelTransformCatalog {
         return switch (modelSourceStem) {
             case "ModelSubmU511", "ModelSubmRo500" -> Optional.of(submarineTransform(scaleLevel));
             case "ModelBattleshipYamato" -> Optional.of(yamatoTransform(scaleLevel));
-            case "ModelCarrierKaga" -> Optional.of(kagaTransform(scaleLevel));
+            case "ModelBattleshipNagato" -> Optional.of(nagatoTransform(scaleLevel));
+            case "ModelBBKongou", "ModelBBHiei", "ModelBBHaruna", "ModelBBKirishima" ->
+                    Optional.of(kongouTransform(scaleLevel));
+            case "ModelCarrierKaga", "ModelCarrierAkagi" -> Optional.of(kagaTransform(scaleLevel));
+            case "ModelCruiserAtago", "ModelCruiserTakao" -> Optional.of(atagoTransform(scaleLevel));
+            case "ModelCruiserTenryuu", "ModelCruiserTatsuta", "ModelDestroyerShimakaze" ->
+                    Optional.of(tenryuuTransform(scaleLevel));
+            case "ModelDestroyerAkatsuki", "ModelDestroyerHibiki", "ModelDestroyerIkazuchi", "ModelDestroyerInazuma" ->
+                    Optional.of(akatsukiTransform(scaleLevel));
             default -> Optional.empty();
         };
     }
@@ -41,12 +49,57 @@ public final class LegacyShipModelTransformCatalog {
         };
     }
 
+    private static RenderTransform nagatoTransform(int scaleLevel) {
+        return switch (scaleLevel) {
+            case 3 -> uniform(2.0F, -0.73F);
+            case 2 -> uniform(1.5F, -0.48F);
+            case 1 -> uniform(1.0F, 0.02F);
+            default -> uniform(0.5F, 1.51F);
+        };
+    }
+
+    private static RenderTransform kongouTransform(int scaleLevel) {
+        return switch (scaleLevel) {
+            case 3 -> uniform(1.8F, -0.69F);
+            case 2 -> uniform(1.35F, -0.41F);
+            case 1 -> uniform(0.9F, 0.14F);
+            default -> uniform(0.45F, 1.79F);
+        };
+    }
+
     private static RenderTransform kagaTransform(int scaleLevel) {
         return switch (scaleLevel) {
             case 3 -> uniform(1.84F, -0.63F);
             case 2 -> uniform(1.38F, -0.37F);
             case 1 -> uniform(0.92F, 0.16F);
             default -> uniform(0.46F, 1.81F);
+        };
+    }
+
+    private static RenderTransform atagoTransform(int scaleLevel) {
+        return switch (scaleLevel) {
+            case 3 -> uniform(1.72F, -0.58F);
+            case 2 -> uniform(1.29F, -0.27F);
+            case 1 -> uniform(0.86F, 0.35F);
+            default -> uniform(0.43F, 2.0F);
+        };
+    }
+
+    private static RenderTransform tenryuuTransform(int scaleLevel) {
+        return switch (scaleLevel) {
+            case 3 -> uniform(1.64F, -0.58F);
+            case 2 -> uniform(1.23F, -0.27F);
+            case 1 -> uniform(0.82F, 0.35F);
+            default -> uniform(0.41F, 2.17F);
+        };
+    }
+
+    private static RenderTransform akatsukiTransform(int scaleLevel) {
+        return switch (scaleLevel) {
+            case 3 -> uniform(1.6F, -0.53F);
+            case 2 -> uniform(1.2F, -0.23F);
+            case 1 -> uniform(0.8F, 0.41F);
+            default -> uniform(0.4F, 2.28F);
         };
     }
 

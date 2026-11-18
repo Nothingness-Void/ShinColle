@@ -1,4 +1,4 @@
-﻿{
+{
   "itemGroup.shincolle": "ShinColle",
   "block.shincolle.blockabyssium": "Abyssium Block",
   "block.shincolle.blockgrudge": "Grudge Lump",
@@ -646,5 +646,6 @@
   "advancement.shincolle.progression.first_logistics_setup.description": "Prepare transport gear, fuel drums, and rations for sustained sorties.",
   "advancement.shincolle.progression.ocean_boss_encounter.title": "Storm on the Horizon",
   "advancement.shincolle.progression.ocean_boss_encounter.description": "Strike a roaming boss encounter after your fleet can finally draw them out.",
-  "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules."
+  "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules.",
+  "chat.shincolle.levelfail": "Level is too low!"
 }

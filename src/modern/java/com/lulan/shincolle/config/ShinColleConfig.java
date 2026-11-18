@@ -112,6 +112,14 @@ public final class ShinColleConfig {
         return getInt("spawnMobNum", COMMON_SPEC, COMMON.spawnMobNum, 4);
     }
 
+    public static int despawnBoss() {
+        return getInt("despawnBoss", COMMON_SPEC, COMMON.despawnBoss, 12000);
+    }
+
+    public static int despawnMinion() {
+        return getInt("despawnMinion", COMMON_SPEC, COMMON.despawnMinion, 600);
+    }
+
     public static int baseCaressMorale() {
         return getInt("baseCaressMorale", COMMON_SPEC, COMMON.baseCaressMorale, 20);
     }
@@ -275,6 +283,8 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.IntValue pairDistWp;
         public final ForgeConfigSpec.IntValue spawnBossNum;
         public final ForgeConfigSpec.IntValue spawnMobNum;
+        public final ForgeConfigSpec.IntValue despawnBoss;
+        public final ForgeConfigSpec.IntValue despawnMinion;
         public final ForgeConfigSpec.IntValue baseCaressMorale;
         public final ForgeConfigSpec.IntValue modernLimit;
         public final ForgeConfigSpec.IntValue maxDmgOnPlayer;
@@ -337,6 +347,12 @@ public final class ShinColleConfig {
             this.spawnMobNum = builder
                     .comment("Small hostile ship group count per spawn")
                     .defineInRange("spawnMobNum", 4, 1, 10);
+            this.despawnBoss = builder
+                    .comment("Despawn time of boss ship, -1 = do NOT despawn")
+                    .defineInRange("despawnBoss", 12000, -1, 1728000);
+            this.despawnMinion = builder
+                    .comment("Despawn time of nonboss ship, -1 = do NOT despawn")
+                    .defineInRange("despawnMinion", 600, -1, 1728000);
             builder.pop();
 
             builder.push("ship_setting");

@@ -7,8 +7,12 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 
 import javax.annotation.Nullable;
+import java.util.Map;
 
 public record ShipEquipmentProfile(
         float hp,
@@ -60,6 +64,12 @@ public record ShipEquipmentProfile(
             float[] stats = equipmentItem.getMainStats();
             if (stats == null) {
                 continue;
+            }
+
+            if (!stack.getEnchantmentTags().isEmpty()) {
+                LegacyEquipmentStatsRepository.MiscData miscData = equipmentItem.getMiscData();
+                int itemEquipType = miscData != null ? miscData.equipmentType() : 0;
+                stats = calcEquipStatWithEnchant(itemEquipType, stats, calcEnchantEffect(stack));
             }
 
             equippedCount++;
@@ -231,5 +241,132 @@ public record ShipEquipmentProfile(
         }
 
         return null;
+    }
+
+    /** Mirrors EnchantHelper.calcEnchantEffect for 1.20.1 ItemStack enchantments. */
+    private static float[] calcEnchantEffect(ItemStack stack) {
+        float[] ench = new float[STAT_COUNT];
+        Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(stack);
+
+        for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
+            Enchantment enchantment = entry.getKey();
+            int lv = entry.getValue();
+            if (enchantment == null || lv <= 0) {
+                continue;
+            }
+
+            if (enchantment == Enchantments.BLAST_PROTECTION) {
+                ench[LegacyShipStatTables.Attr.HP] += 0.20F * lv;
+                ench[LegacyShipStatTables.Attr.KB] += 0.1F * lv;
+            } else if (enchantment == Enchantments.FIRE_PROTECTION
+                    || enchantment == Enchantments.PROJECTILE_PROTECTION) {
+                ench[LegacyShipStatTables.Attr.HP] += 0.15F * lv;
+            } else if (enchantment == Enchantments.ALL_DAMAGE_PROTECTION) {
+                ench[LegacyShipStatTables.Attr.HP] += 0.1F * lv;
+            } else if (enchantment == Enchantments.SMITE
+                    || enchantment == Enchantments.BANE_OF_ARTHROPODS) {
+                ench[LegacyShipStatTables.Attr.ATK_L] += 0.16F * lv;
+            } else if (enchantment == Enchantments.SHARPNESS
+                    || enchantment == Enchantments.POWER_ARROWS) {
+                ench[LegacyShipStatTables.Attr.ATK_L] += 0.08F * lv;
+            } else if (enchantment == Enchantments.UNBREAKING) {
+                ench[LegacyShipStatTables.Attr.DEF] += 0.2F * lv;
+            } else if (enchantment == Enchantments.BLOCK_EFFICIENCY) {
+                ench[LegacyShipStatTables.Attr.SPD] += 0.1F * lv;
+            } else if (enchantment == Enchantments.AQUA_AFFINITY
+                    || enchantment == Enchantments.DEPTH_STRIDER) {
+                ench[LegacyShipStatTables.Attr.MOV] += 0.05F * lv;
+                ench[LegacyShipStatTables.Attr.DODGE] += 0.25F * lv;
+            } else if (enchantment == Enchantments.FALL_PROTECTION) {
+                ench[LegacyShipStatTables.Attr.MOV] += 0.1F * lv;
+                ench[LegacyShipStatTables.Attr.KB] -= 0.1F * lv;
+            } else if (enchantment == Enchantments.PUNCH_ARROWS
+                    || enchantment == Enchantments.KNOCKBACK) {
+                ench[LegacyShipStatTables.Attr.HIT] += 0.15F * lv;
+                ench[LegacyShipStatTables.Attr.KB] += 0.05F * lv;
+            } else if (enchantment == Enchantments.FROST_WALKER) {
+                ench[LegacyShipStatTables.Attr.CRI] += 0.25F * lv;
+            } else if (enchantment == Enchantments.FIRE_ASPECT
+                    || enchantment == Enchantments.FLAMING_ARROWS) {
+                ench[LegacyShipStatTables.Attr.DHIT] += 0.25F * lv;
+                ench[LegacyShipStatTables.Attr.THIT] += 0.25F * lv;
+            } else if (enchantment == Enchantments.FISHING_SPEED) {
+                ench[LegacyShipStatTables.Attr.MISS] += 0.25F * lv;
+            } else if (enchantment == Enchantments.THORNS) {
+                ench[LegacyShipStatTables.Attr.AA] += 0.15F * lv;
+            } else if (enchantment == Enchantments.RESPIRATION) {
+                ench[LegacyShipStatTables.Attr.ASM] += 0.15F * lv;
+            } else if (enchantment == Enchantments.MOB_LOOTING
+                    || enchantment == Enchantments.BLOCK_FORTUNE
+                    || enchantment == Enchantments.FISHING_LUCK) {
+                ench[LegacyShipStatTables.Attr.XP] += 0.25F * lv;
+            } else if (enchantment == Enchantments.SILK_TOUCH) {
+                ench[LegacyShipStatTables.Attr.GRUDGE] += 0.25F * lv;
+            } else if (enchantment == Enchantments.INFINITY_ARROWS) {
+                ench[LegacyShipStatTables.Attr.AMMO] += 0.25F * lv;
+            } else if (enchantment == Enchantments.MENDING) {
+                ench[LegacyShipStatTables.Attr.HPRES] += 0.5F * lv;
+            } else {
+                for (int j = 0; j < ench.length; j++) {
+                    ench[j] += 0.01F * lv;
+                }
+            }
+        }
+
+        return ench;
+    }
+
+    /** Mirrors EquipCalc.calcEquipStatWithEnchant. */
+    private static float[] calcEquipStatWithEnchant(int equipType, float[] raw, float[] enchant) {
+        float[] newstat = new float[STAT_COUNT];
+
+        newstat[LegacyShipStatTables.Attr.HP] = raw[LegacyShipStatTables.Attr.HP] * (1F + enchant[LegacyShipStatTables.Attr.HP]);
+
+        float atkMod = equipType == 1 ? 1F + enchant[LegacyShipStatTables.Attr.ATK_L] : 1F;
+        newstat[LegacyShipStatTables.Attr.ATK_L] = raw[LegacyShipStatTables.Attr.ATK_L] * atkMod;
+        newstat[LegacyShipStatTables.Attr.ATK_H] = raw[LegacyShipStatTables.Attr.ATK_H] * atkMod;
+        newstat[LegacyShipStatTables.Attr.ATK_AL] = raw[LegacyShipStatTables.Attr.ATK_AL] * atkMod;
+        newstat[LegacyShipStatTables.Attr.ATK_AH] = raw[LegacyShipStatTables.Attr.ATK_AH] * atkMod;
+
+        float defMod = equipType == 2 ? 1F + enchant[LegacyShipStatTables.Attr.DEF] : 1F;
+        newstat[LegacyShipStatTables.Attr.DEF] = raw[LegacyShipStatTables.Attr.DEF] * defMod;
+
+        newstat[LegacyShipStatTables.Attr.SPD] = raw[LegacyShipStatTables.Attr.SPD] * (1F + enchant[LegacyShipStatTables.Attr.SPD]);
+
+        float movMod = raw[LegacyShipStatTables.Attr.MOV] < 0F
+                ? Math.max(0F, 1F - enchant[LegacyShipStatTables.Attr.MOV])
+                : 1F + enchant[LegacyShipStatTables.Attr.MOV];
+        newstat[LegacyShipStatTables.Attr.MOV] = raw[LegacyShipStatTables.Attr.MOV] * movMod;
+
+        newstat[LegacyShipStatTables.Attr.HIT] = raw[LegacyShipStatTables.Attr.HIT] * (1F + enchant[LegacyShipStatTables.Attr.HIT]);
+        newstat[LegacyShipStatTables.Attr.CRI] = raw[LegacyShipStatTables.Attr.CRI] * (1F + enchant[LegacyShipStatTables.Attr.CRI]);
+        newstat[LegacyShipStatTables.Attr.DHIT] = raw[LegacyShipStatTables.Attr.DHIT] * (1F + enchant[LegacyShipStatTables.Attr.DHIT]);
+        newstat[LegacyShipStatTables.Attr.THIT] = raw[LegacyShipStatTables.Attr.THIT] * (1F + enchant[LegacyShipStatTables.Attr.THIT]);
+        newstat[LegacyShipStatTables.Attr.MISS] = raw[LegacyShipStatTables.Attr.MISS] * (1F + enchant[LegacyShipStatTables.Attr.MISS]);
+        newstat[LegacyShipStatTables.Attr.AA] = raw[LegacyShipStatTables.Attr.AA] * (1F + enchant[LegacyShipStatTables.Attr.AA]);
+        newstat[LegacyShipStatTables.Attr.ASM] = raw[LegacyShipStatTables.Attr.ASM] * (1F + enchant[LegacyShipStatTables.Attr.ASM]);
+
+        float dodgeMod = raw[LegacyShipStatTables.Attr.DODGE] < 0F
+                ? Math.max(0F, 1F - enchant[LegacyShipStatTables.Attr.DODGE])
+                : 1F + enchant[LegacyShipStatTables.Attr.DODGE];
+        newstat[LegacyShipStatTables.Attr.DODGE] = raw[LegacyShipStatTables.Attr.DODGE] * dodgeMod;
+
+        newstat[LegacyShipStatTables.Attr.XP] = equipType == 1
+                ? raw[LegacyShipStatTables.Attr.XP] + enchant[LegacyShipStatTables.Attr.XP]
+                : raw[LegacyShipStatTables.Attr.XP];
+        newstat[LegacyShipStatTables.Attr.GRUDGE] = equipType != 1
+                ? raw[LegacyShipStatTables.Attr.GRUDGE] + enchant[LegacyShipStatTables.Attr.GRUDGE]
+                : raw[LegacyShipStatTables.Attr.GRUDGE];
+        newstat[LegacyShipStatTables.Attr.AMMO] = equipType == 1
+                ? raw[LegacyShipStatTables.Attr.AMMO] + enchant[LegacyShipStatTables.Attr.AMMO]
+                : raw[LegacyShipStatTables.Attr.AMMO];
+        newstat[LegacyShipStatTables.Attr.HPRES] = equipType != 1
+                ? raw[LegacyShipStatTables.Attr.HPRES] + enchant[LegacyShipStatTables.Attr.HPRES]
+                : raw[LegacyShipStatTables.Attr.HPRES];
+        newstat[LegacyShipStatTables.Attr.KB] = equipType != 1
+                ? raw[LegacyShipStatTables.Attr.KB] + enchant[LegacyShipStatTables.Attr.KB]
+                : raw[LegacyShipStatTables.Attr.KB];
+
+        return newstat;
     }
 }

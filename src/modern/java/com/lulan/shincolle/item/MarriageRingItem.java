@@ -1,12 +1,17 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.client.ClientShipVisibilityHelper;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -16,6 +21,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -68,8 +74,44 @@ public class MarriageRingItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-        if (entity instanceof Player player && isActive(stack)) {
+        if (!(entity instanceof Player player)) {
+            return;
+        }
+
+        // Passive water breathing applies whenever the ring is in inventory, even when inactive.
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        if (data != null) {
+            int[] ringAbility = TeitokuHelper.getEffectiveRingAbility(level);
+            int breatheThreshold = ringAbility.length > 0 ? ringAbility[0] : 0;
+            if (breatheThreshold >= 0
+                    && (player.tickCount & 127) == 0
+                    && data.getMarriageNum() >= breatheThreshold
+                    && player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(player.getMaxAirSupply());
+            }
+        }
+
+        if (isActive(stack)) {
             tickActiveRingEffects(player, stack);
+        }
+
+        if (!level.isClientSide()
+                && (player.tickCount & 63) == 0
+                && (selected || player.getMainHandItem() == stack || player.getOffhandItem() == stack)
+                && level instanceof ServerLevel serverLevel) {
+            for (LegacyShipEntity ship : level.getEntitiesOfClass(
+                    LegacyShipEntity.class, player.getBoundingBox().inflate(6.0D, 5.0D, 6.0D))) {
+                if (ship.isAlive()
+                        && ship.getShipFuel() > 0
+                        && LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)) {
+                    ship.setEmotion(2);
+                    if (ship.getRandom().nextInt(5) == 0) {
+                        serverLevel.sendParticles(ParticleTypes.HEART,
+                                ship.getX(), ship.getY() + ship.getBbHeight() * 0.9D, ship.getZ(),
+                                1, 0.25D, 0.2D, 0.25D, 0.02D);
+                    }
+                }
+            }
         }
     }
 
@@ -121,6 +163,12 @@ public class MarriageRingItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        if (FMLEnvironment.dist.isClient()) {
+            int marriageNum = ClientShipVisibilityHelper.getClientMarriageNum();
+            if (marriageNum >= 0) {
+                tooltip.add(Component.literal("Married: " + marriageNum).withStyle(ChatFormatting.AQUA));
+            }
+        }
         tooltip.add(Component.translatable(isActive(stack)
                 ? "gui.shincolle.marriagering.active"
                 : "gui.shincolle.marriagering.inactive").withStyle(ChatFormatting.AQUA));

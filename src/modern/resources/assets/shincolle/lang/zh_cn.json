@@ -646,5 +646,6 @@
   "gui.shincolle.exp": "经验值",
   "gui.shincolle.auraeffect": "开启特殊能力",
   "gui.shincolle.showhelditem": "显示手持物品",
-  "chat.shincolle.optool.no_permission": "需要 OP 权限等级 2+ 才可修改全局不可攻击目标规则。"
+  "chat.shincolle.optool.no_permission": "需要 OP 权限等级 2+ 才可修改全局不可攻击目标规则。",
+  "chat.shincolle.levelfail": "等级太低！"
 }

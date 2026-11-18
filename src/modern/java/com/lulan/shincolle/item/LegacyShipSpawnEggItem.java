@@ -72,6 +72,8 @@ public class LegacyShipSpawnEggItem extends Item {
 
         CompoundTag shipTag = new CompoundTag();
         ship.addAdditionalSaveData(shipTag);
+        shipTag.putInt("ShipLevel", Math.max(1, ship.getShipLevel() - 1));
+        shipTag.putInt("ShipExperience", 0);
         shipTag.remove("Health");
         shipTag.remove("HurtTime");
         shipTag.remove("DeathTime");
@@ -178,6 +180,18 @@ public class LegacyShipSpawnEggItem extends Item {
 
         if (isRecoveredShipStack(stack)) {
             tooltip.add(Component.translatable("gui.shincolle.spawn_egg.recovered").withStyle(ChatFormatting.GOLD));
+            CompoundTag recoveredData = getRecoveredShipData(stack);
+            if (recoveredData != null) {
+                int shipLevel = Math.max(1, recoveredData.getInt("ShipLevel"));
+                int costLevel = shipLevel / 3;
+                tooltip.add(Component.translatable("gui.shincolle.ship_inventory.level")
+                        .append(" " + shipLevel + " (XP Cost: " + costLevel + ")")
+                        .withStyle(ChatFormatting.AQUA));
+                getRecoveredOwnerName(stack).ifPresent(owner ->
+                        tooltip.add(Component.translatable("gui.shincolle.ship_inventory.owner")
+                                .append(": " + owner)
+                                .withStyle(ChatFormatting.RED)));
+            }
         }
 
         if (LegacyShipConstructionHelper.hasConstructionRecipe(stack)) {
@@ -218,9 +232,20 @@ public class LegacyShipSpawnEggItem extends Item {
         }
 
         CompoundTag recoveredShipData = getRecoveredShipData(stack);
-        if (recoveredShipData != null && !canPlayerAccessRecoveredShip(stack, player)) {
-            displayRecoveredOwnerLocked(player, stack);
-            return InteractionResult.FAIL;
+        int costLevel = 0;
+        if (recoveredShipData != null) {
+            if (!canPlayerAccessRecoveredShip(stack, player)) {
+                displayRecoveredOwnerLocked(player, stack);
+                return InteractionResult.FAIL;
+            }
+            if (!player.getAbilities().instabuild) {
+                int recoveredLevel = Math.max(1, recoveredShipData.getInt("ShipLevel"));
+                costLevel = recoveredLevel / 3;
+                if (costLevel > 0 && player.experienceLevel < costLevel) {
+                    player.displayClientMessage(Component.translatable("chat.shincolle.levelfail"), true);
+                    return InteractionResult.FAIL;
+                }
+            }
         }
 
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
@@ -231,6 +256,9 @@ public class LegacyShipSpawnEggItem extends Item {
             ship.restoreRecoveredDeployment(player);
         } else {
             ship.applySpawnSpec(spec, player);
+        }
+        if (stack.hasCustomHoverName()) {
+            ship.setCustomName(stack.getHoverName());
         }
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setYHeadRot(player.getYRot());
@@ -248,6 +276,9 @@ public class LegacyShipSpawnEggItem extends Item {
         }
 
         if (!player.getAbilities().instabuild) {
+            if (costLevel > 0) {
+                player.giveExperienceLevels(-costLevel);
+            }
             stack.shrink(1);
         }
 

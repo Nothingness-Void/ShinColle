@@ -1,6 +1,7 @@
 package com.lulan.shincolle.teitoku;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.item.MarriageRingItem;
 import net.minecraft.ChatFormatting;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
@@ -95,6 +97,64 @@ public final class TeitokuEvents {
         Component ownerName = Component.literal(LegacyShipSpawnEggItem.getRecoveredOwnerName(stack).orElse("?"))
                 .withStyle(ChatFormatting.GOLD);
         player.displayClientMessage(Component.translatable("chat.shincolle.entity.owner_locked", ownerName), true);
+    }
+
+    @SubscribeEvent
+    public static void onLivingHurt(LivingHurtEvent event) {
+        LivingEntity target = event.getEntity();
+        if (target.level().isClientSide()) {
+            return;
+        }
+        Entity attackerSource = event.getSource().getEntity();
+        Entity attacker = event.getSource().getDirectEntity() != null
+                ? event.getSource().getDirectEntity()
+                : attackerSource;
+        if (attackerSource == null && attacker == null) {
+            return;
+        }
+
+        double distSq = attackerSource != null ? target.distanceToSqr(attackerSource) : Double.MAX_VALUE;
+        Entity revengeTarget = (distSq < 1024.0D && attackerSource != null) ? attackerSource : attacker;
+
+        if (attackerSource instanceof Player playerAttacker) {
+            propagatePlayerRevenge(playerAttacker, target, 32.0D);
+        }
+
+        if (target instanceof Player playerTarget) {
+            if (revengeTarget instanceof LivingEntity livingRevenge) {
+                propagatePlayerRevenge(playerTarget, livingRevenge, 32.0D);
+            }
+        } else if (target instanceof LegacyShipEntity hostileShip && hostileShip.isHostileVariant()) {
+            if (attackerSource instanceof LegacyShipEntity attackerShip && attackerShip.isHostileVariant()) {
+                return;
+            }
+            if (revengeTarget instanceof LivingEntity livingRevenge) {
+                propagateHostileShipRevenge(hostileShip, livingRevenge, 64.0D);
+            }
+        }
+    }
+
+    private static void propagatePlayerRevenge(Player player, LivingEntity target, double range) {
+        for (LegacyShipEntity ship : player.level().getEntitiesOfClass(
+                LegacyShipEntity.class, player.getBoundingBox().inflate(range))) {
+            if (!ship.isHostileVariant()
+                    && ship != target
+                    && ship.isOwnedBy(player)
+                    && ship.canCommandOrRevengeEngage(target)) {
+                ship.setLastHurtByMob(target);
+            }
+        }
+    }
+
+    private static void propagateHostileShipRevenge(LegacyShipEntity host, LivingEntity target, double range) {
+        for (LegacyShipEntity ship : host.level().getEntitiesOfClass(
+                LegacyShipEntity.class, host.getBoundingBox().inflate(range))) {
+            if (ship.isHostileVariant()
+                    && ship != target
+                    && ship.canEngage(target)) {
+                ship.setLastHurtByMob(target);
+            }
+        }
     }
 
     @SubscribeEvent

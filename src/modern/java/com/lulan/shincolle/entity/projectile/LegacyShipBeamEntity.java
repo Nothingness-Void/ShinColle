@@ -8,6 +8,7 @@ import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.CombatReactType;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.registry.ModSoundEvents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -179,8 +180,11 @@ public final class LegacyShipBeamEntity extends Entity {
     }
 
     private void applyImpact(LegacyShipEntity host, LivingEntity target) {
+        this.playSound(ModSoundEvents.SHIP_EXPLODE.get(), 1.5F,
+                0.7F / (this.random.nextFloat() * 0.4F + 0.8F));
+
         if (!LegacyShipBehaviorCatalog.isLegacyProjectileDamageAllowed(host, target)) {
-            target.hurt(host.damageSources().mobAttack(host), 0.0F);
+            target.hurt(this.damageSources().indirectMagic(this, host), 0.0F);
             return;
         }
 
@@ -207,7 +211,7 @@ public final class LegacyShipBeamEntity extends Entity {
                     LegacyShipAttackKind.HEAVY, LegacyShipProjectileVisual.NONE);
         }
 
-        boolean attacked = target.hurt(host.damageSources().mobAttack(host), roll.damage());
+        boolean attacked = target.hurt(this.damageSources().indirectMagic(this, host), roll.damage());
         if (attacked) {
             host.setLastHurtMob(target);
             LegacyShipBehaviorCatalog.applyAttackEffect(host, target);

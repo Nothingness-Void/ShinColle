@@ -1,8 +1,10 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -127,19 +129,32 @@ public class CombatRationItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-        if (level.isClientSide() || !(entity instanceof Player player) || !player.isUsingItem()
-                || !ItemStack.isSameItemSameTags(player.getUseItem(), stack) || (player.tickCount & 15) != 0) {
+        if (level.isClientSide() || !(entity instanceof Player player)
+                || !(selected || player.getOffhandItem() == stack)
+                || (player.tickCount & 15) != 0) {
             return;
         }
 
         for (LegacyShipEntity ship : level.getEntitiesOfClass(LegacyShipEntity.class,
                 player.getBoundingBox().inflate(8.0D, 6.0D, 8.0D))) {
-            if (ship.isHostileVariant() || !ship.canCommanderEdit(player) || ship.isOrderedToSit() || ship.isPassenger()) {
+            if (!ship.isAlive() || ship.isHostileVariant()
+                    || !LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)
+                    || ship.getShipFuel() <= 0 || ship.isOrderedToSit() || ship.isPassenger()) {
                 continue;
             }
 
             if (player.distanceToSqr(ship) > 4.0D) {
+                ship.setEmotion(3);
                 ship.getNavigation().moveTo(player, 0.75D);
+
+                if (player.getRandom().nextInt(5) == 0) {
+                    int emotion = switch (player.getRandom().nextInt(3)) {
+                        case 1 -> 9;
+                        case 2 -> 30;
+                        default -> 1;
+                    };
+                    CombatFxDispatcher.sendLegacyEmotion(ship, emotion);
+                }
             }
 
             ship.getLookControl().setLookAt(player.getX(), player.getEyeY(), player.getZ(), 50.0F, 50.0F);

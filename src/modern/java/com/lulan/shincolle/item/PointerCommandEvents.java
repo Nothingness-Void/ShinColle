@@ -1,6 +1,7 @@
 package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
@@ -39,8 +40,17 @@ public final class PointerCommandEvents {
         int mode = PointerItem.getMode(pointer);
         int commandMode = PointerItem.getCommandMode(mode);
 
-        if (event.getTarget() instanceof LegacyShipEntity ship && ship.canCommanderEdit(serverPlayer)) {
-            handleOwnedShipLeftClick(serverPlayer, ship, commandMode);
+        if (event.getTarget() instanceof LegacyShipEntity ship) {
+            if (ship.canCommanderEdit(serverPlayer)) {
+                handleOwnedShipLeftClick(serverPlayer, ship, commandMode);
+            }
+            return;
+        }
+        if (event.getTarget() instanceof LegacyShipMountEntity mount) {
+            LegacyShipEntity hostShip = mount.getHostShip();
+            if (hostShip != null && hostShip.canCommanderEdit(serverPlayer)) {
+                handleOwnedShipLeftClick(serverPlayer, hostShip, commandMode);
+            }
             return;
         }
 
@@ -76,6 +86,7 @@ public final class PointerCommandEvents {
                 data.setShipUid(currentTeamId, currentSlot, -1);
                 data.setCurrentTeamSelection(currentSlot, false);
                 data.setPointerSlotCursor(currentSlot);
+                data.setFormationId(currentTeamId, TeitokuData.DEFAULT_FORMATION_ID);
 
                 if (commandMode == 0) {
                     focusFirstRemainingShip(data, currentSlot);
@@ -101,6 +112,7 @@ public final class PointerCommandEvents {
             data.setShipUid(currentTeamId, slot, shipUid);
             data.setCurrentTeamSelection(slot, false);
             data.setPointerSlotCursor((slot + 1) % TeitokuData.TEAM_SIZE);
+            data.setFormationId(currentTeamId, TeitokuData.DEFAULT_FORMATION_ID);
 
             if (commandMode == 0) {
                 data.clearCurrentTeamSelect();

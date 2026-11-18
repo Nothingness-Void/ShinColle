@@ -20,6 +20,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -56,8 +57,13 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
                 this.currentModel.modelSourceStem, entity.getLegacyHostileScaleLevel()).orElse(null);
         this.currentModel.resetPose();
         this.currentModel.applyLegacyModelState(entity.getModelState());
+        this.currentModel.applyEmotion(entity.getEmotion(), entity.isMarried());
         this.currentModel.applyHeadRotation(netHeadYaw, headPitch);
-        this.currentModel.applyWalk(limbSwing, limbSwingAmount);
+        if (entity.isOrderedToSit() || entity.isPassenger()) {
+            this.currentModel.applySittingPose();
+        } else {
+            this.currentModel.applyWalk(limbSwing, limbSwingAmount);
+        }
     }
 
     @Override
@@ -107,15 +113,18 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
         private final List<String> faceParts;
         private final List<String> mouthParts;
         private final List<String> flushParts;
+        private final List<String> rootParts;
         private final List<LegacyModelDefinition.TransformOp> transformOps;
 
         private BakedLegacyModel(String modelSourceStem, ModelPart root, Map<String, ModelPart> parts,
                                  Map<String, LegacyModelDefinition.LegacyPart> definitions,
+                                 List<String> rootParts,
                                  List<LegacyModelDefinition.TransformOp> transformOps) {
             this.root = root;
             this.modelSourceStem = modelSourceStem;
             this.parts = parts;
             this.definitions = definitions;
+            this.rootParts = List.copyOf(rootParts);
             this.transformOps = transformOps;
             this.headParts = findNamedParts(parts, "Head", "GlowHead", "PHead");
             this.neckParts = findNamedParts(parts, "Neck", "GlowNeck", "PNeck", "Neck02", "Neck03");
@@ -145,7 +154,7 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             }
 
             return new BakedLegacyModel(modelSourceStem, bakedRoot, bakedParts,
-                    definition.parts(), definition.transformOps());
+                    definition.parts(), definition.rootParts(), definition.transformOps());
         }
 
         private static void addPart(PartDefinition parentDefinition, LegacyModelDefinition definition, String partName) {
@@ -276,6 +285,35 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
             }
         }
 
+        private void applyEmotion(int emotion, boolean married) {
+            String targetFace = (emotion >= 0 && emotion <= 4) ? "Face" + emotion : "Face0";
+            String fallbackFace = this.parts.containsKey(targetFace) ? targetFace : "Face0";
+            applyDefaultOverlayVisibility(this.faceParts, fallbackFace);
+
+            boolean showFlush = emotion == 2 || (married && emotion == 2);
+            for (String partName : this.flushParts) {
+                ModelPart part = this.parts.get(partName);
+                if (part != null) {
+                    part.visible = showFlush;
+                }
+            }
+        }
+
+        private void applySittingPose() {
+            applyPrimaryLegSit(this.leftLegParts);
+            applyPrimaryLegSit(this.rightLegParts);
+        }
+
+        private void applyPrimaryLegSit(List<String> legParts) {
+            if (legParts.isEmpty()) {
+                return;
+            }
+            ModelPart primaryLeg = this.parts.get(legParts.get(0));
+            if (primaryLeg != null) {
+                primaryLeg.xRot -= 1.4F;
+            }
+        }
+
         private void applyWalk(float limbSwing, float limbSwingAmount) {
             float walkStrength = Mth.clamp(limbSwingAmount, 0.0F, 1.0F);
             float armSwing = Mth.cos(limbSwing * 0.6662F) * 0.32F * walkStrength;
@@ -359,7 +397,18 @@ public class LegacyShipModel extends EntityModel<LegacyShipEntity> {
                 poseStack.translate(0.0F, runtimeTransform.offsetY(), 0.0F);
             }
 
-            this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+            for (String rootPart : this.rootParts) {
+                if (!rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
+                    this.root.getChild(rootPart).render(
+                            poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+                }
+            }
+            for (String rootPart : this.rootParts) {
+                if (rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
+                    this.root.getChild(rootPart).render(
+                            poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, red, green, blue, alpha);
+                }
+            }
             poseStack.popPose();
         }
 

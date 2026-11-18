@@ -38,9 +38,9 @@
 
 当前可迁移舰种以 `mc-1.12.2` 的 `ModEntity.regShipEntity` 和实际实体源文件为准。`ID.java` 中只有常量/NameMap、没有实体源文件和注册入口的历史名称记录为 `HISTORICAL_SOURCE_GAP`；没有恢复旧版实现前，不根据名称猜测或新造现代实体。精确核对见 [SHIP-UNIVERSE-AUDIT](migration_batches/2026-09-04-ship-universe-audit/)。
 
-## D-010：公共资源路径按旧版继承层级判定
+## D-010：敌我规格身份与公共资源路径严格对齐旧版继承层级
 
-`ShipEntitySpec.hostile` 是现代战斗/掉落身份，不等同于旧版 `BasicEntityShipHostile` 继承关系。旧版 Hime 类若继承 `BasicEntityShipSmall/CV`，仍执行 `BasicEntityShip.updateConsumeItem()`；只有独立 hostile Mob 注册类排除。现代 catalog 以活动 `eggMeta` 的 Mob 变体范围和旧版 class-id 成本表承载该差异。详细证据见 [ALL-SHIP-IDLE-SUPPLY](migration_batches/2026-09-05-all-ship-idle-supply/)。
+`ShipEntitySpec.hostile` 现与旧版 `BasicEntityShipHostile`（仅 `eggMeta > 2000` 的 19 个 `*Mob` 注册变体）严格一一对应；全部 45 个基础舰种（含 11 个继承 `BasicEntityShipSmall/CV` 的深海栖姬 `eggMeta` `22..74`）均为 `hostile = false` 的可驯服友方舰船，并统一执行 `BasicEntityShip` 公共待机消耗、自动补给、士气恢复与回血路径。详细证据见 [ALL-SHIP-IDLE-SUPPLY](migration_batches/2026-09-05-all-ship-idle-supply/) 与 [FULL-SHIP-BEHAVIOR-REAUDIT](migration_batches/2026-11-18-full-ship-behavior-reaudit/)。
 
 ## D-011：B6 收官与外置 mod / 运行时开关收口边界
 

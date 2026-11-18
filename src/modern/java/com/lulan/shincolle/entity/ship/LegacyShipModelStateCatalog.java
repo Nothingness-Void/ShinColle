@@ -17,7 +17,12 @@ public final class LegacyShipModelStateCatalog {
             case "ModelNorthernHime" -> northernPartVisible(partName, modelState);
             case "ModelCarrierWDemon" -> visibleForBit(partName, modelState, 1,
                     "EquipBase");
+            case "ModelCarrierHime" -> carrierHimePartVisible(partName, modelState);
             case "ModelBattleshipHime", "ModelHarbourHime" -> true;
+            case "ModelDestroyerI" -> visibleForBit(partName, modelState, 0,
+                    "PKisaragi00", "PKisaragi01", "PKisaragi02", "PKisaragi03");
+            case "ModelDestroyerRo", "ModelDestroyerHa", "ModelDestroyerNi" ->
+                    visibleForBit(partName, modelState, 0, "k00");
             case "ModelSubmU511" -> visibleForBit(partName, modelState, 0,
                     "EquipBase")
                     && visibleForBit(partName, modelState, 1, "Hat01")
@@ -26,7 +31,7 @@ public final class LegacyShipModelStateCatalog {
                     "EquipBase1")
                     && visibleForBit(partName, modelState, 1, "EquipBase2")
                     && visibleForBit(partName, modelState, 2, "FlowerBase");
-            case "ModelSubmHime" -> visibleForBit(partName, modelState, 1, "Collar01");
+            case "ModelSubmHime" -> submHimePartVisible(partName, modelState);
             case "ModelSSNH" -> ssnhPartVisible(partName, modelState);
             case "ModelBBKongou" -> kongouPartVisible(partName, modelState);
             case "ModelBBHiei", "ModelBBHaruna" -> visibleForBit(partName, modelState, 0,
@@ -56,8 +61,112 @@ public final class LegacyShipModelStateCatalog {
             case "ModelDestroyerShimakaze" -> shimakazePartVisible(partName, modelState);
             case "ModelBattleshipNagato" -> nagatoPartVisible(partName, modelState);
             case "ModelIsolatedHime" -> isolatedPartVisible(partName, modelState);
+            case "ModelHeavyCruiserRi" -> heavyCruiserRiPartVisible(partName, modelState);
+            case "ModelCarrierWo" -> carrierWoPartVisible(partName, modelState);
+            case "ModelBattleshipRu" -> battleshipRuPartVisible(partName, modelState);
+            case "ModelBattleshipTa" -> battleshipTaPartVisible(partName, modelState);
+            case "ModelBattleshipRe" -> battleshipRePartVisible(partName, modelState);
+            case "ModelTransportWa" -> transportWaPartVisible(partName, modelState);
+            case "ModelSubmKa" -> submKaPartVisible(partName, modelState);
+            case "ModelSubmYo" -> submYoPartVisible(partName, modelState);
+            case "ModelSubmSo" -> submSoPartVisible(partName, modelState);
             default -> true;
         };
+    }
+
+    private static boolean carrierHimePartVisible(String partName, int modelState) {
+        if (isNamed(partName, "GlowBodyMain2")) {
+            return hasBit(modelState, 1) || hasBit(modelState, 2);
+        }
+        return visibleForBit(partName, modelState, 1, "GlowArmLeft01")
+                && visibleForBit(partName, modelState, 2, "GlowArmRight01");
+    }
+
+    private static boolean submHimePartVisible(String partName, int modelState) {
+        if (isNamed(partName, "EquipTBase", "EquipTBase_1")) {
+            return false;
+        }
+        return visibleForBit(partName, modelState, 1, "Collar01")
+                && visibleForBit(partName, modelState, 2, "GlowEquipBase");
+    }
+
+    private static boolean heavyCruiserRiPartVisible(String partName, int modelState) {
+        if (isNamed(partName, "EquipBase")) {
+            return hasBit(modelState, 0) || hasBit(modelState, 1);
+        }
+        return visibleForBit(partName, modelState, 0, "EquipLeftBase", "GlowEquipLeftBase")
+                && visibleForBit(partName, modelState, 1, "EquipRightBase", "GlowEquipRightBase")
+                && visibleForBit(partName, modelState, 2, "Cloak")
+                && visibleForBit(partName, modelState, 3, "HeadTail0");
+    }
+
+    private static boolean carrierWoPartVisible(String partName, int modelState) {
+        return visibleForBit(partName, modelState, 0, "EquipBase", "GlowEquipBase")
+                && visibleForBit(partName, modelState, 1, "Staff")
+                && visibleForBit(partName, modelState, 2, "Neck")
+                && visibleForBit(partName, modelState, 3, "CloakNeck");
+    }
+
+    private static boolean battleshipRuPartVisible(String partName, int modelState) {
+        return visibleForBit(partName, modelState, 0, "EquipLBase", "EquipRBase")
+                && visibleForBit(partName, modelState, 1, "EquipBase")
+                && visibleForBit(partName, modelState, 2, "GloveL", "GloveR");
+    }
+
+    private static boolean battleshipTaPartVisible(String partName, int modelState) {
+        return visibleForBit(partName, modelState, 1, "Cloak01")
+                && visibleForBit(partName, modelState, 2, "EquipLeft", "EquipRight");
+    }
+
+    private static boolean battleshipRePartVisible(String partName, int modelState) {
+        if (isNamed(partName, "Cap")) {
+            return !hasBit(modelState, 0);
+        }
+        return visibleForBit(partName, modelState, 0, "Hair01", "HairU01", "Cap2")
+                && visibleForBit(partName, modelState, 1, "BagMain")
+                && visibleForBit(partName, modelState, 2, "Ear01", "Ear02");
+    }
+
+    private static boolean transportWaPartVisible(String partName, int modelState) {
+        if (isNamed(partName, "EquipBase", "GlowEquipBase")) {
+            return hasBit(modelState, 0) || !hasBit(modelState, 1);
+        }
+        if (isNamed(partName, "Ahoke")) {
+            return !hasBit(modelState, 2);
+        }
+        return visibleForBit(partName, modelState, 1, "LegLeft01", "LegRight01")
+                && visibleForBit(partName, modelState, 2, "EquipHeadBase");
+    }
+
+    private static boolean submKaPartVisible(String partName, int modelState) {
+        if (isNamed(partName, "BodyMain1", "Butt1", "BoobL", "BoobR")) {
+            return !hasBit(modelState, 2);
+        }
+        return visibleForBit(partName, modelState, 0, "EquipBase")
+                && visibleForBit(partName, modelState, 1, "EquipHead01")
+                && visibleForBit(partName, modelState, 2, "BodyMain2", "Butt2", "BoobL2", "BoobR2")
+                && visibleForBit(partName, modelState, 3, "EquipT01a");
+    }
+
+    private static boolean submYoPartVisible(String partName, int modelState) {
+        if (isNamed(partName, "Hair03", "LegLeft01", "LegRight01")) {
+            return !hasBit(modelState, 0);
+        }
+        if (isNamed(partName, "BodyMain1", "Butt1", "BoobL", "BoobR")) {
+            return !hasBit(modelState, 1);
+        }
+        return visibleForBit(partName, modelState, 0, "EquipBase", "GlowEquipBase")
+                && visibleForBit(partName, modelState, 1, "BodyMain2", "Butt2", "BoobL2", "BoobR2");
+    }
+
+    private static boolean submSoPartVisible(String partName, int modelState) {
+        if (isNamed(partName, "BodyMain1", "Butt1", "BoobL", "BoobR")) {
+            return !hasBit(modelState, 2);
+        }
+        return visibleForBit(partName, modelState, 0, "EquipHeadBase")
+                && visibleForBit(partName, modelState, 1, "EquipC01")
+                && visibleForBit(partName, modelState, 2, "BodyMain2", "Butt2", "BoobL2", "BoobR2")
+                && visibleForBit(partName, modelState, 3, "EquipT01a");
     }
 
     private static boolean midwayPartVisible(String partName, int modelState) {

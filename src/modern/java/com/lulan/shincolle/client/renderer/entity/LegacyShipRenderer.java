@@ -20,6 +20,7 @@ public class LegacyShipRenderer extends MobRenderer<LegacyShipEntity, LegacyShip
 
     @Override
     protected void scale(LegacyShipEntity entity, PoseStack poseStack, float partialTickTime) {
-        this.shadowRadius = LegacyShipRenderCatalog.forSpec(entity.getSpec()).shadowRadius();
+        this.shadowRadius = LegacyShipRenderCatalog.forSpec(entity.getSpec()).shadowRadius()
+                + entity.getLegacyHostileScaleLevel() * 0.4F;
     }
 }

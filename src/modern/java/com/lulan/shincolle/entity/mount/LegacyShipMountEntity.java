@@ -125,6 +125,12 @@ public final class LegacyShipMountEntity extends Entity {
             double speed = Mth.clamp((0.4D + host.getLegacyStats().moveSpeed() * 0.2D)
                     * host.getCombatMovementSpeedModifier(), 0.2D, 0.8D);
             Vec3 movement = LegacyMountEntity.resolveKeyMovement(steeringPlayer, this.keyPressed, speed, true);
+            if (movement.y == 0.0D) {
+                double buoyancy = LegacyMountEntity.resolveWaterSurfaceBuoyancy(this);
+                if (buoyancy > 0.0D) {
+                    movement = movement.add(0.0D, buoyancy, 0.0D);
+                }
+            }
             this.setDeltaMovement(movement);
             this.move(MoverType.SELF, movement);
             return;
@@ -138,7 +144,11 @@ public final class LegacyShipMountEntity extends Entity {
                 this.moveToward(target.position().add(0.0D, target.getBbHeight() * 0.35D, 0.0D),
                         TARGET_STOP_DISTANCE, host);
             } else {
-                this.setDeltaMovement(Vec3.ZERO);
+                if (target.getY() >= this.getY() - 0.5D) {
+                    this.applyIdleWaterBuoyancy();
+                } else {
+                    this.setDeltaMovement(Vec3.ZERO);
+                }
                 if (host.getSensing().hasLineOfSight(target)) {
                     host.tryCompatCannonAttack(target);
                     if (this.usesAircraft()) {
@@ -151,11 +161,22 @@ public final class LegacyShipMountEntity extends Entity {
 
         Vec3 destination = this.resolveMovementTarget(host);
         if (destination == null) {
-            this.setDeltaMovement(Vec3.ZERO);
+            this.applyIdleWaterBuoyancy();
             return;
         }
 
         this.moveToward(destination, COMMAND_STOP_DISTANCE, host);
+    }
+
+    private void applyIdleWaterBuoyancy() {
+        double buoyancy = LegacyMountEntity.resolveWaterSurfaceBuoyancy(this);
+        if (buoyancy > 0.0D) {
+            Vec3 floatMotion = new Vec3(0.0D, buoyancy, 0.0D);
+            this.setDeltaMovement(floatMotion);
+            this.move(MoverType.SELF, floatMotion);
+        } else {
+            this.setDeltaMovement(Vec3.ZERO);
+        }
     }
 
     private @Nullable Vec3 resolveMovementTarget(LegacyShipEntity host) {
@@ -282,13 +303,13 @@ public final class LegacyShipMountEntity extends Entity {
             return;
         }
 
-        double localX;
-        double localY;
-        double localZ;
+        double seatForward;
+        double seatY;
+        double seatLateral;
         if (passenger instanceof LegacyShipEntity) {
-            localX = profile.hostX();
-            localY = profile.hostY();
-            localZ = profile.hostZ();
+            seatForward = profile.hostX();
+            seatY = profile.hostY();
+            seatLateral = profile.hostZ();
             passenger.setYRot(this.getYRot());
             passenger.yRotO = this.yRotO;
             if (passenger instanceof LivingEntity living) {
@@ -298,21 +319,23 @@ public final class LegacyShipMountEntity extends Entity {
                 living.yBodyRotO = this.yRotO;
             }
         } else if (passenger instanceof Player) {
-            localX = profile.playerX();
-            localY = profile.playerY();
-            localZ = profile.playerZ();
+            seatForward = profile.playerX();
+            seatY = profile.playerY();
+            seatLateral = profile.playerZ();
         } else {
-            localX = 0.0D;
-            localY = this.getPassengersRidingOffset();
-            localZ = 0.0D;
+            seatForward = 0.0D;
+            seatY = this.getPassengersRidingOffset();
+            seatLateral = 0.0D;
         }
 
         double radians = this.getYRot() * (Math.PI / 180.0D);
-        double worldZ = localZ * Math.cos(radians) + localX * Math.sin(radians);
-        double worldX = localX * Math.cos(radians) - localZ * Math.sin(radians);
+        double cos = Math.cos(radians);
+        double sin = Math.sin(radians);
+        double worldZ = seatForward * cos + seatLateral * sin;
+        double worldX = seatLateral * cos - seatForward * sin;
         moveFunction.accept(passenger,
                 this.getX() + worldX,
-                this.getY() + localY + passenger.getMyRidingOffset(),
+                this.getY() + seatY + passenger.getMyRidingOffset(),
                 this.getZ() + worldZ);
     }
 

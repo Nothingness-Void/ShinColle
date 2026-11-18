@@ -36,6 +36,8 @@ public final class LegacyShipFloatingFortRenderer extends EntityRenderer<LegacyS
                        PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
         this.alignToFlight(entity, poseStack);
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        poseStack.translate(0.0F, -1.501F, 0.0F);
         VertexConsumer consumer = buffer.getBuffer(RenderType.entityTranslucent(TEXTURE));
         this.model.render(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();

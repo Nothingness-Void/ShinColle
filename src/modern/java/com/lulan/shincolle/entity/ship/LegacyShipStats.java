@@ -85,6 +85,30 @@ public final class LegacyShipStats {
                                          Collection<MobEffectInstance> activeEffects,
                                          boolean night,
                                          int hostileScaleLevel) {
+        return create(legacyClassId, archetype, hostileVariant,
+                level, moraleValue,
+                healthBonus, attackBonus, defenseBonus, attackSpeedBonus,
+                moveBonus, rangeBonus,
+                married,
+                formationId,
+                0,
+                equipmentProfile,
+                activeEffects,
+                night,
+                hostileScaleLevel);
+    }
+
+    public static LegacyShipStats create(int legacyClassId, ShipArchetype archetype, boolean hostileVariant,
+                                         int level, int moraleValue,
+                                         int healthBonus, int attackBonus, int defenseBonus, int attackSpeedBonus,
+                                         int moveBonus, int rangeBonus,
+                                         boolean married,
+                                         int formationId,
+                                         int formatPos,
+                                         ShipEquipmentProfile equipmentProfile,
+                                         Collection<MobEffectInstance> activeEffects,
+                                         boolean night,
+                                         int hostileScaleLevel) {
         int resolvedLevel = Math.max(1, level);
         float[] raw = hostileVariant
                 ? buildHostileRaw(legacyClassId, archetype, night, hostileScaleLevel)
@@ -95,9 +119,12 @@ public final class LegacyShipStats {
         float[] potion = buildPotionStats(activeEffects);
         float[] formation = hostileVariant
                 ? LegacyShipStatTables.copyResetFormation()
-                : LegacyShipStatTables.copyFormationStats(formationId);
+                : LegacyShipStatTables.copyFormationStats(formationId, formatPos);
         float[] buffed = calcBuffed(raw, equip, marriage, morale, potion, formation);
         LegacyShipStatTables.clamp(buffed);
+        if (hostileVariant && buffed[LegacyShipStatTables.Attr.SPD] < 0.2F) {
+            buffed[LegacyShipStatTables.Attr.SPD] = 0.2F;
+        }
 
         return new LegacyShipStats(legacyClassId, hostileVariant, resolvedLevel,
                 raw, equip, marriage, morale, potion, formation, buffed);
@@ -365,6 +392,10 @@ public final class LegacyShipStats {
 
     public float moveSpeed() {
         return this.get(LegacyShipStatTables.Attr.MOV);
+    }
+
+    public float formationStat(int attrId) {
+        return attrId >= 0 && attrId < this.formation.length ? this.formation[attrId] : 0.0F;
     }
 
     public float attackRange() {

@@ -19,6 +19,8 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -58,6 +60,8 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> DATA_LEGACY_ARC_RISE_TICKS =
             SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_LEGACY_TORPEDO_STARTED =
+            SynchedEntityData.defineId(LegacyShipProjectileEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final double LEGACY_ARC_ACCELERATION_LIMIT = 0.15D;
 
@@ -81,6 +85,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     private float travelSpeed = 0.52F;
     private float targetHeightFactor = 0.35F;
     private double impactRadius = 3.5D;
+    private int torpedoStartMoveDelay;
 
     public LegacyShipProjectileEntity(EntityType<? extends LegacyShipProjectileEntity> entityType, Level level) {
         super(entityType, level);
@@ -213,15 +218,21 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_1, 0.0F);
         this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_2, 0.0F);
         this.entityData.define(DATA_LEGACY_ARC_RISE_TICKS, 0);
+        this.entityData.define(DATA_LEGACY_TORPEDO_STARTED, false);
     }
 
     @Override
     public void tick() {
-        Vec3 legacyMotion = this.hasLegacyMotionOverride() ? this.getDeltaMovement() : null;
+        Vec3 preTickMotion = this.getDeltaMovement();
         super.tick();
 
-        if (legacyMotion != null && !this.isRemoved()) {
-            this.advanceLegacyMotion(legacyMotion);
+        if (!this.isRemoved()) {
+            if (this.hasLegacyMotionOverride()) {
+                this.advanceLegacyMotion(preTickMotion);
+            } else {
+                // Preserve exact pre-super.tick() velocity so ThrowableProjectile air/water drag does not alter legacy trajectories.
+                this.setDeltaMovement(preTickMotion);
+            }
         }
 
         if (this.tickCount > this.lifeTicks) {
@@ -229,6 +240,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
                 if (this.impactRadius > 0.0D) {
                     this.resolveAreaImpact(this.position());
                 } else {
+                    if (this.getOwner() instanceof LegacyShipEntity ship) {
+                        this.spawnImpactEffect(ship, this.position());
+                    }
                     this.emitMissFx(this.position());
                 }
             }
@@ -289,6 +303,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        if (this.clusterSubMissile && this.tickCount <= 5) {
+            return;
+        }
         Entity hitEntity = result.getEntity();
         Entity owner = this.getOwner();
 
@@ -344,6 +361,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     @Override
     protected void onHit(HitResult result) {
+        if (this.clusterSubMissile && this.tickCount <= 5) {
+            return;
+        }
         super.onHit(result);
 
         if (result.getType() != HitResult.Type.ENTITY) {
@@ -699,11 +719,66 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
         Vec3 direction = distanceVector.normalize();
         this.setLegacyMotionOverride(true);
-        this.setLegacyArcParameters(-0.035D, -0.035D, 0);
+        this.setLegacyArcParameters(-0.035D, 1.04D, 0);
+        this.entityData.set(DATA_LEGACY_TORPEDO_STARTED, false);
+        this.torpedoStartMoveDelay = 0;
         this.setDeltaMovement(direction.x * 0.6D, 0.1D, direction.z * 0.6D);
     }
 
     private void advanceLegacyMotion(Vec3 currentMotion) {
+        if (this.getMoveType() == LegacyShipProjectileMoveType.TORPEDO) {
+            boolean started = this.entityData.get(DATA_LEGACY_TORPEDO_STARTED);
+            if (!this.level().isClientSide()) {
+                if (started) {
+                    if (this.torpedoStartMoveDelay >= 0) {
+                        this.torpedoStartMoveDelay--;
+                        if (this.torpedoStartMoveDelay < 0) {
+                            Vec3 offset = this.legacyTargetPosition.subtract(this.position());
+                            double dist = offset.length();
+                            if (dist > 1.0E-7D) {
+                                double vel0 = this.baseSpeed();
+                                double vx = (offset.x / dist) * vel0 * 0.25D;
+                                double vy = Math.min(0.003D, (offset.y / dist) * vel0 * 0.25D);
+                                double vz = (offset.z / dist) * vel0 * 0.25D;
+                                this.setDeltaMovement(vx, vy, vz);
+                            } else {
+                                this.setDeltaMovement(Vec3.ZERO);
+                            }
+                        } else {
+                            this.setDeltaMovement(currentMotion);
+                        }
+                    } else if (currentMotion.lengthSqr() < 2.0D) {
+                        this.setDeltaMovement(currentMotion.scale(this.getLegacyArcAcceleration2()));
+                    } else {
+                        this.setDeltaMovement(currentMotion);
+                    }
+                } else {
+                    this.setDeltaMovement(
+                            currentMotion.x * 0.85D,
+                            currentMotion.y + this.getLegacyArcAcceleration1(),
+                            currentMotion.z * 0.85D);
+                    if (!this.level().getFluidState(this.blockPosition()).isEmpty()) {
+                        this.entityData.set(DATA_LEGACY_TORPEDO_STARTED, true);
+                        this.torpedoStartMoveDelay = 3;
+                    }
+                }
+            } else {
+                if (started) {
+                    if (currentMotion.lengthSqr() < 2.0D) {
+                        this.setDeltaMovement(currentMotion.scale(this.getLegacyArcAcceleration2()));
+                    } else {
+                        this.setDeltaMovement(currentMotion);
+                    }
+                } else {
+                    this.setDeltaMovement(
+                            currentMotion.x * 0.85D,
+                            currentMotion.y + this.getLegacyArcAcceleration1(),
+                            currentMotion.z * 0.85D);
+                }
+            }
+            return;
+        }
+
         double acceleration = this.tickCount <= this.getLegacyArcRiseTicks()
                 ? this.getLegacyArcAcceleration1()
                 : this.getLegacyArcAcceleration2();
@@ -724,13 +799,16 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             return;
         }
 
+        Entity owner = this.getOwner();
         if (this.missedShot) {
+            if (owner instanceof LegacyShipEntity ship) {
+                this.spawnImpactEffect(ship, impactPosition);
+            }
             this.emitMissFx(impactPosition);
             return;
         }
 
         this.resolvedImpact = true;
-        Entity owner = this.getOwner();
         if (!(owner instanceof LegacyShipEntity ship)) {
             return;
         }
@@ -752,7 +830,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
             if (roll.miss()) {
                 continue;
             }
-            boolean attacked = livingTarget.hurt(ship.damageSources().mobAttack(ship), roll.damage());
+            boolean attacked = livingTarget.hurt(this.damageSources().explosion(this, ship), roll.damage());
             if (attacked) {
                 ship.setLastHurtMob(livingTarget);
                 LegacyShipBehaviorCatalog.applyAttackEffect(ship, livingTarget);
@@ -852,6 +930,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     private void spawnTrailParticles() {
+        if (this.clusterSubMissile && this.tickCount <= 4) {
+            return;
+        }
         GameplayParticleType particleType = this.getTrailParticleType();
         if (particleType == GameplayParticleType.NONE || this.tickCount < 2) {
             return;
@@ -946,6 +1027,72 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     private float baseSpeed() {
         return this.travelSpeed * this.speedScale;
+    }
+
+    @Override
+    public boolean isPickable() {
+        return this.isAlive();
+    }
+
+    @Override
+    public boolean hurt(DamageSource damageSource, float amount) {
+        if (this.level().isClientSide()) {
+            return false;
+        }
+
+        if (this.getOwner() == null) {
+            this.discard();
+            return false;
+        }
+
+        if (damageSource.is(DamageTypes.IN_WALL)
+                || damageSource.is(DamageTypes.STARVE)
+                || damageSource.is(DamageTypes.CACTUS)
+                || damageSource.is(DamageTypes.FALL)
+                || damageSource.is(DamageTypes.LAVA)
+                || damageSource.is(DamageTypes.IN_FIRE)
+                || damageSource.is(DamageTypes.HOT_FLOOR)
+                || damageSource.is(DamageTypes.ON_FIRE)
+                || damageSource.is(DamageTypes.FALLING_BLOCK)) {
+            return false;
+        }
+
+        if (damageSource.is(DamageTypes.MAGIC)
+                || damageSource.is(DamageTypes.DRAGON_BREATH)
+                || damageSource.is(DamageTypes.WITHER)
+                || damageSource.is(DamageTypes.FELL_OUT_OF_WORLD)) {
+            this.detonateOnIntercept();
+            return true;
+        }
+
+        if (this.random.nextFloat() <= 0.5F) {
+            return false;
+        }
+
+        if (this.isInvulnerableTo(damageSource)) {
+            return false;
+        }
+
+        if (this.isAlive() && amount > 8.0F) {
+            this.detonateOnIntercept();
+            return true;
+        }
+
+        return super.hurt(damageSource, amount);
+    }
+
+    private void detonateOnIntercept() {
+        if (!this.resolvedImpact && !this.level().isClientSide()) {
+            if (this.impactRadius > 0.0D) {
+                this.resolveAreaImpact(this.position());
+            } else {
+                if (this.getOwner() instanceof LegacyShipEntity ship) {
+                    this.spawnImpactEffect(ship, this.position());
+                }
+                this.emitMissFx(this.position());
+            }
+        }
+        this.discard();
     }
 
     private static LegacyShipAttackKind attackKindByOrdinal(int ordinal) {

@@ -6,7 +6,7 @@
 
 - 分支：`codex/mc-1.20.1`
 - 基线提交：`3c9fe42d`，`v0.0.2-alpha`
-- 工作区：已有迁移生产代码与文档改动全部保留在工作区，不能清理或覆盖；`DOC-01` 文档解耦、`SHIP-01` 至 `SHIP-09`、`SP-CLOSE`、`COMBAT-REGRESSION-SUITE`、`ALL-SHIP-OVERRIDE-AUDIT`、`SHIP-ATTACK-PROFILE-AUDIT`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`MINECRAFT-BLOCK-TAGS`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM` 与 `B6-INTERMOD-DETAILS` 均已留存实现与批次记录。[GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 现共有 `289` 个 `@GameTest` 且全绿通过。
+- 工作区：已有迁移生产代码与文档改动全部保留在工作区，不能清理或覆盖；`DOC-01` 文档解耦、`SHIP-01` 至 `SHIP-09`、`SP-CLOSE`、`COMBAT-REGRESSION-SUITE`、`ALL-SHIP-OVERRIDE-AUDIT`、`SHIP-ATTACK-PROFILE-AUDIT`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`MINECRAFT-BLOCK-TAGS`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM`、`B6-INTERMOD-DETAILS` 与 `FULL-SHIP-BEHAVIOR-REAUDIT` 均已留存实现与批次记录。[GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 现共有 `298` 个 `@GameTest` 且全绿通过。
 - legacy：`src/main/java`、`src/main/resources` 未作为实现目标，继续只读。
 - 当前完成口径：单人主线（M0-M9 + V0）与完整 1.12 parity backlog（B1–B6）均已全面收口（[ROADMAP.md](ROADMAP.md) 当前指针为 `NONE`）。
 
@@ -19,7 +19,7 @@
 
 ## 迁移统计
 
-基础舰种矩阵共 45 个唯一 class ID，现代规格实际包含 64 个注册变体（34 个 friendly、30 个 hostile，其中 19 个是 hostile Mob 变体）；已有迁移切片记录 46 个，本轮另补齐 45 个 `BasicEntityShip` 注册类的共享资源入口。逐舰状态以 [MIGRATION-SHIP-MATRIX.md](MIGRATION-SHIP-MATRIX.md) 为准，不在这里复制逐行结论。
+- 基础舰种矩阵共 45 个唯一 class ID，现代规格实际包含 64 个注册变体（45 个 friendly 基础舰种、19 个 `>2000` hostile `*Mob` 变体，已在 [FULL-SHIP-BEHAVIOR-REAUDIT](migration_batches/2026-11-18-full-ship-behavior-reaudit/) 与 1.12.2 `ModEntity` 完全对齐）；逐舰状态以 [MIGRATION-SHIP-MATRIX.md](MIGRATION-SHIP-MATRIX.md) 为准，不在这里复制逐行结论。
 
 模块总览：
 
@@ -67,7 +67,7 @@
 ## 当前阻塞与边界
 
 - SP mainline（M0-M9 + V0）及 B1–B6 完整 1.12 parity backlog（`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM`、`B6-INTERMOD-DETAILS`）均已全面完成并闭环，无当前阻塞。
-- **当前自动化覆盖（2026-11-18 `B6-INTERMOD-DETAILS` 最终收口完成后）**：JDK `17.0.3.1` 下 `git diff --check`、`git status -s -- src/main/`（空输出）、`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 全部通过（**`All 289 required tests passed :)`**，0 failed，0 skipped；证据见 [B6 closeout](migration_batches/2026-11-17-b6-intermod-details/results/b6-closeout.json)）。
+- **当前自动化覆盖（2026-11-18 `FULL-SHIP-BEHAVIOR-REAUDIT` 全量两轮复审修复收口后）**：JDK `17.0.3.1` 下 `git diff --check`、`git status -s -- src/main/`（空输出）、`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 全部通过（**`All 298 required tests passed :)`**，0 failed，0 skipped；证据见 [Re-audit closeout](migration_batches/2026-11-18-full-ship-behavior-reaudit/results/reaudit-closeout.json)）。
 - 已建档不可变边界：Metamorph 由原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge` 承载；IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代；Curios 采用零硬依赖反射软钩；40 个无 1.12.2 实体源与 `ModEntity.regShipEntity` 注册入口的 `ID.java` 历史名称按 D-009 维持 `HISTORICAL_SOURCE_GAP`（暂待用户决定是否提交）。
 
 ## 更新规则

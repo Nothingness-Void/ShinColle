@@ -5,18 +5,23 @@ import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.mojang.datafixers.util.Pair;
+import com.lulan.shincolle.client.ClientShipVisibilityHelper;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.world.LightBlockHelper;
 import com.lulan.shincolle.entity.other.LegacyShipFishingHookEntity;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFloatGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipGuardGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipHostilePlayerTargetGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipOpenDoorGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtByTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangedAttackGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangeTargetGoal;
+import com.lulan.shincolle.entity.projectile.LegacyShipBeamEntity;
+import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
@@ -56,6 +61,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.BossEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.DifficultyInstance;
@@ -68,6 +74,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.Container;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -110,6 +117,7 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -238,6 +246,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String LEGACY_AUTO_PUMP_FLAG_TAG = "AutoPump";
     private static final String SHIP_AUTO_PUMP_TAG = "ShipAutoPump";
     private static final String LEGACY_COMBAT_RATION_LEVEL_TAG = "AutoCR";
+    private static final String LEGACY_FLEE_HP_TAG = "FHP";
     private static final String LEGACY_FOOD_SATURATION_TAG = "Food";
     private static final String SHIP_CAN_FLOAT_TAG = "ShipCanFloat";
     private static final String SHIP_CAN_FOLLOW_TAG = "ShipCanFollow";
@@ -253,6 +262,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String LEGACY_EMOTION4_TAG = "Emotion4";
     private static final String LEGACY_PHASE_TAG = "Phase";
     private static final String SHIP_COMBAT_RATION_LEVEL_TAG = "ShipCombatRationLevel";
+    private static final String SHIP_FLEE_HP_TAG = "ShipFleeHp";
     private static final String SHIP_FOOD_SATURATION_TAG = "ShipFoodSaturation";
     private static final String SHIP_TASK_TAG = "ShipTask";
     private static final String SHIP_TASK_SIDE_TAG = "ShipTaskSide";
@@ -304,6 +314,7 @@ public class LegacyShipEntity extends PathfinderMob {
     public static final boolean DEFAULT_CAN_DROP_ITEM = true;
     public static final boolean DEFAULT_SHOW_HELD_ITEM = true;
     public static final int DEFAULT_COMBAT_RATION_LEVEL = 3;
+    public static final int DEFAULT_FLEE_HP = 35;
     public static final int DEFAULT_TASK = -1;
     public static final int DEFAULT_TASK_SIDE = -1;
     public static final int DEFAULT_MODEL_STATE = 0;
@@ -342,6 +353,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_MORALE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_COMBAT_RATION_LEVEL =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FLEE_HP =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_FOOD_SATURATION =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -492,6 +505,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private boolean aircraftProfileInitialized;
     private boolean loadingSaveData;
     private int shipItemVoiceCooldown;
+    private int goddessImmuneTicks;
+    private int hurtSoundCooldown;
     private int cachedEffectSignature;
     private boolean cachedLegacyNight;
     // EntityAIShipCarrierAttack starts with its heavy aircraft channel.
@@ -552,8 +567,25 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public LegacyShipEntity(EntityType<? extends LegacyShipEntity> entityType, Level level) {
         super(entityType, level);
+        this.noCulling = true;
         this.setPersistenceRequired();
         this.setCanPickUpLoot(false);
+    }
+
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        return this.getBoundingBox().inflate(3.0D, 3.0D, 3.0D);
+    }
+
+    @Override
+    public boolean isCurrentlyGlowing() {
+        if (this.level().isClientSide()
+                && this.isInvisible()
+                && FMLEnvironment.dist.isClient()
+                && ClientShipVisibilityHelper.isOwnedOrAlliedToClientPlayer(this)) {
+            return true;
+        }
+        return super.isCurrentlyGlowing();
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -577,6 +609,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_EXPERIENCE, 0);
         this.entityData.define(DATA_MORALE, DEFAULT_MORALE);
         this.entityData.define(DATA_COMBAT_RATION_LEVEL, DEFAULT_COMBAT_RATION_LEVEL);
+        this.entityData.define(DATA_FLEE_HP, DEFAULT_FLEE_HP);
         this.entityData.define(DATA_FOOD_SATURATION, 0);
         this.entityData.define(DATA_SHIP_FUEL, DEFAULT_SHIP_FUEL);
         this.entityData.define(DATA_LIGHT_AMMO, DEFAULT_LIGHT_AMMO);
@@ -627,6 +660,7 @@ public class LegacyShipEntity extends PathfinderMob {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new LegacyShipFloatGoal(this));
+        this.goalSelector.addGoal(1, new LegacyShipFleeGoal(this));
         this.goalSelector.addGoal(1, new LegacyShipGuardGoal(this));
         this.goalSelector.addGoal(2, new LegacyShipRangedAttackGoal(this, 1.0D));
         this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.0D, true) {
@@ -680,19 +714,28 @@ public class LegacyShipEntity extends PathfinderMob {
         });
         this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        this.goalSelector.addGoal(8, new LegacyShipOpenDoorGoal(this, true));
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this) {
             @Override
             public boolean canUse() {
-                return super.canUse()
-                        && (!LegacyShipEntity.this.isHostileVariant()
-                        || LegacyShipEntity.this.canEngage(LegacyShipEntity.this.getLastHurtByMob()));
+                if (!super.canUse()) {
+                    return false;
+                }
+                LivingEntity attacker = LegacyShipEntity.this.getLastHurtByMob();
+                return LegacyShipEntity.this.isHostileVariant()
+                        ? LegacyShipEntity.this.canEngage(attacker)
+                        : LegacyShipEntity.this.canCommandOrRevengeEngage(attacker);
             }
 
             @Override
             public boolean canContinueToUse() {
-                return super.canContinueToUse()
-                        && (!LegacyShipEntity.this.isHostileVariant()
-                        || LegacyShipEntity.this.canEngage(LegacyShipEntity.this.getTarget()));
+                if (!super.canContinueToUse()) {
+                    return false;
+                }
+                LivingEntity target = LegacyShipEntity.this.getTarget();
+                return LegacyShipEntity.this.isHostileVariant()
+                        ? LegacyShipEntity.this.canEngage(target)
+                        : LegacyShipEntity.this.canCommandOrRevengeEngage(target);
             }
         });
         this.targetSelector.addGoal(1, new LegacyShipOwnerHurtByTargetGoal(this));
@@ -735,6 +778,9 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setCombatRationLevel(getIntWithLegacyMinorFallback(
                 tag, SHIP_COMBAT_RATION_LEVEL_TAG, null,
                 LEGACY_COMBAT_RATION_LEVEL_TAG, DEFAULT_COMBAT_RATION_LEVEL));
+        this.setFleeHp(getIntWithLegacyMinorFallback(
+                tag, SHIP_FLEE_HP_TAG, null,
+                LEGACY_FLEE_HP_TAG, DEFAULT_FLEE_HP));
         this.setFoodSaturation(getIntWithLegacyMinorFallback(
                 tag, SHIP_FOOD_SATURATION_TAG, null,
                 LEGACY_FOOD_SATURATION_TAG, 0));
@@ -912,6 +958,7 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putInt(SHIP_EXPERIENCE_TAG, this.getShipExperience());
         tag.putInt(SHIP_MORALE_TAG, this.getMorale());
         tag.putInt(SHIP_COMBAT_RATION_LEVEL_TAG, this.getCombatRationLevel());
+        tag.putInt(SHIP_FLEE_HP_TAG, this.getFleeHp());
         tag.putInt(SHIP_FOOD_SATURATION_TAG, this.getFoodSaturation());
         tag.putInt(SHIP_TASK_TAG, this.getTask());
         tag.putInt(SHIP_TASK_SIDE_TAG, this.getTaskSide());
@@ -1025,6 +1072,12 @@ public class LegacyShipEntity extends PathfinderMob {
         if (!this.level().isClientSide() && this.shipItemVoiceCooldown > 0) {
             this.shipItemVoiceCooldown--;
         }
+        if (!this.level().isClientSide() && this.goddessImmuneTicks > 0) {
+            this.goddessImmuneTicks--;
+        }
+        if (!this.level().isClientSide() && this.hurtSoundCooldown > 0) {
+            this.hurtSoundCooldown--;
+        }
 
         // Legacy BasicEntityShip recalculates raw attributes on its 128-tick
         // refresh, including class-specific day/night bonuses.
@@ -1055,6 +1108,14 @@ public class LegacyShipEntity extends PathfinderMob {
             this.tickAutoPump();
             this.tickTimeKeeper();
             this.tickAircraftRecovery();
+            if ((this.tickCount & 31) == 0 && this.isAlive()) {
+                MobEffectInstance saturation = this.getEffect(MobEffects.SATURATION);
+                if (saturation != null) {
+                    int lv = Math.max(1, saturation.getAmplifier() + 1);
+                    this.heal((this.getMaxHealth() * 0.01F + 2.0F) * (0.8F + lv * 0.2F));
+                    this.addMorale(100 * lv);
+                }
+            }
             if ((this.tickCount & 63) == 0) {
                 LegacyShipBehaviorCatalog.tickLegacyEmotionState(this);
             }
@@ -1064,9 +1125,13 @@ public class LegacyShipEntity extends PathfinderMob {
 
             if (this.tickCount % 20 == 0) {
                 int currentFormationId = this.resolveAppliedFormationId();
-                if (currentFormationId != this.entityData.get(DATA_FORMATION_ID)) {
+                int currentFormatSlot = currentFormationId > 0 ? this.resolveAppliedFormationSlot() : 0;
+                if (currentFormationId != this.entityData.get(DATA_FORMATION_ID)
+                        || currentFormatSlot != this.cachedFormationSlot) {
                     this.entityData.set(DATA_FORMATION_ID, currentFormationId);
                     this.refreshFromVariant(true);
+                } else if (currentFormationId > 0) {
+                    this.applyBaseValue(Attributes.MOVEMENT_SPEED, this.resolveEffectiveMoveSpeed(currentFormationId));
                 }
             }
         }
@@ -1227,6 +1292,30 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     @Override
+    public void playAmbientSound() {
+        if (this.getShipFuel() <= 0 || this.random.nextInt(10) > 3) {
+            return;
+        }
+        if (this.isMarried() && this.random.nextInt(5) == 0) {
+            SoundEvent marrySound = ShinColleSoundHelper.getShipVoice(ShipSoundType.MARRY, this.getShipClassId());
+            if (marrySound != null) {
+                this.playSound(marrySound, this.getSoundVolume(), this.getVoicePitch());
+                return;
+            }
+        }
+        super.playAmbientSound();
+    }
+
+    @Override
+    protected void playHurtSound(DamageSource source) {
+        if (this.hurtSoundCooldown > 0) {
+            return;
+        }
+        this.hurtSoundCooldown = 20 + this.random.nextInt(30);
+        super.playHurtSound(source);
+    }
+
+    @Override
     protected @Nullable SoundEvent getAmbientSound() {
         if (LegacyShipBehaviorCatalog.shouldPlayRo500GaruruAmbient(
                 this.getShipClassId(), this.random.nextInt(8))) {
@@ -1247,7 +1336,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     @Override
     protected float getSoundVolume() {
-        return 0.55F;
+        return (float) ShinColleConfig.volumeShip();
     }
 
     @Override
@@ -1288,18 +1377,66 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     @Override
-    public boolean hurt(DamageSource damageSource, float amount) {
-        Entity attacker = damageSource.getDirectEntity() != null ? damageSource.getDirectEntity() : damageSource.getEntity();
+    public boolean causeFallDamage(float fallDistance, float multiplier, DamageSource source) {
+        return false;
+    }
 
+    @Override
+    public boolean hurt(DamageSource damageSource, float amount) {
+        if (damageSource.is(DamageTypes.IN_WALL)
+                || damageSource.is(DamageTypes.STARVE)
+                || damageSource.is(DamageTypes.CACTUS)
+                || damageSource.is(DamageTypes.FALL)) {
+            return false;
+        }
+        if (damageSource.is(DamageTypes.FELL_OUT_OF_WORLD)) {
+            if (!this.isHostileVariant()) {
+                this.setOrderedToSit(false);
+                this.stopRiding();
+                this.teleportTo(this.getX(), 4.0D, this.getZ());
+                this.setDeltaMovement(0.0D, 1.0D, 0.0D);
+            } else {
+                this.discard();
+            }
+            return false;
+        }
+        if (damageSource.is(DamageTypes.MAGIC) || damageSource.is(DamageTypes.DRAGON_BREATH)) {
+            if (amount < this.getMaxHealth() * 0.01F) {
+                return false;
+            }
+            this.setEmotion(1);
+            return super.hurt(damageSource, amount);
+        }
+
+        Entity directEntity = damageSource.getDirectEntity();
+        Entity attacker = directEntity != null ? directEntity : damageSource.getEntity();
         Entity hurtSourceEntity = damageSource.getEntity() != null ? damageSource.getEntity() : attacker;
+
         if (!this.level().isClientSide() && hurtSourceEntity instanceof Player playerAttacker) {
+            if (!this.isHostileVariant() && this.isOwnedBy(playerAttacker)) {
+                this.setOrderedToSit(false);
+                this.setEmotion(1);
+                return super.hurt(damageSource, amount);
+            }
             if (!playerAttacker.getAbilities().instabuild
                     && !this.isHostileVariant()
-                    && !this.isOwnedBy(playerAttacker)
                     && !ShinColleConfig.friendlyFire()) {
                 return false;
             }
-        } else if (!this.level().isClientSide() && hurtSourceEntity instanceof LegacyShipEntity attackerShip) {
+        }
+
+        if (!this.level().isClientSide()
+                && !damageSource.is(DamageTypeTags.BYPASSES_INVULNERABILITY)
+                && this.goddessImmuneTicks > 0) {
+            return false;
+        }
+
+        if (hurtSourceEntity == this) {
+            this.setOrderedToSit(false);
+            return false;
+        }
+
+        if (!this.level().isClientSide() && hurtSourceEntity instanceof LegacyShipEntity attackerShip) {
             if (!LegacyShipBehaviorCatalog.isLegacyFriendlyFireAllowed(attackerShip, this)) {
                 return false;
             }
@@ -1316,10 +1453,9 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (!this.level().isClientSide()
-                && attacker != null
-                && attacker != this
-                && LegacyShipCombatHelper.canDodge(this, attacker)) {
-            if (attacker instanceof LivingEntity livingAttacker) {
+                && hurtSourceEntity != null
+                && LegacyShipCombatHelper.canDodge(this, hurtSourceEntity)) {
+            if (hurtSourceEntity instanceof LivingEntity livingAttacker) {
                 CombatFxDispatcher.sendCombatReact(livingAttacker, this, CombatReactType.DODGE, LegacyShipAttackKind.MELEE);
                 CombatFxDispatcher.sendParticle(this, GameplayParticleType.TEXT_DODGE,
                         this.getX(), this.getY() + this.getBbHeight() * 0.8D, this.getZ());
@@ -1328,18 +1464,55 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         amount = LegacyShipCombatHelper.applyDefenseReduction(this.random, this.legacyStats, amount);
+
+        if (directEntity instanceof LegacyShipProjectileEntity) {
+            MobEffectInstance resist = this.getEffect(MobEffects.DAMAGE_RESISTANCE);
+            if (resist != null) {
+                int lv = Math.min(4, resist.getAmplifier() + 1);
+                amount *= (1.0F - lv * 0.20F);
+            }
+        } else if (directEntity instanceof LegacyShipEntity
+                || directEntity instanceof LegacyShipAircraftEntity
+                || directEntity instanceof LegacyShipRensouhouEntity
+                || directEntity instanceof LegacyShipFloatingFortEntity
+                || directEntity instanceof LegacyShipMountEntity
+                || directEntity instanceof LegacyMountEntity
+                || directEntity instanceof LegacyShipBeamEntity) {
+            MobEffectInstance fireResist = this.getEffect(MobEffects.FIRE_RESISTANCE);
+            if (fireResist != null) {
+                int lv = Math.min(4, fireResist.getAmplifier() + 1);
+                amount *= (1.0F - lv * 0.20F);
+            }
+        }
+
         amount = LegacyShipCombatHelper.applyLegacyLightDamageModifier(this, damageSource, amount);
+
+        if (amount > 0.0F && amount < 1.0F) {
+            amount = 1.0F;
+        } else if (amount <= 0.0F) {
+            amount = 0.0F;
+        }
+
+        if (!this.level().isClientSide()) {
+            this.setOrderedToSit(false);
+        }
 
         if (!this.level().isClientSide()
                 && !this.isHostileVariant()
-                && amount >= this.getHealth()
+                && amount >= (this.getHealth() - 1.0F)
                 && this.consumeFirstMatchingItem(ModItems.REPAIRGODDESS.get())) {
             this.setHealth(this.getMaxHealth());
+            this.goddessImmuneTicks = 120;
             this.invulnerableTime = 120;
             this.lastHurt = Float.MAX_VALUE;
             CombatFxDispatcher.sendParticle(this, GameplayParticleType.FLARE_BURST,
                     this.getX(), this.getY() + this.getBbHeight() * 0.4D, this.getZ());
             return false;
+        }
+
+        if (!this.level().isClientSide()) {
+            this.addMorale(-5);
+            this.markLegacyCombat();
         }
 
         boolean hurt = super.hurt(damageSource, amount);
@@ -1459,8 +1632,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (this.getOwnerUuid().isEmpty()) {
             this.setOwner(player);
-            ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.PICKITEM, 0.65F,
-                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+            this.playInteractionVoice(player, ShipSoundType.PICKITEM, 0.65F);
             player.displayClientMessage(Component.translatable("chat.shincolle.entity.claimed",
                     this.getName().copy().withStyle(ChatFormatting.AQUA)), true);
             return InteractionResult.CONSUME;
@@ -1477,8 +1649,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (this.isOwnedBy(player)) {
             this.setOrderedToSit(!this.isOrderedToSit());
-            ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.IDLE, 0.55F,
-                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+            this.playInteractionVoice(player, ShipSoundType.IDLE, 0.55F);
             player.displayClientMessage(Component.translatable("chat.shincolle.entity.status",
                     this.getName().copy().withStyle(ChatFormatting.AQUA), this.getEscortModeLabel()), true);
             return InteractionResult.CONSUME;
@@ -1742,6 +1913,15 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public void setCombatRationLevel(int level) {
         this.entityData.set(DATA_COMBAT_RATION_LEVEL, level);
+        this.setPersistenceRequired();
+    }
+
+    public int getFleeHp() {
+        return this.entityData.get(DATA_FLEE_HP);
+    }
+
+    public void setFleeHp(int fleeHp) {
+        this.entityData.set(DATA_FLEE_HP, Mth.clamp(fleeHp, 0, 100));
         this.setPersistenceRequired();
     }
 
@@ -2498,6 +2678,8 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.getOwnerUuid().map(serverLevel::getPlayerByUUID).orElse(null);
     }
 
+    private int cachedFormationSlot = 0;
+
     private int resolveAppliedFormationId() {
         if (this.isHostileVariant()) {
             return TeitokuData.DEFAULT_FORMATION_ID;
@@ -2509,6 +2691,57 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         return LegacyShipStatTables.normalizeFormationId(TeitokuHelper.getFormationIdForShip(owner, this.shipUid));
+    }
+
+    private int resolveAppliedFormationSlot() {
+        if (this.isHostileVariant()) {
+            return 0;
+        }
+
+        Player owner = this.getOwnerPlayer();
+        if (owner == null) {
+            return 0;
+        }
+
+        return TeitokuHelper.getFormationSlotForShip(owner, this.shipUid);
+    }
+
+    private double resolveEffectiveMoveSpeed(int formationId) {
+        if (formationId <= 0 || this.isHostileVariant() || !(this.level() instanceof ServerLevel serverLevel)) {
+            return this.legacyStats.moveSpeed();
+        }
+
+        Player owner = this.getOwnerPlayer();
+        if (owner == null) {
+            return this.legacyStats.moveSpeed();
+        }
+
+        int[] teamUids = TeitokuHelper.getTeamShipUidsForShip(owner, this.shipUid);
+        if (teamUids.length == 0) {
+            return this.legacyStats.moveSpeed();
+        }
+
+        float minMov = this.legacyStats.moveSpeed();
+        for (Entity entity : serverLevel.getAllEntities()) {
+            if (!(entity instanceof LegacyShipEntity ship) || !ship.isAlive() || ship.isHostileVariant()) {
+                continue;
+            }
+            int uid = ship.getShipUid();
+            if (uid <= 0) {
+                continue;
+            }
+            for (int teamUid : teamUids) {
+                if (uid == teamUid) {
+                    minMov = Math.min(minMov, ship.getLegacyStats().moveSpeed());
+                    break;
+                }
+            }
+        }
+
+        double formationMov = this.legacyStats.formationStat(LegacyShipStatTables.Attr.MOV)
+                * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV];
+        return Mth.clamp(minMov + formationMov, 0.0D,
+                LegacyShipStatTables.LIMIT_SHIP_ATTRS[LegacyShipStatTables.Attr.MOV]);
     }
 
     public boolean canCommanderEdit(Player player) {
@@ -2610,7 +2843,8 @@ public class LegacyShipEntity extends PathfinderMob {
         this.guardEntityUuid = null;
         this.commandedPos = null;
         this.commandDimension = "";
-        this.routeNodePos = null;
+        BlockEntity blockEntity = this.level().getBlockEntity(pos);
+        this.routeNodePos = blockEntity instanceof RouteNode ? pos.immutable() : null;
         this.setTarget(null);
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
@@ -3317,9 +3551,12 @@ public class LegacyShipEntity extends PathfinderMob {
             this.aircraftProfileInitialized = true;
         }
         int formationId = this.entityData.get(DATA_FORMATION_ID);
+        int formatPos = 0;
         if (!this.level().isClientSide()) {
             formationId = this.resolveAppliedFormationId();
             this.entityData.set(DATA_FORMATION_ID, formationId);
+            formatPos = formationId > 0 ? this.resolveAppliedFormationSlot() : 0;
+            this.cachedFormationSlot = formatPos;
         }
         this.legacyStats = LegacyShipStats.create(
                 spec.legacyClassId(),
@@ -3335,6 +3572,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 this.modernRangeSteps,
                 this.isMarried(),
                 formationId,
+                formatPos,
                 this.equipmentProfile,
                 this.getActiveEffects(),
                 this.isLegacyNight(),
@@ -3344,7 +3582,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         this.refreshDimensions();
         this.applyBaseValue(Attributes.MAX_HEALTH, this.legacyStats.get(LegacyShipStatTables.Attr.HP));
-        this.applyBaseValue(Attributes.MOVEMENT_SPEED, this.legacyStats.moveSpeed());
+        this.applyBaseValue(Attributes.MOVEMENT_SPEED, this.resolveEffectiveMoveSpeed(formationId));
         this.applyBaseValue(Attributes.ATTACK_DAMAGE, this.legacyStats.meleeDamage());
         this.applyBaseValue(Attributes.FOLLOW_RANGE, Math.max(28D,
                 16D + this.legacyStats.attackRange() + this.equipmentBehaviorState.detectionRangeBonus()));
@@ -4177,11 +4415,28 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (this.hostileRuntimeState.isNaturalSpawn()) {
-            boolean playerNearby = serverLevel.getNearestPlayer(this, 96.0D) != null;
-            this.hostileRuntimeState.setDespawnTicks(playerNearby ? 0 : this.hostileRuntimeState.getDespawnTicks() + 1);
-            if (this.hostileRuntimeState.getDespawnTicks() > 20 * 45) {
-                this.discard();
-                return;
+            int limit = this.getLegacyHostileScaleLevel() > 1
+                    ? ShinColleConfig.despawnBoss()
+                    : ShinColleConfig.despawnMinion();
+            if (limit > -1 && this.tickCount > limit) {
+                boolean playerWithin128 = serverLevel.getNearestPlayer(this, 128.0D) != null;
+                if (!playerWithin128) {
+                    this.discard();
+                    return;
+                }
+                boolean playerWithin32 = serverLevel.getNearestPlayer(this, 32.0D) != null;
+                if (playerWithin32) {
+                    this.hostileRuntimeState.setDespawnTicks(0);
+                } else {
+                    int despawnTicks = this.hostileRuntimeState.getDespawnTicks() + 1;
+                    this.hostileRuntimeState.setDespawnTicks(despawnTicks);
+                    boolean playerWithin96 = serverLevel.getNearestPlayer(this, 96.0D) != null;
+                    if ((!playerWithin96 && despawnTicks > 900)
+                            || (despawnTicks > 600 && this.random.nextInt(800) == 0)) {
+                        this.discard();
+                        return;
+                    }
+                }
             }
         }
 
@@ -4457,23 +4712,6 @@ public class LegacyShipEntity extends PathfinderMob {
             this.getNavigation().stop();
         }
 
-        if (this.guardedBlockPos != null) {
-            if (this.guardedBlockPos.getY() <= 0
-                    || !this.dimensionMatches(this.guardedBlockDimension, serverLevel)) {
-                this.clearCommandState();
-                this.setTarget(null);
-                this.getNavigation().stop();
-                return;
-            }
-
-            this.getNavigation().moveTo(
-                    this.guardedBlockPos.getX() + 0.5D,
-                    this.guardedBlockPos.getY() + 0.1D,
-                    this.guardedBlockPos.getZ() + 0.5D,
-                    commandSpeed);
-            return;
-        }
-
         if (this.routeNodePos != null) {
             if (!this.dimensionMatchesCommand(serverLevel)) {
                 this.clearCommandState();
@@ -4482,14 +4720,22 @@ public class LegacyShipEntity extends PathfinderMob {
                 return;
             }
 
-            this.getNavigation().moveTo(
+            BlockEntity blockEntity = serverLevel.getBlockEntity(this.routeNodePos);
+            boolean isCrane = blockEntity instanceof CraneBlockEntity;
+            double engageDistSq = isCrane ? 25.0D : 4.0D;
+            double distSq = this.distanceToSqr(
                     this.routeNodePos.getX() + 0.5D,
                     this.routeNodePos.getY() + 0.1D,
-                    this.routeNodePos.getZ() + 0.5D,
-                    commandSpeed);
+                    this.routeNodePos.getZ() + 0.5D);
+            if (distSq > (isCrane ? 4.0D : 2.0D)) {
+                this.getNavigation().moveTo(
+                        this.routeNodePos.getX() + 0.5D,
+                        this.routeNodePos.getY() + 0.1D,
+                        this.routeNodePos.getZ() + 0.5D,
+                        commandSpeed);
+            }
 
-            if (this.distanceToSqr(this.routeNodePos.getX() + 0.5D, this.routeNodePos.getY() + 0.1D, this.routeNodePos.getZ() + 0.5D) <= 4.0D) {
-                BlockEntity blockEntity = serverLevel.getBlockEntity(this.routeNodePos);
+            if ((isCrane && distSq < engageDistSq) || (!isCrane && distSq <= engageDistSq)) {
                 if (blockEntity instanceof WaypointBlockEntity waypoint) {
                     if (this.handleWaypointRouteNode(serverLevel, waypoint)) {
                         return;
@@ -4503,6 +4749,35 @@ public class LegacyShipEntity extends PathfinderMob {
                 } else {
                     this.routeNodePos = null;
                     this.setCanFollow(true);
+                }
+            }
+            return;
+        }
+
+        if (this.guardedBlockPos != null) {
+            if (this.guardedBlockPos.getY() <= 0
+                    || !this.dimensionMatches(this.guardedBlockDimension, serverLevel)) {
+                this.clearCommandState();
+                this.setTarget(null);
+                this.getNavigation().stop();
+                return;
+            }
+
+            if (this.getGrudge() > 0) {
+                double minDist = 3.0D + this.getBbWidth() * 0.5D;
+                double minDistSq = minDist * minDist;
+                double distSq = this.distanceToSqr(
+                        this.guardedBlockPos.getX() + 0.5D,
+                        this.guardedBlockPos.getY() + 0.1D,
+                        this.guardedBlockPos.getZ() + 0.5D);
+                if (distSq > minDistSq) {
+                    this.getNavigation().moveTo(
+                            this.guardedBlockPos.getX() + 0.5D,
+                            this.guardedBlockPos.getY() + 0.1D,
+                            this.guardedBlockPos.getZ() + 0.5D,
+                            commandSpeed);
+                } else if (!this.getNavigation().isDone()) {
+                    this.getNavigation().stop();
                 }
             }
             return;
@@ -4529,6 +4804,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private void advanceRouteNode(@Nullable BlockPos nextWaypoint) {
         this.routeNodePos = nextWaypoint == null ? null : nextWaypoint.immutable();
         this.commandedPos = this.routeNodePos;
+        this.guardedBlockPos = null;
+        this.guardedBlockDimension = "";
         if (nextWaypoint == null) {
             this.setCanFollow(true);
         }
@@ -4640,6 +4917,9 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean handleCraneRouteNode(ServerLevel serverLevel, CraneBlockEntity crane) {
+        if (!crane.isCraneEnabled()) {
+            return false;
+        }
         Container pairedContainer = this.getPairedRouteContainer(serverLevel, crane.getPairedChest());
         IFluidHandler pairedFluidHandler = this.getPairedRouteFluidHandler(serverLevel, crane.getPairedChest());
         RouteEnergyAccess pairedEnergyAccess = this.getPairedRouteEnergyAccess(serverLevel, crane.getPairedChest());
@@ -4723,14 +5003,167 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (!this.aiRespectRouteStay) {
+            if (crane.getRedstoneMode() == 2) {
+                crane.emitRedstoneSignal(2);
+            }
             return false;
         }
 
-        if (crane.getWaitMode() <= 4) {
-            return hasTransferWork;
+        boolean continueCraning;
+        int waitMode = crane.getWaitMode();
+        if (waitMode == 0) {
+            continueCraning = hasTransferWork;
+        } else if (waitMode == 1) {
+            continueCraning = !this.isCraneUntilFullSatisfied(crane, pairedContainer);
+        } else if (waitMode == 2) {
+            continueCraning = !this.isCraneUntilEmptySatisfied(crane, pairedContainer);
+        } else if (waitMode == 3) {
+            continueCraning = canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy
+                    || !this.isCraneExcessSatisfied(crane, pairedContainer);
+        } else if (waitMode == 4) {
+            continueCraning = canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy
+                    || !this.isCraneRemainSatisfied(crane, pairedContainer);
+        } else {
+            continueCraning = this.waitAtRouteNode(CraneBlockEntity.getWaitTime(waitMode));
         }
 
-        return this.waitAtRouteNode(CraneBlockEntity.getWaitTime(crane.getWaitMode()));
+        if (continueCraning) {
+            if (crane.getRedstoneMode() == 1) {
+                crane.emitRedstoneSignal(18);
+            }
+        } else if (crane.getRedstoneMode() == 2) {
+            crane.emitRedstoneSignal(2);
+        }
+        return continueCraning;
+    }
+
+    private boolean isCraneUntilFullSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
+        if (crane.isLoadEnabled() && !this.isShipCargoFull()) {
+            return false;
+        }
+        if (crane.isUnloadEnabled() && pairedContainer != null && !isContainerFull(pairedContainer)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isCraneUntilEmptySatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
+        if (crane.isLoadEnabled() && pairedContainer != null
+                && hasMatchingItemInContainer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true))) {
+            return false;
+        }
+        if (crane.isUnloadEnabled()
+                && this.hasMatchingItemInShipCargo(stack -> crane.matchesTransferFilter(stack, false))) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isCraneExcessSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
+        if (crane.isLoadEnabled() && !this.matchesAllFilterAmountsInShipCargo(crane, true, true)) {
+            return false;
+        }
+        if (crane.isUnloadEnabled() && pairedContainer != null
+                && !matchesAllFilterAmountsInContainer(pairedContainer, crane, false, true)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isCraneRemainSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
+        if (crane.isLoadEnabled() && pairedContainer != null
+                && !matchesAllFilterAmountsInContainer(pairedContainer, crane, true, false)) {
+            return false;
+        }
+        if (crane.isUnloadEnabled() && !this.matchesAllFilterAmountsInShipCargo(crane, false, false)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isShipCargoFull() {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isContainerFull(Container container) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack stack = container.getItem(slot);
+            if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean hasMatchingItemInShipCargo(Predicate<ItemStack> predicate) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+            ItemStack stack = this.shipInventory.getItem(slot);
+            if (!stack.isEmpty() && predicate.test(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasMatchingItemInContainer(Container container, Predicate<ItemStack> predicate) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack stack = container.getItem(slot);
+            if (!stack.isEmpty() && predicate.test(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesAllFilterAmountsInShipCargo(CraneBlockEntity crane, boolean loading, boolean excess) {
+        int start = loading ? 0 : 9;
+        for (int i = start; i < start + 9; i++) {
+            ItemStack filter = crane.getFilterStack(i);
+            if (filter.isEmpty() || crane.isFilterInverted(i)) {
+                continue;
+            }
+            int total = 0;
+            for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+                ItemStack stack = this.shipInventory.getItem(slot);
+                if (!stack.isEmpty() && com.lulan.shincolle.crafting.LegacyItemMatchHelper.matchesTargetItem(
+                        stack, filter, crane.isCheckMetadata(), crane.isCheckOredict(), crane.isCheckNbt())) {
+                    total += stack.getCount();
+                }
+            }
+            if (excess ? total < filter.getCount() : total > filter.getCount()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean matchesAllFilterAmountsInContainer(Container container, CraneBlockEntity crane,
+                                                              boolean loading, boolean excess) {
+        int start = loading ? 0 : 9;
+        for (int i = start; i < start + 9; i++) {
+            ItemStack filter = crane.getFilterStack(i);
+            if (filter.isEmpty() || crane.isFilterInverted(i)) {
+                continue;
+            }
+            int total = 0;
+            for (int slot = 0; slot < container.getContainerSize(); slot++) {
+                ItemStack stack = container.getItem(slot);
+                if (!stack.isEmpty() && com.lulan.shincolle.crafting.LegacyItemMatchHelper.matchesTargetItem(
+                        stack, filter, crane.isCheckMetadata(), crane.isCheckOredict(), crane.isCheckNbt())) {
+                    total += stack.getCount();
+                }
+            }
+            if (excess ? total < filter.getCount() : total > filter.getCount()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean waitAtRouteNode(int waitTicks) {
@@ -5615,14 +6048,29 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
+        if ((this.tickCount & 31) == 0
+                && (this.getMaxHealth() - this.getHealth()) > (this.getMaxHealth() * 0.1F + 5.0F)
+                && this.consumeLegacySupplyItem(ModItems.BUCKETREPAIR.get())) {
+            this.heal(this.getMaxHealth() * 0.08F + 15.0F);
+            if (LegacyShipBehaviorCatalog.managesAircraftInventory(this.getSpec())) {
+                this.setAircraftLight(this.getAircraftLight() + 1);
+                this.setAircraftHeavy(this.getAircraftHeavy() + 1);
+            }
+        }
+
         if (this.aiAutoSupply && (this.tickCount & 127) == 0
                 && LegacyShipBehaviorCatalog.legacyMoraleIdFor(this.getMorale()) >= this.getCombatRationLevel()
                 && this.getFoodSaturation() < this.getFoodSaturationMax()) {
             this.autoUseCombatRation();
         }
 
-        if ((this.tickCount & 255) == 0 && this.getFoodSaturation() > 0) {
-            this.setFoodSaturation(this.getFoodSaturation() - 1);
+        if ((this.tickCount & 255) == 0) {
+            if (this.getFoodSaturation() > 0) {
+                this.setFoodSaturation(this.getFoodSaturation() - 1);
+            }
+            if (this.getHealth() < this.getMaxHealth()) {
+                this.heal(this.getMaxHealth() * 0.03F + 1.0F);
+            }
         }
     }
 
@@ -5677,10 +6125,35 @@ public class LegacyShipEntity extends PathfinderMob {
         this.addShipExperience(LegacyShipBehaviorCatalog.legacyMovementExperienceFor(
                 this.getSpec(), movementGrudge, this.tickCount));
         this.consumeLegacyIdleGrudge(movementGrudge + idleCost);
+        if (this.getShipFuel() > 0) {
+            this.updateLegacyMorale();
+        }
 
         this.legacyPreviousX = this.getX();
         this.legacyPreviousY = this.getY();
         this.legacyPreviousZ = this.getZ();
+    }
+
+    /** Mirrors BasicEntityShip.updateMorale every 128 ticks when fueled. */
+    private void updateLegacyMorale() {
+        int m = this.getMorale();
+        if (this.isLegacyOutOfCombat()) {
+            if (m < LegacyShipStatTables.MORALE_NORMAL_LOWER + 1000) {
+                this.addMorale(40);
+            } else if (m > LegacyShipStatTables.MORALE_HAPPY_LOWER) {
+                this.addMorale(-10);
+            }
+        } else {
+            if (m < LegacyShipStatTables.MORALE_TIRED_LOWER) {
+                this.addMorale(-11);
+            } else if (m < LegacyShipStatTables.MORALE_NORMAL_LOWER) {
+                this.addMorale(-7);
+            } else if (m < LegacyShipStatTables.MORALE_HAPPY_LOWER) {
+                this.addMorale(-5);
+            } else {
+                this.addMorale(-11);
+            }
+        }
     }
 
     /** Mirrors ShipStateHandler.decrAmmo(AMMO, 0) and its reserve threshold. */
@@ -5847,7 +6320,18 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void tickEquipmentBehaviors() {
-        if (!ShinColleConfig.canSearchlight() || this.equipmentBehaviorState.searchlightLevel() <= 0 || this.tickCount % 20 != 0) {
+        if (!ShinColleConfig.canSearchlight()) {
+            return;
+        }
+
+        boolean isAkatsukiMob = this.getVariantEggMeta() == 2053;
+        boolean hasSearchlightEquip = this.equipmentBehaviorState.searchlightLevel() > 0;
+        if (!hasSearchlightEquip && !isAkatsukiMob) {
+            return;
+        }
+
+        boolean tickDue = isAkatsukiMob ? (this.tickCount & 15) == 0 : (this.tickCount % 20 == 0);
+        if (!tickDue) {
             return;
         }
 
@@ -5856,6 +6340,9 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         LightBlockHelper.placeLightBlock(this.level(), this.blockPosition().above());
+        if (!hasSearchlightEquip) {
+            return;
+        }
 
         LivingEntity target = this.getTarget();
         int searchRange = this.equipmentBehaviorState.searchlightRange();
@@ -6057,8 +6544,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
             if (this.addRandomModernization()) {
                 this.consumeHeldItem(player, hand, 1);
-                ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.MARRY, 0.65F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+                this.playInteractionVoice(player, ShipSoundType.MARRY, 0.65F);
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.modernized",
                         this.getName().copy().withStyle(ChatFormatting.AQUA), this.getModernizationDisplayCount()), true);
             } else {
@@ -6116,8 +6602,7 @@ public class LegacyShipEntity extends PathfinderMob {
             if (player instanceof ServerPlayer serverPlayer) {
                 TeitokuHelper.incrementMarriageCount(serverPlayer);
             }
-            ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.MARRY, 0.8F,
-                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.06F));
+            this.playInteractionVoice(player, ShipSoundType.MARRY, 0.8F);
             player.displayClientMessage(Component.translatable("chat.shincolle.ship.married",
                     this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE)), true);
             return InteractionResult.CONSUME;
@@ -6146,8 +6631,7 @@ public class LegacyShipEntity extends PathfinderMob {
             this.setOwner(targetSigner.uuid(), targetSigner.name(), targetSigner.uid());
             this.consumeHeldItem(player, hand, 1);
             this.setEmotion(2);
-            ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.MARRY, 0.6F,
-                    ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+            this.playInteractionVoice(player, ShipSoundType.MARRY, 0.6F);
             player.displayClientMessage(Component.translatable("chat.shincolle.ship.ownerpaper_transfer",
                     this.getName().copy().withStyle(ChatFormatting.AQUA),
                     Component.literal(targetSigner.name()).withStyle(ChatFormatting.GOLD)), true);
@@ -6170,8 +6654,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
                 int moraleGain = this.legacyHitHeight >= 75 ? 30 : ShinColleConfig.baseCaressMorale();
                 this.addMorale(moraleGain);
-                ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.FEED, 0.55F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+                this.playInteractionVoice(player, ShipSoundType.FEED, 0.55F);
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.caress",
                         this.getName().copy().withStyle(ChatFormatting.AQUA), this.getMorale()), true);
                 return InteractionResult.CONSUME;
@@ -6210,9 +6693,12 @@ public class LegacyShipEntity extends PathfinderMob {
         };
 
         this.heal(healAmount);
+        if (LegacyShipBehaviorCatalog.managesAircraftInventory(this.getSpec())) {
+            this.setAircraftLight(this.getAircraftLight() + 1);
+            this.setAircraftHeavy(this.getAircraftHeavy() + 1);
+        }
         this.consumeHeldItem(player, hand, 1);
-        ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.PICKITEM, 0.55F,
-                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+        this.playInteractionVoice(player, ShipSoundType.PICKITEM, 0.55F);
         player.displayClientMessage(Component.translatable("chat.shincolle.ship.repair",
                 this.getName().copy().withStyle(ChatFormatting.AQUA), Math.round(this.getHealth()), Math.round(this.getMaxHealth())), true);
     }
@@ -6226,10 +6712,18 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.consumeHeldItem(player, hand, 1);
-        ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.FEED, 0.65F,
-                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+        this.playInteractionVoice(player, ShipSoundType.FEED, 0.65F);
         player.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
                 this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
+    }
+
+    private void playInteractionVoice(Player player, ShipSoundType type, float volume) {
+        ShinColleSoundHelper.playForPlayer(
+                this.level(),
+                player,
+                ShinColleSoundHelper.getShipVoice(type, this.getShipClassId()),
+                volume * ShinColleConfig.volumeShip(),
+                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
     }
 
     private boolean feedLegacyItem(Player player, InteractionHand hand, ItemStack stack) {
@@ -6303,8 +6797,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.addHeavyAmmo(heavyAmmoGain);
         this.addFoodSaturation(1);
         this.consumeHeldItem(player, hand, 1);
-        ShinColleSoundHelper.playShipVoice(this.level(), player, ShipSoundType.FEED, 0.65F,
-                ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+        this.playInteractionVoice(player, ShipSoundType.FEED, 0.65F);
         player.displayClientMessage(Component.translatable("chat.shincolle.ship.feed",
                 this.getName().copy().withStyle(ChatFormatting.LIGHT_PURPLE), this.getMorale()), true);
         return true;

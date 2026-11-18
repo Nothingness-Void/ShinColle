@@ -39,9 +39,12 @@ public class LegacyShipRensouhouRenderer extends EntityRenderer<LegacyShipRensou
     @Override
     public void render(LegacyShipRensouhouEntity entity, float entityYaw, float partialTick,
                        PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        this.shadowRadius = 0.7F + entity.getHostileScaleLevel() * 0.4F;
         poseStack.pushPose();
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        poseStack.translate(0.0F, -1.501F, 0.0F);
 
         boolean large = entity.isLargeModel() && !entity.isHostileVariant();
         if (large) {

@@ -37,10 +37,13 @@ public class LegacyShipProjectileRenderer extends EntityRenderer<LegacyShipProje
     @Override
     public void render(LegacyShipProjectileEntity entity, float entityYaw, float partialTick,
                        PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+        LegacyShipProjectileVisual visual = entity.getProjectileVisual();
+        if (visual == LegacyShipProjectileVisual.MISSILE && entity.tickCount < 2) {
+            return;
+        }
         poseStack.pushPose();
         this.alignToFlight(entity, poseStack);
 
-        LegacyShipProjectileVisual visual = entity.getProjectileVisual();
         ProjectileModel model = this.modelFor(visual);
         poseStack.scale(visual.renderScale(), visual.renderScale(), visual.renderScale());
 

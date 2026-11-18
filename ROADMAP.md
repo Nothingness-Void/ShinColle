@@ -4,7 +4,7 @@
 
 ## 当前指针
 
-- 唯一当前队列入口：**`NONE`**（`SHIP-01`–`SHIP-09`、`SP-CLOSE`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL` 与 `B1`–`B6` 全部队列均已完成并收口，全量 `289/289` GameTest 通过）。
+- 唯一当前队列入口：**`NONE`**（`SHIP-01`–`SHIP-09`、`SP-CLOSE`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1`–`B6` 与 `FULL-SHIP-BEHAVIOR-REAUDIT` 全部队列均已完成并收口，全量 `298/298` GameTest 通过）。
 - 舰种矩阵 45 行全为 `LOCKED`，不再从舰种行提取 `NEXT`。
 - 40 个无旧版实体源码与 `ModEntity.regShipEntity` 注册入口的 `ID.java` 历史名称按 D-009 维持 `HISTORICAL_SOURCE_GAP`。
 
@@ -45,7 +45,8 @@
 | 23 | `B1-GUI-PARITY` | 对照旧版 10 个 `Gui*` 与 9 个 `Container*` 的内部交互、按键与 slot 逻辑 | `GAMETEST-BACKFILL` 完成；先冻结协议 | 已完成；10 Gui / 9 Container 对齐，276/276 GameTest 通过，证据见 [B1-GUI-PARITY](migration_batches/2026-11-16-b1-gui-parity/) |
 | 24 | `B2-PACKET-PARITY` | 对照旧版 `C2SGUIPackets`、`S2CGUIPackets`、`C2SInputPackets`、`S2CReactPackets` 全部 PID 与同步分支 | `B1-GUI-PARITY` 完成；先冻结协议 | 已完成；全 84 有效 PID 核对、11 项单人/核心补齐，`282/282` GameTest 通过，证据见 [B2-PACKET-PARITY](migration_batches/2026-11-16-b2-packet-parity/) |
 | 25 | `B3-MULTIPLAYER-TEAM` | 对照 `TeamData`、`TeamHelper`、`ServerProxy`、`CapaTeitoku`、`TargetHelper`、`OwnerPaper` 与 `KaitaiHammer` 的多人队伍/同盟权限、PVP/友伤与雷达同步 | `B2-PACKET-PARITY` 完成；协议已冻结 | 已完成；Part 1+2 全部收口，`286/286` GameTest 通过，证据见 [B3-MULTIPLAYER-TEAM](migration_batches/2026-11-17-b3-multiplayer-team/) |
-| 26 | `B6-INTERMOD-DETAILS` | `ShinColleConfig` + `SystemConfig`、`polyAsMn`、9 条 `/ship*` 指令、动态光方块、`ShipKills`/`Raiden`、Curios 可选联动与外置 mod/`ID.java` 40 历史名称收口 | `B3-MULTIPLAYER-TEAM` 完成；协议已冻结 | 已完成；全量 `289/289` GameTest 通过，队列清零，证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/) |
+| 26 | `B6-INTERMOD-DETAILS` | `ShinColleConfig` + `SystemConfig`、`polyAsMn`、9 条 `/ship*` 指令、动态光方块、`ShipKills`/`Raiden`、Curios 可选联动与外置 mod/`ID.java` 40 历史名称收口 | `B3-MULTIPLAYER-TEAM` 完成；协议已冻结 | 已完成；全量 `289/289` GameTest 通过，证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/) |
+| 27 | `FULL-SHIP-BEHAVIOR-REAUDIT` | 全 64 个注册变体与跨子系统（敌我身份、隐身/发光/防剔除、生命周期、受伤管线、阵型槽位/航速、装备附魔、坐骑/召唤物/导弹/鱼雷、指挥棒/起重机/道具/模型渲染）两轮并发严查与修复 | `v0.1.0-alpha` 玩家反馈驱动全量复审；协议已冻结 | 已完成；新增 9 项综合回归，全量 `298/298` GameTest 通过，证据见 [FULL-SHIP-BEHAVIOR-REAUDIT](migration_batches/2026-11-18-full-ship-behavior-reaudit/) |
 
 ## 晋级规则
 

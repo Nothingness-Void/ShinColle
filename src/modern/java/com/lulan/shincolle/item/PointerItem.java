@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
@@ -11,6 +12,7 @@ import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.lulan.shincolle.team.TeamData;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -22,7 +24,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -31,6 +37,7 @@ public class PointerItem extends Item {
 
     private static final String MODE_TAG = "Mode";
     private static final int MAX_MODE = 5;
+    private static final double POINTER_RAYTRACE_RANGE = 64.0D;
 
     public PointerItem(Properties properties) {
         super(properties);
@@ -44,7 +51,8 @@ public class PointerItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (isCaressMode(getMode(stack))) {
+        int mode = getMode(stack);
+        if (isCaressMode(mode)) {
             return InteractionResultHolder.pass(stack);
         }
 
@@ -54,7 +62,30 @@ public class PointerItem extends Item {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
         }
 
-        return InteractionResultHolder.pass(stack);
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        Vec3 endPos = eyePos.add(
+                lookVec.x * POINTER_RAYTRACE_RANGE,
+                lookVec.y * POINTER_RAYTRACE_RANGE,
+                lookVec.z * POINTER_RAYTRACE_RANGE);
+        BlockHitResult hitResult = level.clip(new ClipContext(
+                eyePos,
+                endPos,
+                ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.ANY,
+                player));
+        if (hitResult.getType() != HitResult.Type.BLOCK) {
+            return InteractionResultHolder.pass(stack);
+        }
+
+        BlockPos targetPos = hitResult.getBlockPos();
+        if (level.getFluidState(targetPos).isEmpty()
+                && !(level.getBlockEntity(targetPos) instanceof RouteNode)) {
+            targetPos = targetPos.relative(hitResult.getDirection());
+        }
+
+        sendMoveOrGuardCommand(player, getCommandMode(mode), targetPos);
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
 
     @Override
@@ -81,20 +112,24 @@ public class PointerItem extends Item {
             targetPos = targetPos.relative(context.getClickedFace());
         }
 
+        sendMoveOrGuardCommand(player, getCommandMode(mode), targetPos);
+        return InteractionResult.sidedSuccess(player.level().isClientSide());
+    }
+
+    private static void sendMoveOrGuardCommand(Player player, int commandMode, BlockPos targetPos) {
         if (player.isSprinting()) {
             sendShipCommand(player, ServerboundShipCommandPacket.moveTo(
-                    getCommandMode(mode),
+                    commandMode,
                     ServerboundShipCommandPacket.NO_ENTITY,
                     ServerboundShipCommandPacket.NO_UID,
                     targetPos));
         } else {
             sendShipCommand(player, ServerboundShipCommandPacket.guardBlock(
-                    getCommandMode(mode),
+                    commandMode,
                     ServerboundShipCommandPacket.NO_ENTITY,
                     ServerboundShipCommandPacket.NO_UID,
                     targetPos));
         }
-        return InteractionResult.sidedSuccess(player.level().isClientSide());
     }
 
     @Override
@@ -129,18 +164,11 @@ public class PointerItem extends Item {
         }
 
         if (shouldMoveToEntity(player, interactionTarget)) {
-            ServerboundShipCommandPacket command = player.isSprinting()
-                    ? ServerboundShipCommandPacket.moveTo(
+            sendShipCommand(player, ServerboundShipCommandPacket.guardBlock(
                     commandMode,
                     ServerboundShipCommandPacket.NO_ENTITY,
                     ServerboundShipCommandPacket.NO_UID,
-                    interactionTarget.blockPosition())
-                    : ServerboundShipCommandPacket.guardBlock(
-                    commandMode,
-                    ServerboundShipCommandPacket.NO_ENTITY,
-                    ServerboundShipCommandPacket.NO_UID,
-                    interactionTarget.blockPosition());
-            sendShipCommand(player, command);
+                    interactionTarget.blockPosition()));
             return InteractionResult.CONSUME;
         }
 
@@ -157,17 +185,19 @@ public class PointerItem extends Item {
     }
 
     private static boolean shouldMoveToEntity(Player player, LivingEntity target) {
-        if (target.isInvisible()) {
-            return true;
-        }
-
         int playerUid = TeitokuHelper.getPlayerUid(player);
         if (target instanceof LegacyShipEntity ship) {
-            return ship.canCommanderEdit(player) || isFriendlyTarget(playerUid, ship.getOwnerUid());
+            if (ship.canCommanderEdit(player) || isFriendlyTarget(playerUid, ship.getOwnerUid())) {
+                return true;
+            }
+            return !(ShinColleConfig.friendlyFire() && !target.isInvisible());
         }
 
         if (target instanceof Player otherPlayer) {
-            return otherPlayer == player || isFriendlyTarget(playerUid, TeitokuHelper.getPlayerUid(otherPlayer));
+            if (otherPlayer == player || isFriendlyTarget(playerUid, TeitokuHelper.getPlayerUid(otherPlayer))) {
+                return true;
+            }
+            return !(ShinColleConfig.friendlyFire() && !target.isInvisible());
         }
 
         return false;

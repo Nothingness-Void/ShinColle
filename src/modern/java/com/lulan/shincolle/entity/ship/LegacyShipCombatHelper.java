@@ -17,7 +17,6 @@ public final class LegacyShipCombatHelper {
     private static final int[] BASE_ATTACK_SPEED = {40, 80, 120, 100, 100};
     private static final int[] FIXED_ATTACK_DELAY = {0, 20, 50, 35, 35};
     private static final int MAX_DAMAGE_ON_PLAYER = 59;
-    private static final int SHIP_VS_SHIP_DAMAGE_MODIFIER = 100;
     private static final float[][] LEGACY_MOD_DAMAGE_DAY = {
             {0.5F, 0.5F, 0.5F, 0.5F, 1F, 0F, 0.75F},
             {1F, 1F, 1F, 1.25F, 1.5F, 0.5F, 0.75F},
@@ -183,7 +182,7 @@ public final class LegacyShipCombatHelper {
         }
 
         if (target instanceof LegacyShipEntity) {
-            damage *= SHIP_VS_SHIP_DAMAGE_MODIFIER / 100F;
+            damage *= ShinColleConfig.dmgSvS() / 100F;
         }
 
         return new AttackRoll(damage, isMiss, isCrit, isDoubleHit, isTripleHit);
@@ -194,7 +193,10 @@ public final class LegacyShipCombatHelper {
         LegacyShipStats stats = host.getLegacyStats();
         return switch (attackKind) {
             case MELEE -> stats.meleeDamage();
-            case LIGHT -> applyTargetDamageModifier(stats, target, stats.attackLight());
+            case LIGHT -> (LegacyShipBehaviorCatalog.normalizeLegacyClassId(host.getShipClassId()) == 18
+                    && !host.isHostileVariant())
+                    ? stats.attackLight()
+                    : applyTargetDamageModifier(stats, target, stats.attackLight());
             case HEAVY -> stats.attackHeavy()
                     * LegacyShipBehaviorCatalog.heavyDamageMultiplierFor(
                             host.getShipClassId(), host.isHostileVariant());
@@ -316,8 +318,12 @@ public final class LegacyShipCombatHelper {
         Entity effectEntity = sourceEntity;
         if (effectEntity instanceof LegacyShipRensouhouEntity rensouhou) {
             effectEntity = rensouhou.level().getEntity(rensouhou.getHostId());
+        } else if (effectEntity instanceof LegacyShipAircraftEntity aircraft) {
+            effectEntity = aircraft.level().getEntity(aircraft.getOwnerId());
         } else if (directEntity instanceof LegacyShipRensouhouEntity rensouhou) {
             effectEntity = rensouhou.level().getEntity(rensouhou.getHostId());
+        } else if (directEntity instanceof LegacyShipAircraftEntity aircraft) {
+            effectEntity = aircraft.level().getEntity(aircraft.getOwnerId());
         }
 
         return effectEntity instanceof LivingEntity living

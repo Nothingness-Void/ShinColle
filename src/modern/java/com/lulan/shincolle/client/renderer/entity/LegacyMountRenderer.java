@@ -52,6 +52,8 @@ public class LegacyMountRenderer extends EntityRenderer<LegacyMountEntity> {
         poseStack.pushPose();
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        poseStack.translate(0.0F, -1.501F, 0.0F);
 
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(this.getTextureLocation(entity)));
         this.modelFor(entity.getMountStyle()).render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);

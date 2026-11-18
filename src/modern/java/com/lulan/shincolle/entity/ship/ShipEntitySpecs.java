@@ -37,14 +37,14 @@ public final class ShipEntitySpecs {
         register(19, "EntitySubmKa", ShipArchetype.SUBMARINE, false);
         register(20, "EntitySubmYo", ShipArchetype.SUBMARINE, false);
         register(21, "EntitySubmSo", ShipArchetype.SUBMARINE, false);
-        register(22, "EntityCarrierHime", ShipArchetype.PRINCESS, true);
-        register(23, "EntityAirfieldHime", ShipArchetype.INSTALLATION, true);
-        register(28, "EntityBattleshipHime", ShipArchetype.PRINCESS, true);
-        register(29, "EntityDestroyerHime", ShipArchetype.PRINCESS, true);
-        register(30, "EntityHarbourHime", ShipArchetype.INSTALLATION, true);
-        register(31, "EntityIsolatedHime", ShipArchetype.INSTALLATION, true);
-        register(32, "EntityMidwayHime", ShipArchetype.PRINCESS, true);
-        register(33, "EntityNorthernHime", ShipArchetype.PRINCESS, true);
+        register(22, "EntityCarrierHime", ShipArchetype.PRINCESS, false);
+        register(23, "EntityAirfieldHime", ShipArchetype.INSTALLATION, false);
+        register(28, "EntityBattleshipHime", ShipArchetype.PRINCESS, false);
+        register(29, "EntityDestroyerHime", ShipArchetype.PRINCESS, false);
+        register(30, "EntityHarbourHime", ShipArchetype.INSTALLATION, false);
+        register(31, "EntityIsolatedHime", ShipArchetype.INSTALLATION, false);
+        register(32, "EntityMidwayHime", ShipArchetype.PRINCESS, false);
+        register(33, "EntityNorthernHime", ShipArchetype.PRINCESS, false);
         register(35, "EntityCarrierWDemon", ShipArchetype.CARRIER, false);
         register(38, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, false);
         register(2038, "EntityDestroyerShimakaze", ShipArchetype.DESTROYER, true);
@@ -54,14 +54,14 @@ public final class ShipEntitySpecs {
         register(2040, "EntitySubmU511", ShipArchetype.SUBMARINE, true);
         register(41, "EntitySubmRo500", ShipArchetype.SUBMARINE, false);
         register(2041, "EntitySubmRo500", ShipArchetype.SUBMARINE, true);
-        register(46, "EntitySubmHime", ShipArchetype.PRINCESS, true);
+        register(46, "EntitySubmHime", ShipArchetype.PRINCESS, false);
         register(48, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP, false);
         register(2048, "EntityBattleshipYamato", ShipArchetype.BATTLESHIP, true);
         register(49, "EntityCarrierKaga", ShipArchetype.CARRIER, false);
         register(2049, "EntityCarrierKaga", ShipArchetype.CARRIER, true);
         register(50, "EntityCarrierAkagi", ShipArchetype.CARRIER, false);
         register(2050, "EntityCarrierAkagi", ShipArchetype.CARRIER, true);
-        register(51, "EntityCAHime", ShipArchetype.PRINCESS, true);
+        register(51, "EntityCAHime", ShipArchetype.PRINCESS, false);
         register(53, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER, false);
         register(2053, "EntityDestroyerAkatsuki", ShipArchetype.DESTROYER, true);
         register(54, "EntityDestroyerHibiki", ShipArchetype.DESTROYER, false);
@@ -86,7 +86,7 @@ public final class ShipEntitySpecs {
         register(2064, "EntityBBHaruna", ShipArchetype.BATTLESHIP, true);
         register(65, "EntityBBKirishima", ShipArchetype.BATTLESHIP, false);
         register(2065, "EntityBBKirishima", ShipArchetype.BATTLESHIP, true);
-        register(74, "EntitySubmHimeNew", ShipArchetype.PRINCESS, true);
+        register(74, "EntitySubmHimeNew", ShipArchetype.PRINCESS, false);
         registerFriendlyCounterparts();
     }
 

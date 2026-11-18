@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.projectile;
 
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
@@ -140,7 +141,9 @@ public final class LegacyShipStaticEffectEntity extends Entity {
                 && candidate.isPushable()
                 && !candidate.isInvulnerable()
                 && (!(candidate instanceof net.minecraft.world.entity.LivingEntity living) || living.isAlive())
-                && !host.isAlliedTo(candidate);
+                && (candidate instanceof net.minecraft.world.entity.LivingEntity livingCandidate
+                        ? !LegacyShipBehaviorCatalog.hasLegacySameOwner(host, livingCandidate)
+                        : !host.isAlliedTo(candidate));
     }
 
     private void spawnClientParticles() {

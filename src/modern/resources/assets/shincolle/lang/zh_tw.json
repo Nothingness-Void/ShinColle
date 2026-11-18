@@ -626,5 +626,6 @@
   "gui.shincolle.exp": "經驗值",
   "gui.shincolle.auraeffect": "開啟特殊能力",
   "gui.shincolle.showhelditem": "顯示手持物品",
-  "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules."
+  "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules.",
+  "chat.shincolle.levelfail": "等級太低！"
 }

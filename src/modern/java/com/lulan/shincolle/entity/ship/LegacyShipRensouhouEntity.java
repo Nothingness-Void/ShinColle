@@ -7,7 +7,9 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -237,6 +239,11 @@ public class LegacyShipRensouhouEntity extends PathfinderMob {
     private void performLightAttack(LegacyShipEntity host, LivingEntity target) {
         LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(
                 host, target, LegacyShipAttackKind.LIGHT);
+        if (this.isHostileVariant() && !roll.miss() && !roll.crit() && host.getRandom().nextFloat() < 0.15F) {
+            float baseDamage = roll.tripleHit() ? roll.damage() / 3.0F
+                    : (roll.doubleHit() ? roll.damage() / 2.0F : roll.damage());
+            roll = new LegacyShipCombatHelper.AttackRoll(baseDamage * 1.5F, false, true, false, false);
+        }
         host.setLastHurtMob(target);
 
         if (roll.miss()) {
@@ -247,10 +254,8 @@ public class LegacyShipRensouhouEntity extends PathfinderMob {
             return;
         }
 
-        // EntityRensouhouMob marks hostile shots as projectile damage; the friendly summon uses mob damage.
-        boolean attacked = target.hurt(this.isHostileVariant()
-                ? this.damageSources().thrown(this, this)
-                : this.damageSources().mobAttack(this), roll.damage());
+        // Both EntityRensouhou and EntityRensouhouMob use projectile-tagged mob damage.
+        boolean attacked = target.hurt(this.damageSources().thrown(this, this), roll.damage());
         if (roll.crit()) {
             CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.CRIT,
                     LegacyShipAttackKind.LIGHT);
@@ -326,26 +331,65 @@ public class LegacyShipRensouhouEntity extends PathfinderMob {
 
     @Override
     public boolean hurt(DamageSource damageSource, float amount) {
-        if (!this.level().isClientSide()) {
-            LegacyShipEntity host = this.getHostShip();
-            if (host != null && !host.isHostileVariant()) {
-                Entity attacker = damageSource.getEntity();
-                if (attacker instanceof Player attackerPlayer) {
-                    if (host.isOwnedBy(attackerPlayer)) {
-                        return super.hurt(damageSource, amount);
-                    }
-                    if (!ShinColleConfig.friendlyFire()) {
-                        return false;
-                    }
-                }
-                if (attacker != null
-                        && host.isAlliedTo(attacker)
-                        && !(attacker instanceof Player player && host.isOwnedBy(player))) {
-                    return false;
-                }
+        if (this.level().isClientSide()) {
+            return false;
+        }
+
+        LegacyShipEntity host = this.getHostShip();
+        if (host == null) {
+            this.retire();
+            return false;
+        }
+
+        if (damageSource.is(DamageTypes.IN_WALL)
+                || damageSource.is(DamageTypes.STARVE)
+                || damageSource.is(DamageTypes.CACTUS)
+                || damageSource.is(DamageTypes.FALL)) {
+            return false;
+        }
+        if (damageSource.is(DamageTypes.FELL_OUT_OF_WORLD)) {
+            this.retire();
+            return false;
+        }
+
+        Entity attacker = damageSource.getEntity();
+        if (!host.isHostileVariant() && attacker instanceof Player attackerPlayer && host.isOwnedBy(attackerPlayer)) {
+            return super.hurt(damageSource, amount);
+        }
+        if (this.isInvulnerableTo(damageSource) || attacker == null || attacker.equals(this)) {
+            return false;
+        }
+
+        if (!host.isHostileVariant()) {
+            if (attacker instanceof Player && !ShinColleConfig.friendlyFire()) {
+                return false;
+            }
+            if (host.isAlliedTo(attacker)
+                    && !(attacker instanceof Player player && host.isOwnedBy(player))) {
+                return false;
             }
         }
-        return super.hurt(damageSource, amount);
+
+        if (this.random.nextFloat() <= host.getLegacyStats().dodge() + 0.2F) {
+            return false;
+        }
+
+        float reducedAtk = amount;
+        if (!damageSource.is(DamageTypeTags.BYPASSES_ARMOR)
+                && !damageSource.is(DamageTypes.MAGIC)
+                && !damageSource.is(DamageTypes.WITHER)
+                && !damageSource.is(DamageTypes.DRAGON_BREATH)) {
+            float def = host.getLegacyStats().defense() * 0.5F;
+            float factor = 1.0F - def + (this.random.nextFloat() * 0.5F - 0.25F);
+            reducedAtk = amount * Math.max(0.0F, factor);
+        }
+        if (reducedAtk < 1.0F && reducedAtk > 0.0F) {
+            reducedAtk = 1.0F;
+        } else if (reducedAtk <= 0.0F) {
+            reducedAtk = 0.0F;
+        }
+
+        return super.hurt(damageSource, reducedAtk);
     }
 
     @Override

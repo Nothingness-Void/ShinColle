@@ -5,6 +5,7 @@ import com.lulan.shincolle.client.model.legacy.LegacyStaticModel;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -64,13 +65,43 @@ public class LegacyShipAircraftRenderer extends EntityRenderer<LegacyShipAircraf
             default -> 0.5F;
         };
 
+        LegacyStaticModel model = this.modelFor(entity, visual);
+        boolean isScaledCarrierAirframe = model == this.models.get(LegacyShipProjectileVisual.AIRPLANE)
+                || model == this.models.get(LegacyShipProjectileVisual.TORPEDO);
+        if (isScaledCarrierAirframe && entity.tickCount <= 6) {
+            return;
+        }
+
         poseStack.pushPose();
         this.alignToFlight(entity, poseStack);
-        float renderScale = entity.renderScale();
-        poseStack.scale(renderScale, renderScale, renderScale);
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        poseStack.translate(0.0F, -1.501F, 0.0F);
 
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(this.getTextureLocation(entity)));
-        this.modelFor(entity, visual).render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
+        if (isScaledCarrierAirframe) {
+            int scaleLevel = 0;
+            if (entity.level().getEntity(entity.getOwnerId()) instanceof LegacyShipEntity owner
+                    && owner.isHostileVariant()) {
+                scaleLevel = Mth.clamp(owner.getLegacyHostileScaleLevel(), 0, 3);
+            }
+            float scale = switch (scaleLevel) {
+                case 3 -> 1.6F;
+                case 2 -> 1.2F;
+                case 1 -> 0.8F;
+                default -> 0.4F;
+            };
+            float offsetY = switch (scaleLevel) {
+                case 3 -> 0.37F;
+                case 2 -> 0.68F;
+                case 1 -> 1.32F;
+                default -> 3.22F;
+            };
+            poseStack.scale(scale, scale, scale);
+            poseStack.translate(0.0F, offsetY, 0.0F);
+            model.renderRaw(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
+        } else {
+            model.render(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY);
+        }
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }

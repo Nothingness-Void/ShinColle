@@ -520,6 +520,45 @@ public final class TeitokuHelper {
                 .orElse(TeitokuData.DEFAULT_FORMATION_ID);
     }
 
+    public static int getFormationSlotForShip(Player player, int shipUid) {
+        if (shipUid <= 0) {
+            return 0;
+        }
+
+        return get(player)
+                .map(teitokuData -> {
+                    int teamId = teitokuData.findTeamIdByShipUid(shipUid);
+                    if (teamId < 0 || teitokuData.countShipsInTeam(teamId) <= 4) {
+                        return 0;
+                    }
+
+                    int[] shipUids = teitokuData.getTeamShipUids(teamId);
+                    for (int slot = 0; slot < shipUids.length; slot++) {
+                        if (shipUids[slot] == shipUid) {
+                            return slot;
+                        }
+                    }
+                    return 0;
+                })
+                .orElse(0);
+    }
+
+    public static int[] getTeamShipUidsForShip(Player player, int shipUid) {
+        if (shipUid <= 0) {
+            return new int[0];
+        }
+
+        return get(player)
+                .map(teitokuData -> {
+                    int teamId = teitokuData.findTeamIdByShipUid(shipUid);
+                    if (teamId < 0 || teitokuData.countShipsInTeam(teamId) <= 4) {
+                        return new int[0];
+                    }
+                    return teitokuData.getTeamShipUids(teamId);
+                })
+                .orElse(new int[0]);
+    }
+
     public static int cycleFormationId(ServerPlayer player) {
         return get(player)
                 .map(teitokuData -> {

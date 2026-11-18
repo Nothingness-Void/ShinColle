@@ -30,6 +30,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
@@ -52,6 +53,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.material.FluidState;
@@ -418,7 +420,9 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LivingEntity target = chooseRangeTarget(ship, nearby,
-                candidate -> ship.isAiAntiAir() && LegacyShipCombatHelper.isFlyingTarget(candidate));
+                candidate -> ship.isAiAntiAir()
+                        && LegacyShipCombatHelper.isFlyingTarget(candidate)
+                        && (!isPassiveFlyingAnimal(candidate) || isExplicitCustomTarget(ship, candidate)));
         if (target != null) {
             return target;
         }
@@ -438,13 +442,14 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         return chooseRangeTarget(ship, nearby, candidate -> {
-            if (!(candidate instanceof Enemy)) {
+            if (isExplicitCustomTarget(ship, candidate)) {
+                return true;
+            }
+            if (!(candidate instanceof Enemy) || isPassiveFlyingAnimal(candidate)) {
                 return false;
             }
-            if (LegacyShipCombatHelper.isFlyingTarget(candidate)) {
-                return ship.isAiAntiAir();
-            }
-            return !isLegacyUnderseaTarget(candidate) || ship.isAiAntiSub();
+            Player owner = ship.getOwnerPlayer();
+            return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, candidate);
         });
     }
 
@@ -455,13 +460,22 @@ public final class LegacyShipBehaviorCatalog {
         if (ship.isHostileVariant()) {
             return isHostileRangeTarget(target);
         }
-        return (ship.isAiAntiAir() && LegacyShipCombatHelper.isFlyingTarget(target))
+        if ((ship.isAiAntiAir()
+                && LegacyShipCombatHelper.isFlyingTarget(target)
+                && (!isPassiveFlyingAnimal(target) || isExplicitCustomTarget(ship, target)))
                 || (ship.isAiAntiSub() && isLegacyUnderseaTarget(target))
                 || (ship.isAiPvpFirst() && target instanceof LegacyShipEntity other
-                && !isLegacyUnderseaTarget(other))
-                || target instanceof Enemy
-                && (!LegacyShipCombatHelper.isFlyingTarget(target) || ship.isAiAntiAir())
-                && (!isLegacyUnderseaTarget(target) || ship.isAiAntiSub());
+                && !isLegacyUnderseaTarget(other))) {
+            return true;
+        }
+        if (isExplicitCustomTarget(ship, target)) {
+            return true;
+        }
+        if (!(target instanceof Enemy) || isPassiveFlyingAnimal(target)) {
+            return false;
+        }
+        Player owner = ship.getOwnerPlayer();
+        return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, target);
     }
 
     /** Mirrors TargetHelper's flare/searchlight gate for invisible non-player targets. */
@@ -483,11 +497,55 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static boolean isSelectableLegacyRangeTarget(LegacyShipEntity ship, LivingEntity target) {
-        return target != null
-                && target != ship
-                && target.isAlive()
-                && ship.canEngage(target)
-                && (!ship.isAiOnSightChase() || ship.getSensing().hasLineOfSight(target));
+        if (target == null || target == ship || !target.isAlive()) {
+            return false;
+        }
+        if (ship.isAiOnSightChase() && !ship.getSensing().hasLineOfSight(target)) {
+            return false;
+        }
+        if (!ship.isHostileVariant() && isPassiveFlyingAnimal(target) && !isExplicitCustomTarget(ship, target)) {
+            return false;
+        }
+        if (ship.canEngage(target)) {
+            return true;
+        }
+        if (!ship.isHostileVariant()
+                && !(target instanceof Player)
+                && !(target instanceof LegacyShipEntity)
+                && isExplicitCustomTarget(ship, target)
+                && canTargetLegacyInvisibleEntity(ship, target)) {
+            if (ship.level() instanceof ServerLevel serverLevel
+                    && com.lulan.shincolle.combat.WorldCombatRulesSavedData.get(serverLevel)
+                            .isUnattackable(com.lulan.shincolle.teitoku.TeitokuHelper.resolveTargetClass(target))) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isPassiveFlyingAnimal(LivingEntity target) {
+        if (target == null) {
+            return false;
+        }
+        EntityType<?> type = target.getType();
+        return type == EntityType.BAT
+                || type == EntityType.BEE
+                || type == EntityType.PARROT
+                || type == EntityType.ALLAY;
+    }
+
+    private static boolean isExplicitCustomTarget(LegacyShipEntity ship, LivingEntity target) {
+        Player owner = ship.getOwnerPlayer();
+        if (owner == null || target == null) {
+            return false;
+        }
+        String targetClass = com.lulan.shincolle.teitoku.TeitokuHelper.resolveTargetClass(target);
+        return com.lulan.shincolle.teitoku.TeitokuHelper.get(owner)
+                .map(data -> data.getTargetClassCount() > 0
+                        && data.hasTargetClass(targetClass)
+                        && com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, target))
+                .orElse(false);
     }
 
     private static boolean isHostileRangeTarget(LivingEntity target) {
@@ -707,9 +765,10 @@ public final class LegacyShipBehaviorCatalog {
         };
     }
 
-    /** Mirrors EntityBattleshipHime/EntityHarbourHime heavy cannon damage overrides. */
+    /** Mirrors EntityBattleshipHime/EntityHarbourHime/EntityNorthernHime heavy cannon damage overrides. */
     public static float heavyDamageMultiplierFor(int legacyClassId, boolean hostile) {
-        return normalizeLegacyClassId(legacyClassId) == 28 ? 0.75F : 1.0F;
+        int normalized = normalizeLegacyClassId(legacyClassId);
+        return (normalized == 28 || normalized == 31) ? 0.75F : 1.0F;
     }
 
     /** Mirrors EntityDestroyerAkatsuki.calcShipAttributesAddEquip. */
@@ -1204,14 +1263,13 @@ public final class LegacyShipBehaviorCatalog {
             if (!ship.isOrderedToSit()) {
                 return height * 0.55D;
             }
-            return (ship.getModelState() & 1) != 0
-                    ? (ship.getEmotion() == 4 ? height * 0.35D : 0.0D)
-                    : height * 0.35D;
+            return ship.getEmotion() == 4 ? height * 0.35D : 0.0D;
         }
         if (normalizedClassId == 16) {
-            return (ship.getModelState() & 2) != 0
-                    ? (ship.isOrderedToSit() ? height * 0.5D : height * 0.64D)
-                    : 0.0D;
+            if (!ship.isOrderedToSit()) {
+                return height * 0.64D;
+            }
+            return (ship.getModelState() & 2) != 0 ? height * 0.5D : 0.0D;
         }
         if (normalizedClassId == 17) {
             if (ship.isOrderedToSit()) {
@@ -1729,10 +1787,12 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         if (candidate instanceof Player player) {
-            return ship.getOwnerUid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player);
+            return ship.getOwnerUid() > 0
+                    && ship.getOwnerUid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player);
         }
         return candidate instanceof LegacyShipEntity otherShip
                 && !otherShip.isHostileVariant()
+                && ship.getOwnerUid() > 0
                 && ship.getOwnerUid() == otherShip.getOwnerUid();
     }
 
@@ -2599,10 +2659,6 @@ public final class LegacyShipBehaviorCatalog {
             return false;
         }
 
-        if (!(ship.level().getBlockEntity(guard) instanceof WaypointBlockEntity)) {
-            return false;
-        }
-
         String guardDimension = ship.getGuardedBlockDimension();
         return guardDimension == null || guardDimension.isBlank()
                 || guardDimension.equals(ship.level().dimension().location().toString());
@@ -2653,11 +2709,15 @@ public final class LegacyShipBehaviorCatalog {
             return;
         }
 
-        int luck = Math.max(
+        float luck = Math.max(
                 EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FISHING_LUCK, rod),
                 EnchantmentHelper.getItemEnchantmentLevel(
                         Enchantments.FISHING_LUCK, ship.getLegacyTaskOffHandItem()));
-        luck += ship.getShipLevel() / 150;
+        MobEffectInstance luckEffect = ship.getEffect(MobEffects.LUCK);
+        if (luckEffect != null) {
+            luck += luckEffect.getAmplifier() + 1;
+        }
+        luck += ship.getShipLevel() / 150.0F * 1.5F;
         LootTable table = serverLevel.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
         LootParams params = new LootParams.Builder(serverLevel)
                 .withParameter(LootContextParams.ORIGIN, ship.position())
@@ -2820,7 +2880,7 @@ public final class LegacyShipBehaviorCatalog {
         return normalizedClassId == 31 || normalizedClassId == 72;
     }
 
-    private static int normalizeLegacyClassId(int legacyClassId) {
+    static int normalizeLegacyClassId(int legacyClassId) {
         return legacyClassId >= 2000 ? legacyClassId - 2000 : legacyClassId;
     }
 
@@ -3265,8 +3325,9 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickCarrierAkagiClientBehavior(LegacyShipEntity ship) {
-        if (shouldSpawnCarrierAkagiEmotion(ship.tickCount, ship.getRandom().nextInt(4),
-                ship.getShipFuel() <= 0)) {
+        if (!ship.isHostileVariant()
+                && shouldSpawnCarrierAkagiEmotion(ship.tickCount, ship.getRandom().nextInt(4),
+                        ship.getShipFuel() <= 0)) {
             spawnLegacyEntityEmotion(ship, 9);
         }
     }
@@ -3676,6 +3737,10 @@ public final class LegacyShipBehaviorCatalog {
                 || !usesPerShipRingInvisibility(ship.getSpec())) {
             return;
         }
+        int normalizedClassId = normalizeLegacyClassId(ship.getShipClassId());
+        if (normalizedClassId == 44 || normalizedClassId == 72) {
+            return;
+        }
 
         if (ship.isHostileVariant()) {
             if (ship.getRandom().nextInt(2) != 0) {
@@ -3700,7 +3765,8 @@ public final class LegacyShipBehaviorCatalog {
 
     /** Mirrors EntitySubmHime and EntitySSNH's 1.12 ring aura and SSNH morale tick. */
     private static void tickSubmarineHimeBehavior(LegacyShipEntity ship) {
-        if ((ship.tickCount & 127) == 0
+        if (!ship.isHostileVariant()
+                && (ship.tickCount & 127) == 0
                 && ship.isRingEffectEnabled()
                 && ship.getGrudge() > 0) {
             int duration = 80 + ship.getShipLevel();
@@ -3901,6 +3967,9 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickNorthernHimeRiding(LegacyShipEntity ship) {
+        if (ship.getVehicle() != null && ship.getVehicle().isShiftKeyDown()) {
+            ship.stopRiding();
+        }
         if (!ship.isLegacyHimeRidingActive()) {
             return;
         }
@@ -4386,8 +4455,9 @@ public final class LegacyShipBehaviorCatalog {
             double angle = target.getRandom().nextFloat() * (Math.PI * 2.0D);
             int zOffset = (int) (6.0D * Math.cos(angle));
             int xOffset = (int) (-6.0D * Math.sin(angle));
-            if (isLegacySafeTargetBlock(target)) {
-                return origin.offset(xOffset, 0, zOffset);
+            BlockPos candidate = origin.offset(xOffset, 0, zOffset);
+            if (isLegacySafeTargetBlock(target.level(), candidate)) {
+                return candidate;
             }
         }
         return origin;
@@ -4397,19 +4467,19 @@ public final class LegacyShipBehaviorCatalog {
         BlockPos origin = target.blockPosition();
         int loops = (int) target.getBbHeight() + 7;
         while (loops-- > 0) {
-            if (isLegacySafeTargetBlock(target)) {
-                return origin.offset(0, loops, 0);
+            BlockPos candidate = origin.offset(0, loops, 0);
+            if (isLegacySafeTargetBlock(target.level(), candidate)) {
+                return candidate;
             }
         }
         return origin;
     }
 
-    private static boolean isLegacySafeTargetBlock(LivingEntity target) {
-        BlockPos pos = target.blockPosition();
-        var state = target.level().getBlockState(pos);
+    private static boolean isLegacySafeTargetBlock(Level level, BlockPos pos) {
+        var state = level.getBlockState(pos);
         return state.isAir()
                 || !state.getFluidState().isEmpty()
-                || state.getCollisionShape(target.level(), pos).isEmpty();
+                || state.getCollisionShape(level, pos).isEmpty();
     }
 
     private static void tickTatsutaSkill(LegacyShipEntity ship) {
@@ -4558,11 +4628,16 @@ public final class LegacyShipBehaviorCatalog {
                     LegacyShipProjectileVisual.NONE,
                     GameplayParticleType.HIT_EXPLOSION);
             if (attacked && target.isPushable()) {
-                double yaw = ship.getYRot() * (Math.PI / 180.0D);
-                double horizontal = target instanceof LegacyShipEntity ? 0.02D : 0.05D;
-                target.push(-Math.sin(yaw) * horizontal,
-                        target instanceof LegacyShipEntity ? 0.25D : 0.4D,
-                        Math.cos(yaw) * horizontal);
+                boolean isShip = target instanceof LegacyShipEntity;
+                if (ship.isHostileVariant()) {
+                    double yaw = ship.getYRot() * (Math.PI / 180.0D);
+                    double horizontal = isShip ? 0.02D : 0.05D;
+                    target.push(-Math.sin(yaw) * horizontal,
+                            isShip ? 0.2D : 0.4D,
+                            Math.cos(yaw) * horizontal);
+                } else {
+                    target.push(0.0D, isShip ? 0.25D : 0.5D, 0.0D);
+                }
             }
         }
     }
@@ -4594,8 +4669,10 @@ public final class LegacyShipBehaviorCatalog {
         }
         if (timer == 4) {
             Vec3 motion = ship.getLegacySkillMotion();
-            CombatFxDispatcher.sendParticle(target, GameplayParticleType.BEAM_TRAIL,
-                    target.getX(), target.getY() + target.getBbHeight() * 0.7D, target.getZ(),
+            CombatFxDispatcher.sendParticle(ship, GameplayParticleType.BEAM_TRAIL,
+                    ship.getX() + motion.x * 10.0D,
+                    ship.getY() + motion.y * 10.0D + ship.getBbHeight() * 0.7D,
+                    ship.getZ() + motion.z * 10.0D,
                     motion.x, motion.y, motion.z);
         }
     }
@@ -5377,7 +5454,7 @@ public final class LegacyShipBehaviorCatalog {
         float damage = ship.getLegacyStats().attackLight();
         LegacyShipProjectileProfile profile = ship.getAttackProfile().projectileProfile(
                 LegacyShipAttackKind.LIGHT);
-        for (Vec3 launchOffset : submarineHimeMissileLaunchOffsetsFor(ship.getYRot())) {
+        for (Vec3 launchOffset : submarineHimeMissileLaunchOffsetsFor(ship.yBodyRot)) {
             LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(
                     ship.level(), ship, primaryTarget, LegacyShipAttackKind.LIGHT,
                     damage, roll.miss(), profile, targetPosition, 0.15D, false, 3.5D,

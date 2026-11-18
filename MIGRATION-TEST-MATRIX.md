@@ -158,6 +158,12 @@
 - `b6SystemConfigPolyAsMnShipKillsAndRaidenLabel`：验证 `TeitokuHelper.buildGameplayStateTag` → `applyClientState` `SystemConfig` 同步与 `DeskTerminalMenu.stillValid` 使用 `closeGuiDist`、`PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 开关、舰娘及 `LegacyShipRensouhouEntity` 的 `ShipKills` 累加和 `Ikazuchi` `Raiden` 角色标签（`gui.shincolle.ship_inventory.role.raiden`）。
 - 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 289 required tests passed :)`**（`289 passed / 0 failed / 0 skipped`），证据见 [B6-INTERMOD-DETAILS results](migration_batches/2026-11-17-b6-intermod-details/results/b6-closeout.json)。
 
+## FULL-SHIP-BEHAVIOR-REAUDIT focused coverage
+
+- Round 1（4 项综合 `@GameTest`）：`abyssalHimeBaseSpecsAreFriendlyTamedPickupAndAuraEnabled`、`submarineHimeStealthAndShooterDistanceDodgeMatchLegacy`、`baseShipLifecycleRepairMoraleRegenAndFleeGoalMatchLegacy`、`shipSpecificHooksMountOrientationAndModelCatalogsMatchLegacy`。
+- Round 2（5 项综合 `@GameTest`）：`round2HurtImmunitiesVoidRescueGoddessAndResistanceMatchLegacy`、`round2SlotFormationBuffsMinMovAndEnchantScalingMatchLegacy`、`round2FishingCraneAndPointerTargetingMatchLegacy`、`round2AircraftCooldownShootableTorpedoAndRensouhouMatchLegacy`、`round2DeathRecoveryEggXpCostAndHeldCombatRationMatchLegacy`。
+- 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 298 required tests passed :)`**（`298 passed / 0 failed / 0 skipped`），证据见 [FULL-SHIP-BEHAVIOR-REAUDIT results](migration_batches/2026-11-18-full-ship-behavior-reaudit/results/reaudit-closeout.json)。
+
 ## 批末命令
 
 在 Windows JDK 17 环境中按批次需要执行：

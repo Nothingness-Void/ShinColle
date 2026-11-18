@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.ship.goal;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
@@ -89,7 +90,9 @@ public class LegacyShipFollowOwnerGoal extends Goal {
         double distanceSqr = this.ship.distanceToSqr(this.owner);
 
         float teleport = this.dynamicTeleportDistance();
-        if (distanceSqr >= (double) (teleport * teleport) && this.tryTeleportNearOwner()) {
+        if (ShinColleConfig.canTeleport()
+                && distanceSqr >= (double) (teleport * teleport)
+                && this.tryTeleportNearOwner()) {
             return;
         }
 

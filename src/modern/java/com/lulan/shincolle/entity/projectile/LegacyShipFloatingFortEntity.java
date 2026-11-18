@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.projectile;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
@@ -11,10 +12,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -28,6 +33,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
     private static final String TARGET_ID_TAG = "TargetId";
     private static final String DAMAGE_TAG = "Damage";
     private static final String LIFE_TICKS_TAG = "LifeTicks";
+    private static final String HEALTH_TAG = "Health";
+    private static final String MAX_HEALTH_TAG = "MaxHealth";
 
     private static final EntityDataAccessor<Integer> DATA_HOST_ID =
             SynchedEntityData.defineId(LegacyShipFloatingFortEntity.class, EntityDataSerializers.INT);
@@ -40,6 +47,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
 
     private float damage;
     private int lifeTicks = DEFAULT_LIFE_TICKS;
+    private float maxHp = 20.0F;
+    private float hp = 20.0F;
     private boolean resolvedImpact;
 
     public LegacyShipFloatingFortEntity(EntityType<? extends LegacyShipFloatingFortEntity> entityType, Level level) {
@@ -61,6 +70,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
         fort.setHostId(host.getId());
         fort.setTargetId(target.getId());
         fort.damage = host.getLegacyStats().attackHeavy();
+        fort.maxHp = Math.max(1.0F, host.getMaxHealth() * 0.1F);
+        fort.hp = fort.maxHp;
         fort.moveTo(host.getX(), launchY, host.getZ(), host.getYRot(), host.getXRot());
         fort.setDeltaMovement(Vec3.ZERO);
         return fort;
@@ -79,6 +90,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
         this.damage = tag.getFloat(DAMAGE_TAG);
         this.lifeTicks = Math.max(40, tag.contains(LIFE_TICKS_TAG)
                 ? tag.getInt(LIFE_TICKS_TAG) : DEFAULT_LIFE_TICKS);
+        this.maxHp = tag.contains(MAX_HEALTH_TAG) ? Math.max(1.0F, tag.getFloat(MAX_HEALTH_TAG)) : 20.0F;
+        this.hp = tag.contains(HEALTH_TAG) ? Math.max(0.0F, tag.getFloat(HEALTH_TAG)) : this.maxHp;
     }
 
     @Override
@@ -87,6 +100,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
         tag.putInt(TARGET_ID_TAG, this.getTargetId());
         tag.putFloat(DAMAGE_TAG, this.damage);
         tag.putInt(LIFE_TICKS_TAG, this.lifeTicks);
+        tag.putFloat(HEALTH_TAG, this.hp);
+        tag.putFloat(MAX_HEALTH_TAG, this.maxHp);
     }
 
     @Override
@@ -143,6 +158,10 @@ public final class LegacyShipFloatingFortEntity extends Entity {
         LegacyShipEntity host = this.getHostShip();
         if (host == null || !host.isAlive()) {
             return;
+        }
+
+        if (LegacyShipBehaviorCatalog.usesBlackHoleHeavyMissile(host, LegacyShipAttackKind.HEAVY)) {
+            LegacyShipBehaviorCatalog.spawnBlackHoleEffect(host, this.position());
         }
 
         AABB impactBox = this.getBoundingBox().inflate(IMPACT_RADIUS);
@@ -224,6 +243,89 @@ public final class LegacyShipFloatingFortEntity extends Entity {
 
     @Override
     public boolean isPickable() {
-        return false;
+        return this.isAlive();
+    }
+
+    @Override
+    public boolean hurt(DamageSource damageSource, float amount) {
+        if (this.level().isClientSide()) {
+            return false;
+        }
+
+        LegacyShipEntity host = this.getHostShip();
+        if (host == null) {
+            this.discard();
+            return false;
+        }
+
+        if (damageSource.is(DamageTypes.IN_WALL)
+                || damageSource.is(DamageTypes.STARVE)
+                || damageSource.is(DamageTypes.CACTUS)
+                || damageSource.is(DamageTypes.FALL)) {
+            return false;
+        }
+        if (damageSource.is(DamageTypes.FELL_OUT_OF_WORLD)) {
+            this.discard();
+            return false;
+        }
+
+        Entity attacker = damageSource.getEntity();
+        if (!host.isHostileVariant() && attacker instanceof Player attackerPlayer && host.isOwnedBy(attackerPlayer)) {
+            return applyDamage(amount);
+        }
+        if (this.isInvulnerableTo(damageSource) || attacker == null || attacker.equals(this)) {
+            return false;
+        }
+
+        if (!host.isHostileVariant()) {
+            if (attacker instanceof Player && !ShinColleConfig.friendlyFire()) {
+                return false;
+            }
+            if (host.isAlliedTo(attacker)
+                    && !(attacker instanceof Player player && host.isOwnedBy(player))) {
+                return false;
+            }
+        }
+
+        if (this.random.nextFloat() <= host.getLegacyStats().dodge() + 0.3F) {
+            return false;
+        }
+
+        float reducedAtk = amount;
+        if (!damageSource.is(DamageTypeTags.BYPASSES_ARMOR)
+                && !damageSource.is(DamageTypes.MAGIC)
+                && !damageSource.is(DamageTypes.WITHER)
+                && !damageSource.is(DamageTypes.DRAGON_BREATH)) {
+            float def = host.getLegacyStats().defense() * 0.5F;
+            float factor = 1.0F - def + (this.random.nextFloat() * 0.5F - 0.25F);
+            reducedAtk = amount * Math.max(0.0F, factor);
+        }
+        if (reducedAtk < 1.0F && reducedAtk > 0.0F) {
+            reducedAtk = 1.0F;
+        } else if (reducedAtk <= 0.0F) {
+            reducedAtk = 0.0F;
+        }
+
+        return applyDamage(reducedAtk);
+    }
+
+    private boolean applyDamage(float amount) {
+        if (amount <= 0.0F || !this.isAlive()) {
+            return false;
+        }
+        this.hp -= amount;
+        if (this.hp <= 0.0F) {
+            this.hp = 0.0F;
+            this.discard();
+        }
+        return true;
+    }
+
+    public float getSummonHealth() {
+        return this.hp;
+    }
+
+    public float getSummonMaxHealth() {
+        return this.maxHp;
     }
 }

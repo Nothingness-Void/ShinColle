@@ -1,0 +1,30 @@
+{
+  "batchId": "2026-11-18-full-ship-behavior-reaudit",
+  "date": "2026-11-18",
+  "status": "COMPLETED",
+  "jdk": "17.0.3.1",
+  "commands": [
+    "git status -s -- src/main/",
+    "git diff --check",
+    ".\\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon"
+  ],
+  "legacyTouched": false,
+  "dedicatedServerClientLeakCheck": "PASS (0 client imports outside client package / FMLEnvironment.dist.isClient guards)",
+  "gameTests": {
+    "total": 298,
+    "passed": 298,
+    "failed": 0,
+    "skipped": 0,
+    "addedTests": [
+      "abyssalHimeBaseSpecsAreFriendlyTamedPickupAndAuraEnabled",
+      "submarineHimeStealthAndShooterDistanceDodgeMatchLegacy",
+      "baseShipLifecycleRepairMoraleRegenAndFleeGoalMatchLegacy",
+      "shipSpecificHooksMountOrientationAndModelCatalogsMatchLegacy",
+      "round2HurtImmunitiesVoidRescueGoddessAndResistanceMatchLegacy",
+      "round2SlotFormationBuffsMinMovAndEnchantScalingMatchLegacy",
+      "round2FishingCraneAndPointerTargetingMatchLegacy",
+      "round2AircraftCooldownShootableTorpedoAndRensouhouMatchLegacy",
+      "round2DeathRecoveryEggXpCostAndHeldCombatRationMatchLegacy"
+    ]
+  }
+}

@@ -140,7 +140,7 @@ public final class ShipCommandService {
     private static ShipCommandResult toggleSit(Player player, int rawMode, int shipId, int shipUid) {
         int mode = Mth.clamp(rawMode, 0, 2);
         LegacyShipEntity anchor = resolveOwnedShip(player, shipId, shipUid);
-        if (mode == 0) {
+        if (mode == 0 || (anchor != null && !isInCurrentTeam(player, anchor))) {
             if (anchor == null) {
                 return ShipCommandResult.NO_COMMANDABLE_SHIP;
             }
@@ -160,6 +160,16 @@ public final class ShipCommandService {
             markShipDirty(ship);
         }
         return ShipCommandResult.SUCCESS;
+    }
+
+    private static boolean isInCurrentTeam(Player player, LegacyShipEntity ship) {
+        int shipUid = ship.getShipUid();
+        if (shipUid <= 0) {
+            return false;
+        }
+        return TeitokuHelper.get(player)
+                .map(data -> data.getCurrentTeamShipUids(false).contains(shipUid))
+                .orElse(false);
     }
 
     private static ShipCommandResult moveToPos(Player player, int rawMode, int shipId, int shipUid,
@@ -219,8 +229,14 @@ public final class ShipCommandService {
         }
 
         for (LegacyShipEntity ship : ships) {
-            ship.commandGuardEntity(target.getUUID());
-            ship.setOrderedToSit(false);
+            if (target.getUUID().equals(ship.getGuardEntityUuid())) {
+                ship.clearCommandState();
+                ship.setTarget(null);
+                ship.getNavigation().stop();
+            } else {
+                ship.commandGuardEntity(target.getUUID());
+                ship.setOrderedToSit(false);
+            }
             markShipDirty(ship);
         }
         return ShipCommandResult.SUCCESS;

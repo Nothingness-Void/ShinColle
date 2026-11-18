@@ -5,6 +5,7 @@ import com.lulan.shincolle.morph.MorphProfile;
 import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -125,7 +126,15 @@ public class LegacyMountEntity extends Entity {
 
         Entity rider = this.getControllingPassenger();
         if (!(rider instanceof Player player)) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(0.6D, 0.0D, 0.6D));
+            Vec3 damped = this.getDeltaMovement().multiply(0.6D, 0.0D, 0.6D);
+            double buoyancy = resolveWaterSurfaceBuoyancy(this);
+            if (buoyancy > 0.0D) {
+                Vec3 floatMotion = new Vec3(damped.x, buoyancy, damped.z);
+                this.setDeltaMovement(floatMotion);
+                this.move(MoverType.SELF, floatMotion);
+            } else {
+                this.setDeltaMovement(damped);
+            }
             return;
         }
 
@@ -140,6 +149,12 @@ public class LegacyMountEntity extends Entity {
                 : resolveMovement(player);
         if (this.keyTick > 0) {
             this.keyTick--;
+        }
+        if (movement.y == 0.0D) {
+            double buoyancy = resolveWaterSurfaceBuoyancy(this);
+            if (buoyancy > 0.0D) {
+                movement = movement.add(0.0D, buoyancy, 0.0D);
+            }
         }
         this.setDeltaMovement(movement);
         this.move(MoverType.SELF, movement);
@@ -224,7 +239,75 @@ public class LegacyMountEntity extends Entity {
 
     @Override
     protected void positionRider(Entity passenger, MoveFunction moveFunction) {
-        moveFunction.accept(passenger, this.getX(), this.getY() + this.getPassengersRidingOffset(), this.getZ());
+        if (passenger == null || passenger.getVehicle() != this) {
+            return;
+        }
+
+        double[] seat = seatOffsetForStyle(this.getMountStyle());
+        double seatForward = seat[0];
+        double seatY = seat[1];
+        double seatLateral = seat[2];
+        double radians = this.getYRot() * (Math.PI / 180.0D);
+        double cos = Math.cos(radians);
+        double sin = Math.sin(radians);
+        double worldZ = seatForward * cos + seatLateral * sin;
+        double worldX = seatLateral * cos - seatForward * sin;
+        moveFunction.accept(passenger,
+                this.getX() + worldX,
+                this.getY() + seatY + passenger.getMyRidingOffset(),
+                this.getZ() + worldZ);
+    }
+
+    private static double[] seatOffsetForStyle(int style) {
+        return switch (style) {
+            case STYLE_AIRFIELD -> new double[] {-0.85D, 1.0D, -1.12D};
+            case STYLE_HARBOUR -> new double[] {-1.5D, 1.06D, 0.44D};
+            case STYLE_ISOLATED -> new double[] {0.61D, 0.28D, 0.0D};
+            case STYLE_MIDWAY -> new double[] {-0.3D, 0.5D, 0.0D};
+            case STYLE_CARRIER, STYLE_CARRIER_WD -> new double[] {0.14D, -0.39D, 0.0D};
+            case STYLE_SUBMARINE -> new double[] {0.55D, 1.2D, 0.0D};
+            default -> new double[] {1.2D, 0.7D, -1.3D};
+        };
+    }
+
+    /** Mirrors EntityAIShipFloating buoyancy for mounts submerged deeper than shipDepth (~0.45D). */
+    static double resolveWaterSurfaceBuoyancy(Entity entity) {
+        BlockPos origin = BlockPos.containing(entity.getX(), entity.getBoundingBox().minY, entity.getZ());
+        Level level = entity.level();
+        if (level.getFluidState(origin).isEmpty()) {
+            return 0.0D;
+        }
+
+        double depth = 1.0D;
+        boolean foundSurface = false;
+        int maxY = level.getMaxBuildHeight();
+        for (int y = origin.getY() + 1; y < maxY; y++) {
+            BlockPos scanPos = new BlockPos(origin.getX(), y, origin.getZ());
+            if (!level.getFluidState(scanPos).isEmpty()) {
+                depth++;
+                continue;
+            }
+            foundSurface = level.getBlockState(scanPos).isAir();
+            break;
+        }
+        if (!foundSurface) {
+            return 0.0D;
+        }
+
+        double shipDepth = depth - (entity.getY() - Mth.floor(entity.getY()));
+        if (shipDepth <= 0.45D) {
+            return 0.0D;
+        }
+        if (shipDepth > 4.0D) {
+            return 0.025D;
+        }
+        if (shipDepth > 2.0D) {
+            return 0.015D;
+        }
+        if (shipDepth > 1.3D) {
+            return 0.007D;
+        }
+        return 0.003D;
     }
 
     @Override

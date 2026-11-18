@@ -13,6 +13,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
@@ -64,12 +65,27 @@ public final class LegacyStaticModel {
             }
         }
 
-        this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+        this.renderRootParts(poseStack, vertexConsumer, packedLight, packedOverlay);
         poseStack.popPose();
     }
 
     public void renderRaw(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay) {
-        this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+        this.renderRootParts(poseStack, vertexConsumer, packedLight, packedOverlay);
+    }
+
+    private void renderRootParts(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay) {
+        for (String rootPart : this.definition.rootParts()) {
+            if (!rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
+                this.root.getChild(rootPart).render(
+                        poseStack, vertexConsumer, packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+            }
+        }
+        for (String rootPart : this.definition.rootParts()) {
+            if (rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
+                this.root.getChild(rootPart).render(
+                        poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+            }
+        }
     }
 
     private static LegacyStaticModel bake(LegacyModelDefinition definition) {

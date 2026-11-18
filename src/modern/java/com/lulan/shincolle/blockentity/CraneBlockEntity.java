@@ -62,6 +62,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private int liquidMode;
     private int energyMode;
     private int filterModeMask;
+    private int redstoneTicks;
     private final ItemStackHandler filterItems = new ItemStackHandler(FILTER_SLOT_COUNT) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -281,9 +282,37 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         return this.active;
     }
 
+    public boolean isCraneEnabled() {
+        return this.active;
+    }
+
     public void toggleActive() {
         this.active = !this.active;
         this.markUpdated();
+    }
+
+    public int getRedstoneTicks() {
+        return this.redstoneTicks;
+    }
+
+    public void emitRedstoneSignal(int ticks) {
+        if (ticks <= 0) {
+            return;
+        }
+        boolean wasZero = this.redstoneTicks <= 0;
+        this.redstoneTicks = Math.max(this.redstoneTicks, ticks);
+        if (wasZero && this.level != null) {
+            this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
+        }
+    }
+
+    public static void serverTick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state, CraneBlockEntity crane) {
+        if (crane.redstoneTicks > 0) {
+            crane.redstoneTicks--;
+            if (crane.redstoneTicks <= 0) {
+                level.updateNeighborsAt(pos, state.getBlock());
+            }
+        }
     }
 
     public void cycleWaitMode() {

@@ -2,6 +2,15 @@
 
 ## 2026-11-18
 
+### FULL-SHIP-BEHAVIOR-REAUDIT：全 64 舰船变体与全子系统两轮并发严查修复收口（`298/298` GameTest）
+
+- 针对 `v0.1.0-alpha` 反馈开展两轮多 Worker 并发逐行复审（7 路全舰种审计 + 4 路修复；6 路跨子系统深查 + 5 路修复 + 独立服务端安全复审），严格对照 1.12.2 源码修复全部已写代码中的隐藏偏差：
+  - **深海栖姬友方身份与潜艇隐身/发光/防剔除**：[ShipEntitySpecs.java](src/modern/java/com/lulan/shincolle/entity/ship/ShipEntitySpecs.java) 将 11 个深海栖姬基础规格（`22..74`）修正为 `hostile = false`（仅 `> 2000` 为敌对 `*Mob`）；[LegacyShipBehaviorCatalog.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java) 修复 `SubmHime`/`SSNH` 双隐身叠加；[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 与 [ClientShipVisibilityHelper.java](src/modern/java/com/lulan/shincolle/client/ClientShipVisibilityHelper.java) 补齐同主人/同盟隐身发光 `isCurrentlyGlowing()`、`noCulling = true` 视锥防剔除与真实射手距离潜艇闪避。
+  - **基类生命周期、AI 与完整受伤管线**：补齐 32t 自动快修桶（含空母舰载机 `+1/+1`）与饱和药水 `+100*lv` 士气、128t `updateMorale()`（`1500/4000/8000/12000` 阈值）、256t 自动回血、[LegacyShipFleeGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipFleeGoal.java) / [LegacyShipOpenDoorGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOpenDoorGoal.java) / `canTeleport`、自然敌舰 `128/32` 格配置化消散；完整对齐 `hurt()` 地形免疫、友方掉虚空传送 `Y=4` 救援、纯魔法 `< 1%` 忽略、女神 `>= health - 1` 触发及完整 120t 无敌、抗性/抗火药水 `20%*lv` 减伤、`ShinColleConfig.dmgSvS()` 及 [TeitokuEvents.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java) 32/64 格群体复仇。
+  - **阵型槽位/航速、装备附魔与逐舰特殊行为**：[LegacyShipStatTables.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipStatTables.java) / [LegacyShipStats.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipStats.java) 补齐 `0..5` 槽位独立阵型加成与编队 `MinMOV` 航速同步；[ShipEquipmentProfile.java](src/modern/java/com/lulan/shincolle/entity/ship/ShipEquipmentProfile.java) 接入装备附魔缩放；修正北方栖姬 `0.75F` 重炮与潜行下坐骑、战舰 Re / 补给舰 Wa 骑乘高度、潜艇 Yo 轻攻、天龙瞬移候选格判定、龙田敌我击退与光束轨迹、晓 Mob 探照灯光块及防空/反潜目标选择。
+  - **坐骑、召唤物、投射物、指挥棒、起重机、道具与模型渲染**：修正坐骑双人座位 X/Z 轴向反置与水面浮力，补齐坐骑/舰载机/连装炮/浮游要塞渲染器 `scale(-1,-1,1)` + `translate(0,-1.501F,0)`、`Glow*` 全亮层、15 个 `scaleLevel` 缩放表与 14 个模型 `showEquip` 部件位；补齐舰载机 `3x`/`2.5x` 攻速与可击落 HP、连装炮暴击与闪避减伤、导弹零额外阻力与 `moveType=2` 鱼雷入水加速及黑洞弹 miss 生成引力场；修正指挥棒 `friendlyFire=false` 与 64 格水面射线、钓鱼任意方块与幸运加成、起重机电源/`WaitMode 1..4`/红石信号、沉船回收蛋 `level - 1` 与生存 `level / 3` 经验消耗、手持口粮吸引、变身饮用快修桶及 `SOUNDRATE` 语音概率。
+- 新增 9 项综合 `@GameTest`，`git diff --check`、`src/main/` 零改动及 JDK `17.0.3.1` `build verifyItemModelCoverage runGameTestServer --no-daemon` 通过 **`All 298 required tests passed :)`**（证据见 [FULL-SHIP-BEHAVIOR-REAUDIT](migration_batches/2026-11-18-full-ship-behavior-reaudit/)）。
+
 ### B6-INTERMOD-DETAILS（最终收口）：9 条 `/ship*` 指令、动态光方块、`ShinColleConfig` + `SystemConfig`/`polyAsMn`、`ShipKills`/`Raiden` 与外置 mod 收口
 
 - 完成全队列最后一批 `B6-INTERMOD-DETAILS` 并正式将 [ROADMAP.md](ROADMAP.md) 当前指针归零为 **`NONE`**：
