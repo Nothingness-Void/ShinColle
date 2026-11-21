@@ -4,15 +4,15 @@
 
 ## 快照
 
-- 分支：`codex/mc-1.20.1`
+- 分支：`devin/parity-fix-items-blocks`（仅推送该分支，不修改 `codex/mc-1.20.1`）。
 - 基线提交：`3c9fe42d`，`v0.0.2-alpha`
-- 工作区：已有迁移生产代码与文档改动全部保留在工作区，不能清理或覆盖；`DOC-01` 文档解耦、`SHIP-01` 至 `SHIP-09`、`SP-CLOSE`、`COMBAT-REGRESSION-SUITE`、`ALL-SHIP-OVERRIDE-AUDIT`、`SHIP-ATTACK-PROFILE-AUDIT`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`MINECRAFT-BLOCK-TAGS`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM`、`B6-INTERMOD-DETAILS` 与 `FULL-SHIP-BEHAVIOR-REAUDIT` 均已留存实现与批次记录。[GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 现共有 `298` 个 `@GameTest` 且全绿通过。
+- 工作区边界：本次仅收口文档；已有实现和证据见 [方块与物品纠偏批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。不清理或覆盖其他改动，不触碰 `/home/ubuntu/baseline`。
 - legacy：`src/main/java`、`src/main/resources` 未作为实现目标，继续只读。
-- 当前完成口径：单人主线（M0-M9 + V0）与完整 1.12 parity backlog（B1–B6）均已全面收口（[ROADMAP.md](ROADMAP.md) 当前指针为 `NONE`）。
+- 当前完成口径、阻塞与非目标：以 [本批次状态](migration_batches/2026-11-22-parity-fix-items-blocks/STATUS.md) 为准，不沿用历史批次的全绿／全量等价声明。
 
 ## 当前任务
 
-- 当前阶段：**全量迁移已完成收口（SP mainline + B1–B6 Parity Backlog）**。V0 单人验收于 2026-09-16 由用户人工确认通过，M0-M9 全部为 `Done (SP mainline)`；2026-11-16～2026-11-18 已顺序完成 `GAMETEST-REPAIR-B4`（`91/91`）、`B5-ORE-TAGS`（`94/94`）、`GAMETEST-BACKFILL`（`276/276`）、`B1-GUI-PARITY`（`276/276`）、生存方块采集/信标 Tag 补全（`277/277`）、`B2-PACKET-PARITY`（`282/282`）、`B3-MULTIPLAYER-TEAM` Part 1+2（`286/286`）以及最终收官批次 `B6-INTERMOD-DETAILS`（9 条 `/ship*` Brigadier 指令、120-tick 动态光方块与 Searchlight/Flare 联动、`SystemConfig` 同步与全量 `ShinColleConfig` 接线、`PolyAsMnCondition` 与动态 Manganese 标签匹配、`ShipKills`/`Raiden` 角色标识与 Curios 反射软钩 → `289/289`，见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。
+- 当前任务：按 [本批次状态](migration_batches/2026-11-22-parity-fix-items-blocks/STATUS.md) 完成文档与指定分支推送后停止；不创建合并请求。以下既有模块与批次链接保留为历史入口，不代表本次重新验收。
 - 已完成 backlog 批次：`WORLDGEN-AUDIT`（[WORLDGEN-AUDIT](migration_batches/2026-09-16-worldgen-audit/)）、`GAMETEST-REPAIR-B4`（[GAMETEST-REPAIR-B4](migration_batches/2026-11-16-gametest-repair/)）、`B5-ORE-TAGS`（[B5-ORE-TAGS](migration_batches/2026-11-16-b5-ore-tags/)）、`GAMETEST-BACKFILL`（[GAMETEST-BACKFILL](migration_batches/2026-11-16-gametest-backfill/)）、`B1-GUI-PARITY`（[B1-GUI-PARITY](migration_batches/2026-11-16-b1-gui-parity/)）、`B2-PACKET-PARITY`（[B2-PACKET-PARITY](migration_batches/2026-11-16-b2-packet-parity/)）、`B3-MULTIPLAYER-TEAM`（[B3-MULTIPLAYER-TEAM](migration_batches/2026-11-17-b3-multiplayer-team/)）与 `B6-INTERMOD-DETAILS`（[B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。
 - 唯一下一步入口见 [ROADMAP.md](ROADMAP.md)：`NONE`（队列已清零）。
 - [MIGRATION-SHIP-MATRIX.md](MIGRATION-SHIP-MATRIX.md) 全 45 行主线域均为 `LOCKED`，不再存在待处理 `NEXT` 舰种行；V0 收口批次证据见 [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/)。
@@ -38,6 +38,8 @@
 | V0 验收与发布 | Done (2026-09-16 用户确认) | [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/) |
 
 ## 最近可复用证据
+
+- 最新批次：[方块与物品纠偏证据](migration_batches/2026-11-22-parity-fix-items-blocks/results/)。
 
 - `SHIP-01` 驱逐舰与重巡 Ri runtime 批次：见 [2026-09-03-ship-01-destroyer-ri](migration_batches/2026-09-03-ship-01-destroyer-ri/)。最近一次完整回归为 `All 250 required tests passed`。
 - `SHIP-02` Ne/Wo/Ru/Ta/Re 命令、路线与目标边界批次：见 [2026-09-03-ship-02-command-route-target](migration_batches/2026-09-03-ship-02-command-route-target/)。最近一次完整回归为 `All 253 required tests passed`；本批没有客户端/资源/渲染改动，因此未触发客户端烟测。

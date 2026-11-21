@@ -1,6 +1,20 @@
 # Migration Test Matrix
 
-本文件只定义测试触发条件和批末策略，不记录某次运行的当前结果。具体结果写入批次 `results/`。
+本文件定义测试触发条件、覆盖范围和批末策略，并提供批次结果摘要；精确执行证据写入批次 `results/`。
+
+## 2026-11-22 方块与物品纠偏覆盖及结果
+
+- 批次：[方块与物品旧版行为纠偏](migration_batches/2026-11-22-parity-fix-items-blocks/)；命令与原始输出摘录见 [执行证据](migration_batches/2026-11-22-parity-fix-items-blocks/results/)。
+- `bash ./gradlew compileJava` 通过；`bash ./gradlew runGameTestServer` 最终 **301／302 通过**，任务因一项必需测试失败而返回非零，不能称为全绿。
+- 唯一失败 `passiveaistopsautomaticrangetargeting` 在用户独立确认的未改动 `origin/codex/mc-1.20.1` 基线中同样失败；基线为 298 项、2 失败。基线另一失败 `round2hurtimmunitiesvoidrescuegoddessandresistancematchlegacy` 本次通过，疑似不稳定，未定位原因。
+- `shipyardLiquidFuelAndRuntimeConfig` 及大型造船测试：运行时配置、小型罐容量、拒绝水／禁止外抽、40mB 换能倍率、缺燃料保留进度。
+- `craneCycleTransfersShipTankLavaThroughInternalBuffer`、`craneRouteTransfersFilteredItemsBetweenChestAndShip`：warmup、16 tick 边界、内部液体中转、船侧速率及过滤装卸。
+- `craneCycleWaitsForInventoryThenCompletesEmptyWork`：缺配对不结束、空工作结束、无 IC2、状态／计时、红石和下一路标；最终回归也覆盖完成后跟随距离保留 2。
+- `morphSupportItemsKeepLegacyLimitsAndAircraft`：默认堆叠、配置现代化上限／满额拒绝、未婚 100 级训练／150 级不消耗、读档、修复补机、满血和无变身拒绝、口粮倍率。
+- `feedingUsesBuffedResourcesAndRestoresCarrierAircraft`、`kaitaiRespectsDamageRejectionAndCreativeDismantleDropsNothing` 及转让／口粮相关断言：资源倍率、补机与饱食拒绝、伤害拒绝不强杀、创造无拆船掉落、非主人签名转让、创造消耗与 T_T 情绪、不同主人仍被吸引。
+- 新增 `finalItemProtectionRingAndOpToolMatchLegacy`、`finalShipTankMachineTargetAndWrenchMemoryMatchLegacy`、`finalShipEggPermissionsAndCollisionMatchLegacy`：回收蛋伤害保护与重载、婚戒旧键、OPTool 无右键及排除目标、ShipTank 实际自身目标、扳手共享内存不写 NBT 与配对消息、水面权限和无额外碰撞拒绝。
+- 删除四项自创路线能量测试及相关显示缓存断言，不再为已删除机制维持测试契约。
+- 本批 T3 客户端／视觉门未执行；T1-M 独立模型检查也未执行。服务端测试不证明客户端点选、渲染或 Dust 粒子视觉等价，也不证明变身舰载机计数已接入航空攻击生命周期。
 
 ## 固定门
 
