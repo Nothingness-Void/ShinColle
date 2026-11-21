@@ -78,20 +78,6 @@ click = click.replace('protected void mouseClicked(int posX, int posY, int mouse
                       'private void click(int posX, int posY, int mouseKey)')
 click = click.replace('super.mouseClicked(posX, posY, mouseKey);', '')
 click = click.replace('this.textField.mouseClicked(posX, posY, mouseKey);', 'this.textField.mouseClicked(posX, posY, mouseKey);')
-click = click.replace('int radarBtn = GuiHelper.getButton(ID.Gui.ADMIRALDESK, 1, xClick, yClick);', '''
-            int radarBtn = GuiHelper.getButton(ID.Gui.ADMIRALDESK, 1, xClick, yClick);
-            if (radarBtn < 0) {
-                for (int i = 0; i < shipList.size(); i++) {
-                    RadarEntity point = shipList.get(i);
-                    if (posX < point.pixelx+4 && posX > point.pixelx-2 && posY < point.pixelz+4 && posY > point.pixelz-2) {
-                        boolean open = LegacyDeskState.opensRadarInventory(listNum[0]+listClicked[0], i, shipList.size());
-                        listNum[0] = LegacyDeskState.radarPointOffset(i, shipList.size());
-                        listClicked[0] = i - listNum[0];
-                        if (open) openShipGUI();
-                        break;
-                    }
-                }
-            }''')
 click = click.replace('if (oldClick == this.listClicked[LISTCLICK_RADAR]) this.openShipGUI();',
     'if (LegacyDeskState.opensRadarInventory(listNum[0]+oldClick, listNum[0]+listClicked[0], shipList.size())) this.openShipGUI();')
 methods.append(adapt(click))

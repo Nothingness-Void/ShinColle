@@ -7,7 +7,6 @@ import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
 import com.lulan.shincolle.morph.MorphProfile;
-import com.lulan.shincolle.morph.MorphRuntimeState;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -37,6 +36,13 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
     private final Inventory playerInventory;
     private final int selectedClassId;
     private final ItemStackHandler equipmentHandler;
+    private final MorphInventoryPresentation presentation = new MorphInventoryPresentation();
+
+    public Player getPlayer() { return this.playerInventory.player; }
+    public MorphInventoryPresentation getPresentation() {
+        this.presentation.refresh(this.getPlayer(), this.getProfile());
+        return this.presentation;
+    }
 
     public MorphInventoryMenu(int containerId, Inventory playerInventory) {
         this(containerId, playerInventory, resolveSelectedClassId(playerInventory.player));
@@ -80,54 +86,6 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
 
     public boolean hasProfile() {
         return this.getProfile() != null;
-    }
-
-    public boolean isActiveMorph() {
-        return TeitokuHelper.get(this.playerInventory.player)
-                .map(data -> data.getMorphRuntimeState().isActive() && data.getMorphRuntimeState().getSelectedClassId() == this.selectedClassId)
-                .orElse(false);
-    }
-
-    public MorphRuntimeState getRuntimeState() {
-        return TeitokuHelper.get(this.playerInventory.player)
-                .map(TeitokuData::getMorphRuntimeState)
-                .orElseGet(MorphRuntimeState::new);
-    }
-
-    public Component getTitleLabel() {
-        MorphProfile profile = this.getProfile();
-        return profile == null ? Component.translatable("gui.shincolle.morph_inventory.empty") : profile.getSpec().displayName();
-    }
-
-    public Component getHostModeLabel() {
-        return Component.translatable("gui.shincolle.morph_inventory.host_mode." + this.getRuntimeState().getHostMode().name().toLowerCase(Locale.ROOT));
-    }
-
-    public Component getStatusLabel() {
-        return Component.translatable(this.isActiveMorph()
-                ? "gui.shincolle.morph_inventory.active"
-                : "gui.shincolle.morph_inventory.inactive");
-    }
-
-    public int getProfileIndex() {
-        return TeitokuHelper.get(this.playerInventory.player)
-                .map(data -> {
-                    int index = 0;
-                    for (MorphProfile morphProfile : data.getMorphProfiles()) {
-                        if (morphProfile.getLegacyClassId() == this.selectedClassId) {
-                            return index;
-                        }
-                        index++;
-                    }
-                    return 0;
-                })
-                .orElse(0);
-    }
-
-    public int getProfileCount() {
-        return TeitokuHelper.get(this.playerInventory.player)
-                .map(TeitokuData::getMorphProfileCount)
-                .orElse(0);
     }
 
     public boolean isValidMorphEquipment(ItemStack stack) {
@@ -240,18 +198,6 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
     public boolean isShowHeldItemEnabled() {
         MorphProfile profile = this.getProfile();
         return profile != null && profile.isShowHeldItem();
-    }
-
-    public Component getAuraStateLabel() {
-        return Component.translatable(this.isAuraEffectEnabled()
-                ? "gui.shincolle.ship_inventory.behavior.on"
-                : "gui.shincolle.ship_inventory.behavior.off");
-    }
-
-    public Component getShowHeldStateLabel() {
-        return Component.translatable(this.isShowHeldItemEnabled()
-                ? "gui.shincolle.ship_inventory.behavior.on"
-                : "gui.shincolle.ship_inventory.behavior.off");
     }
 
     public Component getSensorBehaviorLabel() {

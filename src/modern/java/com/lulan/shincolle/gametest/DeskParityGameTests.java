@@ -68,13 +68,10 @@ public final class DeskParityGameTests {
                 && !LegacyDeskState.opensRadarInventory(0, 1, 2)
                 && !LegacyDeskState.opensRadarInventory(-1, -1, 0)
                 && !LegacyDeskState.opensRadarInventory(2, 2, 2),
-                "radar row/point selection opens only a repeated valid selection, with no elapsed-time requirement");
-        helper.assertTrue(LegacyDeskState.radarPointOffset(9, 10) == 5
-                && LegacyDeskState.radarPointOffset(3, 10) == 3
-                && LegacyDeskState.radarPointOffset(1, 2) == 0
-                && LegacyDeskState.radarPointOffset(0, 0) == 0
-                && LegacyDeskState.radarPointOffset(-1, 10) == 0,
-                "map selection respects the old five-row list scroll bounds, including empty and invalid input");
+                "radar rows open only a repeated valid selection, with no elapsed-time requirement");
+        helper.assertTrue(LegacyDeskState.buttonAt(1, 69, 88) == -1
+                && LegacyDeskState.buttonAt(1, 7, 24) == -1,
+                "the legacy radar map has no click action; only list rows select/open ships");
 
         helper.assertTrue(LegacyDeskBookData.BookList.containsKey(1000)
                 && LegacyDeskBookData.BookList.containsKey(1028)

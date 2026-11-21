@@ -7,6 +7,7 @@ import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
+import com.lulan.shincolle.network.ShipGuiButton;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.SimpleContainer;
@@ -75,6 +76,7 @@ public class MorphProfile {
     private boolean aiAutoSupply = true;
     private boolean aiRouteStay;
     private int followRange = 14;
+    private CompoundTag guiState = new CompoundTag();
     private Runnable dirtyCallback = () -> {
     };
 
@@ -113,10 +115,12 @@ public class MorphProfile {
         tag.putBoolean(AI_ROUTE_STAY_TAG, this.aiRouteStay);
         tag.putInt(FOLLOW_RANGE_TAG, this.followRange);
         tag.put(EQUIPMENT_TAG, this.equipment.serializeNBT());
+        tag.put("MorphGui", this.guiState.copy());
         return tag;
     }
 
     public void loadFromTag(CompoundTag tag) {
+        this.guiState = tag.getCompound("MorphGui").copy();
         this.legacyClassId = tag.getInt(LEGACY_CLASS_ID_TAG);
         this.level = Mth.clamp(tag.getInt(LEVEL_TAG), DEFAULT_LEVEL, this.getLevelCap());
         this.experience = Math.max(0, tag.getInt(EXPERIENCE_TAG));
@@ -372,6 +376,30 @@ public class MorphProfile {
 
     public boolean isShowHeldItem() {
         return this.showHeldItem;
+    }
+
+    public boolean isNoFuel() { return this.guiState.getBoolean("NoFuel"); }
+    public boolean isSitting() { return this.guiState.getBoolean("Sitting"); }
+    public int getModelState() { return this.guiState.getInt("State"); }
+    public int getEmotion() { return this.guiState.getInt("Emotion"); }
+    public int getEmotion4() { return this.guiState.getInt("Emotion4"); }
+
+    public boolean applyGuiButton(int button, int value) {
+        if (button >= ShipGuiButton.MODEL_STATE_01 && button <= ShipGuiButton.MODEL_STATE_16) {
+            this.guiState.putInt("State", this.getModelState() ^ (1 << (button - ShipGuiButton.MODEL_STATE_01)));
+        } else {
+            switch (button) {
+                case ShipGuiButton.NO_FUEL -> this.guiState.putBoolean("NoFuel", value > 0);
+                case ShipGuiButton.SIT -> this.guiState.putBoolean("Sitting", !this.isSitting());
+                case ShipGuiButton.EMO_FLAG_1 -> this.guiState.putInt("Emotion", value);
+                case ShipGuiButton.EMO_FLAG_2 -> this.guiState.putInt("Emotion4", value);
+                case ShipGuiButton.AURA_EFFECT -> this.setAuraEffect(value > 0);
+                case ShipGuiButton.SHOW_HELD -> this.setShowHeldItem(value > 0);
+                default -> { return false; }
+            }
+        }
+        this.markDirty();
+        return true;
     }
 
     public void setShowHeldItem(boolean showHeldItem) {

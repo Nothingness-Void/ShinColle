@@ -1277,18 +1277,6 @@ public class DeskScreen extends DeskScreenSupport {
         {
         case 1:
             int radarBtn = LegacyDeskState.buttonAt(1, xClick, yClick);
-            if (radarBtn < 0) {
-                for (int i = 0; i < shipList.size(); i++) {
-                    RadarEntity point = shipList.get(i);
-                    if (posX < point.pixelx+4 && posX > point.pixelx-2 && posY < point.pixelz+4 && posY > point.pixelz-2) {
-                        boolean open = LegacyDeskState.opensRadarInventory(listNum[0]+listClicked[0], i, shipList.size());
-                        listNum[0] = LegacyDeskState.radarPointOffset(i, shipList.size());
-                        listClicked[0] = i - listNum[0];
-                        if (open) openShipGUI();
-                        break;
-                    }
-                }
-            }
             switch (radarBtn)
             {
             case 0:

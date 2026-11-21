@@ -707,7 +707,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void morphProfilesPersistAndCycle(GameTestHelper helper) {
+    public static void morphProfilesPersistSelectedRuntime(GameTestHelper helper) {
         TeitokuData data = new TeitokuData();
         if (!data.unlockMorph(58) || !data.unlockMorph(2058)) {
             helper.fail("morph unlock should register unique profiles");
@@ -716,14 +716,14 @@ public final class GameplayParityGameTests {
 
         data.getMorphRuntimeState().setActive(true);
         data.getMorphRuntimeState().setSpecialCooldown(80);
-        if (!data.cycleMorphProfile(true)) {
-            helper.fail("cycling unlocked morph profiles should succeed");
+        if (!data.setSelectedMorphProfile(2058)) {
+            helper.fail("an externally selected unlocked morph should be accepted");
             return;
         }
 
         int selected = data.getMorphRuntimeState().getSelectedClassId();
         if (selected != 2058 || !data.hasActiveMorph()) {
-            helper.fail("cycling morph profiles should advance selection while keeping the runtime active");
+            helper.fail("external morph selection should retain the stored runtime state");
             return;
         }
 
@@ -3762,8 +3762,12 @@ public final class GameplayParityGameTests {
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_LIGHT_AMMO, new CompoundTag());
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_HEAVY_AMMO, new CompoundTag());
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_GRUDGE, new CompoundTag());
-        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_AURA_EFFECT, new CompoundTag());
-        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_SHOW_HELD, new CompoundTag());
+        CompoundTag morphButton = new CompoundTag();
+        morphButton.putInt("Button", ShipGuiButton.AURA_EFFECT);
+        morphButton.putInt("Value", 1);
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_GUI_BUTTON, morphButton);
+        morphButton.putInt("Button", ShipGuiButton.SHOW_HELD);
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_GUI_BUTTON, morphButton);
 
         MorphProfile profile = TeitokuHelper.get(player)
                 .map(TeitokuData::getSelectedMorphProfile)
@@ -3795,13 +3799,12 @@ public final class GameplayParityGameTests {
                 || !"15".equals(menu.getAmmoHeavyText())
                 || !"2700".equals(menu.getGrudgeText())
                 || !menu.isAuraEffectEnabled()
-                || !menu.isShowHeldItemEnabled()
-                || !"ON".equals(menu.getAuraStateLabel().getString())
-                || !"ON".equals(menu.getShowHeldStateLabel().getString())) {
-            helper.fail("morph inventory menu should expose the restored legacy experience and toggle readouts");
+                || !menu.isShowHeldItemEnabled()) {
+            helper.fail("morph inventory menu should expose legacy experience and flag values");
             return;
         }
 
+        MorphInventoryParityGameTests.check(helper, serverPlayer, menu);
         helper.succeed();
     }
 

@@ -707,34 +707,6 @@ public class TeitokuData {
         return true;
     }
 
-    public boolean cycleMorphProfile(boolean forward) {
-        if (this.morphProfiles.isEmpty()) {
-            this.morphRuntimeState.setSelectedClassId(0);
-            this.morphRuntimeState.setActive(false);
-            return false;
-        }
-
-        int currentClassId = this.morphRuntimeState.getSelectedClassId();
-        int currentIndex = -1;
-        for (int i = 0; i < this.morphProfiles.size(); i++) {
-            if (this.morphProfiles.get(i).getLegacyClassId() == currentClassId) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        if (currentIndex < 0) {
-            currentIndex = 0;
-        } else {
-            currentIndex = forward
-                    ? (currentIndex + 1) % this.morphProfiles.size()
-                    : (currentIndex - 1 + this.morphProfiles.size()) % this.morphProfiles.size();
-        }
-
-        this.morphRuntimeState.setSelectedClassId(this.morphProfiles.get(currentIndex).getLegacyClassId());
-        return true;
-    }
-
     public boolean setMorphActive(boolean active) {
         if (active && this.getSelectedMorphProfile() == null) {
             return false;

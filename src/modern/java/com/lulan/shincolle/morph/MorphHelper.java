@@ -87,35 +87,6 @@ public final class MorphHelper {
                 buffer -> buffer.writeVarInt(resolveSelectedClassId(player)));
     }
 
-    public static boolean cycleProfile(ServerPlayer player, boolean forward) {
-        boolean changed = TeitokuHelper.get(player)
-                .map(data -> data.cycleMorphProfile(forward))
-                .orElse(false);
-        if (changed) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-        return changed;
-    }
-
-    public static boolean toggleActive(ServerPlayer player) {
-        return TeitokuHelper.get(player)
-                .map(data -> {
-                    boolean next = !data.hasActiveMorph();
-                if (!data.setMorphActive(next)) {
-                    return false;
-                }
-                applyOrResetPlayerMorphState(player, data.hasActiveMorph() ? data.getSelectedMorphProfile() : null);
-                if (data.hasActiveMorph()) {
-                    COMPAT_BRIDGE.syncActiveMorph(player, data.getSelectedMorphProfile(), true);
-                } else {
-                    COMPAT_BRIDGE.reset(player);
-                }
-                TeitokuHelper.syncGameplayState(player);
-                return true;
-            })
-                .orElse(false);
-    }
-
     public static boolean canUseMountHost(ServerPlayer player) {
         TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
         return data != null && data.hasActiveMorph();

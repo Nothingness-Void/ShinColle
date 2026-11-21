@@ -31,10 +31,9 @@ checks, at most one client smoke attempt. Commit and push parity-fix-client.
   PacketHelper's float coordinates, BasicEntityItem marker filter, and 1.12
   AxisAlignedBB.expand semantics (modern expandTowards(128,256,128)). The modern
   facility/route and ordinary-item contacts are removed. Row selection has no
-  time window. Repeated map-point opening is explicitly requested in this task;
-  its hit bounds use the legacy map-hover bounds and its list offset stays in
-  the existing five-row scroll range, whereas the original
-  GuiDesk.mouseClicked only implemented repeated-row opening.
+  time window. The current src/main GuiDesk.mouseClicked, like 0aad501, only
+  implements repeated-row opening. Map points retain hover tooltips but have no
+  click action: clicking them neither selects a row nor opens an inventory.
 - Team and target rendering/controls use GuiDesk method bodies with existing
   team/target server commands. Target preview accepts modern registry IDs as
   well as legacy/simple Java class names. No extra world-rules category remains.
@@ -46,6 +45,6 @@ toggle and empty target page were captured. Radar/team tab transitions were
 exercised without separate captured-state review. Populated lists, actual
 radar-to-inventory opening, collected ship models and detailed preview animations
 are not visually verified. Final source-only changes after this launch concern
-team-list ordering, radar offset clamping, cooldown regression assertions and
+team-list ordering, cooldown regression assertions and
 documentation, not the
 captured empty-page/book rendering.

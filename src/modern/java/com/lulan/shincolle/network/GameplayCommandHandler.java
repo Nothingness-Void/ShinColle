@@ -119,15 +119,14 @@ public final class GameplayCommandHandler {
             case OPEN_FORMATION_SCREEN -> handleOpenFormationScreen(player);
             case OPEN_DESK_SCREEN -> handleOpenDeskScreen(player, payload);
             case OPEN_MORPH_SCREEN -> MorphHelper.openMorphScreen(player);
-            case MORPH_CYCLE_PROFILE_PREV -> handleMorphCycle(player, false);
-            case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
-            case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);
+            case MORPH_GUI_BUTTON -> TeitokuHelper.get(player).ifPresent(data -> {
+                MorphProfile profile = data.getSelectedMorphProfile();
+                if (profile != null) profile.applyGuiButton(payload.getInt("Button"), payload.getInt("Value"));
+            });
             case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
             case MORPH_ADD_LIGHT_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_LIGHT_AMMO);
             case MORPH_ADD_HEAVY_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_HEAVY_AMMO);
             case MORPH_ADD_GRUDGE -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_GRUDGE);
-            case MORPH_TOGGLE_SHOW_HELD -> handleMorphToggleShowHeld(player);
-            case MORPH_TOGGLE_AURA_EFFECT -> handleMorphToggleAuraEffect(player);
             case PLAYER_CAST_SKILL -> handlePlayerCastSkill(player, payload);
             case MORPH_CAST_ATTACK -> handleMorphAttack(player, payload);
             case MORPH_CAST_SPECIAL -> handleMorphSpecial(player, payload);
@@ -294,38 +293,8 @@ public final class GameplayCommandHandler {
                 buffer -> DeskMenu.writeOpeningData(buffer, player.blockPosition(), selectedFunction));
     }
 
-    private static void handleMorphCycle(ServerPlayer player, boolean forward) {
-        if (MorphHelper.cycleProfile(player, forward)) {
-            MorphHelper.openMorphScreen(player);
-        }
-    }
-
-    private static void handleMorphToggle(ServerPlayer player) {
-        if (MorphHelper.toggleActive(player) && player.containerMenu instanceof com.lulan.shincolle.menu.MorphInventoryMenu) {
-            MorphHelper.openMorphScreen(player);
-        }
-    }
-
     private static void handleMorphToggleMount(ServerPlayer player) {
         if (MorphHelper.toggleMount(player)) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-    }
-
-    private static void handleMorphToggleShowHeld(ServerPlayer player) {
-        if (mutateSelectedMorphProfile(player, profile -> {
-            profile.setShowHeldItem(!profile.isShowHeldItem());
-            return true;
-        })) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-    }
-
-    private static void handleMorphToggleAuraEffect(ServerPlayer player) {
-        if (mutateSelectedMorphProfile(player, profile -> {
-            profile.setAuraEffect(!profile.hasAuraEffect());
-            return true;
-        })) {
             TeitokuHelper.syncGameplayState(player);
         }
     }

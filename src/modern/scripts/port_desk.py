@@ -123,9 +123,6 @@ public final class LegacyDeskState {
     public static boolean opensRadarInventory(int selected, int clicked, int count) {
         return clicked >= 0 && clicked < count && selected == clicked;
     }
-    public static int radarPointOffset(int index, int count) {
-        return Math.min(Math.max(0, index), Math.max(0, count - 5));
-    }
 }
 ''')
 
