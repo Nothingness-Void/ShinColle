@@ -25,7 +25,6 @@ import com.lulan.shincolle.client.screen.MorphInventoryScreen;
 import com.lulan.shincolle.client.screen.RecipePaperScreen;
 import com.lulan.shincolle.client.screen.ShipInventoryScreen;
 import com.lulan.shincolle.client.screen.SmallShipyardScreen;
-import com.lulan.shincolle.client.screen.WaypointTerminalScreen;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipBeamEntity;
@@ -119,7 +118,6 @@ public class ShinColle {
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
                 MenuScreens.register(ModMenus.CRANE_TERMINAL.get(), CraneTerminalScreen::new);
-                MenuScreens.register(ModMenus.WAYPOINT_TERMINAL.get(), WaypointTerminalScreen::new);
                 MenuScreens.register(ModMenus.RECIPE_PAPER.get(), RecipePaperScreen::new);
                 MenuScreens.register(ModMenus.DESK_REFERENCE.get(), DeskReferenceScreen::new);
                 MenuScreens.register(ModMenus.DESK_TERMINAL.get(), DeskTerminalScreen::new);

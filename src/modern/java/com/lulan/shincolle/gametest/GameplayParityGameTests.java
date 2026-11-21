@@ -64,7 +64,6 @@ import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.menu.MorphInventoryMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
-import com.lulan.shincolle.menu.WaypointTerminalMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
@@ -1227,6 +1226,105 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void craneWorkingShipAndElapsedTimeMatchLegacy(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+        helper.getLevel().setBlock(pos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(pos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for working ship coverage");
+            return;
+        }
+        Player player = helper.makeMockPlayer();
+        CraneTerminalMenu menu = new CraneTerminalMenu(1, player.getInventory(), pos);
+        if (menu.getShip() != null || menu.getCraneTime() != 0
+                || !CraneTerminalMenu.formatCraneTime(0).equals("00:00:00")
+                || !CraneTerminalMenu.formatCraneTime(73220).equals("01:01:01")
+                || !CraneTerminalMenu.formatCraneTime(7200000).equals("100:00:00")) {
+            helper.fail("idle crane should have no ship or elapsed time and use legacy HH:MM:SS formatting");
+            return;
+        }
+        crane.cycleWaitMode();
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity waiting = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null || waiting == null) {
+            helper.fail("ships should be creatable for working ship coverage");
+            return;
+        }
+        ship.setPos(pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D);
+        waiting.setPos(ship.position());
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(waiting);
+        ship.commandMoveTo(pos, "");
+        ship.tick();
+        ship.tick();
+        ship.tick();
+        waiting.commandMoveTo(pos, "");
+        waiting.tick();
+        if (crane.getShip() != ship || ship.getCraneState() != 2 || ship.getCraneTime() != 2
+                || menu.getShip() != ship || menu.getCraneTime() != 2
+                || waiting.getCraneState() != 1 || waiting.getCraneTime() != 0) {
+            helper.fail("only the working ship should accumulate CraneTime each tick, including non-timed modes");
+            return;
+        }
+        CraneTerminalMenu receiver = new CraneTerminalMenu(1, player.getInventory(), pos,
+                new net.minecraft.world.inventory.SimpleContainerData(4));
+        menu.addSlotListener(new net.minecraft.world.inventory.ContainerListener() {
+            @Override
+            public void slotChanged(net.minecraft.world.inventory.AbstractContainerMenu source, int slot, ItemStack stack) {
+            }
+
+            @Override
+            public void dataChanged(net.minecraft.world.inventory.AbstractContainerMenu source, int index, int value) {
+                receiver.setData(index, (short) value);
+            }
+        });
+        menu.broadcastChanges();
+        if (receiver.getShip() != ship || receiver.getCraneTime() != ship.getCraneTime()) {
+            helper.fail("menu data should deliver the working ship entity id and elapsed time");
+            return;
+        }
+        receiver.setData(0, (short) 0xABCD);
+        receiver.setData(1, 1);
+        receiver.setData(2, (short) 0xFEDC);
+        receiver.setData(3, 1);
+        if (receiver.getShipId() != 0x1ABCD || receiver.getCraneTime() != 0x1FEDC) {
+            helper.fail("menu data should preserve entity ids and CraneTime beyond signed 16-bit values");
+            return;
+        }
+        receiver.setData(1, 0);
+        receiver.setData(3, 0);
+        crane.cycleWaitMode(false);
+        ship.tick();
+        menu.broadcastChanges();
+        if (crane.getShip() != null || ship.getCraneState() != 0 || ship.getCraneTime() != 0
+                || receiver.getShip() != null || receiver.getCraneTime() != 0) {
+            helper.fail("completed craning should clear the working ship and reset elapsed time on both menus");
+            return;
+        }
+        crane.cycleWaitMode();
+        waiting.tick();
+        if (crane.getShip() != waiting || waiting.getCraneState() != 2) {
+            helper.fail("a waiting ship should acquire the crane after the previous ship finishes");
+            return;
+        }
+        waiting.commandMoveTo(pos.east(10), "");
+        waiting.tick();
+        if (crane.getShip() != null || waiting.getCraneState() != 0 || waiting.getCraneTime() != 0) {
+            helper.fail("a ship leaving the crane route should clear its working association and timer");
+            return;
+        }
+        crane.cycleWaitMode(false);
+        crane.cycleWaitMode(false);
+        for (int i = 0; i < 26; i++) {
+            crane.cycleWaitMode();
+        }
+        if (crane.getWaitMode() != 24) {
+            helper.fail("wait mode buttons should clamp at legacy bounds rather than wrapping");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void waypointRouteWaitsOnceThenAdvances(GameTestHelper helper) {
         BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 2, 1));
@@ -1429,13 +1527,37 @@ public final class GameplayParityGameTests {
             helper.fail("waypoint block entity should exist for menu button coverage");
             return;
         }
-        WaypointTerminalMenu waypointMenu = new WaypointTerminalMenu(2, player.getInventory(), waypointPos);
-        if (!waypointMenu.clickMenuButton(player, WaypointTerminalMenu.BUTTON_CYCLE_STAY)
-                || waypoint.getStayMode() != 1
-                || !waypointMenu.getStayLabel().getString().equals(waypoint.getStayLabel().getString())) {
-            helper.fail("waypoint menu button should mutate and expose stay state");
+        var waypointState = helper.getLevel().getBlockState(waypointPos);
+        var waypointHit = new BlockHitResult(Vec3.atCenterOf(waypointPos), Direction.UP, waypointPos, false);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 0 || player.containerMenu != player.inventoryMenu) {
+            helper.fail("empty-handed waypoint use should pass without opening a menu or changing stay time");
             return;
         }
+        waypoint.setOwner(player);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TARGETWRENCH.get()));
+        player.setShiftKeyDown(true);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 0) {
+            helper.fail("sneaking waypoint use should not change stay time");
+            return;
+        }
+        player.setShiftKeyDown(false);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.SUCCESS
+                || waypoint.getStayMode() != 1) {
+            helper.fail("owner target wrench use should cycle waypoint stay time");
+            return;
+        }
+        CompoundTag otherOwner = waypoint.saveWithoutMetadata();
+        otherOwner.putInt("OwnerUID", waypoint.getOwnerUid() + 1);
+        waypoint.load(otherOwner);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 1) {
+            helper.fail("non-owner target wrench use should pass without changing waypoint stay time");
+            return;
+        }
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
 
         BlockPos corePos = helper.absolutePos(new BlockPos(3, 2, 1));
         helper.getLevel().setBlock(corePos, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), Block.UPDATE_ALL);

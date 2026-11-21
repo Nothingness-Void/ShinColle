@@ -539,6 +539,10 @@ public class LegacyShipEntity extends PathfinderMob {
     @Nullable
     private BlockPos lastWaypointPos;
     private int routeWaitTicks;
+    private int craneState;
+    private int craneTime;
+    @Nullable
+    private CraneBlockEntity workingCrane;
     private int waypointStayMode;
     private int routeTransferCooldown;
     private boolean routePreferLoad = true;
@@ -1094,6 +1098,14 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (!this.level().isClientSide()) {
             this.ensureShipUid();
+            if (this.workingCrane != null && (this.workingCrane.isRemoved()
+                    || !this.workingCrane.getBlockPos().equals(this.routeNodePos))) {
+                this.workingCrane.clearShipData(this);
+                this.finishCraning();
+            }
+            if (this.craneState > 1) {
+                this.craneTime++;
+            }
             if ((this.tickCount % 20) == 0) {
                 this.cacheShipState(false);
             }
@@ -4933,7 +4945,12 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private boolean handleCraneRouteNode(ServerLevel serverLevel, CraneBlockEntity crane) {
         if (!crane.isCraneEnabled()) {
+            crane.clearShipData(this);
             return false;
+        }
+        this.workingCrane = crane;
+        if (!crane.setShipData(this)) {
+            return true;
         }
         Container pairedContainer = this.getPairedRouteContainer(serverLevel, crane.getPairedChest());
         IFluidHandler pairedFluidHandler = this.getPairedRouteFluidHandler(serverLevel, crane.getPairedChest());
@@ -5043,7 +5060,28 @@ public class LegacyShipEntity extends PathfinderMob {
         } else if (crane.getRedstoneMode() == 2) {
             crane.emitRedstoneSignal(2);
         }
+        if (!continueCraning) {
+            crane.clearShipData(this);
+        }
         return continueCraning;
+    }
+
+    public int getCraneState() {
+        return this.craneState;
+    }
+
+    public void setCraneState(int state) {
+        this.craneState = state;
+    }
+
+    public int getCraneTime() {
+        return this.craneTime;
+    }
+
+    public void finishCraning() {
+        this.craneState = 0;
+        this.craneTime = 0;
+        this.workingCrane = null;
     }
 
     private boolean isCraneUntilFullSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {

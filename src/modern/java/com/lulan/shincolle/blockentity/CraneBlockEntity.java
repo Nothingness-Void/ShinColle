@@ -1,6 +1,7 @@
 package com.lulan.shincolle.blockentity;
 
 import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import net.minecraft.core.BlockPos;
@@ -63,6 +64,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private int energyMode;
     private int filterModeMask;
     private int redstoneTicks;
+    @Nullable
+    private LegacyShipEntity ship;
     private final ItemStackHandler filterItems = new ItemStackHandler(FILTER_SLOT_COUNT) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -307,6 +310,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     public static void serverTick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state, CraneBlockEntity crane) {
+        crane.getShip();
         if (crane.redstoneTicks > 0) {
             crane.redstoneTicks--;
             if (crane.redstoneTicks <= 0) {
@@ -320,12 +324,34 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     public void cycleWaitMode(boolean forward) {
-        if (forward) {
-            this.waitMode = (this.waitMode + 1) % (MAX_WAIT_MODE + 1);
-        } else {
-            this.waitMode = (this.waitMode - 1 + (MAX_WAIT_MODE + 1)) % (MAX_WAIT_MODE + 1);
-        }
+        this.waitMode = Mth.clamp(this.waitMode + (forward ? 1 : -1), 0, MAX_WAIT_MODE);
         this.markUpdated();
+    }
+
+    public @Nullable LegacyShipEntity getShip() {
+        if (this.ship != null && (!this.ship.isAlive() || this.ship.isRemoved()
+                || !this.worldPosition.equals(this.ship.getRouteNodePos()) || this.isRemoved())) {
+            this.clearShipData(this.ship);
+        }
+        return this.ship;
+    }
+
+    public boolean setShipData(LegacyShipEntity ship) {
+        LegacyShipEntity current = this.getShip();
+        if (current != null && current != ship) {
+            ship.setCraneState(1);
+            return false;
+        }
+        this.ship = ship;
+        ship.setCraneState(2);
+        return true;
+    }
+
+    public void clearShipData(LegacyShipEntity ship) {
+        if (this.ship == ship) {
+            this.ship = null;
+            ship.finishCraning();
+        }
     }
 
     public void cycleRedstoneMode() {
