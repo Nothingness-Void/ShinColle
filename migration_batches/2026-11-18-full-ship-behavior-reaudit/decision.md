@@ -14,6 +14,7 @@
    - `LegacyShipEntity` 启用 `noCulling = true` 并放大 `getBoundingBoxForCulling()`（对齐 1.12.2 `ignoreFrustumCheck = true`），防止大舰装边缘闪烁剔除。
    - `LegacyShipEntity.hurt()` 将真实射手实体（`damageSource.getEntity()`）传入 `canDodge`，修复投射物贴脸距离为 0 导致潜艇 `invisibleLevel` 远程闪避失效的问题。
 3. **基类生命周期、AI 与自然刷怪消散对齐**：
+   - 此项中采用现代士气阈值的决定[已撤销](../../MIGRATION-DECISIONS.md#d-012已撤销现代士气阈值和独立舰娘燃料)，其余结论不变。
    - 补齐 `BasicEntityShip` 的 32t 自动快修桶（含空母轻/重舰载机各 `+1`）、32t `SATURATION` 药水回血与 `+100*lv` 士气、128t `updateMorale()`（按现代 `1500/4000/8000/12000` 阈值：脱战 `< 5000` `+40`、`> 8000` `-10`；交战 `-11/-7/-5/-11`）及 256t 基础自动回血（`0.03 * maxHP + 1`）。
    - 新增 `LegacyShipFleeGoal`（`FleeHP` 撤退）与 `LegacyShipOpenDoorGoal`，为 `LegacyShipFollowOwnerGoal` 接入 `ShinColleConfig.canTeleport()`；新增 `despawnBoss`（`12000`）与 `despawnMinion`（`600`）配置并修正自然敌舰仅在 `> 128` 格立即消散、`32..128` 格按闲置计时消散。
    - 补齐 `EntityDestroyerAkatsukiMob`（`2053`）16t 探照灯光块放置与 `MarriageRingItem` 非激活态水下呼吸、手持 64t 害羞爱心及婚舰数量 Tooltip。

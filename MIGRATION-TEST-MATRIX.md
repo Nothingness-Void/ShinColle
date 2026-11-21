@@ -14,6 +14,11 @@
 | T3 | renderer、model、particle、screen、sound 或客户端资源变化 | dev client 启动、资源 reload、进世界烟测 |
 | T4 | V0 收口 | 单人世界完整人工流程并记录结果 |
 
+## 舰娘核心回归
+
+- `shipCoreRestoresLegacyNoFuelAndConfiguredSupplies`：零资源起点、资源不封顶、二级饥饿耗怨念五倍、断粮归零、配置补给及单件消耗。
+- 既有资源存档、炮击与航空消耗、128 刻士气和菜单用例按 1.12.2 行为断言。运行 JDK 17 的 `./gradlew compileJava` 与 `./gradlew runGameTestServer`；结果归档到 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md)。
+
 ## 按改动追加
 
 | 改动 | 必须覆盖 |

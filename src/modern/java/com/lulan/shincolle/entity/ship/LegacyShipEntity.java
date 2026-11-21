@@ -140,7 +140,6 @@ public class LegacyShipEntity extends PathfinderMob {
         SKILL_UNAVAILABLE("chat.shincolle.skill.reason.skill_unavailable"),
         COOLDOWN("chat.shincolle.skill.reason.cooldown"),
         OUT_OF_RANGE("chat.shincolle.skill.reason.out_of_range"),
-        NO_FUEL("chat.shincolle.skill.reason.no_fuel"),
         NO_GRUDGE("chat.shincolle.skill.reason.no_grudge"),
         NO_LIGHT_AMMO("chat.shincolle.skill.reason.no_light_ammo"),
         NO_HEAVY_AMMO("chat.shincolle.skill.reason.no_heavy_ammo"),
@@ -169,7 +168,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
     private static final String SHIP_EXPERIENCE_TAG = "ShipExperience";
     private static final String SHIP_MORALE_TAG = "ShipMorale";
-    private static final String SHIP_FUEL_TAG = "ShipFuel";
     private static final String SHIP_LIGHT_AMMO_TAG = "ShipLightAmmo";
     private static final String SHIP_HEAVY_AMMO_TAG = "ShipHeavyAmmo";
     private static final String SHIP_AIRCRAFT_LIGHT_TAG = "ShipAircraftLight";
@@ -294,16 +292,11 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String SHIP_USE_AIR_HEAVY_TAG = "ShipUseAirHeavy";
 
     private static final int DEFAULT_LEVEL = 1;
-    private static final int DEFAULT_MORALE = 1600;
+    private static final int DEFAULT_MORALE = 60;
     private static final int MAX_MORALE = 16000;
-    public static final int MAX_SHIP_FUEL = 16000;
-    public static final int MAX_LIGHT_AMMO = 5400;
-    public static final int MAX_HEAVY_AMMO = 2700;
-    public static final int MAX_GRUDGE = 16000;
-    private static final int DEFAULT_SHIP_FUEL = MAX_SHIP_FUEL;
-    private static final int DEFAULT_LIGHT_AMMO = MAX_LIGHT_AMMO;
-    private static final int DEFAULT_HEAVY_AMMO = MAX_HEAVY_AMMO;
-    private static final int DEFAULT_GRUDGE = MAX_GRUDGE;
+    private static final int DEFAULT_LIGHT_AMMO = 0;
+    private static final int DEFAULT_HEAVY_AMMO = 0;
+    private static final int DEFAULT_GRUDGE = 0;
     private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
     private static final boolean DEFAULT_AI_ON_SIGHT_CHASE = true;
     public static final boolean DEFAULT_AI_PVP_FIRST = true;
@@ -357,8 +350,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_FLEE_HP =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_FOOD_SATURATION =
-            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Integer> DATA_SHIP_FUEL =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_LIGHT_AMMO =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -505,6 +496,8 @@ public class LegacyShipEntity extends PathfinderMob {
     private boolean aircraftProfileInitialized;
     private boolean loadingSaveData;
     private int shipItemVoiceCooldown;
+    private int supplyEmoteDelay;
+    private boolean fuelGoalsSuspended;
     private int goddessImmuneTicks;
     private int hurtSoundCooldown;
     private int cachedEffectSignature;
@@ -611,7 +604,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_COMBAT_RATION_LEVEL, DEFAULT_COMBAT_RATION_LEVEL);
         this.entityData.define(DATA_FLEE_HP, DEFAULT_FLEE_HP);
         this.entityData.define(DATA_FOOD_SATURATION, 0);
-        this.entityData.define(DATA_SHIP_FUEL, DEFAULT_SHIP_FUEL);
         this.entityData.define(DATA_LIGHT_AMMO, DEFAULT_LIGHT_AMMO);
         this.entityData.define(DATA_HEAVY_AMMO, DEFAULT_HEAVY_AMMO);
         this.entityData.define(DATA_AIRCRAFT_LIGHT, 0);
@@ -828,7 +820,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 tag, SHIP_USE_AIR_LIGHT_TAG, LEGACY_USE_AIR_LIGHT_FLAG_TAG, DEFAULT_USE_AIR_LIGHT));
         this.setUseAttackAirHeavy(getBooleanWithLegacyFlagsFallback(
                 tag, SHIP_USE_AIR_HEAVY_TAG, LEGACY_USE_AIR_HEAVY_FLAG_TAG, DEFAULT_USE_AIR_HEAVY));
-        this.setShipFuel(getIntWithDefault(tag, SHIP_FUEL_TAG, DEFAULT_SHIP_FUEL));
         this.setLightAmmo(getIntWithLegacyMinorFallback(
                 tag, SHIP_LIGHT_AMMO_TAG, LEGACY_LIGHT_AMMO_TAG,
                 LEGACY_LIGHT_AMMO_MINOR_TAG, DEFAULT_LIGHT_AMMO));
@@ -981,7 +972,6 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putBoolean(SHIP_USE_HEAVY_TAG, this.useAttackHeavy());
         tag.putBoolean(SHIP_USE_AIR_LIGHT_TAG, this.useAttackAirLight());
         tag.putBoolean(SHIP_USE_AIR_HEAVY_TAG, this.useAttackAirHeavy());
-        tag.putInt(SHIP_FUEL_TAG, this.getShipFuel());
         tag.putInt(SHIP_LIGHT_AMMO_TAG, this.getLightAmmo());
         tag.putInt(SHIP_HEAVY_AMMO_TAG, this.getHeavyAmmo());
         tag.putInt(SHIP_AIRCRAFT_LIGHT_TAG, this.getAircraftLight());
@@ -1092,6 +1082,9 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (!this.level().isClientSide()) {
+            if (this.supplyEmoteDelay > 0) {
+                this.supplyEmoteDelay--;
+            }
             this.ensureShipUid();
             if ((this.tickCount % 20) == 0) {
                 this.cacheShipState(false);
@@ -1105,6 +1098,7 @@ public class LegacyShipEntity extends PathfinderMob {
             this.tickLegacyRingPassives();
             this.tickAutoSupportItems();
             this.tickLegacyMovementAndIdleConsumption();
+            this.updateFuelGoals();
             this.tickAutoPump();
             this.tickTimeKeeper();
             this.tickAircraftRecovery();
@@ -1293,7 +1287,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     @Override
     public void playAmbientSound() {
-        if (this.getShipFuel() <= 0 || this.random.nextInt(10) > 3) {
+        if (this.hasNoFuel() || this.random.nextInt(10) > 3) {
             return;
         }
         if (this.isMarried() && this.random.nextInt(5) == 0) {
@@ -2240,16 +2234,8 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setPersistenceRequired();
     }
 
-    public int getShipFuel() {
-        return this.entityData.get(DATA_SHIP_FUEL);
-    }
-
-    public void setShipFuel(int fuel) {
-        this.entityData.set(DATA_SHIP_FUEL, Mth.clamp(fuel, 0, MAX_SHIP_FUEL));
-    }
-
-    public void addShipFuel(int amount) {
-        this.setShipFuel(this.getShipFuel() + amount);
+    public boolean hasNoFuel() {
+        return !this.isAlive() || (!this.isHostileVariant() && this.getGrudge() <= 0);
     }
 
     public int getLightAmmo() {
@@ -2257,7 +2243,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setLightAmmo(int ammo) {
-        this.entityData.set(DATA_LIGHT_AMMO, Mth.clamp(ammo, 0, MAX_LIGHT_AMMO));
+        this.entityData.set(DATA_LIGHT_AMMO, Math.max(0, ammo));
     }
 
     public void addLightAmmo(int amount) {
@@ -2269,7 +2255,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setHeavyAmmo(int ammo) {
-        this.entityData.set(DATA_HEAVY_AMMO, Mth.clamp(ammo, 0, MAX_HEAVY_AMMO));
+        this.entityData.set(DATA_HEAVY_AMMO, Math.max(0, ammo));
     }
 
     public void addHeavyAmmo(int amount) {
@@ -2356,27 +2342,23 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setGrudge(int grudge) {
-        this.entityData.set(DATA_GRUDGE, Mth.clamp(grudge, 0, MAX_GRUDGE));
+        this.entityData.set(DATA_GRUDGE, Math.max(0, grudge));
     }
 
     public void addGrudge(int amount) {
         this.setGrudge(this.getGrudge() + amount);
     }
 
-    public String getShipFuelText() {
-        return this.getShipFuel() + " / " + MAX_SHIP_FUEL;
-    }
-
     public String getLightAmmoText() {
-        return this.getLightAmmo() + " / " + MAX_LIGHT_AMMO;
+        return Integer.toString(this.getLightAmmo());
     }
 
     public String getHeavyAmmoText() {
-        return this.getHeavyAmmo() + " / " + MAX_HEAVY_AMMO;
+        return Integer.toString(this.getHeavyAmmo());
     }
 
     public String getGrudgeText() {
-        return this.getGrudge() + " / " + MAX_GRUDGE;
+        return Integer.toString(this.getGrudge());
     }
 
     public boolean isMarried() {
@@ -3668,10 +3650,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return CompatAttackFailureReason.NONE;
         }
 
-        if (this.getShipFuel() <= 0) {
-            return CompatAttackFailureReason.NO_FUEL;
-        }
-        if (this.getGrudge() < this.getAttackGrudgeCost(attackKind)) {
+        if (this.hasNoFuel()) {
             return CompatAttackFailureReason.NO_GRUDGE;
         }
         if ((attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY)
@@ -3696,7 +3675,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return true;
         }
 
-        if (this.getShipFuel() <= 0 || this.getGrudge() < this.getAttackGrudgeCost(attackKind)) {
+        if (this.hasNoFuel()) {
             return false;
         }
         if ((attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY)
@@ -3727,8 +3706,7 @@ public class LegacyShipEntity extends PathfinderMob {
             case MELEE -> {
             }
         }
-        this.addGrudge(-this.getAttackGrudgeCost(attackKind));
-        this.addShipFuel(-1);
+        this.consumeLegacyGrudge(this.getAttackGrudgeCost(attackKind));
         this.addMorale(-LegacyShipBehaviorCatalog.moraleCostFor(attackKind));
         return true;
     }
@@ -3746,13 +3724,13 @@ public class LegacyShipEntity extends PathfinderMob {
             return true;
         }
         int ammoCost = this.getAttackAmmoCost(attackKind) * Math.max(1, ammoMultiplier);
-        if (this.getShipFuel() <= 0 || this.getGrudge() < grudgeCost
+        if (this.hasNoFuel()
                 || this.getAttackAmmo(attackKind) < ammoCost) {
             return false;
         }
 
         this.addAttackAmmo(attackKind, -ammoCost);
-        this.addGrudge(-grudgeCost);
+        this.consumeLegacyGrudge(grudgeCost);
         this.addMorale(-moraleCost);
         this.addShipExperience(experience);
         return true;
@@ -4704,7 +4682,9 @@ public class LegacyShipEntity extends PathfinderMob {
         if (this.guardEntityUuid != null) {
             Entity guarded = serverLevel.getEntity(this.guardEntityUuid);
             if (guarded instanceof LivingEntity living && living.isAlive()) {
-                this.getNavigation().moveTo(living, commandSpeed);
+                if (!this.hasNoFuel()) {
+                    this.getNavigation().moveTo(living, commandSpeed);
+                }
                 return;
             }
             this.clearCommandState();
@@ -4727,7 +4707,7 @@ public class LegacyShipEntity extends PathfinderMob {
                     this.routeNodePos.getX() + 0.5D,
                     this.routeNodePos.getY() + 0.1D,
                     this.routeNodePos.getZ() + 0.5D);
-            if (distSq > (isCrane ? 4.0D : 2.0D)) {
+            if (!this.hasNoFuel() && distSq > (isCrane ? 4.0D : 2.0D)) {
                 this.getNavigation().moveTo(
                         this.routeNodePos.getX() + 0.5D,
                         this.routeNodePos.getY() + 0.1D,
@@ -4793,7 +4773,9 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        this.getNavigation().moveTo(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D, commandSpeed);
+        if (!this.hasNoFuel()) {
+            this.getNavigation().moveTo(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D, commandSpeed);
+        }
         if (this.distanceToSqr(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D) <= 2.0D) {
             this.commandedPos = null;
             this.commandDimension = "";
@@ -5848,7 +5830,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void tickAutoPump() {
-        if (!this.isAutoPump() || !this.isAlive() || this.isOrderedToSit() || this.getShipFuel() <= 0) {
+        if (!this.isAutoPump() || !this.isAlive() || this.isOrderedToSit() || this.hasNoFuel()) {
             return;
         }
 
@@ -6124,8 +6106,8 @@ public class LegacyShipEntity extends PathfinderMob {
         int movementGrudge = movement * LegacyShipBehaviorCatalog.legacyMovementGrudgeCost();
         this.addShipExperience(LegacyShipBehaviorCatalog.legacyMovementExperienceFor(
                 this.getSpec(), movementGrudge, this.tickCount));
-        this.consumeLegacyIdleGrudge(movementGrudge + idleCost);
-        if (this.getShipFuel() > 0) {
+        this.consumeLegacyGrudge(movementGrudge + idleCost);
+        if (!this.hasNoFuel()) {
             this.updateLegacyMorale();
         }
 
@@ -6167,36 +6149,120 @@ public class LegacyShipEntity extends PathfinderMob {
 
         Item normalItem = heavy ? ModItems.AMMO2.get() : ModItems.AMMO.get();
         Item containerItem = heavy ? ModItems.AMMO3.get() : ModItems.AMMO1.get();
-        int ammoGain = heavy ? 15 : 30;
+        int ammoGain = heavy ? ShinColleConfig.itemHeavyAmmo() : ShinColleConfig.itemLightAmmo();
         if (this.consumeLegacySupplyItem(normalItem)) {
-            // Keep the old Attrs.AMMO multiplier and integer truncation.
-            int scaledGain = (int) (ammoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO));
-            if (heavy) {
-                this.addHeavyAmmo(scaledGain);
-            } else {
-                this.addLightAmmo(scaledGain);
-            }
+            this.reactEatItem();
         } else if (this.consumeLegacySupplyItem(containerItem)) {
-            int scaledGain = (int) (ammoGain * 9F * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO));
-            if (heavy) {
-                this.addHeavyAmmo(scaledGain);
+            this.reactEatItem();
+            ammoGain *= 9;
+        } else {
+            ammoGain = 0;
+        }
+        int scaledGain = (int) (ammoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO));
+        if (heavy) {
+            this.addHeavyAmmo(scaledGain);
+        } else {
+            this.addLightAmmo(scaledGain);
+        }
+        if ((heavy ? this.getHeavyAmmo() : this.getLightAmmo()) < minimumAmmo) {
+            this.reactItemNotFound();
+        }
+    }
+
+    private void consumeLegacyGrudge(int value) {
+        MobEffectInstance hunger = this.getEffect(MobEffects.HUNGER);
+        if (hunger != null && value > 0) {
+            value *= 1 + 2 * (hunger.getAmplifier() + 1);
+        }
+        if (!this.hasNoFuel()) {
+            this.addGrudge(-value);
+        }
+        if (this.getGrudge() <= 0) {
+            int supply = ShinColleConfig.itemGrudge();
+            if (this.consumeLegacySupplyItem(ModItems.GRUDGE.get())) {
+                this.reactEatItem();
+            } else if (this.consumeLegacySupplyItem(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
+                this.reactEatItem();
+                supply *= 9;
             } else {
-                this.addLightAmmo(scaledGain);
+                supply = 0;
+            }
+            this.addGrudge((int) (supply * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
+        }
+        if (this.hasNoFuel() && !this.fuelGoalsSuspended) {
+            this.setMorale(0);
+        }
+    }
+
+    private void updateFuelGoals() {
+        if (this.isHostileVariant() || !this.isAlive() || this.tickCount <= 10) {
+            return;
+        }
+
+        if (this.tickCount == 11 && this.hasNoFuel()) {
+            this.consumeLegacyGrudge(0);
+        }
+        boolean noFuel = this.hasNoFuel();
+        if (this.fuelGoalsSuspended == noFuel) {
+            return;
+        }
+
+        this.fuelGoalsSuspended = noFuel;
+        this.setTarget(null);
+        this.getNavigation().stop();
+        if (noFuel) {
+            this.setMorale(0);
+            this.goalSelector.getRunningGoals().forEach(goal -> goal.stop());
+            this.targetSelector.getRunningGoals().forEach(goal -> goal.stop());
+            this.goalSelector.removeAllGoals(goal -> true);
+            this.targetSelector.removeAllGoals(goal -> true);
+            if (this.supplyEmoteDelay <= 0) {
+                this.supplyEmoteDelay = 20;
+                CombatFxDispatcher.sendLegacyEmotion(this, switch (this.random.nextInt(7)) {
+                    case 1 -> 0;
+                    case 2 -> 32;
+                    case 3 -> 2;
+                    case 4 -> 12;
+                    case 5 -> 5;
+                    case 6 -> 20;
+                    default -> 10;
+                });
+            }
+        } else {
+            this.registerGoals();
+            if (this.supplyEmoteDelay <= 0) {
+                this.supplyEmoteDelay = 40;
+                CombatFxDispatcher.sendLegacyEmotion(this, switch (this.random.nextInt(5)) {
+                    case 1 -> 31;
+                    case 2 -> 32;
+                    case 3 -> 7;
+                    default -> 1;
+                });
             }
         }
     }
 
-    /** Mirrors ShipStateHandler.decrGrudge's one-item emergency recovery. */
-    private void consumeLegacyIdleGrudge(int value) {
-        this.addGrudge(-Math.max(0, value));
-        if (this.getGrudge() > 0) {
-            return;
+    private void reactEatItem() {
+        if (this.supplyEmoteDelay <= 0) {
+            this.supplyEmoteDelay = 40;
+            CombatFxDispatcher.sendLegacyEmotion(this, switch (this.random.nextInt(4)) {
+                case 1 -> 29;
+                case 2 -> 30;
+                default -> 9;
+            });
         }
+    }
 
-        if (this.consumeLegacySupplyItem(ModItems.GRUDGE.get())) {
-            this.addGrudge((int) (300F * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
-        } else if (this.consumeLegacySupplyItem(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
-            this.addGrudge((int) (2700F * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
+    private void reactItemNotFound() {
+        if (this.supplyEmoteDelay <= 0) {
+            this.supplyEmoteDelay = 20;
+            CombatFxDispatcher.sendLegacyEmotion(this, switch (this.random.nextInt(7)) {
+                case 1 -> 0;
+                case 2 -> 2;
+                case 3 -> 5;
+                case 4 -> 20;
+                default -> 32;
+            });
         }
     }
 
@@ -6301,7 +6367,8 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean canExecuteActiveGoal() {
-        return !stopAi && !this.isOrderedToSit() && (this.isHostileVariant() || this.getOwnerUuid().isPresent());
+        return !stopAi && !this.isOrderedToSit() && !this.hasNoFuel()
+                && (this.isHostileVariant() || this.getOwnerUuid().isPresent());
     }
 
     private boolean canExecuteTargetGoal() {
@@ -6462,23 +6529,6 @@ public class LegacyShipEntity extends PathfinderMob {
 
         double scaled = baseValue * this.getSupportEffectMultiplier();
         return Math.max(1, Mth.floor((float) scaled));
-    }
-
-    private int rollCombatRationFuel(CombatRationItem ration) {
-        int min = Math.max(0, ration.getFuelMin());
-        int max = Math.max(min, ration.getFuelMax());
-        if (max == min) {
-            return min;
-        }
-
-        return min + this.random.nextInt(max - min + 1);
-    }
-
-    private boolean needsRuntimeSupply() {
-        return this.getShipFuel() < MAX_SHIP_FUEL / 4
-                || this.getLightAmmo() < MAX_LIGHT_AMMO / 4
-                || this.getHeavyAmmo() < MAX_HEAVY_AMMO / 4
-                || this.getGrudge() < MAX_GRUDGE / 4;
     }
 
     private void resetOwnershipBoundState() {
@@ -7001,10 +7051,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         tag.put(SHIP_INVENTORY_TAG, inventoryEntries);
-    }
-
-    private static int getIntWithDefault(CompoundTag tag, String key, int defaultValue) {
-        return tag.contains(key, Tag.TAG_INT) ? tag.getInt(key) : defaultValue;
     }
 
     private static int getIntWithLegacyMinorFallback(CompoundTag tag, String key, String fallbackKey,

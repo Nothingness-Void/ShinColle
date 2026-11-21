@@ -91,7 +91,7 @@ public class LegacyShipPickItemGoal extends Goal {
                 && this.ship.isAiPickItem()
                 && !this.ship.isOrderedToSit()
                 && !this.ship.isPassenger()
-                && this.ship.getShipFuel() > 0
+                && !this.ship.hasNoFuel()
                 && !this.ship.hasActiveCommandState()
                 && this.ship.getTarget() == null
                 && this.hasAnyCargoSpace();

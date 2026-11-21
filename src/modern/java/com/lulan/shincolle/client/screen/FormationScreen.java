@@ -257,10 +257,9 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
         guiGraphics.drawString(this.font,
                 Component.translatable("gui.shincolle.ship_inventory.supply"),
                 SUMMARY_X + 3, SUMMARY_Y + 90, 0xFFC4DCA6, false);
-        guiGraphics.drawString(this.font, "F " + snapshot.fuelText(), SUMMARY_X + 9, SUMMARY_Y + 102, 0xFFEAD7A6, false);
-        guiGraphics.drawString(this.font, "L " + snapshot.lightAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 114, 0xFFEAD7A6, false);
-        guiGraphics.drawString(this.font, "H " + snapshot.heavyAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 126, 0xFFEAD7A6, false);
-        guiGraphics.drawString(this.font, "G " + snapshot.grudgeText(), SUMMARY_X + 9, SUMMARY_Y + 138, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "L " + snapshot.lightAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 102, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "H " + snapshot.heavyAmmoText(), SUMMARY_X + 9, SUMMARY_Y + 114, 0xFFEAD7A6, false);
+        guiGraphics.drawString(this.font, "G " + snapshot.grudgeText(), SUMMARY_X + 9, SUMMARY_Y + 126, 0xFFEAD7A6, false);
     }
 
     private void sendCommand(GameplayCommandType type, java.util.function.Consumer<CompoundTag> payloadBuilder) {

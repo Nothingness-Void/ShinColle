@@ -389,7 +389,6 @@
   "chat.shincolle.skill.reason.skill_unavailable": "skill is unavailable",
   "chat.shincolle.skill.reason.cooldown": "skill is cooling down",
   "chat.shincolle.skill.reason.out_of_range": "target is out of range",
-  "chat.shincolle.skill.reason.no_fuel": "ship fuel is empty",
   "chat.shincolle.skill.reason.no_grudge": "not enough grudge",
   "chat.shincolle.skill.reason.no_light_ammo": "not enough light ammo",
   "chat.shincolle.skill.reason.no_heavy_ammo": "not enough heavy ammo",

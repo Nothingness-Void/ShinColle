@@ -136,7 +136,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                 this.menu.getMarriageLabel().getString() + " " + onOff(this.menu.isRingEffectEnabled()), MARRIAGE_ROW_Y);
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.modern"),
                 this.menu.getModernizationCount() + "  R" + this.menu.getRescueCount() + "  K" + this.menu.getShipKills(), 195);
-        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.supply"), this.menu.getSupplyTierText(), 204);
+        this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.supply"), this.menu.getSupplyText(), 204);
     }
 
     @Override
@@ -252,7 +252,6 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                     this.menu.getRoleLabel(),
                     Component.literal(this.menu.getMoraleLabel().getString() + "  " + this.menu.getMoraleText()),
                     Component.translatable("gui.shincolle.exp").append(Component.literal(" " + this.menu.getExperienceText())),
-                    Component.literal("Fuel " + this.menu.getFuelText()),
                     Component.literal("Ammo L " + this.menu.getLightAmmoText() + "  H " + this.menu.getHeavyAmmoText()),
                     Component.literal("Grudge " + this.menu.getGrudgeText()),
                     Component.literal("Food " + this.menu.getFoodSaturationText())), mouseX, mouseY);

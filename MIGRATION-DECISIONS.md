@@ -48,3 +48,9 @@
 - `ConfigHandler.polyAsMn` 的默认 `false` 静态包契约不变（不改动 `data/forge/tags/items/` 静态 JSON），运行时由 `PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 承担动态切换；`SystemConfig` 随 `TeitokuHelper` 状态包向客户端同步。
 - 1.12.2 外置依赖按 1.20.1 原生能力与零编译期强依赖原则收口：Metamorph 使用原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge`；IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代；Curios 仅通过 `ModList` + 反射触发结婚戒指佩戴槽周期效果。
 - 40 个仅存在于 `ID.java` 的历史名称（含 `Raiden` 作为合体形态而非独立注册实体）继续按 D-009 保持 `HISTORICAL_SOURCE_GAP` 记录，不虚构实现。详细证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)。
+
+## D-012：已撤销现代士气阈值和独立舰娘燃料
+
+- **已撤销**：[2026-11-18 再审决定](migration_batches/2026-11-18-full-ship-behavior-reaudit/decision.md)第 3 项中的现代士气阈值。
+- **已撤销**：`91a3796` 引入的独立舰娘燃料、依其判定断粮以及用现代上限判定补给档位的做法。不影响造船厂等其他模块的燃料。
+- 旧版依据与落实见 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/decision.md)。

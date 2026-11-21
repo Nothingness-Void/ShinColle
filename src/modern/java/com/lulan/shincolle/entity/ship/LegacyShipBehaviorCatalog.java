@@ -335,7 +335,7 @@ public final class LegacyShipBehaviorCatalog {
         return ship != null
                 && hasLegacyShipMounts(ship.getSpec())
                 && (ship.getModelState() & 1) != 0
-                && ship.getShipFuel() > 0;
+                && !ship.hasNoFuel();
     }
 
     /**
@@ -1958,7 +1958,7 @@ public final class LegacyShipBehaviorCatalog {
     /** Central task entry point, preserving TaskHelper's four task ids and eight-tick cadence. */
     public static void tickLegacyTask(LegacyShipEntity ship) {
         if (ship == null || ship.level().isClientSide() || ship.isHostileVariant()
-                || !ship.isAlive() || ship.getShipFuel() <= 0) {
+                || !ship.isAlive() || ship.hasNoFuel()) {
             return;
         }
 
@@ -2740,16 +2740,16 @@ public final class LegacyShipBehaviorCatalog {
 
     /** Mirrors EntityHelper.getMoraleLevel's legacy IDs and strict boundaries. */
     public static int legacyMoraleIdFor(int morale) {
-        if (morale > 5100) {
+        if (morale > LegacyShipStatTables.MORALE_EXCITED_LOWER) {
             return 0;
         }
-        if (morale > 3900) {
+        if (morale > LegacyShipStatTables.MORALE_HAPPY_LOWER) {
             return 1;
         }
-        if (morale > 2100) {
+        if (morale > LegacyShipStatTables.MORALE_NORMAL_LOWER) {
             return 2;
         }
-        if (morale > 900) {
+        if (morale > LegacyShipStatTables.MORALE_TIRED_LOWER) {
             return 3;
         }
         return 4;
@@ -2794,8 +2794,8 @@ public final class LegacyShipBehaviorCatalog {
             case MELEE -> 2;
             case LIGHT -> 4;
             case HEAVY -> 6;
-            case AIR_LIGHT -> 3;
-            case AIR_HEAVY -> 4;
+            case AIR_LIGHT -> 6;
+            case AIR_HEAVY -> 8;
         };
     }
 
@@ -2893,7 +2893,7 @@ public final class LegacyShipBehaviorCatalog {
      */
     public static void tickLegacyRiderBehavior(LegacyShipEntity ship) {
         if (ship == null || ship.level().isClientSide() || !ship.isAlive()
-                || (ship.tickCount & 31) != 0) {
+                || ((ship.tickCount & 31) != 0 && !ship.hasNoFuel())) {
             return;
         }
 
@@ -2987,7 +2987,7 @@ public final class LegacyShipBehaviorCatalog {
                 continue;
             }
             if (point.requiresActiveFriendlyState()
-                    && (ship.isOrderedToSit() || ship.getShipFuel() <= 0)) {
+                    && (ship.isOrderedToSit() || ship.hasNoFuel())) {
                 continue;
             }
 
@@ -3272,7 +3272,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickCarrierWoClientBehavior(LegacyShipEntity ship) {
-        if (shouldSpawnCarrierWoEyeEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+        if (shouldSpawnCarrierWoEyeEffect(ship.getModelState(), ship.hasNoFuel(),
                 ship.isOrderedToSit(), ship.getEmotion())) {
             float yaw = ship.getYHeadRot() * ((float) Math.PI / 180.0F);
             float pitch = ship.getXRot() * ((float) Math.PI / 180.0F);
@@ -3313,7 +3313,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickSubmarineYoClientBehavior(LegacyShipEntity ship) {
-        if (!shouldSpawnSubmarineYoEyeEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+        if (!shouldSpawnSubmarineYoEyeEffect(ship.getModelState(), ship.hasNoFuel(),
                 ship.isOrderedToSit(), ship.getEmotion())) {
             return;
         }
@@ -3327,7 +3327,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void tickCarrierAkagiClientBehavior(LegacyShipEntity ship) {
         if (!ship.isHostileVariant()
                 && shouldSpawnCarrierAkagiEmotion(ship.tickCount, ship.getRandom().nextInt(4),
-                        ship.getShipFuel() <= 0)) {
+                        ship.hasNoFuel())) {
             spawnLegacyEntityEmotion(ship, 9);
         }
     }
@@ -3613,7 +3613,7 @@ public final class LegacyShipBehaviorCatalog {
                 : healthRatio > 0.25F ? LEGACY_HP_MODERATE : LEGACY_HP_HEAVY;
         ship.setHpState(hpState);
 
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (ship.getEmotion() != LEGACY_EMOTION_HUNGRY) {
                 ship.setEmotion(LEGACY_EMOTION_HUNGRY);
             }
@@ -3797,7 +3797,7 @@ public final class LegacyShipBehaviorCatalog {
         int normalizedClassId = normalizeLegacyClassId(ship.getShipClassId());
 
         if (normalizedClassId == 31) {
-            if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+            if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.hasNoFuel(),
                     ship.tickCount)) {
                 CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_EMOTION,
                         ship.getX(),
@@ -3942,7 +3942,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static void startNorthernHimeRidingSearch(LegacyShipEntity ship) {
         ship.resetLegacyHimeRiding();
-        if (ship.isOrderedToSit() || ship.isLeashed() || ship.getShipFuel() <= 0) {
+        if (ship.isOrderedToSit() || ship.isLeashed() || ship.hasNoFuel()) {
             return;
         }
 
@@ -4104,7 +4104,7 @@ public final class LegacyShipBehaviorCatalog {
                     15, 135, LegacyShipStatTables.Attr.AMMO, true);
         }
 
-        if ((ship.tickCount & 255) != 0 || ship.getShipFuel() <= 0) {
+        if ((ship.tickCount & 255) != 0 || ship.hasNoFuel()) {
             return;
         }
 
@@ -4200,7 +4200,7 @@ public final class LegacyShipBehaviorCatalog {
                 || ship.getRandom().nextInt(5) != 0
                 || ship.isOrderedToSit()
                 || ship.isPassenger()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || ship.isLeashed()) {
             return;
         }
@@ -4233,7 +4233,7 @@ public final class LegacyShipBehaviorCatalog {
 
         if (ship.isOrderedToSit()
                 || ship.isPassenger()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || !ship.isLegacyOutOfCombat()
                 || ship.hasActiveCommandState()
                 || ship.getRandom().nextFloat() <= 0.5F) {
@@ -4693,7 +4693,7 @@ public final class LegacyShipBehaviorCatalog {
 
         // EntityDestroyerAkatsuki.updateFuelState dismounts every rider as soon
         // as the legacy no-fuel flag is raised.
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             dismountSixDestroyerRiders(ship);
             return;
         }
@@ -4730,7 +4730,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity host = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (host != null) {
                 dismountSixDestroyerRiders(host);
             }
@@ -4749,7 +4749,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity sixDestroyerHost = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (sixDestroyerHost != null) {
                 dismountSixDestroyerRiders(sixDestroyerHost);
             }
@@ -4796,7 +4796,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity sixDestroyerHost = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (sixDestroyerHost != null) {
                 dismountSixDestroyerRiders(sixDestroyerHost);
             }
@@ -4906,7 +4906,7 @@ public final class LegacyShipBehaviorCatalog {
         if (host.isHostileVariant()
                 || host.isPassenger()
                 || host.isOrderedToSit()
-                || host.getShipFuel() <= 0
+                || host.hasNoFuel()
                 || host.getLegacyRiderType() == 7
                 || host.getHealth() <= host.getMaxHealth() * 0.5F
                 || host.getLegacyFormationId() != 1) {
@@ -4956,7 +4956,7 @@ public final class LegacyShipBehaviorCatalog {
                 && candidate.isAlive()
                 && !candidate.isPassenger()
                 && !candidate.isOrderedToSit()
-                && candidate.getShipFuel() > 0
+                && !candidate.hasNoFuel()
                 && candidate.getLegacyRiderType() == 0
                 && !candidate.isLegacyRaiden()
                 && candidate.getLegacyFormationId() == 1;
@@ -4966,7 +4966,7 @@ public final class LegacyShipBehaviorCatalog {
         if (ship.isHostileVariant()
                 || ship.isPassenger()
                 || ship.isOrderedToSit()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || ship.getLegacyRiderType() > 0
                 || ship.isLegacyRaiden()
                 || ship.getHealth() <= ship.getMaxHealth() * 0.5F) {
@@ -4983,7 +4983,7 @@ public final class LegacyShipBehaviorCatalog {
                         && candidate.isAlive()
                         && !candidate.isPassenger()
                         && !candidate.isOrderedToSit()
-                        && candidate.getShipFuel() > 0
+                        && !candidate.hasNoFuel()
                         && candidate.getLegacyRiderType() == 0
                         && !candidate.isLegacyRaiden());
         if (nearby.isEmpty()) {

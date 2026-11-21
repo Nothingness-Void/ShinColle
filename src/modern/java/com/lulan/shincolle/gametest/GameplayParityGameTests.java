@@ -1249,6 +1249,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        ship.setGrudge(100);
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
         ship.setPos(waypointPos.getX() + 0.5D, waypointPos.getY() + 0.1D, waypointPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(waypointPos, "");
@@ -1501,7 +1504,6 @@ public final class GameplayParityGameTests {
         TeitokuHelper.applyClientState(player, formationPayload);
         ship.setShipLevel(77);
         ship.setMorale(4321);
-        ship.setShipFuel(1234);
         ship.setLightAmmo(987);
         ship.setHeavyAmmo(654);
         ship.setGrudge(321);
@@ -1517,10 +1519,9 @@ public final class GameplayParityGameTests {
                 || snapshot.shipUid() != ship.getShipUid()
                 || snapshot.shipLevel() != 77
                 || !"4321 / 16000".equals(snapshot.moraleText())
-                || !"1234 / 16000".equals(snapshot.fuelText())
-                || !"987 / 5400".equals(snapshot.lightAmmoText())
-                || !"654 / 2700".equals(snapshot.heavyAmmoText())
-                || !"321 / 16000".equals(snapshot.grudgeText())
+                || !"987".equals(snapshot.lightAmmoText())
+                || !"654".equals(snapshot.heavyAmmoText())
+                || !"321".equals(snapshot.grudgeText())
                 || snapshot.online()
                 || snapshot.dead()
                 || !snapshot.marriageLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.marriage.yes").getString())
@@ -2910,6 +2911,7 @@ public final class GameplayParityGameTests {
             }
 
             ship.setVariantEggMeta(specialEggs[index]);
+            supplyShipForTest(ship);
             ship.setOwner(UUID.randomUUID(), "SpecialHook" + specialEggs[index]);
             ship.setShipLevel(80);
             BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -2947,6 +2949,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(39);
+        supplyShipForTest(ship);
         ship.setOwner(UUID.randomUUID(), "SpecialHookMiss");
         ship.setShipLevel(1);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -3063,16 +3066,7 @@ public final class GameplayParityGameTests {
         }
         target.setPos(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D);
 
-        ship.setShipFuel(0);
-        ship.setGrudge(100);
         ship.setLightAmmo(100);
-        if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
-                != LegacyShipEntity.CompatAttackFailureReason.NO_FUEL) {
-            helper.fail("empty fuel should report fuel feedback");
-            return;
-        }
-
-        ship.setShipFuel(100);
         ship.setGrudge(0);
         if (ship.getCompatAttackFailureReason(target, LegacyShipAttackKind.LIGHT)
                 != LegacyShipEntity.CompatAttackFailureReason.NO_GRUDGE) {
@@ -3208,6 +3202,7 @@ public final class GameplayParityGameTests {
         }
 
         owner.setVariantEggMeta(50);
+        supplyShipForTest(owner);
         target.setVariantEggMeta(2049);
         owner.setPos(1.0D, 2.0D, 1.0D);
         target.setPos(8.0D, 2.0D, 1.0D);
@@ -3261,30 +3256,26 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
 
-        ship.setShipFuel(0);
         ship.setLightAmmo(0);
         ship.setHeavyAmmo(0);
         ship.setGrudge(0);
         if (ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)
                 || ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) > 0) {
-            helper.fail("friendly ranged combat should be gated by ship fuel, ammo, and grudge");
+            helper.fail("friendly ranged combat should be gated by ship ammo and grudge");
             return;
         }
 
-        ship.setShipFuel(10);
         ship.setLightAmmo(10);
         ship.setGrudge(20);
-        int fuelBefore = ship.getShipFuel();
         int lightAmmoBefore = ship.getLightAmmo();
         int grudgeBefore = ship.getGrudge();
         if (!ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)) {
             helper.fail("friendly ranged combat should resume after runtime supplies are restored");
             return;
         }
-        if (ship.getShipFuel() != fuelBefore - 1
-                || ship.getLightAmmo() >= lightAmmoBefore
+        if (ship.getLightAmmo() >= lightAmmoBefore
                 || ship.getGrudge() >= grudgeBefore) {
-            helper.fail("friendly ranged combat should consume fuel, ammo, and grudge once per attack");
+            helper.fail("friendly ranged combat should consume ammo and grudge once per attack");
             return;
         }
 
@@ -3296,11 +3287,10 @@ public final class GameplayParityGameTests {
             return;
         }
         loaded.readAdditionalSaveData(saved);
-        if (loaded.getShipFuel() != ship.getShipFuel()
-                || loaded.getLightAmmo() != ship.getLightAmmo()
+        if (loaded.getLightAmmo() != ship.getLightAmmo()
                 || loaded.getHeavyAmmo() != ship.getHeavyAmmo()
                 || loaded.getGrudge() != ship.getGrudge()) {
-            helper.fail("ship fuel, ammo, and grudge should persist through entity NBT");
+            helper.fail("ship ammo and grudge should persist through entity NBT");
             return;
         }
 
@@ -3320,7 +3310,6 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        ship.setShipFuel(0);
         ship.setLightAmmo(0);
         ship.setHeavyAmmo(0);
         ship.setGrudge(0);
@@ -3329,12 +3318,11 @@ public final class GameplayParityGameTests {
 
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.COMBATRATION.get()));
         if (ship.mobInteract(player, InteractionHand.MAIN_HAND) != InteractionResult.CONSUME
-                || ship.getShipFuel() != 0
                 || ship.getLightAmmo() != 0
                 || ship.getHeavyAmmo() != 0
                 || ship.getMorale() <= moraleBefore
                 || ship.getGrudge() <= 0) {
-            helper.fail("combat rations should restore morale and grudge without refueling or rearming ships");
+            helper.fail("combat rations should restore morale and grudge without rearming ships");
             return;
         }
         int grudgeAfterRation = ship.getGrudge();
@@ -4197,6 +4185,7 @@ public final class GameplayParityGameTests {
 
         BlockPos shipPos = helper.absolutePos(new BlockPos(2, 2, 2));
         ship.setVariantEggMeta(53);
+        ship.setGrudge(100);
         ship.setOwner(UUID.randomUUID(), "PickupTester");
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
@@ -4374,6 +4363,7 @@ public final class GameplayParityGameTests {
         BlockPos shipPos = helper.absolutePos(new BlockPos(1 + index, 2, 1));
         ship.setVariantEggMeta(53);
         ship.setOwner(UUID.randomUUID(), "PickupBoundary");
+        ship.setGrudge(100);
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
 
@@ -4443,10 +4433,17 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(eggMeta);
+        supplyShipForTest(ship);
         ship.setPos(x, y, z);
         helper.getLevel().addFreshEntity(ship);
         ship.setOwner(player);
         return ship;
+    }
+
+    private static void supplyShipForTest(LegacyShipEntity ship) {
+        ship.setGrudge(1000);
+        ship.setLightAmmo(1000);
+        ship.setHeavyAmmo(1000);
     }
 
     private static boolean jsonContainsString(JsonElement element, String expected) {
@@ -5176,6 +5173,7 @@ public final class GameplayParityGameTests {
         target.setNoAi(true);
         target.setPos(4.0D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(target);
+        ship.setAiOnSightChase(false);
         ship.setAiAutoTarget(false);
         ship.tickCount = 8;
 
@@ -5306,7 +5304,6 @@ public final class GameplayParityGameTests {
         ship.setUseAttackHeavy(false);
         ship.setUseAttackAirLight(false);
         ship.setUseAttackAirHeavy(false);
-        ship.setShipFuel(100);
         ship.setLightAmmo(40);
         ship.setGrudge(100);
 
@@ -5371,7 +5368,6 @@ public final class GameplayParityGameTests {
         carrier.setUseAttackHeavy(false);
         carrier.setUseAttackAirLight(false);
         carrier.setUseAttackAirHeavy(true);
-        carrier.setShipFuel(100);
         carrier.setLightAmmo(100);
         carrier.setHeavyAmmo(100);
         carrier.setGrudge(100);
@@ -5797,6 +5793,10 @@ public final class GameplayParityGameTests {
         helper.getLevel().setDayTime(18000L);
         ri.setVariantEggMeta(11);
         ne.setVariantEggMeta(12);
+        ri.setMorale(3000);
+        ne.setMorale(3000);
+        ri.setGrudge(100);
+        ne.setGrudge(100);
         ri.setShipLevel(90);
         ne.setShipLevel(90);
         ri.setRingEffectEnabled(true);
@@ -5814,19 +5814,19 @@ public final class GameplayParityGameTests {
         }
 
         LegacyShipStats riDay = LegacyShipStats.create(
-                9, ShipArchetype.CRUISER, false, 90, 5000,
+                9, ShipArchetype.CRUISER, false, 90, 3000,
                 0, 0, 0, 0, 0, 0, false,
                 0, ShipEquipmentProfile.EMPTY, List.of(), false);
         LegacyShipStats riNight = LegacyShipStats.create(
-                9, ShipArchetype.CRUISER, false, 90, 5000,
+                9, ShipArchetype.CRUISER, false, 90, 3000,
                 0, 0, 0, 0, 0, 0, false,
                 0, ShipEquipmentProfile.EMPTY, List.of(), true);
         LegacyShipStats neDay = LegacyShipStats.create(
-                10, ShipArchetype.CRUISER, false, 90, 5000,
+                10, ShipArchetype.CRUISER, false, 90, 3000,
                 0, 0, 0, 0, 0, 0, false,
                 0, ShipEquipmentProfile.EMPTY, List.of(), false);
         LegacyShipStats neNight = LegacyShipStats.create(
-                10, ShipArchetype.CRUISER, false, 90, 5000,
+                10, ShipArchetype.CRUISER, false, 90, 3000,
                 0, 0, 0, 0, 0, 0, false,
                 0, ShipEquipmentProfile.EMPTY, List.of(), true);
         if (Math.abs(riNight.critical() - riDay.critical() - 0.15F) > 0.0001F
@@ -5980,7 +5980,6 @@ public final class GameplayParityGameTests {
             }
 
             ship.setNoAi(true);
-            ship.setShipFuel(100);
             ship.setLightAmmo(100);
             ship.setHeavyAmmo(100);
             ship.setGrudge(100);
@@ -6003,7 +6002,6 @@ public final class GameplayParityGameTests {
             int expectedAmmoCost = LegacyShipBehaviorCatalog.attackAmmoCostFor(
                     ship.getSpec(), LegacyShipAttackKind.LIGHT);
             if (ship.getLightAmmo() != ammoBefore - expectedAmmoCost
-                    || ship.getShipFuel() != 99
                     || ship.getGrudge() != 96
                     || ship.getMorale() != 4996
                     || ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT)
@@ -6021,7 +6019,6 @@ public final class GameplayParityGameTests {
             }
             loaded.readAdditionalSaveData(saved);
             if (loaded.getShipClassId() != classIds[index]
-                    || loaded.getShipFuel() != 99
                     || loaded.getLightAmmo() != ammoBefore - expectedAmmoCost
                     || loaded.getGrudge() != 96
                     || loaded.getMorale() != 4996) {
@@ -6049,11 +6046,10 @@ public final class GameplayParityGameTests {
         destroyer.setNoGravity(true);
         destroyer.setInvulnerable(true);
         destroyer.setAiAutoSupply(false);
-        destroyer.setShipFuel(0);
         destroyer.setLightAmmo(0);
         destroyer.setHeavyAmmo(0);
         destroyer.setGrudge(1000);
-        destroyer.setMorale(5000);
+        destroyer.setMorale(3900);
         destroyer.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT,
                 new ItemStack(ModItems.AMMO.get()));
         destroyer.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1,
@@ -6073,7 +6069,7 @@ public final class GameplayParityGameTests {
         destroyer.setPos(destroyer.getX() + 4.0D, destroyer.getY(), destroyer.getZ());
         destroyer.tickCount = 256;
         destroyer.tick();
-        if (destroyer.getGrudge() != 978 || (destroyer.getMorale() != 4985 && destroyer.getMorale() != 4990)) {
+        if (destroyer.getGrudge() != 978 || destroyer.getMorale() != 3875) {
             helper.fail("destroyer should pay legacy movement grudge and cumulative clamped morale cost: grudge="
                     + destroyer.getGrudge() + ", morale=" + destroyer.getMorale());
             return;
@@ -6088,7 +6084,7 @@ public final class GameplayParityGameTests {
         ri.setLightAmmo(0);
         ri.setHeavyAmmo(0);
         ri.setGrudge(1000);
-        ri.setMorale(5000);
+        ri.setMorale(3900);
         ri.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT,
                 new ItemStack(ModItems.AMMO.get()));
         ri.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1,
@@ -6148,6 +6144,77 @@ public final class GameplayParityGameTests {
         destroyer.discard();
         normalGrudge.discard();
         blockGrudge.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipCoreRestoresLegacyNoFuelAndConfiguredSupplies(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("无法创建舰娘");
+            return;
+        }
+        ship.setVariantEggMeta(2);
+        ship.setNoAi(true);
+        if (ship.getGrudge() != 0 || ship.getLightAmmo() != 0 || ship.getHeavyAmmo() != 0
+                || ship.getMorale() != 60) {
+            helper.fail("新舰娘必须从零怨念、零弹药和 60 士气开始");
+            return;
+        }
+        ship.setGrudge(40_000);
+        ship.setLightAmmo(10_000);
+        ship.setHeavyAmmo(10_000);
+        if (ship.getGrudge() != 40_000 || ship.getLightAmmo() != 10_000 || ship.getHeavyAmmo() != 10_000) {
+            helper.fail("舰娘怨念和弹药不得受移植版上限限制");
+            return;
+        }
+        ship.addEffect(new MobEffectInstance(MobEffects.HUNGER, 100, 1));
+        ship.tickCount = 128;
+        ship.tick();
+        if (ship.getGrudge() != 39_975) {
+            helper.fail("二级饥饿必须使待机怨念消耗变为五倍");
+            return;
+        }
+        ship.setGrudge(1);
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        if (target == null) {
+            helper.fail("无法创建断粮前的攻击目标");
+            return;
+        }
+        ship.setTarget(target);
+        ship.tickCount = 256;
+        ship.tick();
+        if (!ship.hasNoFuel() || ship.getMorale() != 0 || ship.getTarget() != null) {
+            helper.fail("怨念耗尽后必须断粮并清除士气及目标");
+            return;
+        }
+        ship.setLightAmmo(0);
+        ship.setHeavyAmmo(0);
+        int cargo = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
+        ship.getShipInventory().setItem(cargo, new ItemStack(ModBlocks.BLOCK_GRUDGE.get(), 2));
+        ship.getShipInventory().setItem(cargo + 1, new ItemStack(ModItems.AMMO.get(), 2));
+        ship.getShipInventory().setItem(cargo + 2, new ItemStack(ModItems.AMMO3.get(), 2));
+        try {
+            ShinColleConfig.setTestOverride("Item_Grudge", 400);
+            ShinColleConfig.setTestOverride("Item_LightAmmo", 40);
+            ShinColleConfig.setTestOverride("Item_HeavyAmmo", 20);
+            int grudge = (int) (3600 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.GRUDGE));
+            int light = (int) (40 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));
+            int heavy = (int) (180 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));
+            ship.tickCount = 384;
+            ship.tick();
+            if (ship.hasNoFuel() || ship.getGrudge() != grudge || ship.getLightAmmo() != light
+                    || ship.getHeavyAmmo() != heavy
+                    || ship.getShipInventory().getItem(cargo).getCount() != 1
+                    || ship.getShipInventory().getItem(cargo + 1).getCount() != 1
+                    || ship.getShipInventory().getItem(cargo + 2).getCount() != 1) {
+                helper.fail("补给必须按配置补充怨念与弹药，各消耗一件，并解除断粮状态");
+                return;
+            }
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+            ship.discard();
+        }
         helper.succeed();
     }
 
@@ -7399,7 +7466,7 @@ public final class GameplayParityGameTests {
             ship.setNoAi(true);
             ship.setPos(2.0D + index * 2.0D, 2.0D, 2.0D);
             ship.setHealth(ship.getMaxHealth() * healthRatios[index]);
-            ship.setShipFuel(index == 4 ? 0 : 1000);
+            ship.setGrudge(index == 4 ? 0 : 1000);
             ship.setEmotion(LegacyShipEntity.DEFAULT_EMOTION);
             ship.setEmotion4(index == 0 ? 4 : LegacyShipEntity.DEFAULT_EMOTION4);
             helper.getLevel().addFreshEntity(ship);
@@ -7591,11 +7658,11 @@ public final class GameplayParityGameTests {
         transport.setGrudge(6000);
         transport.setLightAmmo(540);
         transport.setHeavyAmmo(270);
-        transport.setShipFuel(0);
+        transport.setGrudge(0);
         transport.tickCount = 512;
         LegacyShipBehaviorCatalog.tickLegacyPerShipBehavior(transport);
         if (target.getGrudge() != 2600 || target.getLightAmmo() != 260 || target.getHeavyAmmo() != 134
-                || transport.getGrudge() != 6000 || transport.getLightAmmo() != 540 || transport.getHeavyAmmo() != 270) {
+                || transport.getGrudge() != 0 || transport.getLightAmmo() != 540 || transport.getHeavyAmmo() != 270) {
             helper.fail("Transport Wa should not supply a fleet while out of fuel");
             return;
         }
@@ -7907,6 +7974,7 @@ public final class GameplayParityGameTests {
 
         BlockPos origin = helper.absolutePos(new BlockPos(8, 200, 8));
         nagato.setVariantEggMeta(39);
+        nagato.setGrudge(1000);
         nagato.setMorale(7000);
         nagato.setNoGravity(true);
         nagato.setNoAi(true);
@@ -7926,7 +7994,7 @@ public final class GameplayParityGameTests {
         nagato.tickCount = 128;
         nagato.tick();
         int actualMorale = nagato.getMorale();
-        if (actualMorale < 7290 || (actualMorale - 6990) % 300 != 0) {
+        if (actualMorale < 7284 || (actualMorale - 6984) % 300 != 0) {
             helper.fail("Nagato should apply the legacy idle morale cost before its nearby-target bonus"
                     + "; actualMorale=" + actualMorale);
             return;
@@ -7936,7 +8004,7 @@ public final class GameplayParityGameTests {
         nagato.tickCount = 256;
         nagato.tick();
         int actualMorale2 = nagato.getMorale();
-        if (actualMorale2 < 7895 || (actualMorale2 - 7595) % 300 != 0) {
+        if (actualMorale2 < 7885 || (actualMorale2 - 7585) % 300 != 0) {
             helper.fail("Nagato morale event should retain the legacy below-threshold gate; actualMorale2="
                     + actualMorale2);
             return;
@@ -7964,6 +8032,7 @@ public final class GameplayParityGameTests {
             }
         }
         nagato.setVariantEggMeta(39);
+        nagato.setGrudge(1000);
         nagato.setMorale(0);
         // PathNavigation refuses to create a path for a modern mob with NoAI;
         // the legacy test only needed to suppress autonomous goals.
@@ -8238,6 +8307,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(40);
+        supplyShipForTest(ship);
         ship.setOwner(UUID.randomUUID(), "SpecialHookMiss");
         ship.setShipLevel(1);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -8313,7 +8383,6 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "CatalogHeavyMiss");
         ship.setShipLevel(1);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setNoAi(true);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -8384,8 +8453,12 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(39);
+        supplyShipForTest(ship);
         ship.setOwner(UUID.randomUUID(), "NagatoPhase");
         ship.setShipLevel(80);
+        ship.tickCount = 1;
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
@@ -8497,7 +8570,6 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "YamatoBeam");
         ship.setShipLevel(80);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setNoAi(true);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -8576,7 +8648,6 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "TatsutaSkill");
         ship.setShipLevel(80);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setTarget(target);
         ship.setNoAi(true);
@@ -8693,7 +8764,6 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "ShimakazeSummon");
         ship.setShimakazeRensouhouCount(6);
         ship.setLightAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
@@ -8747,6 +8817,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(16);
+        supplyShipForTest(ship);
         ship.setShimakazeRensouhouCount(99);
         if (ship.getShimakazeRensouhouCount() != 6) {
             helper.fail("Battleship Ta should keep the legacy six-servant cap");
@@ -8862,7 +8933,6 @@ public final class GameplayParityGameTests {
         ship.setVariantEggMeta(38);
         ship.setOwner(UUID.randomUUID(), "RensouhouSight");
         ship.setLightAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setNoAi(true);
         ship.setAiOnSightChase(false);
@@ -8918,7 +8988,6 @@ public final class GameplayParityGameTests {
         ship.setVariantEggMeta(38);
         ship.setOwner(UUID.randomUUID(), "RensouhouPursuit");
         ship.setLightAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setNoAi(true);
         ship.setAiOnSightChase(true);
@@ -8965,6 +9034,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(15);
+        supplyShipForTest(ship);
         ship.setNoAi(true);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(7, 2, 1));
@@ -9126,7 +9196,6 @@ public final class GameplayParityGameTests {
         ship.setNoAi(true);
         ship.setLightAmmo(100);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(7, 2, 1));
@@ -9263,7 +9332,7 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(17);
         ship.setNoAi(true);
-        ship.setShipFuel(100);
+        ship.setGrudge(100);
         ship.setPos(1.5D, 2.0D, 1.5D);
         ship.setYRot(0.0F);
         target.setNoAi(true);
@@ -9372,7 +9441,6 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "ShimakazeHeavy");
         ship.setLightAmmo(100);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
@@ -9438,7 +9506,6 @@ public final class GameplayParityGameTests {
         ship.setNoAi(true);
         ship.setLightAmmo(100);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos targetPos = helper.absolutePos(new BlockPos(3, 2, 1));
@@ -9869,8 +9936,8 @@ public final class GameplayParityGameTests {
         ship.setVariantEggMeta(58);
         ship.setOwner(UUID.randomUUID(), "TenryuuSkill");
         ship.setShipLevel(80);
+        ship.setMorale(3000);
         ship.setHeavyAmmo(100);
-        ship.setShipFuel(100);
         ship.setGrudge(100);
         ship.setTarget(target);
         ship.setNoAi(true);
@@ -10297,7 +10364,6 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
         ship.setTarget(target);
-        ship.setShipFuel(20);
         ship.setLightAmmo(20);
         ship.setHeavyAmmo(20);
         ship.setGrudge(20);
@@ -10308,16 +10374,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        ship.setShipFuel(0);
-        if (goal.canUse()) {
-            helper.fail("ranged goal must stop when legacy fuel is empty");
-            return;
-        }
-
-        ship.setShipFuel(20);
         ship.setGrudge(0);
         if (goal.canUse()) {
-            helper.fail("ranged goal must stop when the legacy grudge cost is unavailable");
+            helper.fail("ranged goal must stop when legacy fuel is empty");
             return;
         }
 
@@ -10366,7 +10425,6 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(target);
 
         ship.setTarget(target);
-        ship.setShipFuel(20);
         ship.setLightAmmo(20);
         ship.setHeavyAmmo(20);
         ship.setGrudge(20);
@@ -10421,7 +10479,6 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(target);
 
         carrier.setTarget(target);
-        carrier.setShipFuel(20);
         carrier.setLightAmmo(18);
         carrier.setHeavyAmmo(6);
         carrier.setGrudge(20);
@@ -10488,8 +10545,8 @@ public final class GameplayParityGameTests {
         if (LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.MELEE) != 2
                 || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.LIGHT) != 4
                 || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.HEAVY) != 6
-                || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.AIR_LIGHT) != 3
-                || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.AIR_HEAVY) != 4) {
+                || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.AIR_LIGHT) != 6
+                || LegacyShipBehaviorCatalog.moraleCostFor(LegacyShipAttackKind.AIR_HEAVY) != 8) {
             helper.fail("legacy attack morale costs should match the direct AttackHandler paths");
             return;
         }
@@ -10508,12 +10565,10 @@ public final class GameplayParityGameTests {
         target.setPos(3.5D, 2.0D, 1.5D);
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
-        ship.setShipFuel(20);
         ship.setLightAmmo(20);
         ship.setGrudge(20);
         ship.setMorale(5000);
 
-        int fuelBefore = ship.getShipFuel();
         int ammoBefore = ship.getLightAmmo();
         int grudgeBefore = ship.getGrudge();
         int moraleBefore = ship.getMorale();
@@ -10521,11 +10576,10 @@ public final class GameplayParityGameTests {
             helper.fail("friendly light attack should execute for attack cost regression");
             return;
         }
-        if (ship.getShipFuel() != fuelBefore - 1
-                || ship.getLightAmmo() != ammoBefore - 1
+        if (ship.getLightAmmo() != ammoBefore - 1
                 || ship.getGrudge() != grudgeBefore - 4
                 || ship.getMorale() != moraleBefore - 4) {
-            helper.fail("friendly light attack should consume legacy class ammo, grudge, fuel, and morale exactly once");
+            helper.fail("friendly light attack should consume legacy class ammo, grudge and morale exactly once");
             return;
         }
 
@@ -10561,7 +10615,6 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(carrier);
         helper.getLevel().addFreshEntity(target);
 
-        carrier.setShipFuel(20);
         carrier.setLightAmmo(18);
         carrier.setHeavyAmmo(6);
         carrier.setGrudge(20);
@@ -10583,7 +10636,6 @@ public final class GameplayParityGameTests {
         }
         carrier.setHeavyAmmo(6);
 
-        int fuelBefore = carrier.getShipFuel();
         int heavyAmmoBefore = carrier.getHeavyAmmo();
         int grudgeBefore = carrier.getGrudge();
         int moraleBefore = carrier.getMorale();
@@ -10591,11 +10643,10 @@ public final class GameplayParityGameTests {
             helper.fail("carrier heavy-air attack should launch with six heavy ammo");
             return;
         }
-        if (carrier.getShipFuel() != fuelBefore - 1
-                || carrier.getHeavyAmmo() != heavyAmmoBefore - 6
+        if (carrier.getHeavyAmmo() != heavyAmmoBefore - 6
                 || carrier.getGrudge() != grudgeBefore - 12
-                || carrier.getMorale() != moraleBefore - 4) {
-            helper.fail("carrier heavy-air launch should consume legacy ammo, grudge, fuel, and morale exactly once");
+                || carrier.getMorale() != moraleBefore - 8) {
+            helper.fail("carrier heavy-air launch should consume legacy ammo, grudge and morale exactly once");
             return;
         }
 
@@ -10653,7 +10704,6 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        carrier.setShipFuel(20);
         carrier.setHeavyAmmo(6);
         carrier.setGrudge(20);
         carrier.setMorale(5000);
@@ -11026,7 +11076,6 @@ public final class GameplayParityGameTests {
         target.setPos(7.5D, 2.0D, 1.5D);
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
-        ship.setShipFuel(20);
         ship.setLightAmmo(20);
         ship.setGrudge(20);
         ship.setMorale(5000);
@@ -11071,7 +11120,7 @@ public final class GameplayParityGameTests {
             helper.fail("Ro500 light attack should not deal direct damage before its missile impacts");
             return;
         }
-        if (ship.getShipFuel() != 19 || ship.getLightAmmo() != 19 || ship.getGrudge() != 16
+        if (ship.getLightAmmo() != 19 || ship.getGrudge() != 16
                 || ship.getMorale() != 4996 || ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) <= 0) {
             helper.fail("Ro500 missile launch should consume the legacy light attack resources exactly once");
             return;
@@ -11463,7 +11512,6 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(46);
         ship.setShipLevel(50);
-        ship.setShipFuel(1000);
         ship.setLightAmmo(1000);
         ship.setHeavyAmmo(1000);
         ship.setGrudge(1000);
@@ -11541,7 +11589,7 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(74);
         ship.setShipLevel(50);
-        ship.setShipFuel(1000);
+        ship.setMorale(3000);
         ship.setLightAmmo(1000);
         ship.setHeavyAmmo(1000);
         ship.setGrudge(1000);
@@ -11723,6 +11771,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(33);
+        supplyShipForTest(ship);
         ship.setNoAi(true);
         ship.setPos(1.5D, 2.0D, 1.5D);
         target.setNoAi(true);
@@ -11916,7 +11965,7 @@ public final class GameplayParityGameTests {
                 ShipArchetype.DESTROYER,
                 false,
                 1,
-                5000,
+                3000,
                 0, 0, 0, 0, 0, 0,
                 false,
                 0,
@@ -11927,7 +11976,7 @@ public final class GameplayParityGameTests {
                 ShipArchetype.DESTROYER,
                 true,
                 1,
-                5000,
+                3000,
                 0, 0, 0, 0, 0, 0,
                 false,
                 0,
@@ -11952,7 +12001,7 @@ public final class GameplayParityGameTests {
                 ShipArchetype.CRUISER,
                 false,
                 1,
-                5000,
+                3000,
                 0, 0, 0, 0, 0, 0,
                 false,
                 0,
@@ -11964,7 +12013,7 @@ public final class GameplayParityGameTests {
                 ShipArchetype.CRUISER,
                 false,
                 1,
-                5000,
+                3000,
                 0, 0, 0, 0, 0, 0,
                 false,
                 0,
@@ -11976,7 +12025,7 @@ public final class GameplayParityGameTests {
                 ShipArchetype.CRUISER,
                 true,
                 1,
-                5000,
+                3000,
                 0, 0, 0, 0, 0, 0,
                 false,
                 0,
@@ -12001,7 +12050,7 @@ public final class GameplayParityGameTests {
             return;
         }
         helper.getLevel().setDayTime(6000L);
-        entity.setMorale(5000);
+        entity.setMorale(3000);
         entity.setVariantEggMeta(58);
         float entityDayCritical = entity.getLegacyStats().critical();
         float entityDayDodge = entity.getLegacyStats().dodge();
@@ -12026,7 +12075,8 @@ public final class GameplayParityGameTests {
 
         helper.getLevel().setDayTime(6000L);
         entity.setNoAi(true);
-        entity.setMorale(5000);
+        entity.setGrudge(1000);
+        entity.setMorale(3800);
         entity.setVariantEggMeta(51);
         float dayCritical = entity.getLegacyStats().critical();
         float dayTripleHit = entity.getLegacyStats().tripleHit();
@@ -12115,7 +12165,7 @@ public final class GameplayParityGameTests {
             LegacyShipEntity ship = ships[index];
             ship.setVariantEggMeta(eggMetas[index]);
             ship.setOwner(ownerUuid, "GattaiTester", 91);
-            ship.setShipFuel(100);
+            ship.setGrudge(100);
             ship.setNoAi(true);
             ship.setPos(2.5D + index, 2.0D, 2.5D);
             helper.getLevel().addFreshEntity(ship);
@@ -12174,12 +12224,12 @@ public final class GameplayParityGameTests {
         UUID ownerUuid = UUID.randomUUID();
         akatsuki.setVariantEggMeta(53);
         akatsuki.setOwner(ownerUuid, "AkatsukiTester", 92);
-        akatsuki.setShipFuel(100);
+        akatsuki.setGrudge(100);
         akatsuki.setNoAi(true);
         akatsuki.setPos(2.5D, 2.0D, 2.5D);
         hibiki.setVariantEggMeta(54);
         hibiki.setOwner(ownerUuid, "AkatsukiTester", 92);
-        hibiki.setShipFuel(100);
+        hibiki.setGrudge(100);
         hibiki.setNoAi(true);
         hibiki.setPos(2.5D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(akatsuki);
@@ -12190,7 +12240,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        akatsuki.setShipFuel(0);
+        akatsuki.setGrudge(0);
         akatsuki.tickCount = 32;
         LegacyShipBehaviorCatalog.tickLegacyRiderBehavior(akatsuki);
         if (!akatsuki.getPassengers().isEmpty()
@@ -12202,7 +12252,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        akatsuki.setShipFuel(100);
+        akatsuki.setGrudge(100);
         akatsuki.setHealth(akatsuki.getMaxHealth());
         if (!hibiki.startRiding(akatsuki, true)) {
             helper.fail("Hibiki should be able to remount Akatsuki before the damage boundary test");
@@ -12239,7 +12289,7 @@ public final class GameplayParityGameTests {
 
             ships[index].setVariantEggMeta(eggMetas[index]);
             ships[index].setOwner(ownerUuid, "DamageFormationTester", 93);
-            ships[index].setShipFuel(100);
+            ships[index].setGrudge(100);
             ships[index].setNoAi(true);
             ships[index].setNoGravity(true);
             ships[index].setPos(base.getX() + 0.5D + index * 2.0D,
@@ -12546,7 +12596,7 @@ public final class GameplayParityGameTests {
             LegacyShipEntity ship = ships[index];
             ship.setVariantEggMeta(eggMetas[index]);
             ship.setOwner(ownerUuid, "RaidenTester", 92);
-            ship.setShipFuel(100);
+            ship.setGrudge(100);
             ship.setNoAi(true);
             ship.setPos(index < 2 ? 2.5D + index : 20.5D + index, 2.0D, 2.5D);
             helper.getLevel().addFreshEntity(ship);
@@ -12591,7 +12641,6 @@ public final class GameplayParityGameTests {
         target.setPos(4.5D, 2.0D, 1.5D);
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
-        ship.setShipFuel(20);
         ship.setLightAmmo(20);
         ship.setGrudge(20);
         ship.setMorale(5000);
@@ -12634,7 +12683,7 @@ public final class GameplayParityGameTests {
             helper.fail("U511 light attack should not deal direct damage before its missile impacts");
             return;
         }
-        if (ship.getShipFuel() != 19 || ship.getLightAmmo() != 19 || ship.getGrudge() != 16
+        if (ship.getLightAmmo() != 19 || ship.getGrudge() != 16
                 || ship.getMorale() != 4996 || ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) <= 0) {
             helper.fail("U511 missile launch should consume the legacy light attack resources exactly once");
             return;
@@ -12817,24 +12866,16 @@ public final class GameplayParityGameTests {
 
             double attackRange = ship.getCompatAttackRange();
             double searchRange = legacySearchRanges[index];
-            double candidateDistance = index == 0
-                    ? Math.min(searchRange - 1.0D, Math.max(2.0D, attackRange - 1.0D))
-                    : attackRange + 1.0D;
-            if (candidateDistance >= searchRange) {
-                helper.fail("light cruiser fixture must place the replacement outside attack range but inside legacy skill range"
-                        + ": egg=" + hostileEggMetas[index]
-                        + ", attackRange=" + attackRange
-                        + ", searchRange=" + searchRange);
-                return;
-            }
+            double candidateDistance = searchRange - 1.0D;
 
             candidate.setVariantEggMeta(58);
+            candidate.setGrudge(100);
             candidate.setNoAi(true);
             candidate.setNoGravity(true);
             candidate.setPos(ship.getX() + candidateDistance, ship.getY(), ship.getZ());
 
             staleTarget.setNoAi(true);
-            staleTarget.setPos(ship.getX() + searchRange + 4.0D, ship.getY(), ship.getZ());
+            staleTarget.setPos(ship.getX() + Math.max(attackRange, searchRange) + 4.0D, ship.getY(), ship.getZ());
             helper.getLevel().addFreshEntity(ship);
             helper.getLevel().addFreshEntity(candidate);
 
@@ -13641,7 +13682,7 @@ public final class GameplayParityGameTests {
 
             ship.setVariantEggMeta(eggMetas[index]);
             ship.setModelState(1);
-            ship.setShipFuel(1000);
+            ship.setGrudge(1000);
             ship.setPos(2.5D + index * 4.0D, 2.0D, 2.5D);
             helper.getLevel().addFreshEntity(ship);
             ship.tickCount = 128;
@@ -13659,7 +13700,7 @@ public final class GameplayParityGameTests {
         }
 
         for (int index = 0; index < ships.length; index++) {
-            ships[index].setShipFuel(0);
+            ships[index].setGrudge(0);
             ships[index].tickCount = 144;
             LegacyShipBehaviorCatalog.tickLegacyShipMountBehavior(ships[index]);
             if (ships[index].isPassenger() || !mounts[index].isRemoved()) {
@@ -13674,7 +13715,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipPickupGoalStopsForLegacyFuelAndRidingState(GameTestHelper helper) {
-        if (pickupGoalCanUseWith(helper, 6, ship -> ship.setShipFuel(0))) {
+        if (pickupGoalCanUseWith(helper, 6, ship -> ship.setGrudge(0))) {
             helper.fail("pickup goal must stop when the legacy ship has no fuel");
             return;
         }
@@ -13715,6 +13756,7 @@ public final class GameplayParityGameTests {
             return;
         }
         ship.setVariantEggMeta(53);
+        ship.setGrudge(100);
         ship.setOwner(UUID.randomUUID(), "PickupCadence");
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
@@ -13776,6 +13818,7 @@ public final class GameplayParityGameTests {
             return;
         }
         ship.setVariantEggMeta(53);
+        ship.setGrudge(100);
         ship.setOwner(UUID.randomUUID(), "PickupDelay");
         BlockPos shipPos = helper.absolutePos(new BlockPos(1, 2, 1));
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
@@ -13810,6 +13853,7 @@ public final class GameplayParityGameTests {
         }
 
         ship.setVariantEggMeta(53);
+        ship.setGrudge(100);
         ship.setOwner(UUID.randomUUID(), "PickupExperience");
         BlockPos pickupPos = helper.absolutePos(new BlockPos(1, 2, 1));
         ship.setPos(pickupPos.getX() + 0.5D, pickupPos.getY(), pickupPos.getZ() + 0.5D);
@@ -14011,11 +14055,12 @@ public final class GameplayParityGameTests {
         CompoundTag defaultsTag = new CompoundTag();
         defaultsTag.putInt("VariantEggMeta", 53);
         defaults.readAdditionalSaveData(defaultsTag);
-          if (defaults.getMorale() != 1600 || !defaults.isAiPickItem()
-                  || !defaults.isTimeKeeper()
-                  || defaults.isAutoPump()
-                  || defaults.getWaypointStayMode() != LegacyShipEntity.DEFAULT_WP_STAY_MODE) {
-            helper.fail("missing modern and legacy morale tags should preserve the entity default");
+        if (defaults.getMorale() != 60 || defaults.getGrudge() != 0 || defaults.getLightAmmo() != 0
+                || defaults.getHeavyAmmo() != 0 || !defaults.isAiPickItem()
+                || !defaults.isTimeKeeper()
+                || defaults.isAutoPump()
+                || defaults.getWaypointStayMode() != LegacyShipEntity.DEFAULT_WP_STAY_MODE) {
+            helper.fail("缺少现代和旧版字段时，应使用旧版初始资源、士气及行为设置");
             return;
         }
 
@@ -14259,6 +14304,7 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlock(guard.offset(2, -1, 0), Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
         ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
         ship.setTask(2);
+        ship.setGrudge(100);
         ship.getShipInventory().setItem(LegacyShipEntity.LEGACY_MAIN_HAND_SLOT,
                 new ItemStack(Items.FISHING_ROD));
         ship.moveTo(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 0.0F, 0.0F);
@@ -14662,6 +14708,7 @@ public final class GameplayParityGameTests {
         }
 
         migrated.setUseAttackMelee(false);
+        supplyShipForTest(migrated);
         migrated.setUseAttackHeavy(false);
         migrated.setUseAttackAirHeavy(false);
         migrated.setUseAttackLight(true);
@@ -14799,7 +14846,6 @@ public final class GameplayParityGameTests {
         for (int y = 1; y <= 4; y++) {
             helper.getLevel().setBlock(new BlockPos(3, y, 1), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         }
-        migrated.setShipFuel(20);
         migrated.setLightAmmo(20);
         migrated.setHeavyAmmo(20);
         migrated.setGrudge(20);
@@ -15656,11 +15702,11 @@ public final class GameplayParityGameTests {
         UUID ownerUuid = UUID.randomUUID();
         akatsuki.setVariantEggMeta(53);
         akatsuki.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        akatsuki.setShipFuel(100);
+        akatsuki.setGrudge(100);
         akatsuki.setPos(2.5D, 2.0D, 2.5D);
         hibiki.setVariantEggMeta(54);
         hibiki.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        hibiki.setShipFuel(0);
+        hibiki.setGrudge(0);
         hibiki.setPos(2.5D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(akatsuki);
         helper.getLevel().addFreshEntity(hibiki);
@@ -15688,11 +15734,11 @@ public final class GameplayParityGameTests {
         }
         inazuma.setVariantEggMeta(56);
         inazuma.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        inazuma.setShipFuel(100);
+        inazuma.setGrudge(100);
         inazuma.setPos(6.5D, 2.0D, 2.5D);
         ikazuchi.setVariantEggMeta(55);
         ikazuchi.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        ikazuchi.setShipFuel(0);
+        ikazuchi.setGrudge(0);
         ikazuchi.setPos(6.5D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(inazuma);
         helper.getLevel().addFreshEntity(ikazuchi);
@@ -15723,11 +15769,11 @@ public final class GameplayParityGameTests {
         }
         secondInazuma.setVariantEggMeta(56);
         secondInazuma.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        secondInazuma.setShipFuel(0);
+        secondInazuma.setGrudge(0);
         secondInazuma.setPos(10.5D, 2.0D, 2.5D);
         secondIkazuchi.setVariantEggMeta(55);
         secondIkazuchi.setOwner(ownerUuid, "Ship07Fuel", 7007);
-        secondIkazuchi.setShipFuel(100);
+        secondIkazuchi.setGrudge(100);
         secondIkazuchi.setPos(10.5D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(secondInazuma);
         helper.getLevel().addFreshEntity(secondIkazuchi);
@@ -16442,7 +16488,7 @@ public final class GameplayParityGameTests {
                 net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null, null);
         ship.setOwner(owner);
         ship.setModelState(1);
-        ship.setShipFuel(1000);
+        ship.setGrudge(1000);
         ship.setMorale(4000);
         BlockPos origin = helper.absolutePos(new BlockPos(2, 2, 2));
         ship.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
@@ -17687,7 +17733,6 @@ public final class GameplayParityGameTests {
         carrier.setNoAi(true);
         carrier.setNoGravity(true);
         carrier.setAiAutoSupply(false);
-        carrier.setShipFuel(100);
         carrier.setGrudge(1000);
         carrier.setAircraftLight(0);
         carrier.setAircraftHeavy(0);
@@ -17722,12 +17767,12 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        carrier.setMorale(8500);
+        carrier.setMorale(4000);
         carrier.tickCount = 384;
         carrier.tick();
         carrier.setInvulnerable(false);
-        if (carrier.getMorale() >= 8490 || carrier.getMorale() < 8475) {
-            helper.fail("128-tick updateMorale should decay -10 above 8000 (got " + carrier.getMorale() + ")");
+        if (carrier.getMorale() != 3985) {
+            helper.fail("128-tick updateMorale should decay -10 above 3900 (got " + carrier.getMorale() + ")");
             carrier.discard();
             return;
         }
@@ -17880,7 +17925,6 @@ public final class GameplayParityGameTests {
         level.addFreshEntity(mobA);
         friendlyTatsuta.setNoAi(true);
         friendlyTatsuta.setShipLevel(100);
-        friendlyTatsuta.setShipFuel(1000);
         friendlyTatsuta.setHeavyAmmo(1000);
         friendlyTatsuta.setGrudge(1000);
         Vec3 friendlyKb = Vec3.ZERO;
@@ -17957,7 +18001,7 @@ public final class GameplayParityGameTests {
             return;
         }
         mountHost.setModelState(1);
-        mountHost.setShipFuel(1000);
+        mountHost.setGrudge(1000);
         mountHost.tickCount = 128;
         LegacyShipBehaviorCatalog.tickLegacyShipMountBehavior(mountHost);
         if (!(mountHost.getVehicle() instanceof LegacyShipMountEntity mount)) {
@@ -18371,7 +18415,7 @@ public final class GameplayParityGameTests {
             helper.fail("recovered ship should have spawned");
             return;
         }
-        spawned.setShipFuel(100);
+        spawned.setGrudge(100);
         ItemStack ration = new ItemStack(ModItems.COMBATRATION.get());
         owner.setItemInHand(InteractionHand.MAIN_HAND, ration);
         owner.setPos(spawned.getX() + 4.0D, spawned.getY(), spawned.getZ());

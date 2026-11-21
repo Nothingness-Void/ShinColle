@@ -124,6 +124,18 @@ public final class ShinColleConfig {
         return getInt("baseCaressMorale", COMMON_SPEC, COMMON.baseCaressMorale, 20);
     }
 
+    public static int itemGrudge() {
+        return getInt("Item_Grudge", COMMON_SPEC, COMMON.itemGrudge, 300);
+    }
+
+    public static int itemLightAmmo() {
+        return getInt("Item_LightAmmo", COMMON_SPEC, COMMON.itemLightAmmo, 30);
+    }
+
+    public static int itemHeavyAmmo() {
+        return getInt("Item_HeavyAmmo", COMMON_SPEC, COMMON.itemHeavyAmmo, 15);
+    }
+
     public static int modernLimit() {
         return getInt("modernLimit", COMMON_SPEC, COMMON.modernLimit, 3);
     }
@@ -286,6 +298,9 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.IntValue despawnBoss;
         public final ForgeConfigSpec.IntValue despawnMinion;
         public final ForgeConfigSpec.IntValue baseCaressMorale;
+        public final ForgeConfigSpec.IntValue itemGrudge;
+        public final ForgeConfigSpec.IntValue itemLightAmmo;
+        public final ForgeConfigSpec.IntValue itemHeavyAmmo;
         public final ForgeConfigSpec.IntValue modernLimit;
         public final ForgeConfigSpec.IntValue maxDmgOnPlayer;
         public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
@@ -356,6 +371,9 @@ public final class ShinColleConfig {
             builder.pop();
 
             builder.push("ship_setting");
+            this.itemGrudge = builder.defineInRange("Item_Grudge", 300, 1, 30000);
+            this.itemLightAmmo = builder.defineInRange("Item_LightAmmo", 30, 1, 30000);
+            this.itemHeavyAmmo = builder.defineInRange("Item_HeavyAmmo", 15, 1, 30000);
             this.baseCaressMorale = builder
                     .comment("Base morale gained per 4-tick caress tick")
                     .defineInRange("baseCaressMorale", 20, 1, 5000);

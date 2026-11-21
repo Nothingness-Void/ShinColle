@@ -67,6 +67,8 @@
 
 ## 批次证据索引
 
+- 舰娘核心公共资源、士气与断粮行为：见 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/)；不改逐舰注册、既有锁定域或敌我归属。
+
 - `SHIP-03` class 16-20 的行为、攻击、资源与 runtime 审计：见 [SHIP-03 batch](migration_batches/2026-09-03-ship-03-combat-behavior/)，最终回归 `All 254 required tests passed`。
 - `SHIP-05` class 30、31、33、36、37 的特殊 runtime、召唤物生命周期、攻击节奏、模型状态和 hostile servant 边界：见 [SHIP-05 batch](migration_batches/2026-09-04-ship-05-special-runtime/)，最终回归 `All 258 required tests passed`；Java 17 客户端启动、资源 reload 和单人集成连接通过，进世界人工交互留给 V0。
 - `SHIP-06` class 38、39、44、46、47 的潜艇/Yamato/Kaga runtime、模型源与 scale 分支、双导弹、beam、host/miss 边界：见 [SHIP-06 batch](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/)，最终回归 `All 261 required tests passed`；Java 17 客户端启动、资源 reload 和单人集成连接通过，进世界人工交互留给 V0。
