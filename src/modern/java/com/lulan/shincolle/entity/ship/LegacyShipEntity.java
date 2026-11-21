@@ -8,6 +8,7 @@ import com.mojang.datafixers.util.Pair;
 import com.lulan.shincolle.client.ClientShipVisibilityHelper;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.world.LightBlockHelper;
+import com.lulan.shincolle.world.ShipChunkLoader;
 import com.lulan.shincolle.entity.other.LegacyShipFishingHookEntity;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFloatGoal;
@@ -25,7 +26,6 @@ import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.item.CombatRationItem;
 import com.lulan.shincolle.item.LegacyShipSupportItem;
@@ -47,6 +47,7 @@ import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.teitoku.TeitokuSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -462,6 +463,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private ShipEquipmentProfile equipmentProfile = ShipEquipmentProfile.EMPTY;
     private ShipEquipmentBehaviorState equipmentBehaviorState = ShipEquipmentBehaviorState.EMPTY;
+    private final ShipChunkLoader chunkLoader = new ShipChunkLoader();
     private LegacyShipAttackProfile attackProfile = LegacyShipAttackProfile.MELEE_ONLY;
     private LegacyShipStats legacyStats = LegacyShipStats.create(
             ShipEntitySpecs.DEFAULT.legacyClassId(),
@@ -1093,6 +1095,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         if (!this.level().isClientSide()) {
             this.ensureShipUid();
+            this.chunkLoader.tick(this);
             if ((this.tickCount % 20) == 0) {
                 this.cacheShipState(false);
             }
@@ -1476,7 +1479,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 || directEntity instanceof LegacyShipRensouhouEntity
                 || directEntity instanceof LegacyShipFloatingFortEntity
                 || directEntity instanceof LegacyShipMountEntity
-                || directEntity instanceof LegacyMountEntity
                 || directEntity instanceof LegacyShipBeamEntity) {
             MobEffectInstance fireResist = this.getEffect(MobEffects.FIRE_RESISTANCE);
             if (fireResist != null) {
@@ -1562,9 +1564,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 if (!recoveredEgg.isEmpty()) {
                     this.spawnOwnerLockedRecoveryEgg(recoveredEgg);
                 }
-                if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
-                    TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
-                }
             }
             return;
         }
@@ -1578,14 +1577,12 @@ public class LegacyShipEntity extends PathfinderMob {
             super.dropCustomDeathLoot(damageSource, looting, recentlyHit);
             this.dropHostileLoot(looting);
             this.dropShipInventoryContents();
-            if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
-                TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
-            }
         }
     }
 
     @Override
     public void remove(Entity.RemovalReason removalReason) {
+        this.clearChunkLoader();
         LegacyShipFishingHookEntity hook = this.fishingHook;
         this.fishingHook = null;
         if (hook != null && !hook.isRemoved()) {
@@ -2483,6 +2480,22 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.equipmentBehaviorState;
     }
 
+    public void updateChunkLoader() {
+        this.chunkLoader.update(this);
+    }
+
+    public void clearChunkLoader() {
+        this.chunkLoader.clear(this);
+    }
+
+    public void onEnteringChunk(int chunkX, int chunkZ) {
+        this.updateChunkLoader();
+        if (Mth.floor(this.getX() / 16.0D) != chunkX || Mth.floor(this.getZ() / 16.0D) != chunkZ) {
+            this.unsetRemoved();
+            this.stopRiding();
+        }
+    }
+
     public LegacyShipStats getLegacyStats() {
         return this.legacyStats;
     }
@@ -2880,8 +2893,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public boolean canUseCompatRangedCombat() {
         if (!this.attackProfile.hasRangedAttack()
-                || (this.isPassenger() && (this.getVehicle() instanceof LegacyMountEntity
-                || this.getVehicle() instanceof LegacyShipMountEntity))) {
+                || (this.isPassenger() && (this.getVehicle() instanceof LegacyShipMountEntity))) {
             return false;
         }
 
@@ -3278,7 +3290,6 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setOwner(Player player) {
-        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.of(player.getUUID()));
         this.entityData.set(DATA_OWNER_NAME, player.getGameProfile().getName());
         this.ownerUid = Math.max(0, TeitokuHelper.getPlayerUid(player));
@@ -3299,7 +3310,6 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void setOwner(UUID ownerUuid, String ownerName, int ownerUid) {
-        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.of(ownerUuid));
         this.entityData.set(DATA_OWNER_NAME, ownerName);
         this.ownerUid = Math.max(0, ownerUid);
@@ -3321,7 +3331,6 @@ public class LegacyShipEntity extends PathfinderMob {
                     .map(uuid -> serverLevel.getServer().getPlayerList().getPlayer(uuid))
                     .orElse(null);
         }
-        this.cleanupShipTeamSlotsIfNeeded();
         this.entityData.set(DATA_OWNER_UUID, Optional.empty());
         this.entityData.set(DATA_OWNER_NAME, "");
         this.ownerUid = 0;
@@ -3515,9 +3524,6 @@ public class LegacyShipEntity extends PathfinderMob {
             }
         }
         // Legacy Kaitei drops emitted via createLegacyKaitaiDrops above.
-        if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
-            TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
-        }
         this.resetOwnershipBoundState();
         this.playSound(ModSoundEvents.SHIP_KAITAI.get(), 0.8F, this.getVoicePitch());
         this.discard();
@@ -4356,11 +4362,12 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void ensureShipUid() {
-        if (this.shipUid > 0 || !(this.level() instanceof ServerLevel serverLevel)) {
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 
-        this.shipUid = TeitokuHelper.resolveShipUid(serverLevel, this.getUUID());
+        this.shipUid = TeitokuSavedData.get(serverLevel)
+                .getOrCreateShipUid(this.getUUID(), this.shipUid);
     }
 
     private void cacheShipState(boolean dead) {
@@ -4370,13 +4377,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private void cacheShipState(boolean dead, boolean online) {
         this.ensureShipUid();
         TeitokuHelper.refreshShipCache(this, dead, online);
-    }
-
-    private void cleanupShipTeamSlotsIfNeeded() {
-        if (this.shipUid <= 0 || !(this.level() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
     }
 
     private int readShipExperience(CompoundTag tag) {

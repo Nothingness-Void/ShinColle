@@ -1,6 +1,7 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.client.particle.LegacyEmotionParticle;
+import com.lulan.shincolle.client.particle.LegacyRepairGoddessParticle;
 import com.lulan.shincolle.client.particle.LegacyTeamMarkerParticle;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
@@ -141,6 +142,12 @@ public final class GameplayClientEffects {
             case HEALING_SPARKLE -> spawnBurst(level, ParticleTypes.HAPPY_VILLAGER,
                     packet.x(), packet.y(), packet.z(), 8, 0.24D);
             case LEGACY_EMOTION -> spawnLegacyEmotion(level, packet);
+            case REPAIR_GODDESS -> {
+                Entity host = level.getEntity(packet.variant());
+                if (host != null) {
+                    minecraft.particleEngine.add(new LegacyRepairGoddessParticle(level, host));
+                }
+            }
             case TEXT_MISS -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 4, 0.09D);
             case TEXT_CRIT -> spawnBurst(level, ParticleTypes.CRIT, packet.x(), packet.y(), packet.z(), 5, 0.1D);
             case TEXT_DOUBLE -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, packet.x(), packet.y(), packet.z(), 4, 0.08D);

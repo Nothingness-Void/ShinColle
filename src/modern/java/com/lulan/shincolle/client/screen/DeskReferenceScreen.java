@@ -683,9 +683,9 @@ public class DeskReferenceScreen extends AbstractContainerScreen<DeskReferenceMe
                             "Profiles: " + (data != null ? data.getMorphProfileCount() : 0)),
                     List.of(
                             "Target Wrench right click opens morph inventory.",
-                            "Left click your own ship unlocks or selects its morph.",
+                            "Left click your own ship acquires its morph without selecting it.",
                             "Player skills now use the old 1~5 hotbar layout, with Z/X/C kept as quick shortcuts.",
-                            "Rider host uses ship cooldowns; morph and mount hosts use morph cooldowns.",
+                            "Mount and passenger hosts use ship cooldowns; morph hosts use morph cooldowns.",
                             "Tenryuu, Tatsuta, Takao-class, and Kongou-class now carry restored special variants."));
             default -> new BookPageData("Appendix", List.of("No page."), List.of("-"));
         };

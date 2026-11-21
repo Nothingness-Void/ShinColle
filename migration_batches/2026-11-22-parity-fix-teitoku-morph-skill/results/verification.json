@@ -1,0 +1,82 @@
+{
+  "batch": "2026-11-22-parity-fix-teitoku-morph-skill",
+  "baseline": "8f1d2fd",
+  "branch": "devin/parity-fix-teitoku-morph-skill",
+  "environment": {
+    "java": "17.0.20.1",
+    "java_home": "/usr/lib/jvm/java-17-openjdk-amd64",
+    "minecraft": "1.20.1",
+    "forge": "47.4.18",
+    "wrapper": "bash ./gradlew (wrapper file was not executable; no permission change)"
+  },
+  "final_run": {
+    "command": "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 bash ./gradlew compileJava runGameTestServer",
+    "exit_code": 0,
+    "required": 310,
+    "passed": 310,
+    "failed": 0,
+    "source_log": "/home/ubuntu/shincolle-zero-team-check.log",
+    "source_log_sha256": "8da8b5be20c3753f863a1f583acfa8337492518fb39143da309de945e9fa1df2",
+    "output": [
+      "> Task :compileJava",
+      "[18:04:23] [Server thread/INFO] [minecraft/GameTestServer]: ========= 310 GAME TESTS COMPLETE ======================",
+      "[18:04:23] [Server thread/INFO] [minecraft/GameTestServer]: All 310 required tests passed :)",
+      "BUILD SUCCESSFUL in 3m 19s",
+      "11 actionable tasks: 4 executed, 7 up-to-date"
+    ],
+    "scope_note": "After last production/test edit. Final handoff only changes documentation and performs git safety checks; no redundant game rerun."
+  },
+  "earlier_evidence": [
+    {
+      "scope": "independent clean baseline worktree",
+      "command": "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 bash ./gradlew runGameTestServer",
+      "workdir": "/home/ubuntu/repos/ShinColle-baseline",
+      "required": 298,
+      "passed": 298,
+      "output": [
+        "All 298 required tests passed :)",
+        "BUILD SUCCESSFUL in 3m 50s"
+      ],
+      "log": "/home/ubuntu/shincolle-baseline-check.log"
+    },
+    {
+      "scope": "UID and periodic tasks",
+      "required": 302,
+      "passed": 302,
+      "output": [
+        "All 302 required tests passed :)",
+        "BUILD SUCCESSFUL in 3m 14s"
+      ],
+      "log": "/home/ubuntu/shincolle-uid-gametest.log"
+    },
+    {
+      "scope": "chunk loading",
+      "required": 304,
+      "passed": 304,
+      "output": [
+        "All 304 required tests passed :)",
+        "BUILD SUCCESSFUL in 3m 16s"
+      ],
+      "log": "/home/ubuntu/shincolle-chunkloader-final-check.log"
+    },
+    {
+      "scope": "morph and hosts",
+      "required": 307,
+      "passed": 307,
+      "output": [
+        "All 307 required tests passed :)",
+        "BUILD SUCCESSFUL in 3m 19s"
+      ],
+      "log": "/home/ubuntu/shincolle-morph-final-check.log"
+    }
+  ],
+  "limitations": {
+    "client_visual": "NOT_RUN",
+    "real_curios_multiplayer": "NOT_RUN",
+    "ticket_validation_real_restart": "NOT_RUN",
+    "old_world_profile_migration_restart": "NOT_RUN",
+    "logout_death_end_to_end": "NOT_RUN",
+    "profile_nbt_round_trip": "COVERED_BY_GAMETEST"
+  },
+  "log_policy": "Only curated JSON/Markdown evidence committed; full runtime logs remain external."
+}

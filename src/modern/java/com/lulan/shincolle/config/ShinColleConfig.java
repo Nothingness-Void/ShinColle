@@ -275,6 +275,7 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.IntValue kaitaiAmountLarge;
         public final ForgeConfigSpec.BooleanValue polyAsMn;
         public final ForgeConfigSpec.IntValue radarUpdate;
+        public final ForgeConfigSpec.IntValue chunkloaderMode;
         public final ForgeConfigSpec.IntValue closeGuiDist;
         public final ForgeConfigSpec.IntValue bossCooldown;
         public final ForgeConfigSpec.IntValue teamCooldown;
@@ -323,6 +324,9 @@ public final class ShinColleConfig {
             this.radarUpdate = builder
                     .comment("Radar update interval (ticks) in Admiral's Desk GUI")
                     .defineInRange("radarUpdate", 64, 20, 6000);
+            this.chunkloaderMode = builder
+                    .comment("Chunk loader mode: 0: disable, 1: only 1 chunk each ship, 2: 3x3 chunks each ship")
+                    .defineInRange("Mode_ChunkLoader", 2, 0, 2);
             this.closeGuiDist = builder
                     .comment("Auto-close GUI distance squared threshold")
                     .defineInRange("closeGuiDist", 64, 1, 256);
@@ -378,11 +382,11 @@ public final class ShinColleConfig {
                     .comment("Exp multiplier for player morph skills")
                     .defineInRange("expGainPlayerSkill", 6.0D, 0.0D, 1000.0D);
             this.morphHpRatio = builder
-                    .comment("HP multiplier of morphed player")
-                    .defineInRange("morphHpRatio", 0.1D, 0.0D, 10.0D);
+                    .comment("HP modify of player in morph, final HP = 20 + shipHP * Metamorph_HPRatio")
+                    .defineInRange("Metamorph_HPRatio", 0.1D, 0.0D, 10.0D);
             this.morphDmgTakenRatio = builder
                     .comment("Damage taken ratio while morphed")
-                    .defineInRange("morphDmgTakenRatio", 0.2D, 0.0D, 1.0D);
+                    .defineInRange("Metamorph_DmgTakenRatio", 0.2D, 0.0D, 1.0D);
             builder.pop();
         }
     }

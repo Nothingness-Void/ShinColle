@@ -647,5 +647,8 @@
   "gui.shincolle.auraeffect": "开启特殊能力",
   "gui.shincolle.showhelditem": "显示手持物品",
   "chat.shincolle.optool.no_permission": "需要 OP 权限等级 2+ 才可修改全局不可攻击目标规则。",
-  "chat.shincolle.levelfail": "等级太低！"
+  "chat.shincolle.levelfail": "等级太低！",
+  "chat.shincolle.morph.unlocked": "已获取变身：%s",
+  "chat.shincolle.morph.already_acquired": "已拥有该变身：%s",
+  "chat.shincolle.morph.unlocked_hostile": "已获取敌舰变身：%s"
 }

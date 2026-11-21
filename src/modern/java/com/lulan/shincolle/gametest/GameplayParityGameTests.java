@@ -25,7 +25,7 @@ import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyMountControls;
 import com.lulan.shincolle.entity.ship.BossActionType;
 import com.lulan.shincolle.entity.ship.BossPhaseProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
@@ -197,6 +197,184 @@ import net.minecraftforge.common.crafting.conditions.ICondition;
 public final class GameplayParityGameTests {
 
     private GameplayParityGameTests() {
+    }
+
+    @GameTest(template = "empty")
+    public static void uidRegistryUsesLegacyStartAndRecovery(GameTestHelper helper) {
+        TeitokuSavedData fresh = new TeitokuSavedData();
+        UUID playerId = UUID.randomUUID();
+        UUID shipId = UUID.randomUUID();
+        helper.assertTrue(fresh.getOrCreateUid(playerId, "First") == 100, "player UID starts at 100");
+        helper.assertTrue(fresh.getOrCreateShipUid(shipId) == 100, "ship UID starts at 100");
+        TeitokuSavedData loaded = TeitokuSavedData.load(fresh.save(new CompoundTag()));
+        helper.assertTrue(loaded.getOrCreateUid(playerId, "First") == 100, "known player keeps UID");
+        helper.assertTrue(loaded.getOrCreateUid(UUID.randomUUID(), "Second") == 101, "healthy counter is not shifted");
+        helper.assertTrue(loaded.getOrCreateShipUid(UUID.randomUUID()) == 101, "healthy ship counter is not shifted");
+        CompoundTag damaged = fresh.save(new CompoundTag());
+        damaged.putInt("NextPlayerUID", 100);
+        damaged.putInt("NextShipUID", 0);
+        TeitokuSavedData recovered = TeitokuSavedData.load(damaged);
+        helper.assertTrue(recovered.getOrCreateUid(UUID.randomUUID(), "Recovered") == 100100,
+                "counter at or below an existing player UID shifts by 100000");
+        helper.assertTrue(recovered.getOrCreateShipUid(UUID.randomUUID()) == 100100,
+                "missing ship counter shifts past recovered ship UID by 100000");
+        damaged.getList("Players", Tag.TAG_COMPOUND).getCompound(0).putInt("PlayerUID", 99);
+        damaged.getList("Ships", Tag.TAG_COMPOUND).getCompound(0).putInt("ShipUID", 99);
+        TeitokuSavedData invalid = TeitokuSavedData.load(damaged);
+        helper.assertTrue(invalid.getUid(playerId) == 0 && invalid.getOrCreateUid(playerId, "First") == 100,
+                "UID below 100 is invalid and reassigned");
+        helper.assertTrue(invalid.getOrCreateShipUid(shipId) == 100, "invalid ship UID is reassigned");
+        ServerPlayer player = makeServerBackedPlayer(helper, "LostRegistry");
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        data.setPlayerUid(700);
+        TeitokuSavedData lost = new TeitokuSavedData();
+        helper.assertTrue(lost.getOrCreateUid(player) == 700, "player capability survives lost registry");
+        helper.assertTrue(lost.getOrCreateUid(UUID.randomUUID(), "AfterLoss") == 100700,
+                "observed player UID protects lost registry counter");
+        helper.assertTrue(lost.getOrCreateShipUid(shipId, 800) == 800
+                        && lost.getOrCreateShipUid(UUID.randomUUID()) == 100800,
+                "loaded ship UID protects lost registry counter");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void periodicPlayerUidAndPointerRefreshMatchLegacy(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "PeriodicUID");
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        data.setPlayerUid(99);
+        data.setShipIdsInitialized(false);
+        player.tickCount = 31;
+        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                net.minecraftforge.event.TickEvent.Phase.START, player));
+        helper.assertTrue(data.getPlayerUid() == 99 && !data.areShipIdsInitialized(), "no periodic work on tick 31");
+        player.tickCount = 32;
+        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                net.minecraftforge.event.TickEvent.Phase.START, player));
+        helper.assertTrue(data.getPlayerUid() >= 100 && data.areShipIdsInitialized(), "32 tick UID check and first 16 tick SID init");
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, pos.getX(), pos.getY(), pos.getZ());
+        LegacyShipEntity other = createOwnedShip(helper, helper.makeMockPlayer(), 58, pos.getX() + 2, pos.getY(), pos.getZ());
+        TeitokuHelper.refreshShipCache(ship, false);
+        TeitokuHelper.refreshShipCache(other, false);
+        data.setShipUid(0, 0, ship.getShipUid());
+        data.setShipUid(0, 1, other.getShipUid());
+        data.setShipSelected(0, 1, true);
+        data.setShipUid(0, 2, 999999);
+        data.setCurrentTeamId(0);
+        player.tickCount = 64;
+        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                net.minecraftforge.event.TickEvent.Phase.START, player));
+        helper.assertTrue(data.getShipUid(0, 0) == ship.getShipUid() && data.getShipUid(0, 1) == -1
+                        && data.getShipUid(0, 2) == 999999,
+                "tick 64 keeps owned and unloaded slots, removes loaded foreign ship");
+        data.setShipUid(0, 1, other.getShipUid());
+        player.tickCount = 128;
+        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                net.minecraftforge.event.TickEvent.Phase.START, player));
+        helper.assertTrue(data.getShipUid(0, 1) == other.getShipUid(), "128 tick name sync does not refresh team");
+        player.tickCount = 256;
+        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                net.minecraftforge.event.TickEvent.Phase.START, player));
+        helper.assertTrue(data.getShipUid(0, 1) == -1, "256 tick refresh removes foreign ship");
+        ship.discard();
+        other.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void ringScanAndLiquidDigMatchLegacy(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "RingScan");
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        player.getInventory().clearContent();
+        player.setPos(helper.absolutePos(new BlockPos(1, 2, 1)).getX() + 0.5D,
+                helper.absolutePos(new BlockPos(1, 2, 1)).getY(),
+                helper.absolutePos(new BlockPos(1, 2, 1)).getZ() + 0.5D);
+        helper.getLevel().setBlockAndUpdate(player.blockPosition(), Blocks.WATER.defaultBlockState());
+        player.tickCount = 16;
+        ItemStack inactive = new ItemStack(ModItems.MARRIAGERING.get());
+        inactive.getOrCreateTag().putBoolean("isActive", false);
+        ItemStack active = new ItemStack(ModItems.MARRIAGERING.get());
+        active.getOrCreateTag().putBoolean("isActive", true);
+        player.getInventory().setItem(0, inactive);
+        player.getInventory().setItem(1, active);
+        data.setMarriageNum(40);
+        try {
+            ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
+            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                    net.minecraftforge.event.TickEvent.Phase.START, player));
+            helper.assertTrue(data.hasRing() && !data.isRingActive(), "first inventory ring wins even if inactive");
+            player.getInventory().setItem(0, active);
+            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                    net.minecraftforge.event.TickEvent.Phase.START, player));
+            var speed = new net.minecraftforge.event.entity.player.PlayerEvent.BreakSpeed(
+                    player, Blocks.STONE.defaultBlockState(), 2.0F, player.blockPosition());
+            TeitokuEvents.onBreakSpeed(speed);
+            helper.assertTrue(speed.getNewSpeed() == 70.0F, "dig boost uses original speed, factor five and capped marriages");
+            ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 0, 20, 12});
+            var disabled = new net.minecraftforge.event.entity.player.PlayerEvent.BreakSpeed(
+                    player, Blocks.STONE.defaultBlockState(), 2.0F, player.blockPosition());
+            TeitokuEvents.onBreakSpeed(disabled);
+            helper.assertTrue(disabled.getNewSpeed() == 2.0F, "zero dig cap disables boost");
+            player.getInventory().clearContent();
+            player.getAbilities().flying = true;
+            player.getAbilities().mayfly = true;
+            data.setRingFlying(true);
+            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
+                    net.minecraftforge.event.TickEvent.Phase.START, player));
+            helper.assertTrue(!data.hasRing() && !player.getAbilities().flying
+                    && player.getAbilities().mayfly && data.isRingFlying(), "ring loss clears only isFlying as in legacy");
+            TeitokuHelper.markRingState(player, false);
+            TeitokuHelper.incrementMarriageCount(player);
+            helper.assertTrue(!data.hasRing() && data.isRingFlying(), "right click and marriage do not claim ring ownership or clear flight state");
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+            player.getInventory().clearContent();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void ringFireAndMountDamageMatchLegacy(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "RingDamage");
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        data.setHasRing(true);
+        data.setRingActive(true);
+        data.setMarriageNum(12);
+        try {
+            ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
+            player.setSecondsOnFire(20);
+            var fire = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            TeitokuEvents.onLivingAttack(fire);
+            helper.assertTrue(fire.isCanceled() && !player.isOnFire(), "ring cancels fire and extinguishes at threshold");
+            data.setMarriageNum(11);
+            var below = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            TeitokuEvents.onLivingAttack(below);
+            helper.assertTrue(!below.isCanceled(), "below threshold fire remains");
+            data.setHasRing(false);
+            var absent = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            TeitokuEvents.onLivingAttack(absent);
+            helper.assertTrue(!absent.isCanceled(), "missing ring cannot block fire");
+            for (Entity mount : new Entity[] {
+                    ModEntityTypes.LEGACY_SHIP_MOUNT.get().create(helper.getLevel())}) {
+                player.startRiding(mount, true);
+                var fall = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().fall(), 4);
+                var wall = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().inWall(), 4);
+                var other = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().generic(), 4);
+                TeitokuEvents.onLivingAttack(fall);
+                TeitokuEvents.onLivingAttack(wall);
+                TeitokuEvents.onLivingAttack(other);
+                helper.assertTrue(fall.isCanceled() && wall.isCanceled() && !other.isCanceled(), "the legacy mount counterpart blocks only fall and wall damage");
+                player.stopRiding();
+                mount.discard();
+            }
+            var unmounted = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().fall(), 4);
+            TeitokuEvents.onLivingAttack(unmounted);
+            helper.assertTrue(!unmounted.isCanceled(), "unmounted player retains fall damage");
+        } finally {
+            player.stopRiding();
+            ShinColleConfig.clearTestOverrides();
+        }
+        helper.succeed();
     }
 
     @GameTest(template = "empty")
@@ -721,6 +899,8 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        helper.assertTrue(data.getSelectedMorphProfile() == null, "acquiring does not select a morph");
+        data.setSelectedMorphProfile(58);
         data.getMorphRuntimeState().setActive(true);
         data.getMorphRuntimeState().setSpecialCooldown(80);
         if (!data.cycleMorphProfile(true)) {
@@ -3940,11 +4120,11 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void mountStyleResolutionMatchesLegacyPrincessFamilies(GameTestHelper helper) {
-        if (LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(23)) != LegacyMountEntity.STYLE_AIRFIELD
-                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(35)) != LegacyMountEntity.STYLE_CARRIER_WD
-                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(32)) != LegacyMountEntity.STYLE_MIDWAY
-                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(40)) != LegacyMountEntity.STYLE_SUBMARINE
-                || LegacyMountEntity.styleForSpec(ShipEntitySpecs.getByEggMeta(62)) != LegacyMountEntity.STYLE_BATTLESHIP) {
+        if (LegacyMountControls.styleForSpec(ShipEntitySpecs.getByEggMeta(23)) != LegacyMountControls.STYLE_AIRFIELD
+                || LegacyMountControls.styleForSpec(ShipEntitySpecs.getByEggMeta(35)) != LegacyMountControls.STYLE_CARRIER_WD
+                || LegacyMountControls.styleForSpec(ShipEntitySpecs.getByEggMeta(32)) != LegacyMountControls.STYLE_MIDWAY
+                || LegacyMountControls.styleForSpec(ShipEntitySpecs.getByEggMeta(40)) != LegacyMountControls.STYLE_SUBMARINE
+                || LegacyMountControls.styleForSpec(ShipEntitySpecs.getByEggMeta(62)) != LegacyMountControls.STYLE_BATTLESHIP) {
             helper.fail("mount host rendering should map legacy ship families to the original mount model groups");
             return;
         }
@@ -5167,14 +5347,16 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void passiveAiStopsAutomaticRangeTargeting(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58,
+                origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
             return;
         }
 
         target.setNoAi(true);
-        target.setPos(4.0D, 2.0D, 2.5D);
+        target.setPos(origin.getX() + 2.0D, origin.getY(), origin.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(target);
         ship.setAiAutoTarget(false);
         ship.tickCount = 8;
@@ -6733,16 +6915,15 @@ public final class GameplayParityGameTests {
 
         ikazuchi.setVariantEggMeta(2055);
         inazuma.setVariantEggMeta(2056);
-        // Use the large hostile scale to keep this range query isolated from
-        // neighboring GameTest structures that may contain ordinary escorts.
+        // Keep the range query above neighboring GameTest entities.
         ikazuchi.initializeHostileRuntime(false, true, true);
         inazuma.initializeHostileRuntime(false, true, true);
         ikazuchi.setNoAi(true);
         inazuma.setNoAi(true);
         ikazuchi.setNoGravity(true);
         inazuma.setNoGravity(true);
-        BlockPos ikazuchiPos = helper.absolutePos(new BlockPos(8, 4, 8));
-        BlockPos inazumaPos = helper.absolutePos(new BlockPos(9, 4, 8));
+        BlockPos ikazuchiPos = helper.absolutePos(new BlockPos(8, 64, 8));
+        BlockPos inazumaPos = helper.absolutePos(new BlockPos(9, 64, 8));
         ikazuchi.setPos(ikazuchiPos.getX() + 0.5D, ikazuchiPos.getY(), ikazuchiPos.getZ() + 0.5D);
         inazuma.setPos(inazumaPos.getX() + 0.5D, inazumaPos.getY(), inazumaPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ikazuchi);
@@ -6770,7 +6951,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        BlockPos liftedInazumaPos = helper.absolutePos(new BlockPos(12, 5, 12));
+        BlockPos liftedInazumaPos = helper.absolutePos(new BlockPos(12, 65, 12));
         inazuma.setPos(liftedInazumaPos.getX() + 0.5D, liftedInazumaPos.getY(), liftedInazumaPos.getZ() + 0.5D);
         ikazuchi.rideTick();
         double expectedRiderY = inazuma.getY() + inazuma.getBbHeight() * 0.47D
@@ -6782,6 +6963,8 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        ikazuchi.discard();
+        inazuma.discard();
         helper.succeed();
     }
 
@@ -13572,14 +13755,14 @@ public final class GameplayParityGameTests {
     public static void himeShipMountProfilesMatchLegacySeatAndAttackFamilies(GameTestHelper helper) {
         int[] eggMetas = {22, 23, 28, 30, 31, 32, 35, 46};
         int[] styles = {
-                LegacyMountEntity.STYLE_CARRIER,
-                LegacyMountEntity.STYLE_AIRFIELD,
-                LegacyMountEntity.STYLE_BATTLESHIP,
-                LegacyMountEntity.STYLE_HARBOUR,
-                LegacyMountEntity.STYLE_ISOLATED,
-                LegacyMountEntity.STYLE_MIDWAY,
-                LegacyMountEntity.STYLE_CARRIER_WD,
-                LegacyMountEntity.STYLE_SUBMARINE};
+                LegacyMountControls.STYLE_CARRIER,
+                LegacyMountControls.STYLE_AIRFIELD,
+                LegacyMountControls.STYLE_BATTLESHIP,
+                LegacyMountControls.STYLE_HARBOUR,
+                LegacyMountControls.STYLE_ISOLATED,
+                LegacyMountControls.STYLE_MIDWAY,
+                LegacyMountControls.STYLE_CARRIER_WD,
+                LegacyMountControls.STYLE_SUBMARINE};
         boolean[] aircraft = {true, true, false, true, true, true, true, false};
 
         for (int index = 0; index < eggMetas.length; index++) {
@@ -13626,9 +13809,9 @@ public final class GameplayParityGameTests {
     public static void himeShipMountLifecycleMirrorsLegacyFuelAndStateGate(GameTestHelper helper) {
         int[] eggMetas = {22, 35, 46};
         int[] styles = {
-                LegacyMountEntity.STYLE_CARRIER,
-                LegacyMountEntity.STYLE_CARRIER_WD,
-                LegacyMountEntity.STYLE_SUBMARINE};
+                LegacyMountControls.STYLE_CARRIER,
+                LegacyMountControls.STYLE_CARRIER_WD,
+                LegacyMountControls.STYLE_SUBMARINE};
         LegacyShipEntity[] ships = new LegacyShipEntity[eggMetas.length];
         LegacyShipMountEntity[] mounts = new LegacyShipMountEntity[eggMetas.length];
 
@@ -13688,7 +13871,7 @@ public final class GameplayParityGameTests {
         ship.setOwner(UUID.randomUUID(), "PickupRiding");
         ship.setPos(2.5D, 2.0D, 2.5D);
         helper.getLevel().addFreshEntity(ship);
-        LegacyMountEntity mount = ModEntityTypes.LEGACY_MOUNT.get().create(helper.getLevel());
+        LegacyShipMountEntity mount = ModEntityTypes.LEGACY_SHIP_MOUNT.get().create(helper.getLevel());
         if (mount == null) {
             helper.fail("legacy mount should be creatable for riding pickup coverage");
             return;
@@ -15182,13 +15365,15 @@ public final class GameplayParityGameTests {
     public static void autoCombatRationUsesLegacyTickAndFoodRules(GameTestHelper helper) {
         ServerPlayer owner = makeServerBackedPlayer(helper, "AutoCombatRation");
         helper.getLevel().players().add(owner);
-        owner.setPos(4.5D, 20.0D, 4.5D);
-        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, 4.5D, 20.0D, 4.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(4, 100, 4));
+        owner.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
+        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, owner.getX(), owner.getY(), owner.getZ());
         if (ship == null) {
             return;
         }
 
         ship.setNoGravity(true);
+        ship.setNoAi(true);
         ship.setAiAutoSupply(true);
         ship.setCombatRationLevel(2);
         ship.setMorale(3900);
@@ -15201,7 +15386,9 @@ public final class GameplayParityGameTests {
         ship.tick();
         if (!ship.getShipInventory().getItem(rationSlot).is(ModItems.COMBATRATION.get())
                 || ship.getFoodSaturation() != 0 || ship.getMorale() != moraleBefore) {
-            helper.fail("auto combat ration should wait for the legacy 128-tick boundary");
+            helper.fail("auto combat ration should wait for the legacy 128-tick boundary: tick=" + ship.tickCount
+                    + ", ration=" + ship.getShipInventory().getItem(rationSlot) + ", food=" + ship.getFoodSaturation()
+                    + ", morale=" + ship.getMorale() + ", before=" + moraleBefore);
             return;
         }
 
@@ -15234,6 +15421,8 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        ship.discard();
+        helper.getLevel().players().remove(owner);
         helper.succeed();
     }
 
@@ -16186,7 +16375,7 @@ public final class GameplayParityGameTests {
         deskTag.putInt(GameplayCommandHandler.TAG_BOOK_PAGE, 5);
 
         CompoundTag mountMoveTag = new CompoundTag();
-        mountMoveTag.putInt(GameplayCommandHandler.TAG_MODE, LegacyMountEntity.KEY_FORWARD | LegacyMountEntity.KEY_JUMP);
+        mountMoveTag.putInt(GameplayCommandHandler.TAG_MODE, LegacyMountControls.KEY_FORWARD | LegacyMountControls.KEY_JUMP);
 
         CompoundTag hitZoneTag = new CompoundTag();
         hitZoneTag.putInt(GameplayCommandHandler.TAG_SHIP_ID, 77);
@@ -16430,6 +16619,7 @@ public final class GameplayParityGameTests {
                 new GameProfile(UUID.randomUUID(), "B2MountOwner"));
         ServerPlayer intruder = FakePlayerFactory.get(helper.getLevel(),
                 new GameProfile(UUID.randomUUID(), "B2MountIntruder"));
+        TeitokuHelper.get(owner).ifPresent(data -> data.setPlayerUid(98303));
 
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
@@ -16482,10 +16672,10 @@ public final class GameplayParityGameTests {
         CompoundTag intruderMove = new CompoundTag();
         intruderMove.putInt(GameplayCommandHandler.TAG_MODE, 0);
         CompoundTag ownerMove = new CompoundTag();
-        ownerMove.putInt(GameplayCommandHandler.TAG_MODE, LegacyMountEntity.KEY_FORWARD | LegacyMountEntity.KEY_JUMP);
+        ownerMove.putInt(GameplayCommandHandler.TAG_MODE, LegacyMountControls.KEY_FORWARD | LegacyMountControls.KEY_JUMP);
         GameplayCommandHandler.handle(owner, GameplayCommandType.MOUNT_MOVE, ownerMove);
         GameplayCommandHandler.handle(intruder, GameplayCommandType.MOUNT_MOVE, intruderMove);
-        if (shipMount.getKeyPressed() != (LegacyMountEntity.KEY_FORWARD | LegacyMountEntity.KEY_JUMP)
+        if (shipMount.getKeyPressed() != (LegacyMountControls.KEY_FORWARD | LegacyMountControls.KEY_JUMP)
                 || shipMount.getKeyTick() != 10) {
             helper.fail("MOUNT_MOVE should store owner steering bitmask and resist non-owner interference");
             return;
@@ -16498,10 +16688,10 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        net.minecraft.world.phys.Vec3 morphMountVec = LegacyMountEntity.resolveKeyMovement(
-                owner, LegacyMountEntity.KEY_FORWARD | LegacyMountEntity.KEY_JUMP, 0.3D, true);
-        if (morphMountVec.y <= 0.4D || morphMountVec.z <= 0.2D) {
-            helper.fail("LegacyMountEntity.resolveKeyMovement should compute forward and vertical jump motion");
+        net.minecraft.world.phys.Vec3 mountVec = LegacyMountControls.resolveKeyMovement(
+                owner, LegacyMountControls.KEY_FORWARD | LegacyMountControls.KEY_JUMP, 0.3D, true);
+        if (mountVec.y <= 0.4D || mountVec.z <= 0.2D) {
+            helper.fail("LegacyMountControls.resolveKeyMovement should compute forward and vertical jump motion");
             return;
         }
 
@@ -18099,6 +18289,7 @@ public final class GameplayParityGameTests {
     public static void round2SlotFormationBuffsMinMovAndEnchantScalingMatchLegacy(GameTestHelper helper) {
         ServerPlayer owner = makeServerBackedPlayer(helper, "Round2FormOwner");
         helper.getLevel().players().add(owner);
+        TeitokuHelper.get(owner).ifPresent(data -> data.setPlayerUid(98411));
 
         float[] lineSlot0 = LegacyShipStatTables.copyFormationStats(1, 0);
         float[] lineSlot5 = LegacyShipStatTables.copyFormationStats(1, 5);

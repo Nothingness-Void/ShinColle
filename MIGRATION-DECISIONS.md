@@ -47,4 +47,18 @@
 - 9 条 `/ship*` 指令在 1.20.1 通过 Brigadier `RegisterCommandsEvent` 统一注册，并在射线与玩家查询路径提供无连接假玩家回退。
 - `ConfigHandler.polyAsMn` 的默认 `false` 静态包契约不变（不改动 `data/forge/tags/items/` 静态 JSON），运行时由 `PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 承担动态切换；`SystemConfig` 随 `TeitokuHelper` 状态包向客户端同步。
 - 1.12.2 外置依赖按 1.20.1 原生能力与零编译期强依赖原则收口：Metamorph 使用原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge`；IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代；Curios 仅通过 `ModList` + 反射触发结婚戒指佩戴槽周期效果。
+- **部分已撤销（D-012）**：原生替代 Metamorph 本身保留；将该替代解释为许可保留 Morph 专属坐骑/Shift+G、扳手自动选中、玩家全额舰娘HP或额外移动/攻击/追踪/击退属性、玩家骑舰娘宿主或 Morph 专属坐骑宿主的范围，现明确撤销。D-011 原文未逐项批准这些行为，不将旧实现误说成已经有逐条语义依据。旧 B6“morph HP公式经核对保持不变”的结论亦已撤销，详见 [本批次决定](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)。
 - 40 个仅存在于 `ID.java` 的历史名称（含 `Raiden` 作为合体形态而非独立注册实体）继续按 D-009 保持 `HISTORICAL_SOURCE_GAP` 记录，不虚构实现。详细证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)。
+
+<a id="d-012"></a>
+## D-012：Teitoku / Morph / 玩家技能与编队严格回归旧版
+
+- 状态：有效。D-001 的语义真源约束优先于早期“原生等价/完整闭环/100% parity”等未覆盖本批边界的概括。
+- **保留** D-011 的原生 Metamorph 替代技术方案；**撤销**以此为理由添加或保留无旧版依据的游戏规则。Morph 专属坐骑及入口删除；普通舰娘坐骑、共享资源和原生 Morph 能力仍保留。
+- UID分配从100开始且<100无效；现代 profile 的合法 classId=0 不得兼作空值，无选择统一-1并有明确旧存档迁移边界。不能因“UID数字0无效”推论“舰种classId0无效”。
+- owner UID 相等不等于团队/指挥编辑权限。技能宿主只允许旧三类及旧顺序；原生 Morph 技能配置不应误封普通坐骑/乘客技能。
+- 指挥棒9×6编队允许跨队伍同舰；加入/切换/删除按当前队伍和旧游标语义执行，不增加全队去重或生命周期全队清理。此处不是多人阵营 TeamSavedData，不撤销B3的阵营冷却/同盟规则。
+- 戒指状态、周期任务和 chunk-loader 范围/生命周期按旧版；Forge API不可用时用实际47.4.18提供的票据API最小适配，不创造新配置。
+- 已检索 D-001..D-011 及历史批次 decision 的 UID初值/宿主/编队/Morph/坐骑/HP相关条目：未发现单独批准“UID从1”或“全队去重”的决定。这两者作为错误旧实现撤销，不杜撰旧D编号。B2宿主扩展/专属坐骑、B6 HP不变、B1 Morph完整parity及REAUDIT专属坐骑保留前提已在原记录标记撤销。
+- 删除 MORPH_TOGGLE_MOUNT 枚举项后，不再承诺与旧现代版本的命令序号兼容；旧B2追加枚举保序的概括不能当作本批跨版本互通保证。客户端与服务端须同步更新；不额外承诺旧原生专属坐骑实体迁移。
+- [完整13项结论/旧版依据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)、[精确证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/README.md)、[未验证边界](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md#validation-limits)。不以服务端全绿声称视觉、Curios联机或真实重启已验收。

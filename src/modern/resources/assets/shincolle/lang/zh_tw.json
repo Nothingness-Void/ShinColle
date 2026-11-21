@@ -627,5 +627,8 @@
   "gui.shincolle.auraeffect": "開啟特殊能力",
   "gui.shincolle.showhelditem": "顯示手持物品",
   "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules.",
-  "chat.shincolle.levelfail": "等級太低！"
+  "chat.shincolle.levelfail": "等級太低！",
+  "chat.shincolle.morph.unlocked": "已獲取變身：%s",
+  "chat.shincolle.morph.already_acquired": "已擁有該變身：%s",
+  "chat.shincolle.morph.unlocked_hostile": "已獲取敵艦變身：%s"
 }

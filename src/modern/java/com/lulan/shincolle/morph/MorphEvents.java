@@ -7,6 +7,7 @@ import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -32,6 +33,13 @@ public final class MorphEvents {
     }
 
     @SubscribeEvent
+    public static void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && MorphHelper.getActiveProfile(player) != null) {
+            MorphHelper.demorph(player);
+        }
+    }
+
+    @SubscribeEvent
     public static void onHostileShipKilled(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof LegacyShipEntity ship)
                 || !ship.isHostileVariant()
@@ -40,7 +48,7 @@ public final class MorphEvents {
         }
 
         if (MorphHelper.unlockMorph(serverPlayer, ship.getShipClassId())) {
-            serverPlayer.displayClientMessage(Component.literal("Unlocked hostile morph: " + ship.getName().getString()), true);
+            serverPlayer.displayClientMessage(Component.translatable("chat.shincolle.morph.unlocked_hostile", ship.getName()), true);
         }
     }
 }

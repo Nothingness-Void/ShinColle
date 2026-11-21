@@ -164,6 +164,21 @@
 - Round 2（5 项综合 `@GameTest`）：`round2HurtImmunitiesVoidRescueGoddessAndResistanceMatchLegacy`、`round2SlotFormationBuffsMinMovAndEnchantScalingMatchLegacy`、`round2FishingCraneAndPointerTargetingMatchLegacy`、`round2AircraftCooldownShootableTorpedoAndRensouhouMatchLegacy`、`round2DeathRecoveryEggXpCostAndHeldCombatRationMatchLegacy`。
 - 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 298 required tests passed :)`**（`298 passed / 0 failed / 0 skipped`），证据见 [FULL-SHIP-BEHAVIOR-REAUDIT results](migration_batches/2026-11-18-full-ship-behavior-reaudit/results/reaudit-closeout.json)。
 
+<a id="parity-fix-teitoku-morph-skill310310"></a>
+## PARITY-FIX-TEITOKU-MORPH-SKILL（310/310）
+
+- 批次：[STATUS](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/STATUS.md)；[13项结论与旧版依据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)；[精确运行记录](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/verification.json)。
+- `GameplayParityGameTests.uidRegistryUsesLegacyStartAndRecovery` / `periodicPlayerUidAndPointerRefreshMatchLegacy`：UID初值/低值/损坏保护、玩家周期、SID与当前队伍刷新。
+- `ringScanAndLiquidDigMatchLegacy` / `ringFireAndMountDamageMatchLegacy`：扫描/NBT/持戒转换、挖掘数值、火伤与普通坐骑伤害。雾视觉不由服务端测试覆盖。
+- `ShipChunkLoaderGameTests`（2项）：罗盘/在线主人/票据范围、离线保票、撤装/移动/卸载释放及 Wrong location 下坐骑/removed恢复。真实关服重启 validation 不在覆盖内。
+- `MorphParityGameTests`（3项）：HP缩放/属性清理、登录/维度解除、空资源不自动解除、伤害早返/倍率/DEF/闪避/buff/女神消耗与计时、获取/owner与宿主顺序。
+- `MorphAndTeamParityGameTests`（3项）：Destroyer I获取与选择/激活；重复/负值/未知选择、旧零哨兵/正值/空字段迁移；当前队伍开关/空位/满员六槽游标/force/null/非本人拒绝/跨队伍保留；Pointer和网络对应调用、生命周期不全队清理、周期清理边界。
+- 最终命令：`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 bash ./gradlew compileJava runGameTestServer`；JDK `17.0.20.1`。wrapper原无执行权限，使用bash等价调用，未更改权限。
+- 通过门槛：编译成功且全部required测试通过。最后生产/测试编辑后的结果：`All 310 required tests passed :)`；`BUILD SUCCESSFUL in 3m 19s`；退出码0。
+- 原始日志保存在外部：`/home/ubuntu/shincolle-zero-team-check.log`；SHA-256见 results/verification.json，不提交完整日志。本轮仅文档收口，不对未变的构建输入重复运行。
+- 静态门：`git diff --check`、暂存文件清单与 `src/main/**` 零修改检查；禁止加入日志、临时文件和秘密。
+- 先前 clean baseline 298、UID302、chunk304、Morph307与夹具调整证据见 [results](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/README.md)，不把全量310解释为客户端视觉、真实Curios联机、真实旧世界迁移或关服重启验证。
+
 ## 批末命令
 
 在 Windows JDK 17 环境中按批次需要执行：

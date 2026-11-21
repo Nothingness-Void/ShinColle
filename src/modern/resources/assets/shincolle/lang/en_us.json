@@ -647,5 +647,8 @@
   "advancement.shincolle.progression.ocean_boss_encounter.title": "Storm on the Horizon",
   "advancement.shincolle.progression.ocean_boss_encounter.description": "Strike a roaming boss encounter after your fleet can finally draw them out.",
   "chat.shincolle.optool.no_permission": "OP permission level 2+ is required to edit world unattackable rules.",
-  "chat.shincolle.levelfail": "Level is too low!"
+  "chat.shincolle.levelfail": "Level is too low!",
+  "chat.shincolle.morph.unlocked": "Acquired morph: %s",
+  "chat.shincolle.morph.already_acquired": "Morph already acquired: %s",
+  "chat.shincolle.morph.unlocked_hostile": "Acquired hostile morph: %s"
 }

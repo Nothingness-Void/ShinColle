@@ -28,7 +28,7 @@ import java.util.List;
 
 public class MarriageRingItem extends Item {
 
-    private static final String ACTIVE_TAG = "Active";
+    private static final String ACTIVE_TAG = "isActive";
 
     public MarriageRingItem(Properties properties) {
         super(properties);
@@ -48,9 +48,9 @@ public class MarriageRingItem extends Item {
                     TeitokuHelper.get(serverPlayer).ifPresent(data -> {
                         if (data.isRingFlying()) {
                             serverPlayer.getAbilities().flying = false;
-                            serverPlayer.getAbilities().mayfly = false;
                             data.setRingFlying(false);
                             serverPlayer.onUpdateAbilities();
+                            TeitokuHelper.sync(serverPlayer);
                         }
                     });
                 }

@@ -1,7 +1,6 @@
 package com.lulan.shincolle.morph;
 
 import com.lulan.shincolle.config.ShinColleConfig;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
@@ -65,13 +64,7 @@ public final class MorphHelper {
 
     public static boolean unlockMorph(ServerPlayer player, int legacyClassId) {
         boolean unlocked = TeitokuHelper.get(player)
-                .map(data -> {
-                    boolean changed = data.unlockMorph(legacyClassId);
-                    if (changed) {
-                        data.setSelectedMorphProfile(legacyClassId);
-                    }
-                    return changed;
-                })
+                .map(data -> data.unlockMorph(legacyClassId))
                 .orElse(false);
         if (unlocked) {
             TeitokuHelper.syncGameplayState(player);
@@ -116,41 +109,19 @@ public final class MorphHelper {
                 .orElse(false);
     }
 
-    public static boolean canUseMountHost(ServerPlayer player) {
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
-        return data != null && data.hasActiveMorph();
-    }
-
-    public static boolean toggleMount(ServerPlayer player) {
-        if (!canUseMountHost(player)) {
-            return false;
-        }
-
-        if (player.getVehicle() instanceof LegacyMountEntity mount && mount.isOwnedBy(player)) {
-            player.stopRiding();
-            mount.discard();
-            return true;
-        }
-
-        if (!(player.level() instanceof ServerLevel serverLevel)) {
-            return false;
-        }
-
-        LegacyMountEntity mount = LegacyMountEntity.create(serverLevel, player);
-        if (mount == null) {
-            return false;
-        }
-
-        if (!serverLevel.noCollision(mount, mount.getBoundingBox())) {
-            return false;
-        }
-
-        serverLevel.addFreshEntity(mount);
-        player.startRiding(mount, true);
-        return true;
+    public static void demorph(ServerPlayer player) {
+        TeitokuHelper.get(player).ifPresent(data -> data.setMorphActive(false));
+        applyOrResetPlayerMorphState(player, null);
+        player.getAttribute(Attributes.MAX_HEALTH).setBaseValue(20.0D);
+        COMPAT_BRIDGE.reset(player);
+        TeitokuHelper.syncGameplayState(player);
     }
 
     public static boolean tick(ServerPlayer player) {
+        if (player.tickCount == 32 && getActiveProfile(player) != null) {
+            demorph(player);
+            return true;
+        }
         boolean[] changed = new boolean[] { false };
         TeitokuHelper.get(player).ifPresent(data -> {
             MorphRuntimeState runtimeState = data.getMorphRuntimeState();
@@ -206,10 +177,6 @@ public final class MorphHelper {
     }
 
     public static boolean performPlayerSkill(ServerPlayer player, int skillSlot, int targetId, @Nullable BlockPos blockPos) {
-        if (!ShinColleConfig.enableMetamorphSkill()) {
-            sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
-            return false;
-        }
         int normalizedSlot = Mth.clamp(skillSlot, 1, PlayerSkillRuntimeState.SLOT_COUNT) - 1;
         PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
         if (!host.visible()) {
@@ -219,11 +186,8 @@ public final class MorphHelper {
 
         LivingEntity target = player.level().getEntity(targetId) instanceof LivingEntity living ? living : null;
         return switch (host.mode()) {
-            case RIDER -> host.ship() != null && performShipSlotSkill(player, host.ship(), normalizedSlot, target, blockPos);
             case MORPH -> host.profile() != null && performMorphSlotSkill(player, host.profile(), normalizedSlot, target);
-            case MOUNT -> host.ship() != null
-                    ? performShipSlotSkill(player, host.ship(), normalizedSlot, target, blockPos)
-                    : host.profile() != null && performMorphSlotSkill(player, host.profile(), normalizedSlot, target);
+            case MOUNT, RIDER -> host.ship() != null && performShipSlotSkill(player, host.ship(), normalizedSlot, target, blockPos);
             default -> false;
         };
     }
@@ -702,32 +666,7 @@ public final class MorphHelper {
     }
 
     private static MorphHostMode resolveHostMode(ServerPlayer player, TeitokuData data) {
-        if (player.getVehicle() instanceof LegacyShipEntity ship
-                && !ship.isHostileVariant()
-                && ship.canCommanderEdit(player)) {
-            return MorphHostMode.RIDER;
-        }
-        if (player.getVehicle() instanceof LegacyShipMountEntity shipMount) {
-            LegacyShipEntity host = shipMount.getHostShip();
-            if (host != null && !host.isHostileVariant() && host.canCommanderEdit(player)) {
-                return MorphHostMode.MOUNT;
-            }
-        }
-        if (!data.hasActiveMorph()) {
-            if (player.getFirstPassenger() instanceof LegacyShipEntity passengerShip
-                    && !passengerShip.isHostileVariant()
-                    && passengerShip.canCommanderEdit(player)) {
-                return MorphHostMode.RIDER;
-            }
-            return MorphHostMode.NONE;
-        }
-        if (player.getVehicle() instanceof LegacyMountEntity) {
-            return MorphHostMode.MOUNT;
-        }
-        if (player.getVehicle() instanceof LegacyShipEntity) {
-            return MorphHostMode.RIDER;
-        }
-        return MorphHostMode.MORPH;
+        return PlayerSkillHostResolver.resolve(player).mode();
     }
 
     private static void applyOrResetPlayerMorphState(ServerPlayer player, @Nullable MorphProfile profile) {
@@ -744,16 +683,13 @@ public final class MorphHelper {
         }
 
         LegacyShipStats stats = profile.buildStats(player.getActiveEffects());
+        player.getAttribute(Attributes.MAX_HEALTH).setBaseValue(20.0D);
         applyModifier(player, Attributes.MAX_HEALTH, MAX_HEALTH_MODIFIER_ID, "shincolle_morph_max_health",
-                stats.get(LegacyShipStatTables.Attr.HP) - 20.0D);
-        applyModifier(player, Attributes.MOVEMENT_SPEED, MOVE_SPEED_MODIFIER_ID, "shincolle_morph_move_speed",
-                stats.moveSpeed() - 0.10000000149011612D);
-        applyModifier(player, Attributes.ATTACK_DAMAGE, ATTACK_DAMAGE_MODIFIER_ID, "shincolle_morph_attack_damage",
-                stats.meleeDamage() - 1.0D);
-        applyModifier(player, Attributes.FOLLOW_RANGE, FOLLOW_RANGE_MODIFIER_ID, "shincolle_morph_follow_range",
-                Math.max(0.0D, profile.getFollowRange() - 32.0D));
-        applyModifier(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_MODIFIER_ID, "shincolle_morph_knockback",
-                stats.knockbackResistance());
+                stats.get(LegacyShipStatTables.Attr.HP) * ShinColleConfig.morphHpRatio());
+        clearModifier(player, Attributes.MOVEMENT_SPEED, MOVE_SPEED_MODIFIER_ID);
+        clearModifier(player, Attributes.ATTACK_DAMAGE, ATTACK_DAMAGE_MODIFIER_ID);
+        clearModifier(player, Attributes.FOLLOW_RANGE, FOLLOW_RANGE_MODIFIER_ID);
+        clearModifier(player, Attributes.KNOCKBACK_RESISTANCE, KNOCKBACK_RESISTANCE_MODIFIER_ID);
 
         if (player.getHealth() > player.getMaxHealth()) {
             player.setHealth(player.getMaxHealth());
@@ -853,6 +789,6 @@ public final class MorphHelper {
     private static int resolveSelectedClassId(Player player) {
         return TeitokuHelper.get(player)
                 .map(data -> data.getMorphRuntimeState().getSelectedClassId())
-                .orElse(0);
+                .orElse(MorphRuntimeState.NO_SELECTION);
     }
 }

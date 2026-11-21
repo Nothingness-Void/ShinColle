@@ -7,6 +7,7 @@ import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -41,14 +42,14 @@ public final class PointerCommandEvents {
         int commandMode = PointerItem.getCommandMode(mode);
 
         if (event.getTarget() instanceof LegacyShipEntity ship) {
-            if (ship.canCommanderEdit(serverPlayer)) {
+            if (PlayerSkillHostResolver.sameOwner(serverPlayer, ship)) {
                 handleOwnedShipLeftClick(serverPlayer, ship, commandMode);
             }
             return;
         }
         if (event.getTarget() instanceof LegacyShipMountEntity mount) {
             LegacyShipEntity hostShip = mount.getHostShip();
-            if (hostShip != null && hostShip.canCommanderEdit(serverPlayer)) {
+            if (hostShip != null && PlayerSkillHostResolver.sameOwner(serverPlayer, hostShip)) {
                 handleOwnedShipLeftClick(serverPlayer, hostShip, commandMode);
             }
             return;
@@ -83,9 +84,9 @@ public final class PointerCommandEvents {
                     return;
                 }
 
-                data.setShipUid(currentTeamId, currentSlot, -1);
-                data.setCurrentTeamSelection(currentSlot, false);
-                data.setPointerSlotCursor(currentSlot);
+                if (!data.addShipEntity(0, ship, false)) {
+                    return;
+                }
                 data.setFormationId(currentTeamId, TeitokuData.DEFAULT_FORMATION_ID);
 
                 if (commandMode == 0) {
@@ -108,10 +109,10 @@ public final class PointerCommandEvents {
                 return;
             }
 
-            int slot = findAddSlot(data);
-            data.setShipUid(currentTeamId, slot, shipUid);
-            data.setCurrentTeamSelection(slot, false);
-            data.setPointerSlotCursor((slot + 1) % TeitokuData.TEAM_SIZE);
+            if (!data.addShipEntity(0, ship, false)) {
+                return;
+            }
+            int slot = findCurrentTeamSlot(data, shipUid);
             data.setFormationId(currentTeamId, TeitokuData.DEFAULT_FORMATION_ID);
 
             if (commandMode == 0) {
@@ -142,16 +143,6 @@ public final class PointerCommandEvents {
                 return;
             }
         }
-    }
-
-    private static int findAddSlot(TeitokuData data) {
-        int currentTeamId = data.getCurrentTeamId();
-        for (int slot = 0; slot < TeitokuData.TEAM_SIZE; slot++) {
-            if (data.getShipUid(currentTeamId, slot) <= 0) {
-                return slot;
-            }
-        }
-        return data.getPointerSlotCursor();
     }
 
     private static void dispatch(ServerPlayer player, GameplayCommandType type, java.util.function.Consumer<CompoundTag> payloadBuilder) {

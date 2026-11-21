@@ -51,7 +51,7 @@ Milestone M2: B1-GUI-PARITY requires auditing and aligning all 10 legacy 1.12.2 
 2. `GuiRecipePaper` & `ContainerRecipePaper` -> `RecipePaperScreen` & `RecipePaperMenu`: 100% parity verified (ghost slots and NBT recipe sync).
 3. `GuiShipInventory` & `ContainerShipInventory` -> `ShipInventoryScreen` & `ShipInventoryMenu`: Slot coordinates 100% identical; AI keybinds aligned.
 4. `GuiFormation` & `ContainerFormation` -> `FormationScreen` & `FormationMenu`: 100% functional parity with modernized Forge widgets.
-5. `GuiMorphInventory` & `ContainerMorphInventory` -> `MorphInventoryScreen` & `MorphInventoryMenu`: 100% functional parity.
+5. `GuiMorphInventory` & `ContainerMorphInventory` -> `MorphInventoryScreen` & `MorphInventoryMenu`: ~~100% functional parity~~（该Morph完整等价概括**已撤销**；获取/选择与空值语义以 [D-012](../../MIGRATION-DECISIONS.md#d-012) 为准，不否定本记录其它GUI工作）。
 6. `GuiDesk` -> `DeskTerminalScreen` & `DeskReferenceScreen` & `WaypointTerminalScreen`: 100% functional parity.
 
 ## 3. Verification Evidence

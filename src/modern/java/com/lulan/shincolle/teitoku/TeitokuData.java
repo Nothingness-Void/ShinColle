@@ -1,5 +1,6 @@
 package com.lulan.shincolle.teitoku;
 
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphProfile;
 import com.lulan.shincolle.morph.MorphRuntimeState;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
@@ -64,6 +65,7 @@ public class TeitokuData {
     private boolean hasTeam;
     private int currentTeamId;
     private int pointerSlotCursor;
+    private boolean shipIdsInitialized;
     private final int[] formationIds = new int[TEAM_COUNT];
     private final int[] teamShipUids = new int[TEAM_SLOT_COUNT];
     private final boolean[] teamShipSelected = new boolean[TEAM_SLOT_COUNT];
@@ -79,7 +81,7 @@ public class TeitokuData {
         Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
         Arrays.fill(this.teamShipUids, -1);
         Arrays.fill(this.teamNames, "");
-        this.morphRuntimeState.setSelectedClassId(0);
+        this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
     }
 
     public CompoundTag saveToTag(CompoundTag tag) {
@@ -123,6 +125,7 @@ public class TeitokuData {
     }
 
     public void loadFromTag(CompoundTag tag) {
+        this.shipIdsInitialized = false;
         CompoundTag source = unwrapLegacyCapabilityTag(tag);
         this.playerName = source.getString(PLAYER_NAME_TAG);
         this.playerUid = source.contains(PLAYER_UID_TAG) ? source.getInt(PLAYER_UID_TAG) : -1;
@@ -134,6 +137,7 @@ public class TeitokuData {
         this.teamCooldown = source.contains(TEAM_COOLDOWN_TAG) ? source.getInt(TEAM_COOLDOWN_TAG) : INITIAL_TEAM_COOLDOWN;
         this.hasTeam = source.contains(HAS_TEAM_TAG) ? source.getBoolean(HAS_TEAM_TAG) : this.playerUid > 0;
         this.currentTeamId = normalizeTeamId(source.getInt(CURRENT_TEAM_ID_TAG));
+        this.pointerSlotCursor = 0;
 
         Arrays.fill(this.formationIds, DEFAULT_FORMATION_ID);
         int[] loadedFormationIds = source.getIntArray(FORMATION_IDS_TAG);
@@ -222,7 +226,8 @@ public class TeitokuData {
             morphProfile.loadFromTag(morphProfileList.getCompound(index));
             morphProfile.setDirtyCallback(() -> {
             });
-            if (morphProfile.getLegacyClassId() > 0) {
+            if (morphProfileList.getCompound(index).contains("LegacyClassId", Tag.TAG_INT)
+                    && morphProfile.getLegacyClassId() >= 0) {
                 this.morphProfiles.add(morphProfile);
             }
         }
@@ -231,7 +236,7 @@ public class TeitokuData {
             this.morphRuntimeState.loadFromTag(source.getCompound(MORPH_RUNTIME_TAG));
         } else {
             this.morphRuntimeState.setActive(false);
-            this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+            this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
         }
         if (source.contains(PLAYER_SKILL_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
             this.playerSkillRuntimeState.loadFromTag(source.getCompound(PLAYER_SKILL_RUNTIME_TAG));
@@ -241,7 +246,7 @@ public class TeitokuData {
 
         if (this.getSelectedMorphProfile() == null) {
             this.morphRuntimeState.setActive(false);
-            this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+            this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
         }
         this.bindMorphDirtyCallbacks();
     }
@@ -299,6 +304,14 @@ public class TeitokuData {
 
     public int getMarriageNum() {
         return this.marriageNum;
+    }
+
+    public boolean areShipIdsInitialized() {
+        return this.shipIdsInitialized;
+    }
+
+    public void setShipIdsInitialized(boolean initialized) {
+        this.shipIdsInitialized = initialized;
     }
 
     public void setMarriageNum(int marriageNum) {
@@ -396,12 +409,12 @@ public class TeitokuData {
         }
     }
 
-    public void removeShipUidEverywhere(int shipUid) {
+    public void removeShipUidFromCurrentTeam(int shipUid) {
         if (shipUid <= 0) {
             return;
         }
 
-        for (int i = 0; i < TEAM_SLOT_COUNT; i++) {
+        for (int i = this.currentTeamId * TEAM_SIZE; i < (this.currentTeamId + 1) * TEAM_SIZE; i++) {
             if (this.teamShipUids[i] == shipUid) {
                 this.teamShipUids[i] = -1;
                 this.teamShipSelected[i] = false;
@@ -411,6 +424,35 @@ public class TeitokuData {
 
     public void assignCurrentTeamSlot(int slot, int shipUid) {
         this.setShipUid(this.currentTeamId, slot, shipUid);
+    }
+
+    public boolean addShipEntity(int slot, LegacyShipEntity ship, boolean forceAdd) {
+        int targetSlot = slot > 5 ? 0 : Math.max(0, slot);
+        if (!forceAdd && ship != null) {
+            if (!(this.playerUid > 0 || this.playerUid < -1) || this.playerUid != ship.getOwnerUid()) {
+                return false;
+            }
+            for (int i = 0; i < TEAM_SIZE; i++) {
+                if (this.getShipUid(this.currentTeamId, i) == ship.getShipUid()) {
+                    this.assignCurrentTeamSlot(i, -1);
+                    this.pointerSlotCursor = i;
+                    return true;
+                }
+            }
+            targetSlot = this.getPointerSlotCursor();
+            for (int i = 0; i < TEAM_SIZE; i++) {
+                if (this.getShipUid(this.currentTeamId, i) <= 0) {
+                    targetSlot = i;
+                    break;
+                }
+            }
+            this.pointerSlotCursor = (targetSlot + 1) % TEAM_SIZE;
+        }
+        if (!forceAdd) {
+            this.setShipSelected(this.currentTeamId, targetSlot, false);
+        }
+        this.assignCurrentTeamSlot(targetSlot, ship == null ? -1 : ship.getShipUid());
+        return true;
     }
 
     public boolean isShipSelected(int teamId, int slot) {
@@ -662,20 +704,17 @@ public class TeitokuData {
     }
 
     public boolean unlockMorph(int legacyClassId) {
-        if (legacyClassId <= 0 || this.hasUnlockedMorph(legacyClassId)) {
+        if (legacyClassId < 0 || this.hasUnlockedMorph(legacyClassId)) {
             return false;
         }
 
         MorphProfile morphProfile = new MorphProfile(legacyClassId);
         this.installMorphProfile(morphProfile);
-        if (this.morphRuntimeState.getSelectedClassId() <= 0) {
-            this.morphRuntimeState.setSelectedClassId(legacyClassId);
-        }
         return true;
     }
 
     public MorphProfile findMorphProfile(int legacyClassId) {
-        if (legacyClassId <= 0) {
+        if (legacyClassId < 0) {
             return null;
         }
 
@@ -693,8 +732,8 @@ public class TeitokuData {
     }
 
     public boolean setSelectedMorphProfile(int legacyClassId) {
-        if (legacyClassId <= 0) {
-            this.morphRuntimeState.setSelectedClassId(0);
+        if (legacyClassId < 0) {
+            this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
             this.morphRuntimeState.setActive(false);
             return true;
         }
@@ -709,7 +748,7 @@ public class TeitokuData {
 
     public boolean cycleMorphProfile(boolean forward) {
         if (this.morphProfiles.isEmpty()) {
-            this.morphRuntimeState.setSelectedClassId(0);
+            this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
             this.morphRuntimeState.setActive(false);
             return false;
         }
@@ -749,12 +788,12 @@ public class TeitokuData {
     }
 
     public void clearMorphSelectionIfMatches(int legacyClassId) {
-        if (legacyClassId <= 0 || this.morphRuntimeState.getSelectedClassId() != legacyClassId) {
+        if (legacyClassId < 0 || this.morphRuntimeState.getSelectedClassId() != legacyClassId) {
             return;
         }
 
         this.morphRuntimeState.setActive(false);
-        this.morphRuntimeState.setSelectedClassId(this.morphProfiles.isEmpty() ? 0 : this.morphProfiles.get(0).getLegacyClassId());
+        this.morphRuntimeState.setSelectedClassId(MorphRuntimeState.NO_SELECTION);
     }
 
     private static String normalizeTargetClass(String targetClass) {

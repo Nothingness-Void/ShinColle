@@ -345,7 +345,7 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
     private static int resolveSelectedClassId(Player player) {
         return TeitokuHelper.get(player)
                 .map(data -> data.getMorphRuntimeState().getSelectedClassId())
-                .orElse(0);
+                .orElse(MorphRuntimeState.NO_SELECTION);
     }
 
     private static int legacyExpNext(int level) {
