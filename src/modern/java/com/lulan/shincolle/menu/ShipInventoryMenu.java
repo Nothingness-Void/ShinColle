@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
 public class ShipInventoryMenu extends AbstractContainerMenu {
 
     public static final int BUTTON_TOGGLE_MODE = 0;
-    private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
+    private static final int DEFAULT_FOLLOW_MAX = 12;
     private static final String HEALTH_TAG = "Health";
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
@@ -54,7 +54,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String AI_AUTO_TARGET_TAG = "AiAutoTarget";
     private static final String AI_ALLOW_PVP_TAG = "AiAllowPvp";
     private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
-    private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
+    private static final String FOLLOW_MAX_TAG = "FMax";
     private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
     private static final String LEGACY_EXTENDED_PROPERTIES_TAG = "ShipExtProps";
     private static final String LEGACY_MINOR_TAG = "Minor";
@@ -543,11 +543,16 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         return flags;
     }
 
-    public int getAiFollowRange() {
+    public int getFollowMin() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getFollowMin() : this.getCachedInt(this.getCachedEntityTag(), "FMin", 3);
+    }
+
+    public int getFollowMax() {
         LegacyShipEntity ship = this.getShip();
         return ship != null
-                ? ship.getAiFollowRange()
-                : this.getCachedInt(this.getCachedEntityTag(), AI_FOLLOW_RANGE_TAG, DEFAULT_AI_FOLLOW_RANGE);
+                ? ship.getFollowMax()
+                : this.getCachedInt(this.getCachedEntityTag(), FOLLOW_MAX_TAG, DEFAULT_FOLLOW_MAX);
     }
 
     public String getRouteEnergyText() {

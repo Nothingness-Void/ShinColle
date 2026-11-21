@@ -13,7 +13,8 @@ public enum ShipCommandAction {
     SET_WAYPOINT_STAY,
     SET_TIME_KEEPER,
     SET_AUTO_PUMP,
-    SET_COMBAT_RATION_LEVEL;
+    SET_COMBAT_RATION_LEVEL,
+    SET_FOLLOW_MIN;
 
     public static ShipCommandAction fromOrdinal(int ordinal) {
         ShipCommandAction[] values = values();

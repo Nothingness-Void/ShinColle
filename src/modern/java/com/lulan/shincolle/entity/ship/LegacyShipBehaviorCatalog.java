@@ -405,6 +405,10 @@ public final class LegacyShipBehaviorCatalog {
     /** Mirrors EntityAIShipGuarding.findTarget's narrower moving-guard box. */
     public static LivingEntity findLegacyGuardTarget(LegacyShipEntity ship) {
         double range = Math.max(1.0D, (int) ship.getCompatAttackRange());
+        return findLegacyGuardTarget(ship, range);
+    }
+
+    public static LivingEntity findLegacyGuardTarget(LegacyShipEntity ship, double range) {
         AABB guardArea = ship.getBoundingBox().inflate(range * 0.9D, range * 0.6D, range * 0.9D);
         return findLegacyRangeTarget(ship, guardArea);
     }

@@ -1,8 +1,22 @@
 package com.lulan.shincolle.formation;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.network.ClientboundSpawnParticlePacket;
+import com.lulan.shincolle.network.GameplayParticleType;
+import com.lulan.shincolle.network.ModNetwork;
+import com.lulan.shincolle.registry.ModBlocks;
+import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 
@@ -11,6 +25,62 @@ import javax.annotation.Nullable;
 public final class LegacyFormationHelper {
 
     private LegacyFormationHelper() {
+    }
+
+    public static Vec3 getFormationGuardingPos(LegacyShipEntity ship, Entity target, double oldX, double oldZ) {
+        return getFormationGuardingPos(ship.getLegacyFormationId(), ship.getLegacyFormationSlot(), target, oldX, oldZ);
+    }
+
+    public static Vec3 getFormationGuardingPos(int formationId, int slot, Entity target, double oldX, double oldZ) {
+        if (formationId <= 0) {
+            return target.position();
+        }
+        if (slot < 0 || slot > 5) {
+            slot = 0;
+        }
+        BlockPos center = new BlockPos(Mth.floor(target.getX()), (int) (target.getY() + 0.5D), Mth.floor(target.getZ()));
+        boolean[] direction = getFormationDirection(target.getX(), target.getZ(), oldX, oldZ);
+        BlockPos position = calcFormationPos(formationId, slot, center, direction);
+        BlockPos safePosition = getSafeBlockWithin5x5(target.level(), position);
+        return safePosition == null ? target.position() : Vec3.atLowerCornerOf(safePosition);
+    }
+
+    @Nullable
+    public static BlockPos getSafeBlockWithin5x5(Level level, BlockPos origin) {
+        for (int ix = 0, x = 0; ix <= 6; ix++) {
+            x += (ix & 1) == 0 ? -ix : ix;
+            for (int iz = 0, z = 0; iz <= 6; iz++) {
+                z += (iz & 1) == 0 ? -iz : iz;
+                for (int iy = 0, y = 0; iy <= 8; iy++) {
+                    y += (iy & 1) == 0 ? -iy : iy;
+                    BlockPos candidate = origin.offset(x, y, z);
+                    BlockState state = level.getBlockState(candidate);
+                    if (state.isAir() || !state.getFluidState().isEmpty()
+                            || state.is(ModBlocks.BLOCK_WAYPOINT.get())
+                            || state.isPathfindable(level, candidate, PathComputationType.LAND)) {
+                        for (int below = 0; below <= Math.abs(y); below++) {
+                            BlockState floor = level.getBlockState(candidate.below(below + 1));
+                            if (!floor.isAir() && !floor.is(Blocks.FIRE)
+                                    && (!floor.getFluidState().isEmpty() || floor.blocksMotion())) {
+                                return candidate.below(below);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public static void sendFormationMarker(LegacyShipEntity ship, Vec3 position, int marker) {
+        Player owner = ship.getOwnerPlayer();
+        if (owner instanceof ServerPlayer player && player.level() == ship.level()
+                && (ShinColleConfig.alwaysShowTeamParticle()
+                || player.getMainHandItem().is(ModItems.POINTERITEM.get())
+                || player.getOffhandItem().is(ModItems.POINTERITEM.get()))) {
+            ModNetwork.sendToPlayer(player, new ClientboundSpawnParticlePacket(GameplayParticleType.HEALING_SPARKLE,
+                    position.x, position.y, position.z, 0.3D, marker, 0.0D));
+        }
     }
 
     public static FormationRuntimeState resolveMoveState(Player player, LegacyShipEntity ship, BlockPos center,
@@ -56,13 +126,17 @@ public final class LegacyFormationHelper {
     }
 
     private static BlockPos calcFormationPos(int formationId, int formatPos, BlockPos flagshipPos, double oldX, double oldZ) {
+        return calcFormationPos(formationId, formatPos, flagshipPos,
+                getFormationDirection(flagshipPos.getX(), flagshipPos.getZ(), oldX, oldZ));
+    }
+
+    private static BlockPos calcFormationPos(int formationId, int formatPos, BlockPos flagshipPos, boolean[] face) {
         int normalizedPos = Math.max(0, Math.min(TeitokuData.TEAM_SIZE - 1, formatPos));
         int[] pos = new int[]{flagshipPos.getX(), flagshipPos.getY(), flagshipPos.getZ()};
         if (normalizedPos == 0) {
             return flagshipPos.immutable();
         }
 
-        boolean[] face = getFormationDirection(flagshipPos.getX(), flagshipPos.getZ(), oldX, oldZ);
         switch (formationId) {
             case 1 -> {
                 for (int i = 0; i < normalizedPos; i++) {

@@ -198,8 +198,13 @@ public final class ShinColleConfig {
         return getBoolean("canSearchlight", CLIENT_SPEC, CLIENT.canSearchlight, true);
     }
 
+    public static List<? extends Integer> shipTeleport() {
+        List<? extends Integer> values = COMMON_SPEC.isLoaded() ? COMMON.shipTeleport.get() : List.of(200, 256);
+        return values.size() == 2 ? values : List.of(200, 256);
+    }
+
     public static boolean canTeleport() {
-        return getBoolean("canTeleport", CLIENT_SPEC, CLIENT.canTeleport, true);
+        return getBoolean("canTeleport", COMMON_SPEC, COMMON.canTeleport, true);
     }
 
     public static boolean timeKeeping() {
@@ -278,6 +283,8 @@ public final class ShinColleConfig {
 
     public static final class Common {
 
+        public final ForgeConfigSpec.BooleanValue canTeleport;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> shipTeleport;
         public final ForgeConfigSpec.BooleanValue friendlyFire;
         public final ForgeConfigSpec.IntValue shipAttackPlayer;
         public final ForgeConfigSpec.BooleanValue mobAttackPlayer;
@@ -311,6 +318,8 @@ public final class ShinColleConfig {
 
         private Common(ForgeConfigSpec.Builder builder) {
             builder.push("general");
+            this.canTeleport = builder.define("Can_Teleport", true);
+            this.shipTeleport = builder.defineList("ship_teleport", List.of(200, 256), value -> value instanceof Integer);
             this.friendlyFire = builder
                     .comment("false: disable damage done by player (except owner) and ally friendly-fire")
                     .define("friendlyFire", true);
@@ -409,7 +418,6 @@ public final class ShinColleConfig {
 
         public final ForgeConfigSpec.BooleanValue canFlare;
         public final ForgeConfigSpec.BooleanValue canSearchlight;
-        public final ForgeConfigSpec.BooleanValue canTeleport;
         public final ForgeConfigSpec.BooleanValue timeKeeping;
         public final ForgeConfigSpec.BooleanValue useWakamoto;
         public final ForgeConfigSpec.BooleanValue showTag;
@@ -423,7 +431,6 @@ public final class ShinColleConfig {
             builder.push("client");
             this.canFlare = builder.define("canFlare", true);
             this.canSearchlight = builder.define("canSearchlight", true);
-            this.canTeleport = builder.define("canTeleport", true);
             this.timeKeeping = builder.define("timeKeeping", true);
             this.useWakamoto = builder.define("useWakamoto", true);
             this.showTag = builder.define("showTag", true);

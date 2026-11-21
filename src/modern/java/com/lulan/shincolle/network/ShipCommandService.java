@@ -79,6 +79,7 @@ public final class ShipCommandService {
             case STOP_COMMAND -> stop(player, packet.mode(), packet.shipId(), packet.shipUid());
             case SET_AI_FLAGS -> setAiFlags(player, packet.shipId(), packet.shipUid(), packet.value());
             case SET_FOLLOW_RANGE -> setFollowRange(player, packet.shipId(), packet.shipUid(), packet.value());
+            case SET_FOLLOW_MIN -> setFollowMin(player, packet.shipId(), packet.shipUid(), packet.value());
             case TOGGLE_SIT -> toggleSit(player, packet.mode(), packet.shipId(), packet.shipUid());
             case OPEN_SHIP_INVENTORY -> openShipInventory(player, packet.shipId(), packet.shipUid());
             case TOGGLE_RING_EFFECT -> toggleRingEffect(player, packet.shipId(), packet.shipUid());
@@ -298,13 +299,21 @@ public final class ShipCommandService {
         return ShipCommandResult.SUCCESS;
     }
 
+    private static ShipCommandResult setFollowMin(Player player, int shipId, int shipUid, int value) {
+        LegacyShipEntity ship = resolveOwnedShip(player, shipId, shipUid);
+        if (ship == null) return ShipCommandResult.NO_COMMANDABLE_SHIP;
+        ship.setFollowMin(value);
+        markShipDirty(ship);
+        return ShipCommandResult.SUCCESS;
+    }
+
     private static ShipCommandResult setFollowRange(Player player, int shipId, int shipUid, int followRange) {
         LegacyShipEntity ship = resolveOwnedShip(player, shipId, shipUid);
         if (ship == null) {
             return ShipCommandResult.NO_COMMANDABLE_SHIP;
         }
 
-        ship.setAiFollowRange(followRange);
+        ship.setFollowMax(followRange);
         markShipDirty(ship);
         return ShipCommandResult.SUCCESS;
     }
@@ -476,7 +485,7 @@ public final class ShipCommandService {
             case ATTACK_ENTITY -> "chat.shincolle.ship_command.action.attack";
             case STOP_COMMAND -> "chat.shincolle.ship_command.action.stop";
             case SET_AI_FLAGS -> "chat.shincolle.ship_command.action.ai_flags";
-            case SET_FOLLOW_RANGE -> "chat.shincolle.ship_command.action.follow_range";
+            case SET_FOLLOW_MIN, SET_FOLLOW_RANGE -> "chat.shincolle.ship_command.action.follow_range";
             case TOGGLE_SIT -> "chat.shincolle.ship_command.action.toggle_sit";
             case OPEN_SHIP_INVENTORY -> "chat.shincolle.ship_command.action.open_inventory";
             case TOGGLE_RING_EFFECT -> "chat.shincolle.ship_command.action.toggle_ring_effect";

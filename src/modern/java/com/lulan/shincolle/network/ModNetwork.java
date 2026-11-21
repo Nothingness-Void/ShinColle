@@ -81,6 +81,12 @@ public final class ModNetwork {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientboundGameplayStatePacket(payload));
     }
 
+    public static void sendToPlayer(ServerPlayer player, Object packet) {
+        if (player.connection != null) {
+            CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        }
+    }
+
     public static void sendToTrackingAndSelf(Entity entity, Object packet) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), packet);
     }

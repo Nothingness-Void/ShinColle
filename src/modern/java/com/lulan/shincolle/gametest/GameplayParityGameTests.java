@@ -161,6 +161,8 @@ import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipTeleportHelper;
+import com.lulan.shincolle.formation.LegacyFormationHelper;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.context.UseOnContext;
@@ -185,6 +187,9 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.tags.BlockTags;
@@ -1058,10 +1063,10 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_crane_energy")
     public static void craneRouteTransfersEnergyWithoutItemContainer(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 4, 1));
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 162, 1));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
         for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
@@ -1103,10 +1108,10 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_crane_fluid")
     public static void craneRouteTransfersShipTankLavaFromChestToShip(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 160, 1));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
 
@@ -1166,10 +1171,10 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_crane_items")
     public static void craneRouteTransfersFilteredItemsBetweenChestAndShip(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 2, 1));
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 160, 1));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
 
@@ -1227,10 +1232,10 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_waypoint_wait")
     public static void waypointRouteWaitsOnceThenAdvances(GameTestHelper helper) {
-        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 2, 1));
+        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 160, 1));
         helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(nextWaypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
         for (int dx = -1; dx <= 1; dx++) {
@@ -1259,13 +1264,15 @@ public final class GameplayParityGameTests {
         ship.setPos(waypointPos.getX() + 0.5D, waypointPos.getY() + 0.1D, waypointPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(waypointPos, "");
+        ship.tickCount = 1;
         ship.tick();
         if (!waypointPos.equals(ship.getRouteNodePos())) {
             helper.fail("ship should keep the current waypoint while route stay ticks are active");
             return;
         }
 
-        for (int i = 0; i < WaypointBlockEntity.stayModeToTicks(1); i++) {
+        for (int i = 0; i < WaypointBlockEntity.stayModeToTicks(1) + 32; i++) {
+            ship.tickCount++;
             ship.tick();
         }
 
@@ -1671,7 +1678,7 @@ public final class GameplayParityGameTests {
         legacyFollow.putInt(GameplayCommandHandler.TAG_FOLLOW_RANGE, 28);
         if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_FOLLOW_RANGE, legacyFollow)
                 || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(typedShip.getId(), typedShip.getShipUid(), 28))
-                || legacyShip.getAiFollowRange() != typedShip.getAiFollowRange()) {
+                || legacyShip.getFollowMax() != typedShip.getFollowMax()) {
             helper.fail("legacy and typed follow-range commands should share behavior");
             return;
         }
@@ -1910,7 +1917,8 @@ public final class GameplayParityGameTests {
         movingShip.setAiAllowPvp(true);
         movingShip.setAiAutoSupply(false);
         movingShip.setAiRespectRouteStay(false);
-        movingShip.setAiFollowRange(36);
+        movingShip.setFollowMin(7);
+        movingShip.setFollowMax(32);
         movingShip.commandMoveTo(commandTarget, "minecraft:overworld");
 
         CompoundTag movingTag = new CompoundTag();
@@ -1924,7 +1932,8 @@ public final class GameplayParityGameTests {
         if (!commandTarget.equals(loadedMovingShip.getCommandedPos())
                 || !"minecraft:overworld".equals(loadedMovingShip.getCommandDimension())
                 || !loadedMovingShip.isOrderedToSit()
-                || loadedMovingShip.getAiFollowRange() != 36
+                || loadedMovingShip.getFollowMin() != 7
+                || loadedMovingShip.getFollowMax() != 32
                 || loadedMovingShip.isAiAutoTarget()
                 || !loadedMovingShip.isAiAllowPvp()
                 || loadedMovingShip.isAiAutoSupply()
@@ -1934,7 +1943,7 @@ public final class GameplayParityGameTests {
                     + " dim=" + loadedMovingShip.getCommandDimension()
                     + " sit=" + loadedMovingShip.isOrderedToSit()
                     + " flags=" + loadedMovingShip.getAiFlagsBitmask()
-                    + " follow=" + loadedMovingShip.getAiFollowRange()
+                    + " follow=" + loadedMovingShip.getFollowMax()
                     + " autoTarget=" + loadedMovingShip.isAiAutoTarget()
                     + " allowPvp=" + loadedMovingShip.isAiAllowPvp()
                     + " autoSupply=" + loadedMovingShip.isAiAutoSupply()
@@ -2584,7 +2593,7 @@ public final class GameplayParityGameTests {
             helper.fail("cache fallback menu should preserve route energy text");
             return;
         }
-        if (menu.getAiFollowRange() != ship.getAiFollowRange()) {
+        if (menu.getFollowMax() != ship.getFollowMax()) {
             helper.fail("cache fallback menu should preserve AI follow range");
             return;
         }
@@ -2631,7 +2640,7 @@ public final class GameplayParityGameTests {
             helper.fail("detached ship inventory cache should refresh AI flag state after ship commands");
             return;
         }
-        if (menu.getAiFollowRange() != 30) {
+        if (menu.getFollowMax() != 30) {
             helper.fail("detached ship inventory cache should refresh follow range after ship commands");
             return;
         }
@@ -3726,7 +3735,7 @@ public final class GameplayParityGameTests {
         if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), ship.getShipUid(), aiFlags))
                 || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), ship.getShipUid(), 24))
                 || ship.getAiFlagsBitmask() != aiFlags
-                || ship.getAiFollowRange() != 24) {
+                || ship.getFollowMax() != 24) {
             helper.fail("ship inventory command controls should update AI flags and follow range");
             return;
         }
@@ -4936,11 +4945,11 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_waypoint_backtrack")
     public static void waypointRouteBacktracksUsingLegacyLastWaypoint(GameTestHelper helper) {
-        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos backWaypointPos = helper.absolutePos(new BlockPos(12, 2, 1));
-        BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 2, 1));
+        BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos backWaypointPos = helper.absolutePos(new BlockPos(12, 160, 1));
+        BlockPos nextWaypointPos = helper.absolutePos(new BlockPos(24, 160, 1));
         helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(backWaypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(nextWaypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -4966,6 +4975,7 @@ public final class GameplayParityGameTests {
         ship.setPos(waypointPos.getX() + 0.5D, waypointPos.getY() + 0.1D, waypointPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(waypointPos, "");
+        ship.tickCount = 16;
         ship.tick();
 
         if (!backWaypointPos.equals(ship.getRouteNodePos())
@@ -4978,6 +4988,7 @@ public final class GameplayParityGameTests {
         waypoint.setLastWaypoint(null);
         waypoint.setNextWaypoint(null);
         ship.commandMoveTo(waypointPos, "");
+        ship.tickCount = 32;
         ship.tick();
         if (!waypointPos.equals(ship.getRouteNodePos()) || ship.canFollow()) {
             helper.fail("a route without an outgoing waypoint should keep its current guard node");
@@ -5196,12 +5207,11 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_local_combat")
     public static void guardGoalKeepsLocalCombatInsideGuardCommand(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
-        LegacyShipEntity ship = createOwnedShip(helper, player, 53,
-                origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
+        GuardTestShip ship = new GuardTestShip(helper, player, 53, Vec3.atBottomCenterOf(origin));
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
             return;
@@ -5214,7 +5224,7 @@ public final class GameplayParityGameTests {
         ship.setUseAttackHeavy(false);
         ship.setUseAttackAirLight(false);
         ship.setUseAttackAirHeavy(false);
-        BlockPos guardPos = origin.offset(8, 0, 8);
+        BlockPos guardPos = origin.offset(24, 0, 0);
         ship.commandGuardBlock(guardPos, helper.getLevel().dimension().location().toString());
 
         LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
@@ -5228,18 +5238,24 @@ public final class GameplayParityGameTests {
             return;
         }
         ship.setCanFollow(false);
+        ship.setMarried(true);
+        ship.setShipLevel(150);
 
         int ammoBefore = ship.getLightAmmo();
         goal.start();
-        int guardAimTicks = Math.max(20, ship.getCompatAttackAimTime());
+        int guardAimTicks = ship.getCompatAttackAimTime();
+        if (guardAimTicks != 10) {
+            helper.fail("level 150 guard aim time must be ten ticks without a twenty-tick floor");
+            return;
+        }
 
-        ship.getNavigation().stop();
+        ship.guardNavigation().succeeds = false;
         for (int tick = 32; tick < 32 + guardAimTicks; tick++) {
             ship.tickCount = tick;
             goal.tick();
         }
         if (ship.getLightAmmo() != ammoBefore) {
-            helper.fail("guard combat should not fire after the ship has reached its guard position");
+            helper.fail("guard combat must not fire when navigation requests fail");
             return;
         }
 
@@ -5248,12 +5264,9 @@ public final class GameplayParityGameTests {
             helper.fail("PassiveAI should keep the legacy guard movement goal active");
             return;
         }
-        if (!setSyntheticGuardPath(ship, origin, guardPos)) {
-            helper.fail("guard command should expose an active navigation path while returning to its position");
-            return;
-        }
+        ship.guardNavigation().succeeds = true;
         goal.stop();
-        goal.start();
+        primeGuardMovement(ship, goal);
         for (int tick = 64; tick < 64 + guardAimTicks; tick++) {
             ship.tickCount = tick;
             goal.tick();
@@ -5264,16 +5277,18 @@ public final class GameplayParityGameTests {
         }
 
         ship.setAiAutoTarget(true);
-        if (!setSyntheticGuardPath(ship, origin, guardPos)) {
-            helper.fail("guard command should restart its navigation path for active guard combat");
-            return;
-        }
         goal.stop();
-        goal.start();
-        for (int tick = 96; tick < 96 + guardAimTicks; tick++) {
+        primeGuardMovement(ship, goal);
+        for (int tick = 64; tick < 64 + guardAimTicks - 1; tick++) {
             ship.tickCount = tick;
             goal.tick();
         }
+        if (ship.getLightAmmo() != ammoBefore) {
+            helper.fail("guard combat must wait for exactly the legacy aim time");
+            return;
+        }
+        ship.tickCount = 64 + guardAimTicks - 1;
+        goal.tick();
         if (ship.getLightAmmo() >= ammoBefore) {
             helper.fail("guard combat should fire at a nearby target without converting the guard into pursuit");
             return;
@@ -5288,12 +5303,11 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_cannon_delay")
     public static void guardGoalKeepsIndependentCannonDelay(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
-        LegacyShipEntity ship = createOwnedShip(helper, player, 53,
-                origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
+        GuardTestShip ship = new GuardTestShip(helper, player, 53, Vec3.atBottomCenterOf(origin));
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
         if (ship == null || target == null) {
             helper.fail("legacy guard cannon delay entities should be creatable");
@@ -5322,23 +5336,26 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        BlockPos guardPos = origin.offset(8, 0, 8);
+        BlockPos guardPos = origin.offset(24, 0, 0);
         ship.commandGuardBlock(guardPos, helper.getLevel().dimension().location().toString());
         LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
-        if (!goal.canUse() || !setSyntheticGuardPath(ship, origin, guardPos)) {
+        if (!goal.canUse()) {
             helper.fail("guard command should expose an active path for independent cannon delay testing");
             return;
         }
 
-        goal.start();
-        int guardAimTicks = Math.max(20, ship.getCompatAttackAimTime());
-        for (int tick = 0; tick < guardAimTicks; tick++) {
+        primeGuardMovement(ship, goal);
+        int guardAimTicks = ship.getCompatAttackAimTime();
+        for (int tick = 64; tick < 64 + guardAimTicks; tick++) {
             ship.tickCount = tick;
             goal.tick();
         }
 
         if (ship.getLightAmmo() != ammoAfterSetup - 1) {
-            helper.fail("guard cannon should fire after its own delay and legacy aim time even while normal ranged cooldown is active");
+            helper.fail("guard cannon should fire after its own delay and legacy aim time even while normal ranged cooldown is active"
+                    + ": ammo=" + ship.getLightAmmo() + " before=" + ammoAfterSetup + " aim=" + guardAimTicks
+                    + " targetAlive=" + target.isAlive() + " sight=" + ship.getSensing().hasLineOfSight(target)
+                    + " range=" + ship.getCompatAttackRange() + " " + guardState(ship));
             return;
         }
         if (ship.getCompatAttackCooldown(LegacyShipAttackKind.LIGHT) != sharedCooldown) {
@@ -5351,12 +5368,11 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_aircraft_delay")
     public static void guardGoalKeepsIndependentAircraftDelay(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
-        LegacyShipEntity carrier = createOwnedShip(helper, player, 49,
-                origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
+        GuardTestShip carrier = new GuardTestShip(helper, player, 49, Vec3.atBottomCenterOf(origin));
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
         if (carrier == null || target == null) {
             helper.fail("legacy guard aircraft delay entities should be creatable");
@@ -5391,17 +5407,17 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        BlockPos guardPos = origin.offset(8, 0, 8);
+        BlockPos guardPos = origin.offset(24, 0, 0);
         carrier.commandGuardBlock(guardPos, helper.getLevel().dimension().location().toString());
         LegacyShipGuardGoal goal = new LegacyShipGuardGoal(carrier);
-        if (!goal.canUse() || !setSyntheticGuardPath(carrier, origin, guardPos)) {
+        if (!goal.canUse()) {
             helper.fail("guard command should expose an active path for independent aircraft delay testing");
             return;
         }
 
-        goal.start();
-        int guardAimTicks = Math.max(20, carrier.getCompatAttackAimTime());
-        for (int tick = 0; tick < guardAimTicks; tick++) {
+        primeGuardMovement(carrier, goal);
+        int guardAimTicks = carrier.getCompatAttackAimTime();
+        for (int tick = 64; tick < 64 + guardAimTicks; tick++) {
             carrier.tickCount = tick;
             goal.tick();
         }
@@ -12985,7 +13001,7 @@ public final class GameplayParityGameTests {
         if (attackRange >= 2 || ship.getHostileTargetSearchRange() != 14.0D) {
             helper.fail("low hostile attack ranges should use the legacy FollowMax + 2 effective fallback"
                     + ": attackRange=" + attackRange
-                    + ", followRange=" + ship.getAiFollowRange()
+                    + ", followRange=" + ship.getFollowMax()
                     + ", searchRange=" + ship.getHostileTargetSearchRange());
             return;
         }
@@ -15169,7 +15185,7 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "empty", batch = "guard_bounds_isolation")
     public static void guardTargetUsesLegacyGuardingBounds(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -15181,6 +15197,10 @@ public final class GameplayParityGameTests {
         }
 
         double range = Math.max(1.0D, (int) ship.getCompatAttackRange());
+        if (range < 2.0D || ship.getHostileTargetSearchRange() != range) {
+            helper.fail("this boundary fixture must use the integer attack range, not the FollowMax+2 fallback");
+            return;
+        }
         target.setNoAi(true);
         double targetMinOffset = target.getBoundingBox().minY - target.getY();
         double targetY = ship.getBoundingBox().maxY + range * 0.6D + 0.25D - targetMinOffset;
@@ -15188,7 +15208,7 @@ public final class GameplayParityGameTests {
         helper.getLevel().addFreshEntity(target);
 
         if (LegacyShipBehaviorCatalog.findLegacyRangeTarget(ship) != target) {
-            helper.fail("the regular legacy target box should include a target at 0.7 times range vertically");
+            helper.fail("the regular target box should include the target above the moving-guard Y boundary");
             return;
         }
         if (LegacyShipBehaviorCatalog.findLegacyGuardTarget(ship) != null) {
@@ -15202,6 +15222,332 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_movement")
+    public static void guardMovementUsesLegacyThresholdsAndPathCadence(GameTestHelper helper) {
+        BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
+        Vec3 center = Vec3.atCenterOf(guard);
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center);
+        ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
+        LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
+        double max = ship.getFollowMax() + ship.getBbWidth() * 0.75F;
+        ship.setPos(center.add(max - 0.01D, 0.0D, 0.0D));
+        if (goal.canUse()) {
+            helper.fail("guard movement must not start inside FollowMax plus width*0.75");
+            return;
+        }
+        ship.setPos(center.add(max + 0.01D, 0.0D, 0.0D));
+        if (!goal.canUse()) {
+            helper.fail("guard movement must start outside the max threshold: " + guardState(ship));
+            return;
+        }
+        ship.setAiPickItem(true);
+        if (goal.canUse()) {
+            helper.fail("PickItem must extend the guard start threshold by five blocks");
+            return;
+        }
+        ship.setAiPickItem(false);
+        goal.canUse();
+        goal.start();
+        for (int tick = 1; tick <= 42; tick++) {
+            ship.tickCount = tick;
+            goal.tick();
+            int expected = tick < 10 ? 0 : tick < 42 ? 1 : 2;
+            if (ship.guardNavigation().requests != expected) {
+                helper.fail("guard paths must start after ten ticks then refresh every32 ticks; tick=" + tick);
+                return;
+            }
+        }
+        if (!center.equals(ship.guardNavigation().destination) || ship.guardNavigation().requestedSpeed != 1.0D) {
+            helper.fail("guard paths must use block XYZ+0.5 and literal speed1");
+            return;
+        }
+        double min = ship.getFollowMin() + ship.getBbWidth() * 0.75F;
+        ship.setPos(center.add(min + 0.01D, 0.0D, 0.0D));
+        ship.tickCount = 48;
+        goal.tick();
+        if (!goal.canContinueToUse()) {
+            helper.fail("a running guard must continue between its min and max thresholds");
+            return;
+        }
+        ship.setPos(center);
+        ship.tickCount = 56;
+        goal.tick();
+        ship.tickCount = 57;
+        goal.tick();
+        if (goal.canContinueToUse() || !ship.getNavigation().isDone()) {
+            helper.fail("a guard entering min distance must stop its path and goal");
+            return;
+        }
+        ship.setPos(center.add(24.0D, 0.0D, 0.0D));
+        ship.setOrderedToSit(true);
+        if (goal.canUse()) {
+            helper.fail("sitting ships must not start guarding");
+            return;
+        }
+        ship.setOrderedToSit(false);
+        ship.setGrudge(0);
+        if (goal.canUse()) {
+            helper.fail("guarding requires positive grudge");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_teleport")
+    public static void guardTeleportUsesIdleAndDistanceCounters(GameTestHelper helper) {
+        BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
+        Vec3 center = Vec3.atCenterOf(guard);
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center.add(10.0D, 0.0D, 0.0D));
+        ship.setFollowMin(1);
+        ship.setFollowMax(2);
+        ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
+        LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
+        int cooldown = ShinColleConfig.shipTeleport().get(0);
+        for (int scenario = 0; scenario < 4; scenario++) {
+            boolean distanceTrigger = scenario == 2;
+            ship.setPos(center.add(distanceTrigger ? Math.sqrt(ShinColleConfig.shipTeleport().get(1)) + 2.0D : 10.0D,
+                    0.0D, 0.0D));
+            ship.setDeltaMovement(scenario == 0 ? Vec3.ZERO : new Vec3(0.1D, 0.0D, 0.1D));
+            try {
+                if (scenario == 3) {
+                    ShinColleConfig.setTestOverride("canTeleport", false);
+                    ship.setDeltaMovement(Vec3.ZERO);
+                }
+                if (!goal.canUse()) {
+                    helper.fail("teleport fixture must begin outside guard max distance");
+                    return;
+                }
+                goal.start();
+                Vec3 before = ship.position();
+                for (int tick = 1; tick <= cooldown; tick++) {
+                    ship.tickCount = tick;
+                    goal.tick();
+                }
+                if (!ship.position().equals(before)) {
+                    helper.fail("guard teleport cooldown must use strict greater-than");
+                    return;
+                }
+                ship.tickCount = cooldown + 1;
+                goal.tick();
+                boolean shouldTeleport = scenario == 0 || distanceTrigger;
+                if (shouldTeleport ? ship.position().distanceToSqr(center.add(0.0D, 0.75D, 0.0D)) > 1.0E-8D
+                        : !ship.position().equals(before)) {
+                    helper.fail("guard teleport must distinguish idle time, moving distance and disabled config; scenario=" + scenario);
+                    return;
+                }
+            } finally {
+                ShinColleConfig.clearTestOverrides();
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_invalid")
+    public static void guardInvalidTargetsCancelAndRestoreFollow(GameTestHelper helper) {
+        BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, Vec3.atCenterOf(guard).add(24.0D, 0.0D, 0.0D));
+        LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
+        ship.commandGuardBlock(guard, "minecraft:the_nether");
+        if (goal.canUse() || ship.hasActiveCommandState() || !ship.canFollow()) {
+            helper.fail("cross-dimension guard blocks must cancel and restore follow");
+            return;
+        }
+        ship.commandGuardBlock(new BlockPos(guard.getX(), -1, guard.getZ()), "");
+        if (goal.canUse() || ship.hasActiveCommandState() || !ship.canFollow()) {
+            helper.fail("guard coordinates with nonpositive Y must cancel");
+            return;
+        }
+        ship.commandGuardEntity(UUID.randomUUID());
+        if (goal.canUse() || ship.hasActiveCommandState() || !ship.canFollow()) {
+            helper.fail("unresolvable guarded entities must cancel");
+            return;
+        }
+        Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
+        target.setNoAi(true);
+        target.setPos(Vec3.atCenterOf(guard));
+        helper.getLevel().addFreshEntity(target);
+        ship.commandGuardEntity(target.getUUID());
+        if (!goal.canUse()) {
+            helper.fail("a live guarded entity in this dimension must start guarding");
+            return;
+        }
+        goal.start();
+        target.setHealth(0.0F);
+        ship.tickCount = 8;
+        goal.tick();
+        if (ship.hasActiveCommandState() || !ship.canFollow() || !ship.getNavigation().isDone()) {
+            helper.fail("a guarded entity dying during movement must cancel on the eight-tick refresh");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_formation")
+    public static void guardFormationUsesEntityAndBlockThresholds(GameTestHelper helper) {
+        BlockPos ground = helper.absolutePos(new BlockPos(16, 160, 16));
+        Vec3 center = Vec3.atCenterOf(ground);
+        for (BlockPos pos : BlockPos.betweenClosed(ground.offset(-10, -1, -10), ground.offset(10, -1, 10))) {
+            helper.getLevel().setBlockAndUpdate(pos, Blocks.STONE.defaultBlockState());
+        }
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center.add(20.0D, 0.0D, 0.0D));
+        ship.formationId = 1;
+        ship.formationSlot = 1;
+        Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
+        target.setNoAi(true);
+        target.setPos(center);
+        helper.getLevel().addFreshEntity(target);
+        Vec3 expected = LegacyFormationHelper.getFormationGuardingPos(ship, target, -1.0D, -1.0D);
+        ship.commandGuardEntity(target.getUUID());
+        LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
+        if (!goal.canUse()) {
+            helper.fail("formation entity guard should start outside max distance");
+            return;
+        }
+        primeGuardMovement(ship, goal);
+        if (expected.equals(target.position()) || !expected.equals(ship.guardNavigation().destination)) {
+            helper.fail("entity guarding must seek the formation helper's safe offset instead of the entity itself");
+            return;
+        }
+        ship.setPos(expected.add(3.0D, 0.0D, 0.0D));
+        if (goal.canUse()) {
+            helper.fail("formation entity max distance squared is nine, strict greater-than");
+            return;
+        }
+        ship.setPos(expected.add(3.01D, 0.0D, 0.0D));
+        if (!goal.canUse()) {
+            helper.fail("formation entity guard must start just beyond squared distance nine");
+            return;
+        }
+        ship.setAiPickItem(true);
+        if (goal.canUse()) {
+            helper.fail("PickItem must extend formation max squared distance to64");
+            return;
+        }
+        ship.setAiPickItem(false);
+        ship.commandGuardBlock(ground, "");
+        ship.setPos(center.add(Math.sqrt(7.0D) - 0.01D, 0.0D, 0.0D));
+        if (goal.canUse()) {
+            helper.fail("formation block guard max squared distance must be seven");
+            return;
+        }
+        ship.setPos(center.add(Math.sqrt(7.0D) + 0.01D, 0.0D, 0.0D));
+        if (!goal.canUse()) {
+            helper.fail("formation block guard must start just beyond squared distance seven");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_force_move")
+    public static void guardTypeZeroMovesWithoutAttacking(GameTestHelper helper) {
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, Vec3.atBottomCenterOf(origin));
+        Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
+        target.setNoAi(true);
+        target.setPos(ship.position().add(1.5D, 0.0D, 0.0D));
+        helper.getLevel().addFreshEntity(target);
+        ship.setUseAttackLight(true);
+        BlockPos guard = origin.offset(24, 0, 0);
+        ship.commandMoveTo(guard, "");
+        if (ship.getLegacyGuardType() != 1) {
+            helper.fail("ordinary coordinate commands must use legacy applyShipGuard's type1");
+            return;
+        }
+        CompoundTag saved = new CompoundTag();
+        ship.addAdditionalSaveData(saved);
+        saved.putInt("GuardType", 0);
+        ship.readAdditionalSaveData(saved);
+        LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
+        if (ship.getLegacyGuardType() != 0 || !goal.canUse()) {
+            helper.fail("force-moving guard type0 must participate in the guard movement goal");
+            return;
+        }
+        int ammo = ship.getLightAmmo();
+        primeGuardMovement(ship, goal);
+        for (int tick = 64; tick < 128; tick++) {
+            ship.tickCount = tick;
+            goal.tick();
+        }
+        if (ship.guardNavigation().requests == 0 || ship.getLightAmmo() != ammo) {
+            helper.fail("guard type0 must move but never attack");
+            return;
+        }
+        CompoundTag roundTrip = new CompoundTag();
+        ship.addAdditionalSaveData(roundTrip);
+        if (roundTrip.getInt("GuardType") != 0) {
+            helper.fail("force-moving guard type0 must survive saving independently of command coordinates");
+            return;
+        }
+        ship.setPos(Vec3.atCenterOf(guard));
+        ship.tickCount = 128;
+        goal.tick();
+        ship.tickCount = 129;
+        goal.tick();
+        if (!guard.equals(ship.getCommandedPos()) || ship.canFollow() || goal.canContinueToUse()) {
+            helper.fail("reaching a guard coordinate must stop movement without inventing a return-to-follow command");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_route_movement")
+    public static void guardRouteMovementMatchesLegacyWaypointAndCraneRules(GameTestHelper helper) {
+        BlockPos node = helper.absolutePos(new BlockPos(2, 160, 2));
+        BlockPos next = node.offset(12, 0, 0);
+        helper.getLevel().setBlockAndUpdate(node, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState());
+        WaypointBlockEntity waypoint = (WaypointBlockEntity) helper.getLevel().getBlockEntity(node);
+        waypoint.setNextWaypoint(next);
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53,
+                new Vec3(node.getX() + 3.4D, node.getY(), node.getZ() + 0.5D));
+        ship.commandMoveTo(node, "");
+        for (int tick = 1; tick <= 15; tick++) {
+            ship.tickCount = tick;
+            ship.tick();
+        }
+        if (!node.equals(ship.getRouteNodePos()) || ship.guardNavigation().requests != 0) {
+            helper.fail("waypoint dispatch must not run between the sixteen-tick legacy updates: " + guardState(ship)
+                    + " requests=" + ship.guardNavigation().requests + " route=" + ship.getRouteNodePos());
+            return;
+        }
+        ship.tickCount = 16;
+        ship.tick();
+        if (!next.equals(ship.getRouteNodePos()) || ship.getFollowMin() != 2
+                || ship.guardNavigation().requestedSpeed != 1.0D
+                || !new Vec3(next.getX() + 0.5D, next.getY(), next.getZ() + 0.5D).equals(ship.guardNavigation().destination)) {
+            helper.fail("waypoints must advance inside squared distance9, set FollowMin2 and request speed1 at node Y");
+            return;
+        }
+        ship.commandMoveTo(node, "");
+        ship.formationId = 1;
+        ship.formationSlot = 1;
+        ship.tickCount = 32;
+        ship.tick();
+        if (!node.equals(ship.getRouteNodePos())) {
+            helper.fail("formation followers must not advance waypoint routes");
+            return;
+        }
+        ship.formationId = 0;
+        ship.setPos(node.getX() + 4.5D, node.getY(), node.getZ() + 0.5D);
+        ship.tickCount = 128;
+        ship.tick();
+        if (!new Vec3(node.getX() + 0.5D, node.getY(), node.getZ() + 0.5D).equals(ship.guardNavigation().destination)) {
+            helper.fail("distant waypoints must request a return path every128 ticks");
+            return;
+        }
+        BlockPos crane = node.offset(0, 0, 12);
+        helper.getLevel().setBlockAndUpdate(crane, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
+        ship.commandMoveTo(crane, "");
+        ship.tickCount = 144;
+        ship.tick();
+        if (ship.guardNavigation().requestedSpeed != 1.0D
+                || !new Vec3(crane.getX() + 0.5D, crane.getY() - 2.0D, crane.getZ() + 0.5D)
+                        .equals(ship.guardNavigation().destination)) {
+            helper.fail("distant cranes must request the point two blocks below at literal speed1");
+            return;
+        }
         helper.succeed();
     }
 
@@ -15629,7 +15975,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void shipFollowGoalYieldsToExplicitOrders(GameTestHelper helper) {
+    public static void shipFollowGoalUsesLegacyFollowFlag(GameTestHelper helper) {
         ServerPlayer player = makeServerBackedPlayer(helper, "FollowGoal");
         helper.getLevel().players().add(player);
         player.setPos(1.5D, 2.0D, 1.5D);
@@ -15646,7 +15992,7 @@ public final class GameplayParityGameTests {
         ship.setGrudge(1);
         ship.setCanFollow(true);
 
-        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship, 1.1D, 5.0F, 2.0F, 14.0F);
+        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship);
         if (!goal.canUse()) {
             helper.fail("follow goal should activate for a distant idle friendly ship");
             return;
@@ -15654,13 +16000,13 @@ public final class GameplayParityGameTests {
 
         ship.commandMoveTo(new BlockPos(24, 2, 1), helper.getLevel().dimension().location().toString());
         if (goal.canUse()) {
-            helper.fail("follow goal must yield to an explicit move or route command");
+            helper.fail("move commands disable the legacy CanFollow flag");
             return;
         }
 
-        ship.clearCommandState();
+        ship.setCanFollow(true);
         if (!goal.canUse()) {
-            helper.fail("follow goal should resume after an explicit move or route command is cleared");
+            helper.fail("an active command must not independently gate follow when CanFollow is enabled");
             return;
         }
 
@@ -15677,6 +16023,131 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipFollowLegacyThresholdsAndCachedDistance(GameTestHelper helper) {
+        ServerPlayer owner = makeServerBackedPlayer(helper, "FollowThreshold");
+        helper.getLevel().players().add(owner);
+        owner.setPos(0.0D, 100.0D, 0.0D);
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        ship.setOwner(owner.getUUID(), owner.getGameProfile().getName(), 0);
+        ship.setGrudge(1);
+        ship.setCanFollow(true);
+        ship.setAiPickItem(false);
+        double max = ship.getFollowMax() + ship.getBbWidth() * 0.75F;
+        ship.setPos(max - 0.01D, 100.0D, 0.0D);
+        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship);
+        if (goal.canUse()) {
+            helper.fail("legacy follow must not start within max distance");
+            return;
+        }
+        ship.setPos(max + 0.01D, 100.0D, 0.0D);
+        if (!goal.canUse()) {
+            helper.fail("legacy follow should start beyond max distance");
+            return;
+        }
+        ship.setAiPickItem(true);
+        if (goal.canUse()) {
+            helper.fail("PickItem should add five blocks to the start threshold");
+            return;
+        }
+        ship.setAiPickItem(false);
+        goal.canUse();
+        goal.start();
+        ship.setPos(0.0D, 100.0D, 0.0D);
+        ship.tickCount = 1;
+        goal.tick();
+        if (!goal.canContinueToUse()) {
+            helper.fail("legacy continuation uses the distance cached until the 32-tick refresh");
+            return;
+        }
+        ship.tickCount = 32;
+        goal.tick();
+        if (goal.canContinueToUse()) {
+            helper.fail("legacy follow should stop after refreshing a reached destination with no path");
+            return;
+        }
+        ship.setOwner(UUID.randomUUID(), "MissingOwner", 0);
+        if (goal.canUse()) {
+            helper.fail("follow without an owner should not start");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipFollowLegacyTeleportUsesOwnerAndMovingTime(GameTestHelper helper) {
+        ServerPlayer owner = makeServerBackedPlayer(helper, "FollowTeleport");
+        helper.getLevel().players().add(owner);
+        Vec3 target = Vec3.atLowerCornerOf(helper.absolutePos(new BlockPos(2, 40, 2))).add(0.2D, 0.0D, 0.3D);
+        owner.setPos(target.x, target.y, target.z);
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        ship.setOwner(owner.getUUID(), owner.getGameProfile().getName(), 0);
+        ship.setGrudge(1);
+        ship.setCanFollow(true);
+        ship.setAiPickItem(false);
+        ship.setFollowMin(1);
+        ship.setFollowMax(2);
+        ship.setPos(target.x + 10.0D, target.y, target.z);
+        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship);
+        if (!goal.canUse()) {
+            helper.fail("teleport test should begin following");
+            return;
+        }
+        goal.start();
+        for (int tick = 1; tick <= 200; tick++) {
+            ship.tickCount = tick;
+            goal.tick();
+        }
+        if (ship.position().distanceToSqr(target) < 1.0D) {
+            helper.fail("legacy teleport cooldown is strict greater-than, not greater-or-equal");
+            return;
+        }
+        ship.tickCount = 201;
+        goal.tick();
+        if (ship.position().distanceToSqr(target.add(0.0D, 0.75D, 0.0D)) > 1.0E-8D) {
+            helper.fail("moving-time teleport must use exact owner coordinates plus 0.75 Y even below distance threshold");
+            return;
+        }
+        Vec3 before = ship.position();
+        if (LegacyShipTeleportHelper.applyTeleport(ship, 2000.0D, new Vec3(29000000.0D, 100.0D, 29000000.0D))
+                || !ship.position().equals(before)) {
+            helper.fail("teleport must reject unloaded destination chunks without moving the ship");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void formationGuardingSafeSearchMatchesLegacyOrder(GameTestHelper helper) {
+        ServerPlayer target = makeServerBackedPlayer(helper, "FormationSafe");
+        BlockPos testPos = helper.absolutePos(new BlockPos(2, 0, 2));
+        BlockPos center = new BlockPos(testPos.getX(), 200, testPos.getZ());
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-6, -9, -3), center.offset(3, 4, 3))) {
+            helper.getLevel().setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        }
+        target.setPos(center.getX() + 0.2D, center.getY() + 0.2D, center.getZ() + 0.3D);
+        if (!LegacyFormationHelper.getFormationGuardingPos(0, 1, target, 0.0D, 0.0D).equals(target.position())
+                || LegacyFormationHelper.getSafeBlockWithin5x5(helper.getLevel(), center) != null
+                || !LegacyFormationHelper.getFormationGuardingPos(1, 1, target, target.getX() - 4.0D, target.getZ()).equals(target.position())) {
+            helper.fail("no formation or no safe block must fall back to exact target coordinates");
+            return;
+        }
+        helper.getLevel().setBlockAndUpdate(center.below(), Blocks.STONE.defaultBlockState());
+        Vec3 invalidSlot = LegacyFormationHelper.getFormationGuardingPos(1, 6, target, target.getX() - 4.0D, target.getZ());
+        if (!invalidSlot.equals(Vec3.atLowerCornerOf(center))) {
+            helper.fail("invalid formation slot must use slot zero, not clamp to slot five");
+            return;
+        }
+        BlockPos follower = center.offset(-3, 0, 0);
+        helper.getLevel().setBlockAndUpdate(follower.below(), Blocks.WATER.defaultBlockState());
+        Vec3 position = LegacyFormationHelper.getFormationGuardingPos(1, 1, target, target.getX() - 4.0D, target.getZ());
+        if (!position.equals(Vec3.atLowerCornerOf(follower))) {
+            helper.fail("line-ahead follower should stand three blocks behind on a liquid floor");
+            return;
+        }
         helper.succeed();
     }
 
@@ -16214,11 +16685,90 @@ public final class GameplayParityGameTests {
                 ShipEntitySpecs.getByEggMeta(eggMeta), level, hostileScaleLevel).isPresent();
     }
 
+    private static void primeGuardMovement(LegacyShipEntity ship, LegacyShipGuardGoal goal) {
+        goal.start();
+        for (int tick = 1; tick <= 30; tick++) {
+            ship.tickCount = tick;
+            goal.tick();
+        }
+    }
+
+    private static String guardState(LegacyShipEntity ship) {
+        return "eligible=" + ship.canExecuteGuardGoal() + " follow=" + ship.canFollow()
+                + " sitting=" + ship.isOrderedToSit() + " passenger=" + ship.isPassenger()
+                + " grudge=" + ship.getGrudge() + " crane=" + ship.getLegacyCraneState()
+                + " position=" + ship.position() + " block=" + ship.getGuardedBlockPos()
+                + " command=" + ship.getCommandedPos() + " dimension=" + ship.getGuardedBlockDimension()
+                + " level=" + ship.level().dimension().location() + " min=" + ship.getFollowMin() + " max=" + ship.getFollowMax();
+    }
+
     private static boolean setSyntheticGuardPath(LegacyShipEntity ship, BlockPos origin, BlockPos guardPos) {
         Path path = new Path(List.of(
                 new Node(origin.getX(), origin.getY(), origin.getZ()),
                 new Node(guardPos.getX(), guardPos.getY(), guardPos.getZ())), guardPos, true);
         return ship.getNavigation().moveTo(path, 1.0D) && !ship.getNavigation().isDone();
+    }
+
+    private static final class GuardTestShip extends LegacyShipEntity {
+        private int formationId;
+        private int formationSlot;
+
+        private GuardTestShip(GameTestHelper helper, Player owner, int eggMeta, Vec3 position) {
+            super(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());
+            this.setVariantEggMeta(eggMeta);
+            supplyShipForTest(this);
+            this.setPos(position);
+            this.setNoAi(true);
+            this.setNoGravity(true);
+            helper.getLevel().addFreshEntity(this);
+            this.setOwner(owner);
+            this.setAiPickItem(false);
+        }
+
+        @Override
+        protected PathNavigation createNavigation(Level level) {
+            return new GuardTestNavigation(this, level);
+        }
+
+        @Override
+        public int getLegacyFormationId() {
+            return this.formationId;
+        }
+
+        @Override
+        public int getLegacyFormationSlot() {
+            return this.formationSlot;
+        }
+
+        private GuardTestNavigation guardNavigation() {
+            return (GuardTestNavigation) this.getNavigation();
+        }
+    }
+
+    private static final class GuardTestNavigation extends GroundPathNavigation {
+        private int requests;
+        private Vec3 destination;
+        private double requestedSpeed;
+        private boolean succeeds = true;
+
+        private GuardTestNavigation(Mob mob, Level level) {
+            super(mob, level);
+        }
+
+        @Override
+        public boolean moveTo(double x, double y, double z, double speed) {
+            this.requests++;
+            this.destination = new Vec3(x, y, z);
+            this.requestedSpeed = speed;
+            if (!this.succeeds) {
+                this.stop();
+                return false;
+            }
+            BlockPos target = BlockPos.containing(x, y, z);
+            this.path = new Path(List.of(new Node(this.mob.getBlockX(), this.mob.getBlockY(), this.mob.getBlockZ()),
+                    new Node(target.getX(), target.getY(), target.getZ())), target, true);
+            return true;
+        }
     }
 
     private static boolean engineSmokePointMatches(LegacyShipBehaviorCatalog.EngineSmokePoint point,

@@ -207,7 +207,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String AI_ALLOW_PVP_TAG = "AiAllowPvp";
     private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
     private static final String AI_PICK_ITEM_TAG = "AiPickItem";
-    private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
+    private static final String FOLLOW_MAX_TAG = "FMax";
     private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
     private static final String SHIP_INVENTORY_TAG = "ShipInventory";
     private static final String SHIP_INVENTORY_SLOT_TAG = "Slot";
@@ -300,7 +300,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final int DEFAULT_LIGHT_AMMO = 0;
     private static final int DEFAULT_HEAVY_AMMO = 0;
     private static final int DEFAULT_GRUDGE = 0;
-    private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
+    private static final int DEFAULT_FOLLOW_MAX = 12;
     private static final boolean DEFAULT_AI_ON_SIGHT_CHASE = true;
     public static final boolean DEFAULT_AI_PVP_FIRST = true;
     public static final boolean DEFAULT_AI_ANTI_AIR = false;
@@ -378,7 +378,7 @@ public class LegacyShipEntity extends PathfinderMob {
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_AI_FLAGS =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Integer> DATA_AI_FOLLOW_RANGE =
+    private static final EntityDataAccessor<Integer> DATA_FOLLOW_MAX =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_ROUTE_ENERGY =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -524,6 +524,8 @@ public class LegacyShipEntity extends PathfinderMob {
     @Nullable
     private BlockPos lastWaypointPos;
     private int routeWaitTicks;
+    private int legacyCraneState;
+    private int legacyGuardType;
     private int waypointStayMode;
     private int routeTransferCooldown;
     private boolean routePreferLoad = true;
@@ -553,7 +555,9 @@ public class LegacyShipEntity extends PathfinderMob {
     private boolean aiAllowPvp;
     private boolean aiAutoSupply = true;
     private boolean aiPickItem = true;
-    private int aiFollowRange = DEFAULT_AI_FOLLOW_RANGE;
+    private static final EntityDataAccessor<Integer> DATA_FOLLOW_MIN =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private int followMax = DEFAULT_FOLLOW_MAX;
     private boolean aiRespectRouteStay = true;
     private final HostileRuntimeState hostileRuntimeState = new HostileRuntimeState();
     @Nullable
@@ -622,7 +626,8 @@ public class LegacyShipEntity extends PathfinderMob {
                 | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
                 | GameplayCommandHandler.AI_FLAG_ROUTE_STAY
                 | GameplayCommandHandler.AI_FLAG_PICK_ITEM);
-        this.entityData.define(DATA_AI_FOLLOW_RANGE, DEFAULT_AI_FOLLOW_RANGE);
+        this.entityData.define(DATA_FOLLOW_MAX, DEFAULT_FOLLOW_MAX);
+        this.entityData.define(DATA_FOLLOW_MIN, 3);
         this.entityData.define(DATA_ROUTE_ENERGY, 0);
         this.entityData.define(DATA_WP_STAY_MODE, DEFAULT_WP_STAY_MODE);
         this.entityData.define(DATA_TASK, DEFAULT_TASK);
@@ -694,7 +699,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 return reach * reach + target.getBbWidth();
             }
         });
-        this.goalSelector.addGoal(4, new LegacyShipFollowOwnerGoal(this, 1.1D, 5.0F, 2.0F, 14.0F));
+        this.goalSelector.addGoal(4, new LegacyShipFollowOwnerGoal(this));
         this.goalSelector.addGoal(5, new LegacyShipPickItemGoal(this, 1.0D));
         this.goalSelector.addGoal(6, new RandomStrollGoal(this, 0.9D) {
             @Override
@@ -878,7 +883,11 @@ public class LegacyShipEntity extends PathfinderMob {
         this.routeNodePos = tag.contains(ROUTE_NODE_TAG, Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong(ROUTE_NODE_TAG))
                 : null;
+        int guardType = this.guardEntityUuid != null ? 2 : this.hasActiveCommandState() ? 1 : 0;
+        this.legacyGuardType = Mth.clamp(getIntWithLegacyMinorFallback(
+                tag, LEGACY_GUARD_TYPE_TAG, null, LEGACY_GUARD_TYPE_TAG, guardType), 0, 2);
         this.routeWaitTicks = Math.max(0, tag.getInt(ROUTE_WAIT_TAG));
+        this.legacyCraneState = getIntWithLegacyMinorFallback(tag, "CraneState", null, "Crane", 0);
         this.setWaypointStayMode(Mth.clamp(getIntWithLegacyMinorFallback(
                 tag, SHIP_WP_STAY_TAG, null, LEGACY_WP_STAY_TAG, DEFAULT_WP_STAY_MODE),
                 DEFAULT_WP_STAY_MODE, MAX_WP_STAY_MODE));
@@ -901,14 +910,14 @@ public class LegacyShipEntity extends PathfinderMob {
         this.aiAutoSupply = !tag.contains(AI_AUTO_SUPPLY_TAG) || tag.getBoolean(AI_AUTO_SUPPLY_TAG);
         this.aiPickItem = getBooleanWithLegacyFlagsFallback(
                 tag, AI_PICK_ITEM_TAG, LEGACY_PICK_ITEM_FLAG_TAG, true);
-        this.aiFollowRange = tag.contains(AI_FOLLOW_RANGE_TAG)
-                ? Mth.clamp(tag.getInt(AI_FOLLOW_RANGE_TAG), 4, 64)
-                : DEFAULT_AI_FOLLOW_RANGE;
+        this.setFollowMin(getIntWithLegacyMinorFallback(tag, "FMin", null, "FMin", 3));
+        this.followMax = Mth.clamp(getIntWithLegacyMinorFallback(
+                tag, FOLLOW_MAX_TAG, null, "FMax", DEFAULT_FOLLOW_MAX), 2, 32);
         this.aiRespectRouteStay = !tag.contains(AI_ROUTE_STAY_TAG) || tag.getBoolean(AI_ROUTE_STAY_TAG);
         int loadedAiFlags = this.encodeAiFlags();
-        int loadedFollowRange = this.aiFollowRange;
+        int loadedFollowRange = this.followMax;
         this.entityData.set(DATA_AI_FLAGS, loadedAiFlags);
-        this.entityData.set(DATA_AI_FOLLOW_RANGE, loadedFollowRange);
+        this.entityData.set(DATA_FOLLOW_MAX, loadedFollowRange);
         this.entityData.set(DATA_ON_SIGHT_CHASE, this.aiOnSightChase);
         this.entityData.set(DATA_PVP_FIRST, this.aiPvpFirst);
         this.entityData.set(DATA_ANTI_AIR, this.aiAntiAir);
@@ -996,10 +1005,11 @@ public class LegacyShipEntity extends PathfinderMob {
         }
         if (this.commandedPos != null) {
             tag.putLong(COMMAND_POS_TAG, this.commandedPos.asLong());
-            if (!this.commandDimension.isBlank()) {
-                tag.putString(COMMAND_DIM_TAG, this.commandDimension);
-            }
         }
+        if ((this.commandedPos != null || this.guardEntityUuid != null) && !this.commandDimension.isBlank()) {
+            tag.putString(COMMAND_DIM_TAG, this.commandDimension);
+        }
+        tag.putInt(LEGACY_GUARD_TYPE_TAG, this.legacyGuardType);
         if (this.guardEntityUuid != null) {
             tag.putUUID(GUARD_ENTITY_TAG, this.guardEntityUuid);
         }
@@ -1023,7 +1033,9 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putBoolean(AI_ALLOW_PVP_TAG, this.aiAllowPvp);
         tag.putBoolean(AI_AUTO_SUPPLY_TAG, this.aiAutoSupply);
         tag.putBoolean(AI_PICK_ITEM_TAG, this.aiPickItem);
-        tag.putInt(AI_FOLLOW_RANGE_TAG, this.aiFollowRange);
+        tag.putInt(FOLLOW_MAX_TAG, this.followMax);
+        tag.putInt("FMin", this.getFollowMin());
+        tag.putInt("CraneState", this.legacyCraneState);
         tag.putBoolean(AI_ROUTE_STAY_TAG, this.aiRespectRouteStay);
         tag.putBoolean(SHIP_CAN_FLOAT_TAG, this.canFloatUp());
         tag.putBoolean(SHIP_CAN_FOLLOW_TAG, this.canFollow());
@@ -1169,7 +1181,7 @@ public class LegacyShipEntity extends PathfinderMob {
             this.refreshFromVariant(true);
         }
 
-        if (DATA_AI_FLAGS.equals(key) || DATA_AI_FOLLOW_RANGE.equals(key)) {
+        if (DATA_AI_FLAGS.equals(key) || DATA_FOLLOW_MAX.equals(key)) {
             this.applySyncedAiData();
         }
 
@@ -2661,13 +2673,21 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
     }
 
-    public int getAiFollowRange() {
-        return this.aiFollowRange;
+    public int getFollowMin() {
+        return this.entityData.get(DATA_FOLLOW_MIN);
     }
 
-    public void setAiFollowRange(int aiFollowRange) {
-        this.aiFollowRange = Mth.clamp(aiFollowRange, 4, 64);
-        this.entityData.set(DATA_AI_FOLLOW_RANGE, this.aiFollowRange);
+    public void setFollowMin(int value) {
+        this.entityData.set(DATA_FOLLOW_MIN, Mth.clamp(value, 1, 31));
+    }
+
+    public int getFollowMax() {
+        return this.followMax;
+    }
+
+    public void setFollowMax(int followMax) {
+        this.followMax = Mth.clamp(followMax, 2, 32);
+        this.entityData.set(DATA_FOLLOW_MAX, this.followMax);
     }
 
     public boolean isAiRespectRouteStay() {
@@ -2775,6 +2795,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         this.commandedPos = pos.immutable();
         this.commandDimension = dimensionId == null ? "" : dimensionId;
+        this.legacyGuardType = LEGACY_GUARD_BLOCK_TYPE;
         this.setCanFollow(false);
         this.guardEntityUuid = null;
         this.guardedBlockPos = null;
@@ -2783,6 +2804,7 @@ public class LegacyShipEntity extends PathfinderMob {
         BlockEntity blockEntity = this.level().getBlockEntity(pos);
         this.routeNodePos = blockEntity instanceof RouteNode ? pos.immutable() : null;
         this.routeWaitTicks = 0;
+        this.legacyCraneState = 0;
         this.routeTransferCooldown = 0;
         this.routePreferLoad = true;
     }
@@ -2819,6 +2841,14 @@ public class LegacyShipEntity extends PathfinderMob {
         this.lastWaypointPos = pos == null ? null : pos.immutable();
     }
 
+    public int getLegacyCraneState() {
+        return this.legacyCraneState;
+    }
+
+    public int getLegacyFormationSlot() {
+        return this.resolveAppliedFormationSlot();
+    }
+
     public int getRouteWaitTicks() {
         return this.routeWaitTicks;
     }
@@ -2837,12 +2867,13 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void commandGuardEntity(UUID entityUuid) {
+        this.legacyGuardType = 2;
         this.setCanFollow(false);
         this.guardEntityUuid = entityUuid;
         this.guardedBlockPos = null;
         this.guardedBlockDimension = "";
         this.commandedPos = null;
-        this.commandDimension = "";
+        this.commandDimension = this.level().dimension().location().toString();
         this.routeNodePos = null;
         this.setTarget(null);
         this.routeWaitTicks = 0;
@@ -2857,6 +2888,7 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.guardedBlockPos = pos.immutable();
+        this.legacyGuardType = LEGACY_GUARD_BLOCK_TYPE;
         this.guardedBlockDimension = dimensionId == null ? "" : dimensionId;
         this.setCanFollow(false);
         this.guardEntityUuid = null;
@@ -2879,6 +2911,8 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public void clearCommandState() {
+        this.legacyCraneState = 0;
+        this.legacyGuardType = 0;
         this.commandedPos = null;
         this.commandDimension = "";
         this.guardEntityUuid = null;
@@ -2935,9 +2969,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public int getCompatAttackAimTime() {
-        int shipLevel = Math.min(150, this.getShipLevel());
-        int baseAimTime = Mth.clamp((int) (20F * (150 - shipLevel) / 150F) + 10, 8, 30);
-        return baseAimTime;
+        return (int) (20F * (150 - this.getShipLevel()) / 150F) + 10;
     }
 
     public float getCompatAttackRange() {
@@ -2967,15 +2999,18 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.guardEntityUuid != null || this.guardedBlockPos != null;
     }
 
+    public int getLegacyGuardType() {
+        return this.legacyGuardType;
+    }
+
     public boolean canExecuteGuardGoal() {
         return !this.level().isClientSide()
                 && !this.isOrderedToSit()
-                && this.hasGuardCommand()
+                && this.hasActiveCommandState()
                 && !this.canFollow()
                 && !this.isPassenger()
-                && !this.isLeashed()
-                && this.getGrudge() > 0
-                && (this.isHostileVariant() || this.getOwnerUuid().isPresent());
+                && this.getLegacyCraneState() < 1
+                && this.getGrudge() > 0;
     }
 
     public boolean tryCompatCannonAttack(LivingEntity target) {
@@ -3257,7 +3292,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public double getHostileTargetSearchRange() {
         int attackRange = (int) this.getCompatAttackRange();
-        return attackRange < 2 ? Math.max(2, this.getAiFollowRange()) : attackRange;
+        return attackRange < 2 ? Math.max(2, this.getFollowMax() + 2) : attackRange;
     }
 
     public AABB getHostileTargetSearchArea() {
@@ -4730,23 +4765,13 @@ public class LegacyShipEntity extends PathfinderMob {
             return;
         }
 
-        double commandSpeed = this.getCombatMovementSpeedModifier();
-
-        if (this.guardEntityUuid != null) {
-            Entity guarded = serverLevel.getEntity(this.guardEntityUuid);
-            if (guarded instanceof LivingEntity living && living.isAlive()) {
-                if (!this.hasNoFuel()) {
-                    this.getNavigation().moveTo(living, commandSpeed);
-                }
-                return;
-            }
-            this.clearCommandState();
-            this.setTarget(null);
-            this.getNavigation().stop();
+        if (this.canFollow() || this.isPassenger() || this.isLeashed()) {
+            return;
         }
 
         if (this.routeNodePos != null) {
-            if (!this.dimensionMatchesCommand(serverLevel)) {
+            String routeDimension = this.guardedBlockPos == null ? this.commandDimension : this.guardedBlockDimension;
+            if (this.routeNodePos.getY() <= 0 || !this.dimensionMatches(routeDimension, serverLevel)) {
                 this.clearCommandState();
                 this.setTarget(null);
                 this.getNavigation().stop();
@@ -4755,20 +4780,26 @@ public class LegacyShipEntity extends PathfinderMob {
 
             BlockEntity blockEntity = serverLevel.getBlockEntity(this.routeNodePos);
             boolean isCrane = blockEntity instanceof CraneBlockEntity;
-            double engageDistSq = isCrane ? 25.0D : 4.0D;
+            if (blockEntity instanceof WaypointBlockEntity
+                    && this.getLegacyFormationId() > 0 && this.getLegacyFormationSlot() > 0) {
+                return;
+            }
+            if (!isCrane && (this.tickCount & 15) != 0) {
+                return;
+            }
             double distSq = this.distanceToSqr(
                     this.routeNodePos.getX() + 0.5D,
-                    this.routeNodePos.getY() + 0.1D,
+                    this.routeNodePos.getY(),
                     this.routeNodePos.getZ() + 0.5D);
-            if (!this.hasNoFuel() && distSq > (isCrane ? 4.0D : 2.0D)) {
+            if (isCrane && distSq >= 25.0D && this.getGrudge() > 0 && (this.tickCount & 15) == 0) {
                 this.getNavigation().moveTo(
                         this.routeNodePos.getX() + 0.5D,
-                        this.routeNodePos.getY() + 0.1D,
+                        this.routeNodePos.getY() - 2.0D,
                         this.routeNodePos.getZ() + 0.5D,
-                        commandSpeed);
+                        1.0D);
             }
 
-            if ((isCrane && distSq < engageDistSq) || (!isCrane && distSq <= engageDistSq)) {
+            if ((isCrane && distSq < 25.0D) || (!isCrane && distSq < 9.0D)) {
                 if (blockEntity instanceof WaypointBlockEntity waypoint) {
                     if (this.handleWaypointRouteNode(serverLevel, waypoint)) {
                         return;
@@ -4776,73 +4807,37 @@ public class LegacyShipEntity extends PathfinderMob {
                     this.advanceAfterRouteNode(waypoint);
                 } else if (blockEntity instanceof CraneBlockEntity crane) {
                     if (this.handleCraneRouteNode(serverLevel, crane)) {
+                        this.legacyCraneState = 2;
                         return;
                     }
+                    this.legacyCraneState = 0;
                     this.advanceAfterRouteNode(crane);
                 } else {
                     this.routeNodePos = null;
-                    this.setCanFollow(true);
                 }
+            } else if (blockEntity instanceof WaypointBlockEntity && (this.tickCount & 127) == 0
+                    && this.getGrudge() > 0) {
+                this.getNavigation().moveTo(this.routeNodePos.getX() + 0.5D, this.routeNodePos.getY(),
+                        this.routeNodePos.getZ() + 0.5D, 1.0D);
             }
             return;
-        }
-
-        if (this.guardedBlockPos != null) {
-            if (this.guardedBlockPos.getY() <= 0
-                    || !this.dimensionMatches(this.guardedBlockDimension, serverLevel)) {
-                this.clearCommandState();
-                this.setTarget(null);
-                this.getNavigation().stop();
-                return;
-            }
-
-            if (this.getGrudge() > 0) {
-                double minDist = 3.0D + this.getBbWidth() * 0.5D;
-                double minDistSq = minDist * minDist;
-                double distSq = this.distanceToSqr(
-                        this.guardedBlockPos.getX() + 0.5D,
-                        this.guardedBlockPos.getY() + 0.1D,
-                        this.guardedBlockPos.getZ() + 0.5D);
-                if (distSq > minDistSq) {
-                    this.getNavigation().moveTo(
-                            this.guardedBlockPos.getX() + 0.5D,
-                            this.guardedBlockPos.getY() + 0.1D,
-                            this.guardedBlockPos.getZ() + 0.5D,
-                            commandSpeed);
-                } else if (!this.getNavigation().isDone()) {
-                    this.getNavigation().stop();
-                }
-            }
-            return;
-        }
-
-        if (this.commandedPos == null) {
-            return;
-        }
-        if (!this.dimensionMatchesCommand(serverLevel)) {
-            this.clearCommandState();
-            this.setTarget(null);
-            this.getNavigation().stop();
-            return;
-        }
-
-        if (!this.hasNoFuel()) {
-            this.getNavigation().moveTo(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D, commandSpeed);
-        }
-        if (this.distanceToSqr(this.commandedPos.getX() + 0.5D, this.commandedPos.getY() + 0.1D, this.commandedPos.getZ() + 0.5D) <= 2.0D) {
-            this.commandedPos = null;
-            this.commandDimension = "";
-            this.setCanFollow(true);
         }
     }
 
     private void advanceRouteNode(@Nullable BlockPos nextWaypoint) {
+        this.legacyCraneState = 0;
+        String dimension = this.guardedBlockPos == null ? this.commandDimension : this.guardedBlockDimension;
         this.routeNodePos = nextWaypoint == null ? null : nextWaypoint.immutable();
         this.commandedPos = this.routeNodePos;
         this.guardedBlockPos = null;
         this.guardedBlockDimension = "";
+        this.commandDimension = dimension;
+        this.legacyGuardType = nextWaypoint == null ? 0 : LEGACY_GUARD_BLOCK_TYPE;
         if (nextWaypoint == null) {
             this.setCanFollow(true);
+        } else if (this.getGrudge() > 0) {
+            this.setFollowMin(2);
+            this.getNavigation().moveTo(nextWaypoint.getX() + 0.5D, nextWaypoint.getY(), nextWaypoint.getZ() + 0.5D, 1.0D);
         }
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
@@ -4912,7 +4907,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        double minimumDistance = 3.0D + this.getBbWidth() * 0.5D;
+        double minimumDistance = this.getFollowMin() + this.getBbWidth() * 0.5D;
         double minimumDistanceSqr = minimumDistance * minimumDistance;
         if (this.guardEntityUuid != null && this.level() instanceof ServerLevel serverLevel) {
             Entity guardedEntity = serverLevel.getEntity(this.guardEntityUuid);
@@ -4933,7 +4928,7 @@ public class LegacyShipEntity extends PathfinderMob {
         if (this.canFollow()) {
             Player owner = this.getOwnerPlayer();
             if (owner != null) {
-                double maximumDistance = this.getAiFollowRange() + this.getBbWidth() * 0.5D;
+                double maximumDistance = this.getFollowMax() + this.getBbWidth() * 0.5D;
                 return this.distanceToSqr(owner) < maximumDistance * maximumDistance;
             }
         }
@@ -4948,7 +4943,18 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        return this.waitAtRouteNode(Math.max(this.getWaypointStayTicks(), waypoint.getStayTicks()));
+        int waitTicks = Math.max(this.getWaypointStayTicks(), waypoint.getStayTicks());
+        if (waitTicks <= 0 || this.routeWaitTicks < 0) {
+            return false;
+        }
+        if (this.routeWaitTicks == 0) {
+            this.routeWaitTicks = waitTicks;
+        }
+        this.routeWaitTicks -= 16;
+        if (this.routeWaitTicks <= 0) {
+            this.routeWaitTicks = -1;
+        }
+        return true;
     }
 
     private boolean handleCraneRouteNode(ServerLevel serverLevel, CraneBlockEntity crane) {
@@ -6342,7 +6348,8 @@ public class LegacyShipEntity extends PathfinderMob {
         CompoundTag minor = getLegacyMinorTag(tag);
         if (minor == null
                 || !minor.contains(LEGACY_GUARD_TYPE_TAG, Tag.TAG_INT)
-                || minor.getInt(LEGACY_GUARD_TYPE_TAG) != LEGACY_GUARD_BLOCK_TYPE
+                || minor.getInt(LEGACY_GUARD_TYPE_TAG) < 0
+                || minor.getInt(LEGACY_GUARD_TYPE_TAG) > LEGACY_GUARD_BLOCK_TYPE
                 || !minor.contains(LEGACY_GUARD_X_TAG, Tag.TAG_INT)
                 || !minor.contains(LEGACY_GUARD_Y_TAG, Tag.TAG_INT)
                 || !minor.contains(LEGACY_GUARD_Z_TAG, Tag.TAG_INT)
@@ -6382,7 +6389,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void applySyncedAiData() {
-        this.applyAiData(this.entityData.get(DATA_AI_FLAGS), this.entityData.get(DATA_AI_FOLLOW_RANGE));
+        this.applyAiData(this.entityData.get(DATA_AI_FLAGS), this.entityData.get(DATA_FOLLOW_MAX));
     }
 
     private void applyAiData(int flags, int followRange) {
@@ -6391,7 +6398,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.aiAutoSupply = (flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0;
         this.aiPickItem = (flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0;
         this.aiRespectRouteStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
-        this.aiFollowRange = Mth.clamp(followRange, 4, 64);
+        this.followMax = Mth.clamp(followRange, 2, 32);
     }
 
     private int computeActiveEffectSignature() {

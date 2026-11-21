@@ -81,6 +81,15 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         guiGraphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
         this.renderPreview(guiGraphics, mouseX, mouseY);
+        for (int bar = 0; bar < 2; bar++) {
+            int value = bar == 0 ? this.menu.getFollowMin() : this.menu.getFollowMax();
+            int pos = this.followBar == bar ? this.followBarPos : (int) ((value - (bar == 0 ? 1 : 2)) / 30F * 42F);
+            int x = this.leftPos + 191;
+            int y = this.topPos + 120 + bar * 12;
+            guiGraphics.fill(x, y, x + 43, y + 10, 0xFF333333);
+            guiGraphics.fill(x + pos, y, x + pos + 2, y + 10, 0xFFFFFF55);
+            guiGraphics.drawString(this.font, (bar == 0 ? "Min " : "Max ") + value, x - 42, y, 0xFFFFFF);
+        }
 
         int modeColor = this.menu.getModeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())
                 ? 0xAA604040
@@ -139,8 +148,40 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         this.drawStatRow(guiGraphics, Component.translatable("gui.shincolle.ship_inventory.supply"), this.menu.getSupplyText(), 204);
     }
 
+    private int followBar = -1;
+    private int followBarPos;
+
+    @Override
+    public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
+        if (this.followBar >= 0) {
+            this.followBarPos = Mth.clamp((int) x - this.leftPos - 191, 0, 42);
+            return true;
+        }
+        return super.mouseDragged(x, y, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double x, double y, int button) {
+        if (this.followBar >= 0) {
+            int value = (int) (this.followBarPos / 42F * 30F + (this.followBar == 0 ? 1F : 2F));
+            ModNetwork.sendToServer(this.followBar == 0
+                    ? ServerboundShipCommandPacket.setFollowMin(this.menu.getShipId(), this.resolveShipUid(), value)
+                    : ServerboundShipCommandPacket.setFollowRange(this.menu.getShipId(), this.resolveShipUid(), value));
+            this.followBar = -1;
+            return true;
+        }
+        return super.mouseReleased(x, y, button);
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        for (int bar = 0; bar < 2; bar++) {
+            if (inside((int) mouseX - this.leftPos, (int) mouseY - this.topPos, 191, 120 + bar * 12, 43, 10)) {
+                this.followBar = bar;
+                this.followBarPos = Mth.clamp((int) mouseX - this.leftPos - 191, 0, 42);
+                return true;
+            }
+        }
         if (this.handleRegionClick(mouseX, mouseY, MODE_BUTTON_X, MODE_BUTTON_Y, MODE_BUTTON_W, MODE_BUTTON_H, ShipInventoryMenu.BUTTON_TOGGLE_MODE)) {
             return true;
         }
@@ -233,7 +274,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
             guiGraphics.renderComponentTooltip(this.font, List.of(
                     Component.literal("T: AutoTarget  Y: PVP  U: AutoSupply"),
                      Component.literal("I: RouteStay  P: PickItem  O: Aura Effect"),
-                     Component.literal("J/K: FollowRange  [ ]: WpStay"),
+                     Component.literal("FollowMin / FollowMax: drag bars  [ ]: WpStay"),
                      Component.literal("L: TimeKeeper  " + onOff(this.menu.isTimeKeeper())
                              + "  V: AutoPump " + onOff(this.menu.isAutoPump())),
                      Component.literal("AutoCR: " + this.menu.getCombatRationLevel() + " (Shift-click +/-)"),
@@ -400,14 +441,6 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                 this.toggleRingEffect();
                 return true;
             }
-            if (keyCode == GLFW.GLFW_KEY_J) {
-                this.adjustFollowRange(-2);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_K) {
-                this.adjustFollowRange(2);
-                return true;
-            }
             if (keyCode == GLFW.GLFW_KEY_LEFT_BRACKET) {
                 this.adjustWaypointStay(-1);
                 return true;
@@ -441,7 +474,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                         + " I:" + onOff(pickItem) + " W:" + onOff(this.menu.isRingEffectEnabled()),
                 TOP_PANEL_LEFT, 106, 0xD0D7DC, 0.75F);
         this.drawScaledString(guiGraphics,
-                "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getAiFollowRange() + " E" + this.menu.getRouteEnergyText(),
+                "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getFollowMax() + " E" + this.menu.getRouteEnergyText(),
                 TOP_PANEL_LEFT, 112, 0xD0D7DC, 0.75F);
     }
 
@@ -450,10 +483,6 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         this.sendAiFlags(nextFlags);
     }
 
-    private void adjustFollowRange(int delta) {
-        int next = Mth.clamp(this.menu.getAiFollowRange() + delta, 4, 64);
-        ModNetwork.sendToServer(ServerboundShipCommandPacket.setFollowRange(this.menu.getShipId(), this.resolveShipUid(), next));
-    }
 
     private void adjustWaypointStay(int delta) {
         int mode = this.menu.getWaypointStayMode();
