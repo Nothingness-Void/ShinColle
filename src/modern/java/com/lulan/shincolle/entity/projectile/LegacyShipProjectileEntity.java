@@ -157,10 +157,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         ShipEquipmentBehaviorState behaviorState = owner.getEquipmentBehaviorState();
         projectile.speedScale = 1.0F;
         projectile.travelSpeed = (float) behaviorState.legacyProjectileSpeed(profile.baseSpeed());
-        projectile.guidanceBlend = Math.max(profile.guidanceBlend(),
-                (float) (attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY
-                        ? behaviorState.airGuidanceBlend()
-                        : 0.0D));
+        projectile.guidanceBlend = profile.guidanceBlend();
         int effectFlags = 0;
         if (behaviorState.flareLevel() > 0) {
             effectFlags |= EFFECT_FLAG_FLARE;
@@ -272,7 +269,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     private void resolveLegacyContactAtCurrentPosition() {
-        if (this.resolvedImpact || this.missedShot) {
+        if (this.resolvedImpact) {
             return;
         }
 
@@ -389,10 +386,6 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
 
         if (this.clusterMissile) {
-            return false;
-        }
-
-        if (this.missedShot) {
             return false;
         }
 
@@ -800,14 +793,6 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         }
 
         Entity owner = this.getOwner();
-        if (this.missedShot) {
-            if (owner instanceof LegacyShipEntity ship) {
-                this.spawnImpactEffect(ship, impactPosition);
-            }
-            this.emitMissFx(impactPosition);
-            return;
-        }
-
         this.resolvedImpact = true;
         if (!(owner instanceof LegacyShipEntity ship)) {
             return;
@@ -862,7 +847,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     /** Mirrors EntityAbyssMissile's type-3 five-wave sub-missile release. */
     private void spawnClusterSubMissile() {
-        if (this.missedShot || this.tickCount <= 6 || this.tickCount >= 41
+        if (this.tickCount <= 6 || this.tickCount >= 41
                 || (this.tickCount & 7) != 0 || this.level().isClientSide()) {
             return;
         }
@@ -1011,18 +996,13 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
         double targetY = target.getY() + target.getBbHeight() * profile.targetHeightFactor();
         double targetZ = target.getZ();
 
-        if (missedShot) {
-            double horizontalSpread = switch (profile.visual()) {
-                case BOMB -> 7.0D;
-                case AIRPLANE, TORPEDO -> 5.5D;
-                default -> 5.0D;
-            };
-            targetX += this.random.nextDouble() * horizontalSpread * 2.0D - horizontalSpread;
-            targetY += this.random.nextDouble() * 5.0D;
-            targetZ += this.random.nextDouble() * horizontalSpread * 2.0D - horizontalSpread;
-        }
+        Vec3 targetPos = new Vec3(targetX, targetY, targetZ);
+        return missedShot ? this.offsetMissTarget(targetPos) : targetPos;
+    }
 
-        return new Vec3(targetX, targetY, targetZ);
+    private Vec3 offsetMissTarget(Vec3 targetPos) {
+        return targetPos.add(-5F + this.random.nextFloat() * 10F,
+                this.random.nextFloat() * 5F, -5F + this.random.nextFloat() * 10F);
     }
 
     private float baseSpeed() {

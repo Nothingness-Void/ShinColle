@@ -1,0 +1,27 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../../decision.md)为准。
+
+# 第5步完成
+
+最终验收：compileJava通过1m28s；GameTest319/319通过3m19s，失败0。详见results/verification.md。客户端视觉未验证；飞机/坐骑及debug路径粒子边界见decision.md。
+
+以下为历史执行检查点，不代表最终待办状态。
+
+分支devin/parity-fix-ai-movement，基线812f485（用户已推送）。仅src/modern与文档可改，src/main只读。本步授权完成后中文commit并push同名origin分支。
+
+已做：六类机械逐行移植至entity/ship/path，去除旧注释以保留算法主体；另加ShipNavigationHost接口（Mob共用update/travel适配）。Entity持有shipNavigator与60度helper，server aiStep先update再super；travel恢复EntityHelper移动物理。LegacyShipEntity canFly依0aad501为友方漂浮药水；敌对false。Rensouhou(现代PathfinderMob)同样接入，canFly=false。
+
+旧IMoveShip已经半重构缺失canFly/getNavigate，BasicEntityShip.travel已转super；已依用户指示git show 0aad501对照原getMoveSpeed/getJumpSpeed/canFly/travel与updateShipNavigator顺序。此仓库不是浅克隆。
+
+已切换goals/Entity/catalog/commandService/CombatRationItem/LegacyShipMountEntity的host移动到自定义接口，OpenDoor读取ShipPath。保留vanilla getNavigation，用于update时清除，未覆盖createNavigation。getShipMoveHelper使用Attributes.MOVEMENT_SPEED，此值现代已由resolveEffectiveMoveSpeed计算队形minMOV+buff。travel使用原始legacyStats.moveSpeed。
+
+测试迁移：GuardTestNavigation改extends ShipPathNavigate，GuardTestShip改override getShipNavigate（惰性构造，避免super构造阶段覆盖问题）；所有旧测试stop/isDone改自定义clear/noPath；setSyntheticGuardPath改ShipPath。新增三个异步真实移动测试：水中上/下与漂浮药水canFly空中无重力。在guard模板单独batch，NavigationTestShip禁用goals但AI有效，走真实aiStep/travel。
+
+首次compileJava只发现catalog:4193换行的实体moveTo误映射为XYZ（两条同源错误），已改为tryMoveToEntityLiving。其余新代码（包括静态travel物理、所有测试）均未报编译错误。setOrderedToSit补上旧版保留的vanilla路径清除。
+
+第二次compileJava通过1m28s，首次完整GameTest318/318通过3m36s。随后为严格覆盖用户“水面”要求将水池顶层由168调到162（上升目标162即水面），另新增null/empty/blocked/sitting路径测试（预期319）。已再次启动compileJava与GameTest串联（日志/home/ubuntu/shincolle-ai-step5-compile.log、shincolle-ai-step5-gametest.log，shell_id见工具最后输出），尚未取得这轮结果；尚未提交/推送。
+
+未完成：编译错误处理、完整GameTest；严格复核vanilla保留用途（旧BasicEntityShip坐下时两个navigator都清除，现代还需确认/补齐）；检查所有移动调用点与旧速度一致；文档/最终diff。debugMode现代配置不存在，也没有path-points packet，暂未接路径调试粒子，报告说明。
+
+共享实体审计：旧坐骑CaH/AfH/HbH/CaWD helper45度、MiH/IsH/SuH60度；飞机Airplane/Zero36度、TMob/Takoyaki30度、FloatingFort45度均有旧ShipNavigator。现代LegacyMountEntity/LegacyShipAircraftEntity均extends Entity而非Mob，不能直接套Mob helper/travel，需范围更大的移动生命周期移植，本步暂未接，最终需清楚报告。Rensouhou属于小范围已接。
+
+注意：源码保留旧算法的y>0下探界线、450搜索上限、70搜索范围、Manhattan与节点顺序；shortcut的yOffset=pos2.x-pos1.x是旧源码原样保留，不要擅修。getPathType虽然填充OPENABLE集合，最后只返回FLUID/OPEN也是旧源码原行为。安全方法getPathableYPos虽注释向下其实++i，未调用且原样保留。

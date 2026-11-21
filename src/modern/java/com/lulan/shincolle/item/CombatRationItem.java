@@ -60,14 +60,6 @@ public class CombatRationItem extends Item {
         return this.grudgeMax;
     }
 
-    public int getFuelMin() {
-        return this.grudgeMin;
-    }
-
-    public int getFuelMax() {
-        return this.grudgeMax;
-    }
-
     public boolean clearsDebuffs() {
         return this.clearsDebuffs;
     }
@@ -139,13 +131,13 @@ public class CombatRationItem extends Item {
                 player.getBoundingBox().inflate(8.0D, 6.0D, 8.0D))) {
             if (!ship.isAlive() || ship.isHostileVariant()
                     || !LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)
-                    || ship.getShipFuel() <= 0 || ship.isOrderedToSit() || ship.isPassenger()) {
+                    || ship.hasNoFuel() || ship.isOrderedToSit() || ship.isPassenger()) {
                 continue;
             }
 
             if (player.distanceToSqr(ship) > 4.0D) {
                 ship.setEmotion(3);
-                ship.getNavigation().moveTo(player, 0.75D);
+                ship.getShipNavigate().tryMoveToEntityLiving(player, 0.75D);
 
                 if (player.getRandom().nextInt(5) == 0) {
                     int emotion = switch (player.getRandom().nextInt(3)) {

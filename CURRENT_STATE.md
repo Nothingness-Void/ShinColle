@@ -1,8 +1,24 @@
 # Current State
 
+<a id="当前任务"></a>
+
+## 当前专题批次：舰种个体行为一致性
+
+- 工作分支为 `devin/parity-fix-ship-variants`，基于 `origin/devin/parity-fix-ai-movement`。工作区边界为 `src/modern` 与迁移文档，`src/main` 只读。
+- 范围、决定与最近验证见 [批次入口](migration_batches/2026-11-22-parity-fix-ship-variants/)。撤销决定见 [D-014](MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+- 批次实现与服务端验证已完成，无已知阻塞。结果见 [验证证据](migration_batches/2026-11-22-parity-fix-ship-variants/STATUS.md)。
+- 唯一下一步入口为 [ROADMAP.md](ROADMAP.md)。本批验收限于所分配的舰种行为与服务端回归。
+
+## 此前专题批次：AI移动与目标一致性
+
+- 分支 `devin/parity-fix-ai-movement` 的实现与文档收尾已完成，最近实现提交为 `1dcd150`，收尾提交为 `e862680`。
+- 统一入口：[批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)、[最近实现验证证据](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)、[测试矩阵](MIGRATION-TEST-MATRIX.md)、[撤销决定](MIGRATION-DECISIONS.md#d-013ai移动与目标的现代偏离已撤销)。工作区边界为本次文档归并与引用修正，src/main继续只读。
+- 文档收尾无已知阻塞；不晋级客户端/多人或飞机坐骑验收，未接入项与粒子降级只见[批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。唯一下一步入口仍为[ROADMAP.md](ROADMAP.md)，不另立队列；完成用户授权的提交推送后停止。
+- 下方保留此前主线的基线快照；不以旧分支和旧测试数量覆盖当前批次证据。不晋级全舰种/客户端验收状态。
+
 本文件是迁移项目的当前事实唯一来源，也是压缩或换人后的最小交接快照。历史结论见 [MIGRATION-CHANGELOG.md](MIGRATION-CHANGELOG.md)，下一步只看 [ROADMAP.md](ROADMAP.md)。发生冲突时，以本文件为准。
 
-## 快照
+## 此前主线快照（历史，不是当前专题分支）
 
 - 分支：`codex/mc-1.20.1`
 - 基线提交：`3c9fe42d`，`v0.0.2-alpha`
@@ -10,7 +26,11 @@
 - legacy：`src/main/java`、`src/main/resources` 未作为实现目标，继续只读。
 - 当前完成口径：单人主线（M0-M9 + V0）与完整 1.12 parity backlog（B1–B6）均已全面收口（[ROADMAP.md](ROADMAP.md) 当前指针为 `NONE`）。
 
-## 当前任务
+## 此前主线任务记录（历史）
+
+- `devin/parity-fix-combat-projectile` 专题分支：用户指定的战斗/投射物一致性修复，范围见 [协议](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)，复核结论见 [批次决定](migration_batches/2026-11-22-parity-fix-combat-projectile/decision.md)，检查证据见 [验证结果](migration_batches/2026-11-22-parity-fix-combat-projectile/STATUS.md)。用户已授权提交并推送同名专题分支，保留 ship-core 基线。
+
+- `devin/parity-fix-ship-core` 专题分支：[舰娘核心一致性修复](migration_batches/2026-11-22-parity-fix-ship-core/) 已恢复旧版资源、士气与断粮行为，新增一项 GameTest；本批次验证以 [STATUS.md](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md) 为准。上方 298 项通过是此前基线的结果。
 
 - 当前阶段：**全量迁移已完成收口（SP mainline + B1–B6 Parity Backlog）**。V0 单人验收于 2026-09-16 由用户人工确认通过，M0-M9 全部为 `Done (SP mainline)`；2026-11-16～2026-11-18 已顺序完成 `GAMETEST-REPAIR-B4`（`91/91`）、`B5-ORE-TAGS`（`94/94`）、`GAMETEST-BACKFILL`（`276/276`）、`B1-GUI-PARITY`（`276/276`）、生存方块采集/信标 Tag 补全（`277/277`）、`B2-PACKET-PARITY`（`282/282`）、`B3-MULTIPLAYER-TEAM` Part 1+2（`286/286`）以及最终收官批次 `B6-INTERMOD-DETAILS`（9 条 `/ship*` Brigadier 指令、120-tick 动态光方块与 Searchlight/Flare 联动、`SystemConfig` 同步与全量 `ShinColleConfig` 接线、`PolyAsMnCondition` 与动态 Manganese 标签匹配、`ShipKills`/`Raiden` 角色标识与 Curios 反射软钩 → `289/289`，见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。
 - 已完成 backlog 批次：`WORLDGEN-AUDIT`（[WORLDGEN-AUDIT](migration_batches/2026-09-16-worldgen-audit/)）、`GAMETEST-REPAIR-B4`（[GAMETEST-REPAIR-B4](migration_batches/2026-11-16-gametest-repair/)）、`B5-ORE-TAGS`（[B5-ORE-TAGS](migration_batches/2026-11-16-b5-ore-tags/)）、`GAMETEST-BACKFILL`（[GAMETEST-BACKFILL](migration_batches/2026-11-16-gametest-backfill/)）、`B1-GUI-PARITY`（[B1-GUI-PARITY](migration_batches/2026-11-16-b1-gui-parity/)）、`B2-PACKET-PARITY`（[B2-PACKET-PARITY](migration_batches/2026-11-16-b2-packet-parity/)）、`B3-MULTIPLAYER-TEAM`（[B3-MULTIPLAYER-TEAM](migration_batches/2026-11-17-b3-multiplayer-team/)）与 `B6-INTERMOD-DETAILS`（[B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。

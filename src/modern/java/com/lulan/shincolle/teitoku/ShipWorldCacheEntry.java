@@ -43,7 +43,6 @@ public record ShipWorldCacheEntry(
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
     private static final String SHIP_MORALE_TAG = "ShipMorale";
-    private static final String SHIP_FUEL_TAG = "ShipFuel";
     private static final String SHIP_LIGHT_AMMO_TAG = "ShipLightAmmo";
     private static final String SHIP_HEAVY_AMMO_TAG = "ShipHeavyAmmo";
     private static final String SHIP_GRUDGE_TAG = "ShipGrudge";
@@ -227,10 +226,6 @@ public record ShipWorldCacheEntry(
 
     public int getMorale() {
         return this.getIntWithFallback(SHIP_MORALE_TAG, null, LEGACY_MORALE_TAG);
-    }
-
-    public int getShipFuel() {
-        return this.entityTag.getInt(SHIP_FUEL_TAG);
     }
 
     public int getLightAmmo() {

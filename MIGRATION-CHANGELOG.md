@@ -1,5 +1,15 @@
 # Migration Changelog
 
+## 2026-11-22
+
+- 舰种个体行为七项一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-variants/)。
+
+- AI移动与目标第1—5步修复、第6步文档归并及历史偏离撤销：[统一批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)。
+
+- 战斗与投射物七项一致性复核及修复：[批次记录](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
+- 舰娘核心行为一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-core/)。
+
 ## 2026-11-18
 
 ### FULL-SHIP-BEHAVIOR-REAUDIT：全 64 舰船变体与全子系统两轮并发严查修复收口（`298/298` GameTest）
@@ -24,7 +34,7 @@
 
 - 完成 `B3-MULTIPLAYER-TEAM` 第二部分全部收口并将 [ROADMAP.md](ROADMAP.md) 唯一 `NEXT` 晋级至 `B6-INTERMOD-DETAILS`：
   - **Forge 配置骨架与战斗友伤/PVP**：新建 [ShinColleConfig.java](src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java) 并在 [ShinColle.java](src/modern/java/com/lulan/shincolle/ShinColle.java) 注册 `COMMON_SPEC` + `CLIENT_SPEC`；在 [LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 接入非创造非主人玩家 `friendlyFire` 门禁、`isLegacyFriendlyFireAllowed` + 友方舰 `dmgSvS * 0.01F` 百分比缩放、同盟免防御反伤、新增 `canCommandOrRevengeEngage` 及 `canEngage` 的 `mobAttackPlayer`/`shipAttackPlayer` `0..3` 分支。
-  - **召唤物/投射物/目标目标选择器同盟门禁**：[LegacyShipBehaviorCatalog.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java) 新增 `isLegacyFriendlyFireAllowed`；[LegacyShipRensouhouEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java) 与 [LegacyShipAircraftEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java) 补全 `hurt` 门禁；[LegacyShipProjectileEntity.java](src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java) 过滤同盟接触；[LegacyShipOwnerHurtByTargetGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtByTargetGoal.java)、[LegacyShipOwnerHurtTargetGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtTargetGoal.java) 与 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 切换为 `canCommandOrRevengeEngage`。
+  - **召唤物/投射物/目标目标选择器同盟门禁**：[LegacyShipBehaviorCatalog.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java) 新增 `isLegacyFriendlyFireAllowed`；[LegacyShipRensouhouEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java) 与 [LegacyShipAircraftEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java) 补全 `hurt` 门禁；[LegacyShipProjectileEntity.java](src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java) 过滤同盟接触；[LegacyShipOwnerHurtByTargetGoal.java](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)、[LegacyShipOwnerHurtTargetGoal.java](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md) 与 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 切换为 `canCommandOrRevengeEngage`。
   - **`OwnerPaper` 与 `KaitaiHammer` 双模式**：[OwnerPaperItem.java](src/modern/java/com/lulan/shincolle/item/OwnerPaperItem.java) 为 `resolveTransferTarget` 增加全服关卡玩家回退查询；[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 对齐 `OwnerPaper` `emotion(2)` + `MARRY` 音效，区分 [KaitaiHammerItem.java](src/modern/java/com/lulan/shincolle/item/KaitaiHammerItem.java) 左键一击回收（`performKaitaiKill`）与潜行右键 `createLegacyKaitaiDrops` 分舰种 4 格掉落 + `6`/`8` 情绪。
   - **多人雷达服务端同步**：[GameplayCommandType.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandType.java)、[GameplayCommandHandler.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java)、[TeitokuHelper.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java) 与 [DeskReferenceScreen.java](src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java) 新增 `REQUEST_DESK_RADAR`、局部缓存保护及雷达/世界规则合并显示。
 - 在 [GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 新增 `b3Part2FriendlyFirePvpModesAndCommandRevengeTargeting` 与 `b3Part2OwnerPaperKaitaiHammerAndDeskRadarSync`；`git diff --check`、`src/main/` 零改动与 JDK `17.0.3.1` `runGameTestServer --no-daemon` 通过 **`All 286 required tests passed :)`**（证据见 [B3 Part 2 results](migration_batches/2026-11-17-b3-multiplayer-team/results/b3-part2.json)）。

@@ -1,5 +1,7 @@
 # GAMETEST-REPAIR-B4 Decision
 
+- 第 6 项的普通实体分派结论保留，该条提及的两项专属变身技能已经撤销。见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+
 - 结论：`DONE`（修复 9 项测试；同步关闭 `WORLDGEN-AUDIT` B4 测试缺口）
 - 影响模块：M3、M4、M5、M6、M9 与测试套 `GameplayParityGameTests.java`
 - 代码变更：仅修改 [GameplayParityGameTests.java](../../src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java)；现代生产逻辑经 1.12.2 真源核对全部已匹配，未引入任何新实现或非 1.12 规则。

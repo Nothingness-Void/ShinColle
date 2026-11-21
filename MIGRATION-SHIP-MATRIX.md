@@ -1,10 +1,12 @@
 # ShinColle 逐舰迁移矩阵
 
-更新时间：2026-11-16
+更新时间：2026-11-22
 
 这是逐舰状态的唯一事实来源。当前批次只处理标记为 `NEXT` 的行；已经有独立批次证据的域不重复阅读，除非出现回归或明确的新证据。
 
 当前 45 行均为 `LOCKED`，对应旧版行为域已有现代生产实现与批次审计证据；客户端 V0 人工验收已于 2026-09-16 在 [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/) 确认通过，SP 主线已正式收口。未覆盖的边角与完整 1.12 特性保留在 parity backlog，待恢复 GameTest 回归护栏后按 [ROADMAP.md](ROADMAP.md) 推进。
+
+19 个敌对 `*Mob` 变体的共享规模与战利品，以及长门、大和、天龙、爱宕、高雄和金刚四舰相关攻击边界的补充证据见 [舰种个体行为批次](migration_batches/2026-11-22-parity-fix-ship-variants/)。逐舰状态沿用下表。
 
 ## 状态码
 
@@ -66,6 +68,8 @@
 | 72 | `EntitySSNH` / `EntitySubmHimeNew` | `EntitySubmHimeNew` | dual missile、depth path、morale/riding、invisibility、host/target boundary、legacy model source/state/bake | LOCKED | full parity backlog |
 
 ## 批次证据索引
+
+- 舰娘核心公共资源、士气与断粮行为：见 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/)；不改逐舰注册、既有锁定域或敌我归属。
 
 - `SHIP-03` class 16-20 的行为、攻击、资源与 runtime 审计：见 [SHIP-03 batch](migration_batches/2026-09-03-ship-03-combat-behavior/)，最终回归 `All 254 required tests passed`。
 - `SHIP-05` class 30、31、33、36、37 的特殊 runtime、召唤物生命周期、攻击节奏、模型状态和 hostile servant 边界：见 [SHIP-05 batch](migration_batches/2026-09-04-ship-05-special-runtime/)，最终回归 `All 258 required tests passed`；Java 17 客户端启动、资源 reload 和单人集成连接通过，进世界人工交互留给 V0。

@@ -54,7 +54,7 @@ public final class LegacyShipCombatHelper {
     public static int attackDelay(LegacyShipStats stats, ShipEquipmentBehaviorState behaviorState, LegacyShipAttackKind attackKind) {
         float attackSpeed = Math.max(0.01F, stats.attackSpeed());
         int baseDelay = (int) (BASE_ATTACK_SPEED[attackKind.delayType()] / attackSpeed) + FIXED_ATTACK_DELAY[attackKind.delayType()];
-        return Math.round(baseDelay * behaviorState.attackDelayMultiplier(attackKind));
+        return baseDelay;
     }
 
     /** Mirrors EntityRensouhou's copied attack-speed attribute. */
@@ -85,11 +85,7 @@ public final class LegacyShipCombatHelper {
         }
 
         LegacyShipStats stats = host.getLegacyStats();
-        ShipEquipmentBehaviorState behaviorState = host.getEquipmentBehaviorState();
-        ShipEquipmentBehaviorState accuracyBehavior = attackKind == LegacyShipAttackKind.MELEE
-                ? ShipEquipmentBehaviorState.EMPTY : behaviorState;
-        float miss = calcMissRate(host, stats, accuracyBehavior, Math.max(0.0F, distance),
-                null, false, false, isDarkCombat(host, null), false);
+        float miss = calcMissRate(host, stats, Math.max(0.0F, distance));
         return host.getRandom().nextFloat() <= miss;
     }
 
@@ -142,18 +138,10 @@ public final class LegacyShipCombatHelper {
                                          boolean canDoubleHit, boolean canTripleHit,
                                          boolean justLaunch, float distance) {
         LegacyShipStats stats = host.getLegacyStats();
-        ShipEquipmentBehaviorState behaviorState = host.getEquipmentBehaviorState();
-        boolean flyingTarget = isFlyingTarget(target);
-        boolean underseaTarget = isUnderseaTarget(target);
-        boolean darkCombat = isDarkCombat(host, target);
-        boolean illuminated = target.hasEffect(MobEffects.GLOWING);
-        ShipEquipmentBehaviorState accuracyBehavior = attackKind == LegacyShipAttackKind.MELEE
-                ? ShipEquipmentBehaviorState.EMPTY : behaviorState;
         float miss = canMiss
-                ? calcMissRate(host, stats, accuracyBehavior, distance, target, flyingTarget,
-                        underseaTarget, darkCombat, illuminated)
+                ? calcMissRate(host, stats, distance)
                 : 0F;
-        float crit = canCrit ? stats.critical() + accuracyBehavior.critBonus(illuminated) + miss : miss;
+        float crit = canCrit ? stats.critical() + miss : miss;
         float doubleHit = canDoubleHit ? stats.doubleHit() + crit : crit;
         float tripleHit = canTripleHit ? stats.tripleHit() + doubleHit : doubleHit;
         float roll = host.getRandom().nextFloat();
@@ -179,10 +167,6 @@ public final class LegacyShipCombatHelper {
             if (damage > maxDmg) {
                 damage = maxDmg;
             }
-        }
-
-        if (target instanceof LegacyShipEntity) {
-            damage *= ShinColleConfig.dmgSvS() / 100F;
         }
 
         return new AttackRoll(damage, isMiss, isCrit, isDoubleHit, isTripleHit);
@@ -376,15 +360,7 @@ public final class LegacyShipCombatHelper {
                 || target instanceof LegacyShipEntity ship && ship.getSpec().archetype() == ShipArchetype.SUBMARINE;
     }
 
-    private static float calcMissRate(LegacyShipEntity host,
-                                      LegacyShipStats stats,
-                                      ShipEquipmentBehaviorState behaviorState,
-                                      float distance,
-                                      LivingEntity target,
-                                      boolean flyingTarget,
-                                      boolean underseaTarget,
-                                      boolean darkCombat,
-                                      boolean illuminated) {
+    private static float calcMissRate(LegacyShipEntity host, LegacyShipStats stats, float distance) {
         float range = Math.max(1F, stats.attackRange());
         float miss;
 
@@ -397,28 +373,13 @@ public final class LegacyShipCombatHelper {
         }
 
         miss -= stats.missReduce();
-        miss -= behaviorState.rangedAccuracyBonus(flyingTarget, underseaTarget, darkCombat, illuminated);
         miss = Mth.clamp(miss, 0F, 0.5F);
 
         if (host.hasEffect(MobEffects.CONFUSION)) {
             miss += 0.4F;
         }
 
-        if (target != null && target.hasEffect(MobEffects.INVISIBILITY)) {
-            miss += 0.08F;
-        }
-
         return miss;
-    }
-
-    private static boolean isDarkCombat(Entity attacker, LivingEntity target) {
-        if (attacker == null || attacker.level() == null) {
-            return false;
-        }
-
-        int attackerBrightness = attacker.level().getMaxLocalRawBrightness(attacker.blockPosition());
-        int targetBrightness = target == null ? attackerBrightness : attacker.level().getMaxLocalRawBrightness(target.blockPosition());
-        return Math.min(attackerBrightness, targetBrightness) <= 7;
     }
 
     public record AttackRoll(float damage, boolean miss, boolean crit, boolean doubleHit, boolean tripleHit) {

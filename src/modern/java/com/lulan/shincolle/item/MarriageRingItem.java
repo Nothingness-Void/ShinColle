@@ -102,7 +102,7 @@ public class MarriageRingItem extends Item {
             for (LegacyShipEntity ship : level.getEntitiesOfClass(
                     LegacyShipEntity.class, player.getBoundingBox().inflate(6.0D, 5.0D, 6.0D))) {
                 if (ship.isAlive()
-                        && ship.getShipFuel() > 0
+                        && !ship.hasNoFuel()
                         && LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)) {
                     ship.setEmotion(2);
                     if (ship.getRandom().nextInt(5) == 0) {

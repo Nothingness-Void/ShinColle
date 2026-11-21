@@ -8,10 +8,10 @@ public final class LegacyShipStatTables {
     public static final int BASE_ATTR_COUNT = 12;
     public static final int BASE_GROWTH_COUNT = 6;
 
-    public static final int MORALE_EXCITED_LOWER = 12000;
-    public static final int MORALE_HAPPY_LOWER = 8000;
-    public static final int MORALE_NORMAL_LOWER = 4000;
-    public static final int MORALE_TIRED_LOWER = 1500;
+    public static final int MORALE_EXCITED_LOWER = 5100;
+    public static final int MORALE_HAPPY_LOWER = 3900;
+    public static final int MORALE_NORMAL_LOWER = 2100;
+    public static final int MORALE_TIRED_LOWER = 900;
 
     public static final double[] SCALE_SHIP = {1D, 1D, 1D, 1D, 1D, 1D};
     public static final double[] SCALE_MOB_SMALL = {250D, 25D, 0.15D, 0.7D, 0.45D, 12D};

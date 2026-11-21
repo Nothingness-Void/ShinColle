@@ -55,6 +55,10 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
         return new ServerboundShipCommandPacket(ShipCommandAction.SET_AI_FLAGS, 0, shipId, shipUid, NO_ENTITY, null, flags);
     }
 
+    public static ServerboundShipCommandPacket setFollowMin(int shipId, int shipUid, int value) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SET_FOLLOW_MIN, 0, shipId, shipUid, NO_ENTITY, null, value);
+    }
+
     public static ServerboundShipCommandPacket setFollowRange(int shipId, int shipUid, int followRange) {
         return new ServerboundShipCommandPacket(ShipCommandAction.SET_FOLLOW_RANGE, 0, shipId, shipUid, NO_ENTITY, null, followRange);
     }

@@ -14,10 +14,13 @@
    - `LegacyShipEntity` 启用 `noCulling = true` 并放大 `getBoundingBoxForCulling()`（对齐 1.12.2 `ignoreFrustumCheck = true`），防止大舰装边缘闪烁剔除。
    - `LegacyShipEntity.hurt()` 将真实射手实体（`damageSource.getEntity()`）传入 `canDodge`，修复投射物贴脸距离为 0 导致潜艇 `invisibleLevel` 远程闪避失效的问题。
 3. **基类生命周期、AI 与自然刷怪消散对齐**：
+   - **部分已撤销/已取代**：本项AI接线不能证明CLIENT canTeleport配置归属、跟随/守卫与导航完整等价；这些现代偏离已由[AI移动批次](../2026-11-22-parity-fix-ai-movement/decision.md)纠正。自然消散与其他独立结论保留。
+   - 此项中采用现代士气阈值的决定[已撤销](../../MIGRATION-DECISIONS.md#d-012已撤销现代士气阈值和独立舰娘燃料)，其余结论不变。
    - 补齐 `BasicEntityShip` 的 32t 自动快修桶（含空母轻/重舰载机各 `+1`）、32t `SATURATION` 药水回血与 `+100*lv` 士气、128t `updateMorale()`（按现代 `1500/4000/8000/12000` 阈值：脱战 `< 5000` `+40`、`> 8000` `-10`；交战 `-11/-7/-5/-11`）及 256t 基础自动回血（`0.03 * maxHP + 1`）。
    - 新增 `LegacyShipFleeGoal`（`FleeHP` 撤退）与 `LegacyShipOpenDoorGoal`，为 `LegacyShipFollowOwnerGoal` 接入 `ShinColleConfig.canTeleport()`；新增 `despawnBoss`（`12000`）与 `despawnMinion`（`600`）配置并修正自然敌舰仅在 `> 128` 格立即消散、`32..128` 格按闲置计时消散。
    - 补齐 `EntityDestroyerAkatsukiMob`（`2053`）16t 探照灯光块放置与 `MarriageRingItem` 非激活态水下呼吸、手持 64t 害羞爱心及婚舰数量 Tooltip。
 4. **逐舰特殊数值、阵型槽位、附魔与完整受伤管线对齐**：
+   - **已撤销**：本项将 `LegacyShipCombatHelper` 攻击端接入 `dmgSvS()` 视为一致性修复的决定；其余结论不变。复核与落实见 [战斗与投射物批次](../2026-11-22-parity-fix-combat-projectile/decision.md)。
    - 修正 `NorthernHime`（31）重炮 `0.75F` 倍率、`NorthernHime`/`SSNH` 潜行下坐骑、`BattleshipRe`（15）与 `TransportWa`（16）骑乘 Y 偏移、`SubmYo`（18）轻攻击不叠加 AA/ASM、`Tenryuu`（56）瞬移目标候选格安全判定、`Tatsuta`（57）友方纯垂直 vs 敌对水平+垂直击退与光束轨迹坐标。
    - `LegacyShipStatTables` / `LegacyShipStats` / `LegacyShipEntity` 补齐 5 种阵型全部 `0..5` 槽位独立属性表与编队 `MinMOV + formation[MOV] * scale[MOV]` 航速同步；`ShipEquipmentProfile` 补齐 `EquipCalc` 装备附魔加成计算；`LegacyShipCombatHelper` 接入 `ShinColleConfig.dmgSvS()` 与舰载机宿主夜视判定。
    - `LegacyShipEntity.hurt()` 完整对齐 1.12.2：免疫摔落/窒息/仙人掌/饥饿伤害、友方掉入虚空传送回 `Y=4` 救援、纯魔法 `< 1% maxHP` 忽略、女神复活 `>= health - 1` 触发及完整 120t `goddessImmuneTicks` 无敌、抗性/抗火药水 `20% * min(4, lv)` 减伤、最小 `1.0F` 伤害保底、受击起身与 `-5` 士气；`TeitokuEvents` 补齐玩家 32 格与敌舰 64 格群体复仇传播；修正 `AntiAir`/`AntiSub` 不误伤蝙蝠/蜜蜂且不阻断原版恶魂/幻翼/溺尸/守卫者，并接入 `TargetClass` 自定义白名单。

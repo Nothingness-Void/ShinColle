@@ -614,12 +614,6 @@ public final class MorphHelper {
                                                              LegacyShipStats stats, LivingEntity target,
                                                              LegacyShipAttackKind attackKind) {
         float distance = player.distanceTo(target);
-        ShipEquipmentBehaviorState behaviorState = profile.buildBehaviorState();
-        boolean flyingTarget = LegacyShipCombatHelper.isFlyingTarget(target);
-        boolean underseaTarget = LegacyShipCombatHelper.isUnderseaTarget(target);
-        boolean darkCombat = player.level().getMaxLocalRawBrightness(player.blockPosition()) <= 7
-                || player.level().getMaxLocalRawBrightness(target.blockPosition()) <= 7;
-        boolean illuminated = target.isCurrentlyGlowing();
 
         float damage = switch (attackKind) {
             case MELEE -> stats.meleeDamage();
@@ -630,9 +624,9 @@ public final class MorphHelper {
         };
 
         float miss = attackKind.canMiss()
-                ? calcMissRate(player, profile, stats, behaviorState, target, distance, flyingTarget, underseaTarget, darkCombat, illuminated)
+                ? calcMissRate(player, profile, stats, distance)
                 : 0.0F;
-        float crit = attackKind.canCrit() ? stats.critical() + behaviorState.critBonus(illuminated) + miss : miss;
+        float crit = attackKind.canCrit() ? stats.critical() + miss : miss;
         float doubleHit = attackKind.canDoubleHit() ? stats.doubleHit() + crit : crit;
         float tripleHit = attackKind.canTripleHit() ? stats.tripleHit() + doubleHit : doubleHit;
         float roll = player.getRandom().nextFloat();
@@ -672,9 +666,7 @@ public final class MorphHelper {
     }
 
     private static float calcMissRate(ServerPlayer player, MorphProfile profile, LegacyShipStats stats,
-                                      ShipEquipmentBehaviorState behaviorState, LivingEntity target, float distance,
-                                      boolean flyingTarget, boolean underseaTarget,
-                                      boolean darkCombat, boolean illuminated) {
+                                      float distance) {
         float range = Math.max(1.0F, stats.attackRange());
         float miss;
 
@@ -687,18 +679,13 @@ public final class MorphHelper {
         }
 
         miss -= stats.get(LegacyShipStatTables.Attr.MISS);
-        miss -= behaviorState.rangedAccuracyBonus(flyingTarget, underseaTarget, darkCombat, illuminated);
         miss = Mth.clamp(miss, 0.0F, 0.5F);
 
-        if (targetHasEffect(target, net.minecraft.world.effect.MobEffects.INVISIBILITY)) {
-            miss += 0.08F;
+        if (player.hasEffect(net.minecraft.world.effect.MobEffects.CONFUSION)) {
+            miss += 0.4F;
         }
 
         return miss;
-    }
-
-    private static boolean targetHasEffect(LivingEntity target, net.minecraft.world.effect.MobEffect effect) {
-        return target.hasEffect(effect);
     }
 
     private static MorphHostMode resolveHostMode(ServerPlayer player, TeitokuData data) {

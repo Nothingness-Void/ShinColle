@@ -124,7 +124,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         aircraft.remainingAttacks = attackKind == LegacyShipAttackKind.AIR_HEAVY
                 ? LEGACY_HEAVY_AIRCRAFT_AMMO : LEGACY_LIGHT_AIRCRAFT_AMMO;
         aircraft.attackCooldown = 0;
-        aircraft.speedScale = (float) owner.getEquipmentBehaviorState().projectileSpeedMultiplier(attackKind);
+        aircraft.speedScale = 1.0F;
         aircraft.turnBlend = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 0.12F : 0.18F;
         aircraft.maxHp = Math.max(1.0F, owner.getShipLevel()
                 + owner.getMaxHealth() * (aircraft.isHeavyAirframe() ? 0.15F : 0.1F));

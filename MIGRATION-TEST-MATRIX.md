@@ -14,6 +14,32 @@
 | T3 | renderer、model、particle、screen、sound 或客户端资源变化 | dev client 启动、资源 reload、进世界烟测 |
 | T4 | V0 收口 | 单人世界完整人工流程并记录结果 |
 
+## 舰娘核心回归
+
+### 舰种个体行为回归
+
+- `hostileBossDropsOnlyItsLegacyEgg` 通过实际击杀核对规模 3 的敌舰只掉一枚基础舰娘蛋。`hostileScaleUsesSpawnAndSaveDataWithLegacyExperience` 验证通用部署默认值、旧档回读、已撤销字段清理和四级规模经验公式。
+- `hostileEncounterSpawnInitializesRuntime` 验证显式遭遇规模、固定等级和无士气。`specialCombatHooksApplyHeavyCooldowns` 精确比较重炮冷却。`morphSpecialDispatchUsesLegacyClassIds` 和 `morphSpecialPreviewCooldownUsesBehaviorCatalog` 验证 class ID 58–63 及敌对镜像无专属技能与对应冷却。
+- `progressionAdvancementsLoadAndFriendlyShipTriggerAwards` 核对海上 Boss 进度只接受规模 2 和 3 的敌舰。
+- JDK 17 运行 `bash ./gradlew compileJava --no-daemon`，通过后运行 `bash ./gradlew runGameTestServer --no-daemon`。要求全量必过项全部通过，运行记录归 [批次证据](migration_batches/2026-11-22-parity-fix-ship-variants/STATUS.md)。
+
+### AI移动与目标回归
+
+- 完整服务端套件规模为 **319项GameTest**（本批次代码完成时的覆盖规模，不是文档整理重跑结果）；历史实测输出归 [AI批次STATUS](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)。
+- 状态/跟随/传送：独立FollowMin/Max默认、范围、NBT与同步；Min/Max加宽度与PickItem距离，32tick缓存/寻路，严格传送冷却、精确Y+0.75、未加载区块拒绝及正常/缺失主人。
+- 阵型/守卫/路线：安全扫描成功与无落脚点回退、无效槽位、实体阵型位置、min/max迟滞、GuardType存档、仅移动且type>0攻击、旧瞄准公式、维度取消、路点/起重机16/32/128tick调度和距离边界。
+- 目标/杂项：Selector正常/空/失效目标与显式攻击入口分离；一船一玩家的确定候选和超过2候选时最近3随机（64种子）；碰撞宽²×16与冷却；游荡1/180、友10/5敌12/1及状态禁用；守卫/有目标时可拾取和旧音量配置。
+- 真实3D移动新增：`shipNavigatorMovesUpThroughWater`、`shipNavigatorMovesDownThroughWater`、`shipNavigatorFliesWithoutGravity`、`shipNavigatorRejectsUnavailablePathsAndClearsStoppedPaths`。要求生成包含垂直边的水面/水下路径并实际接近目标，canFly静止不受重力且实际飞向高处；null/empty/blocked路径与坐下清除有显式断言。不能只凭“路径非空”声称移动验证通过。
+- 行为/共享helper修改触发T1/T2：JDK17下 `bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`，全部required通过且失败0。仅文档移动/链接更新不触发GameTest重跑；执行T0与相对链接/旧路径残留检查。
+- 319项服务端回归不覆盖飞机/坐骑3D接线、debug路径粒子和客户端视觉；边界见 [批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。
+
+### 战斗、投射物与资源回归
+
+- 战斗与投射物：`launchMissStillResolvesAreaDamage` 覆盖脱靶/正常/空范围撞击，`invisibilityAndGlowingDoNotChangeCombatRolls` 覆盖隐身发光和装备冷却，`potionDamageUsesMaxHealthAndLevelWithoutDefense` 覆盖药水/药水云及 HARM 等级 0/1/2；已有友伤、伤害倍率、照明和弹道断言同步恢复旧版语义。JDK 17 运行 `./gradlew compileJava`、`./gradlew runGameTestServer`（脚本无执行位时用 `bash ./gradlew`），证据见 [战斗批次](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
+- `shipCoreRestoresLegacyNoFuelAndConfiguredSupplies`：零资源起点、资源不封顶、二级饥饿耗怨念五倍、断粮归零、配置补给及单件消耗。
+- 既有资源存档、炮击与航空消耗、128 刻士气和菜单用例按 1.12.2 行为断言。运行 JDK 17 的 `./gradlew compileJava` 与 `./gradlew runGameTestServer`；结果归档到 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md)。
+
 ## 按改动追加
 
 | 改动 | 必须覆盖 |
