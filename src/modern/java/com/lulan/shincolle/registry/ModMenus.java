@@ -2,8 +2,7 @@ package com.lulan.shincolle.registry;
 
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
-import com.lulan.shincolle.menu.DeskReferenceMenu;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
@@ -23,10 +22,8 @@ public final class ModMenus {
 
     public static final RegistryObject<MenuType<CraneTerminalMenu>> CRANE_TERMINAL = MENUS.register("crane_terminal",
             () -> IForgeMenuType.create(CraneTerminalMenu::fromNetwork));
-    public static final RegistryObject<MenuType<DeskReferenceMenu>> DESK_REFERENCE = MENUS.register("desk_reference",
-            () -> IForgeMenuType.create(DeskReferenceMenu::fromNetwork));
-    public static final RegistryObject<MenuType<DeskTerminalMenu>> DESK_TERMINAL = MENUS.register("desk_terminal",
-            () -> IForgeMenuType.create(DeskTerminalMenu::fromNetwork));
+    public static final RegistryObject<MenuType<DeskMenu>> DESK = MENUS.register("desk",
+            () -> IForgeMenuType.create(DeskMenu::fromNetwork));
     public static final RegistryObject<MenuType<FormationMenu>> FORMATION = MENUS.register("formation",
             () -> IForgeMenuType.create(FormationMenu::fromNetwork));
     public static final RegistryObject<MenuType<LargeShipyardMenu>> LARGE_SHIPYARD = MENUS.register("large_shipyard",

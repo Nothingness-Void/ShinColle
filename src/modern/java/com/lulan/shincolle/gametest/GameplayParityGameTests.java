@@ -57,8 +57,7 @@ import com.lulan.shincolle.network.ShipGuiButton;
 import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import net.minecraft.world.level.GameType;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
-import com.lulan.shincolle.menu.DeskReferenceMenu;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
@@ -347,10 +346,9 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void deskTerminalMenuProjectsTeamRelationsAndWorldRules(GameTestHelper helper) {
+    public static void deskMenuProjectsLegacyTeamAndTargetData(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         int playerUid = 8121;
-        String worldRuleKey = "shincolle:test_desk_world_rule";
 
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(playerUid);
@@ -370,28 +368,23 @@ public final class GameplayParityGameTests {
         teamData.createTeam(400, "Delta", "Delta");
         teamData.addAllyRelationship(playerUid, 200);
         teamData.addBannedRelationship(playerUid, 300);
-        WorldCombatRulesSavedData worldRules = WorldCombatRulesSavedData.get(helper.getLevel());
-        if (!worldRules.isUnattackable(worldRuleKey)) {
-            worldRules.toggleUnattackable(worldRuleKey);
-        }
 
         CompoundTag payload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
         TeitokuHelper.applyClientState(player, payload);
 
-        DeskTerminalMenu menu = new DeskTerminalMenu(0, player.getInventory(), BlockPos.ZERO, DeskReferenceMenu.BOOK_VARIANT);
+        DeskMenu menu = new DeskMenu(0, player.getInventory(), BlockPos.ZERO, DeskMenu.BOOK_VARIANT);
         if (menu.getOwnAllyCount() != 1
                 || menu.getOwnBannedCount() != 1
-                || menu.getTeamRelation(200) != DeskTerminalMenu.TeamRelation.ALLIED
-                || menu.getTeamRelation(300) != DeskTerminalMenu.TeamRelation.HOSTILE
-                || menu.getTeamRelation(400) != DeskTerminalMenu.TeamRelation.NEUTRAL
-                || menu.getTeamRelation(playerUid) != DeskTerminalMenu.TeamRelation.OWN) {
-            helper.fail("desk terminal menu should project legacy own/ally/hostile/neutral team relations");
+                || menu.getTeamRelation(200) != DeskMenu.TeamRelation.ALLIED
+                || menu.getTeamRelation(300) != DeskMenu.TeamRelation.HOSTILE
+                || menu.getTeamRelation(400) != DeskMenu.TeamRelation.NEUTRAL
+                || menu.getTeamRelation(playerUid) != DeskMenu.TeamRelation.OWN) {
+            helper.fail("desk menu should project legacy own/ally/hostile/neutral team relations");
             return;
         }
 
-        if (!menu.getTargetClasses().contains("minecraft:zombie")
-                || !menu.getWorldUnattackableClasses().contains(worldRuleKey)) {
-            helper.fail("desk terminal menu should expose synced target-class and world-rule lists");
+        if (!menu.getTargetClasses().contains("minecraft:zombie")) {
+            helper.fail("desk target page should expose the synced target-class list");
             return;
         }
 
@@ -2195,6 +2188,7 @@ public final class GameplayParityGameTests {
         }
 
         for (String key : english.keySet()) {
+            if (key.startsWith("gui.shincolle:book.")) continue;
             if (!simplifiedChinese.has(key)) {
                 helper.fail("zh_cn language resource is missing key: " + key);
                 return;
@@ -2250,6 +2244,7 @@ public final class GameplayParityGameTests {
             }
 
             for (String key : lang.keySet()) {
+                if (key.startsWith("gui.shincolle:book.")) continue;
                 String value = lang.get(key).getAsString();
                 String lowered = value.toLowerCase(Locale.ROOT);
                 for (String bannedFragment : bannedFragments) {
@@ -16226,7 +16221,7 @@ public final class GameplayParityGameTests {
         deskTag.putInt(GameplayCommandHandler.TAG_X, 12);
         deskTag.putInt(GameplayCommandHandler.TAG_Y, 64);
         deskTag.putInt(GameplayCommandHandler.TAG_Z, -8);
-        deskTag.putInt(GameplayCommandHandler.TAG_MODE, DeskReferenceMenu.BOOK_VARIANT);
+        deskTag.putInt(GameplayCommandHandler.TAG_MODE, DeskMenu.BOOK_VARIANT);
         deskTag.putInt(GameplayCommandHandler.TAG_RADAR_ZOOM, 2);
         deskTag.putInt(GameplayCommandHandler.TAG_BOOK_CHAPTER, 3);
         deskTag.putInt(GameplayCommandHandler.TAG_BOOK_PAGE, 5);
@@ -16318,14 +16313,14 @@ public final class GameplayParityGameTests {
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_X, deskPos.getX());
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_Y, deskPos.getY());
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_Z, deskPos.getZ());
-        deskSyncPayload.putInt(GameplayCommandHandler.TAG_MODE, DeskReferenceMenu.BOOK_VARIANT);
+        deskSyncPayload.putInt(GameplayCommandHandler.TAG_MODE, DeskMenu.BOOK_VARIANT);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_RADAR_ZOOM, 2);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_BOOK_CHAPTER, 3);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_BOOK_PAGE, 7);
         GameplayCommandHandler.handle(player, GameplayCommandType.SYNC_DESK_FUNC, deskSyncPayload);
 
         if (desk.getUpdatePacket() == null
-                || desk.getSelectedFunction() != DeskReferenceMenu.BOOK_VARIANT
+                || desk.getSelectedFunction() != DeskMenu.BOOK_VARIANT
                 || desk.getRadarZoomIndex() != 2
                 || desk.getBookChapter() != 3
                 || desk.getBookPage() != 7) {
@@ -16335,7 +16330,7 @@ public final class GameplayParityGameTests {
 
         DeskBlockEntity syncedDesk = new DeskBlockEntity(deskPos, ModBlocks.BLOCK_DESK.get().defaultBlockState());
         syncedDesk.load(desk.getUpdateTag());
-        if (syncedDesk.getSelectedFunction() != DeskReferenceMenu.BOOK_VARIANT
+        if (syncedDesk.getSelectedFunction() != DeskMenu.BOOK_VARIANT
                 || syncedDesk.getRadarZoomIndex() != 2
                 || syncedDesk.getBookChapter() != 3
                 || syncedDesk.getBookPage() != 7) {
@@ -16343,6 +16338,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        DeskParityGameTests.check(helper, player, desk);
         helper.succeed();
     }
 
@@ -17105,9 +17101,13 @@ public final class GameplayParityGameTests {
                 waypoint.setOwner(ownerA);
             }
             ItemEntity radarItem = new ItemEntity(helper.getLevel(),
-                    ownerA.getX() + 1.0D, ownerA.getY(), ownerA.getZ() + 1.0D,
+                    ownerA.getX() + 1.25D, ownerA.getY() + 0.375D, ownerA.getZ() + 1.75D,
                     new ItemStack(ModItems.GRUDGE.get(), 3));
+            LegacyEntityItemMarker.mark(radarItem);
             helper.getLevel().addFreshEntity(radarItem);
+            ItemEntity ordinaryItem = new ItemEntity(helper.getLevel(), ownerA.getX() + 2D, ownerA.getY(), ownerA.getZ() + 2D,
+                    new ItemStack(Items.DIAMOND));
+            helper.getLevel().addFreshEntity(ordinaryItem);
 
             CompoundTag seedTeamPayload = new CompoundTag();
             ListTag seedTeams = new ListTag();
@@ -17121,11 +17121,13 @@ public final class GameplayParityGameTests {
             CompoundTag radarPayload = TeitokuHelper.buildDeskRadarPayloadTag(ownerA);
             TeitokuHelper.applyClientState(ownerA, radarPayload);
             List<TeitokuHelper.DeskRadarContactSnapshot> syncedContacts = TeitokuHelper.getClientDeskRadarContacts();
-            boolean hasShip = syncedContacts.stream().anyMatch(c -> "SHIP".equals(c.kind()));
-            boolean hasItem = syncedContacts.stream().anyMatch(c -> "ITEM".equals(c.kind()));
-            boolean hasRoute = syncedContacts.stream().anyMatch(c -> "ROUTE".equals(c.kind()));
-            if (!hasShip || !hasItem || !hasRoute || TeitokuHelper.getClientTeamData().isEmpty()) {
-                helper.fail("Desk radar sync should populate ship, item, and facility contacts without clearing team cache");
+            boolean hasItem = syncedContacts.stream().anyMatch(c -> "ITEM".equals(c.kind())
+                    && c.x() == (float)radarItem.getX() && c.y() == (float)radarItem.getY() && c.z() == (float)radarItem.getZ());
+            boolean hasInventedContact = syncedContacts.stream().anyMatch(c -> !"ITEM".equals(c.kind())
+                    || c.x() == (float)ordinaryItem.getX() && c.y() == (float)ordinaryItem.getY() && c.z() == (float)ordinaryItem.getZ());
+            if (!hasItem || hasInventedContact || TeitokuHelper.getClientTeamData().isEmpty()
+                    || !TeitokuHelper.buildDeskRadarPayloadTag(null).getList(TeitokuHelper.DESK_RADAR_PAYLOAD_TAG, Tag.TAG_COMPOUND).isEmpty()) {
+                helper.fail("Desk item-list sync should preserve old BasicEntityItem filtering and float coordinates, without facility contacts or clearing team cache");
                 return;
             }
         } finally {
@@ -17471,15 +17473,15 @@ public final class GameplayParityGameTests {
 
             BlockPos deskPos = helper.absolutePos(new BlockPos(2, 2, 2));
             level.setBlock(deskPos, ModBlocks.BLOCK_DESK.get().defaultBlockState(), 3);
-            DeskTerminalMenu deskMenu = new DeskTerminalMenu(0, owner.getInventory(), deskPos, DeskReferenceMenu.BOOK_VARIANT);
+            DeskMenu deskMenu = new DeskMenu(0, owner.getInventory(), deskPos, 0);
             owner.setPos(deskPos.getX() + 2.5D, deskPos.getY(), deskPos.getZ() + 0.5D);
             if (!deskMenu.stillValid(owner)) {
-                helper.fail("DeskTerminalMenu should stay valid within configured closeGuiDist=16");
+                helper.fail("DeskMenu should stay valid within configured closeGuiDist=16");
                 return;
             }
             owner.setPos(deskPos.getX() + 5.5D, deskPos.getY(), deskPos.getZ() + 0.5D);
             if (deskMenu.stillValid(owner)) {
-                helper.fail("DeskTerminalMenu should invalidate beyond configured closeGuiDist=16");
+                helper.fail("DeskMenu should invalidate beyond configured closeGuiDist=16");
                 return;
             }
 

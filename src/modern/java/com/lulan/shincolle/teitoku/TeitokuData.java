@@ -573,7 +573,7 @@ public class TeitokuData {
     }
 
     public void addCollectedShip(int shipId) {
-        if (shipId > 0 && !this.collectedShips.contains(shipId)) {
+        if (shipId >= 0 && !this.collectedShips.contains(shipId)) {
             this.collectedShips.add(shipId);
         }
     }

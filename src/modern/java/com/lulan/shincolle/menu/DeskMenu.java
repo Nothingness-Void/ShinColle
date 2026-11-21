@@ -11,15 +11,18 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class DeskTerminalMenu extends AbstractContainerMenu {
+public class DeskMenu extends AbstractContainerMenu {
+
+    public static final int RADAR_VARIANT = 1;
+    public static final int BOOK_VARIANT = 2;
 
     public enum TeamRelation {
         OWN("gui.shincolle.team.belong"),
@@ -40,19 +43,28 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
 
     private final Inventory inventory;
     private final BlockPos deskPos;
-    private final int selectedFunction;
+    private final int type;
 
-    public DeskTerminalMenu(int containerId, Inventory inventory, BlockPos deskPos, int selectedFunction) {
-        super(ModMenus.DESK_TERMINAL.get(), containerId);
+    public DeskMenu(int containerId, Inventory inventory, BlockPos deskPos, int type) {
+        super(ModMenus.DESK.get(), containerId);
         this.inventory = inventory;
         this.deskPos = deskPos.immutable();
-        this.selectedFunction = selectedFunction == DeskReferenceMenu.BOOK_VARIANT
-                ? DeskReferenceMenu.BOOK_VARIANT
-                : DeskReferenceMenu.RADAR_VARIANT;
+        this.type = Math.max(0, Math.min(type, 4));
+        if (this.type == 0) this.addDataSlot(new DataSlot() {
+            @Override public int get() { return (int)(DeskMenu.this.getTeamCooldown() * 0.05F); }
+            @Override public void set(int seconds) {
+                TeitokuHelper.get(inventory.player).ifPresent(data -> data.setTeamCooldown(seconds * 20));
+            }
+        });
     }
 
-    public static DeskTerminalMenu fromNetwork(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
-        return new DeskTerminalMenu(containerId, inventory, buffer.readBlockPos(), buffer.readVarInt());
+    public static DeskMenu fromNetwork(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
+        return new DeskMenu(containerId, inventory, buffer.readBlockPos(), buffer.readVarInt());
+    }
+
+    public static void writeOpeningData(FriendlyByteBuf buffer, BlockPos pos, int type) {
+        buffer.writeBlockPos(pos);
+        buffer.writeVarInt(type);
     }
 
     public BlockPos getDeskPos() {
@@ -60,11 +72,14 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
     }
 
     public int getSelectedFunction() {
-        return this.selectedFunction;
+        return this.type == 0 && this.inventory.player.level().getBlockEntity(this.deskPos) instanceof DeskBlockEntity desk
+                ? desk.getSelectedFunction() : this.type;
     }
 
+    public int getDeskType() { return this.type; }
+
     public Component getSelectedFunctionName() {
-        return Component.translatable(this.selectedFunction == DeskReferenceMenu.BOOK_VARIANT
+        return Component.translatable(this.getSelectedFunction() == BOOK_VARIANT
                 ? "item.shincolle.deskitembook"
                 : "item.shincolle.deskitemradar");
     }
@@ -108,7 +123,6 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
 
     public List<TeamData> getKnownTeams() {
         List<TeamData> teams = new ArrayList<>(TeitokuHelper.getClientTeamData().values());
-        teams.sort(Comparator.comparingInt(TeamData::getTeamId));
         return teams;
     }
 
@@ -147,17 +161,6 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
         return ownTeam == null ? 0 : ownTeam.getBanned().size();
     }
 
-    public List<String> getWorldUnattackableClasses() {
-        Set<String> classes = TeitokuHelper.getClientWorldUnattackableClasses();
-        if (classes.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> sorted = new ArrayList<>(classes);
-        sorted.sort(String::compareToIgnoreCase);
-        return List.copyOf(sorted);
-    }
-
     public String getCompactTeamRow(TeamData teamData) {
         String relation = this.getTeamRelationLabel(teamData.getTeamId()).getString();
         return "#" + teamData.getTeamId() + " "
@@ -191,12 +194,12 @@ public class DeskTerminalMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
+        if (this.type != 0) return true;
         if (player.level().getBlockEntity(this.deskPos) instanceof DeskBlockEntity) {
             return player.distanceToSqr(this.deskPos.getX() + 0.5D, this.deskPos.getY() + 0.5D, this.deskPos.getZ() + 0.5D)
                     <= (double) TeitokuHelper.getEffectiveCloseGuiDist(player.level());
         }
-        // Allow detached desk terminal sessions opened by command items.
-        return true;
+        return false;
     }
 
     @Override

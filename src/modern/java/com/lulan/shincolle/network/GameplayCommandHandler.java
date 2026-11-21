@@ -8,8 +8,7 @@ import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
-import com.lulan.shincolle.menu.DeskReferenceMenu;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.morph.MorphHelper;
@@ -285,17 +284,14 @@ public final class GameplayCommandHandler {
 
     private static void handleOpenDeskScreen(ServerPlayer player, CompoundTag payload) {
         int selectedFunction = Mth.clamp(payload.getInt(TAG_MODE),
-                DeskReferenceMenu.RADAR_VARIANT,
-                DeskReferenceMenu.BOOK_VARIANT);
+                DeskMenu.RADAR_VARIANT,
+                4);
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) ->
-                                new DeskTerminalMenu(containerId, inventory, player.blockPosition(), selectedFunction),
+                                new DeskMenu(containerId, inventory, player.blockPosition(), selectedFunction),
                         Component.translatable("block.shincolle.blockdesk")),
-                buffer -> {
-                    buffer.writeBlockPos(player.blockPosition());
-                    buffer.writeVarInt(selectedFunction);
-                });
+                buffer -> DeskMenu.writeOpeningData(buffer, player.blockPosition(), selectedFunction));
     }
 
     private static void handleMorphCycle(ServerPlayer player, boolean forward) {

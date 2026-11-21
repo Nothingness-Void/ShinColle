@@ -1,15 +1,9 @@
 package com.lulan.shincolle.teitoku;
 
-import com.lulan.shincolle.blockentity.CraneBlockEntity;
-import com.lulan.shincolle.blockentity.DeskBlockEntity;
-import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
-import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
-import com.lulan.shincolle.blockentity.RouteNode;
-import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
-import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.team.TeamSavedData;
@@ -32,8 +26,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -72,7 +64,7 @@ public final class TeitokuHelper {
     private static volatile @Nullable Boolean clientPolyAsMn;
 
     public record DeskRadarContactSnapshot(String kind, String name, String statusText,
-                                           int x, int y, int z, int ownerUid, boolean hostile) {
+                                           float x, float y, float z, int ownerUid, boolean hostile) {
     }
 
     private TeitokuHelper() {
@@ -202,9 +194,9 @@ public final class TeitokuHelper {
                         entryTag.getString("Kind"),
                         entryTag.getString("Name"),
                         entryTag.getString("Status"),
-                        entryTag.getInt("X"),
-                        entryTag.getInt("Y"),
-                        entryTag.getInt("Z"),
+                        entryTag.getFloat("X"),
+                        entryTag.getFloat("Y"),
+                        entryTag.getFloat("Z"),
                         entryTag.getInt("OwnerUid"),
                         entryTag.getBoolean("Hostile")));
             }
@@ -292,106 +284,16 @@ public final class TeitokuHelper {
         }
 
         ServerLevel level = player.serverLevel();
-        double maxRadius = 256.0D;
-        double maxRadiusSq = maxRadius * maxRadius;
-
-        for (LegacyShipEntity ship : level.getEntitiesOfClass(
-                LegacyShipEntity.class,
-                player.getBoundingBox().inflate(maxRadius),
-                candidate -> candidate.isAlive() && candidate.distanceToSqr(player) <= maxRadiusSq)) {
-            CompoundTag entry = new CompoundTag();
-            entry.putString("Kind", "SHIP");
-            entry.putString("Name", ship.getName().getString());
-            entry.putString("Status", Mth.floor(ship.getHealth()) + "/" + Mth.floor(ship.getMaxHealth()));
-            entry.putInt("X", Mth.floor((float) ship.getX()));
-            entry.putInt("Y", Mth.floor((float) ship.getY()));
-            entry.putInt("Z", Mth.floor((float) ship.getZ()));
-            entry.putInt("OwnerUid", ship.getOwnerUid());
-            entry.putBoolean("Hostile", ship.isHostileVariant());
-            contacts.add(entry);
-        }
-
         for (ItemEntity item : level.getEntitiesOfClass(
                 ItemEntity.class,
-                player.getBoundingBox().inflate(maxRadius),
-                candidate -> candidate.isAlive() && candidate.distanceToSqr(player) <= maxRadiusSq)) {
-            ItemStack stack = item.getItem();
+                player.getBoundingBox().expandTowards(128D, 256D, 128D),
+                LegacyEntityItemMarker::isMarked)) {
             CompoundTag entry = new CompoundTag();
             entry.putString("Kind", "ITEM");
-            entry.putString("Name", stack.isEmpty() ? "Item" : stack.getHoverName().getString());
-            entry.putString("Status", "Stack: " + Math.max(1, stack.getCount()));
-            entry.putInt("X", Mth.floor((float) item.getX()));
-            entry.putInt("Y", Mth.floor((float) item.getY()));
-            entry.putInt("Z", Mth.floor((float) item.getZ()));
-            entry.putInt("OwnerUid", 0);
-            entry.putBoolean("Hostile", false);
+            entry.putFloat("X", (float)item.getX());
+            entry.putFloat("Y", (float)item.getY());
+            entry.putFloat("Z", (float)item.getZ());
             contacts.add(entry);
-        }
-
-        int playerUid = getPlayerUid(player);
-        int radius = 256;
-        int radiusSq = radius * radius;
-        BlockPos playerPos = player.blockPosition();
-        int centerChunkX = playerPos.getX() >> 4;
-        int centerChunkZ = playerPos.getZ() >> 4;
-        int chunkRadius = Mth.ceil(radius / 16.0F) + 1;
-
-        for (int chunkX = centerChunkX - chunkRadius; chunkX <= centerChunkX + chunkRadius; chunkX++) {
-            for (int chunkZ = centerChunkZ - chunkRadius; chunkZ <= centerChunkZ + chunkRadius; chunkZ++) {
-                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk == null) {
-                    continue;
-                }
-                for (BlockPos pos : chunk.getBlockEntitiesPos()) {
-                    if (pos.distSqr(playerPos) > radiusSq) {
-                        continue;
-                    }
-                    BlockEntity blockEntity = level.getBlockEntity(pos);
-                    if (blockEntity == null) {
-                        continue;
-                    }
-
-                    String kind;
-                    String status;
-                    if (blockEntity instanceof WaypointBlockEntity waypoint && waypoint.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = waypoint.getPairedChest() == null ? "Route: idle" : "Route: supply linked";
-                    } else if (blockEntity instanceof CraneBlockEntity crane && crane.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = crane.getPairedChest() == null ? "Crane: idle" : "Crane: linked";
-                    } else if (blockEntity instanceof HeavyGrudgeBlockEntity heavyGrudge && heavyGrudge.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = heavyGrudge.isStructureComplete()
-                                ? "Heavy Grudge: grand shipyard"
-                                : "Heavy Grudge: unformed";
-                    } else if (blockEntity instanceof LegacyCoreBlockEntity core && core.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = core.isVolCore() ? "VolCore charge " + core.getStoredCharge() : "Core charge " + core.getStoredCharge();
-                    } else if (blockEntity instanceof DeskBlockEntity) {
-                        kind = "FACILITY";
-                        status = "Desk terminal";
-                    } else if (blockEntity instanceof SmallShipyardBlockEntity shipyard && shipyard.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = "Small shipyard";
-                    } else if (blockEntity instanceof RouteNode routeNode && routeNode.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = routeNode.getRouteNodeName().getString();
-                    } else {
-                        continue;
-                    }
-
-                    CompoundTag entry = new CompoundTag();
-                    entry.putString("Kind", kind);
-                    entry.putString("Name", blockEntity.getBlockState().getBlock().getName().getString());
-                    entry.putString("Status", status);
-                    entry.putInt("X", pos.getX());
-                    entry.putInt("Y", pos.getY());
-                    entry.putInt("Z", pos.getZ());
-                    entry.putInt("OwnerUid", playerUid);
-                    entry.putBoolean("Hostile", false);
-                    contacts.add(entry);
-                }
-            }
         }
 
         payload.put(DESK_RADAR_PAYLOAD_TAG, contacts);

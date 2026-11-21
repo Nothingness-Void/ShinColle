@@ -16,8 +16,7 @@ import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipRensouhouRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipFishingHookRenderer;
 import com.lulan.shincolle.client.screen.CraneTerminalScreen;
-import com.lulan.shincolle.client.screen.DeskReferenceScreen;
-import com.lulan.shincolle.client.screen.DeskTerminalScreen;
+import com.lulan.shincolle.client.screen.DeskScreen;
 import com.lulan.shincolle.client.screen.FormationScreen;
 import com.lulan.shincolle.client.screen.LargeShipyardScreen;
 import com.lulan.shincolle.client.screen.LegacyCoreScreen;
@@ -119,8 +118,7 @@ public class ShinColle {
             event.enqueueWork(() -> {
                 MenuScreens.register(ModMenus.CRANE_TERMINAL.get(), CraneTerminalScreen::new);
                 MenuScreens.register(ModMenus.RECIPE_PAPER.get(), RecipePaperScreen::new);
-                MenuScreens.register(ModMenus.DESK_REFERENCE.get(), DeskReferenceScreen::new);
-                MenuScreens.register(ModMenus.DESK_TERMINAL.get(), DeskTerminalScreen::new);
+                MenuScreens.register(ModMenus.DESK.get(), DeskScreen::new);
                 MenuScreens.register(ModMenus.FORMATION.get(), FormationScreen::new);
                 MenuScreens.register(ModMenus.LARGE_SHIPYARD.get(), LargeShipyardScreen::new);
                 MenuScreens.register(ModMenus.LEGACY_CORE.get(), LegacyCoreScreen::new);
