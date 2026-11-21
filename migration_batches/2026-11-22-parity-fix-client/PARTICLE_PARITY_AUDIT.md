@@ -1,82 +1,53 @@
-# ParticleHelper parity audit against 0aad501
+# 粒子与 HUD 对照审计
 
-The reference is `src/main/java/com/lulan/shincolle/utility/ParticleHelper.java`
-from 0aad501, not the partially refactored main source tree. Numeric types are
-local to each overload; type 28 at a position is dripping water, **not** emotion
-28 inside the type-36 emotion family.
+真源为完整 `0aad501` 的 `utility/ParticleHelper.java`，不是局部重构后的旧目录。
+类型号局限于各重载；位置型 type 28 是滴水，不是 type 36 家族里的表情 28。
 
-## Completed in this change
+## 已移植部分
+- ParticleEmotion → LegacyEmotionParticle：0/default 与 1–34 全构造分支、帧数/循环/尺寸、淡入淡出和停留状态机、宿主跟踪、朝向相对位置及 Boss 偏移。现代 CUSTOM 显式开启/结束缓冲，沿用原四边形/UV/全亮；零尺寸粒子适配现代视锥剔除。
+- ParticleTexts → LegacyTextParticle：五行纹理、0.8/0.2 四边形、25 tick（原后增过期判定）、初始向上 0.1、阻尼 0.9；实体文字从宿主高度×1.3 出发。TEXT_* 不再由战斗反馈重复叠烟。
+- 北方嘴部效果为真滴水，保留水平 ±0.35 随机偏移，不使用表情精灵替代。
+- HUD 为旧 HOTBAR 前置阶段、Position_HUD={0.5,0.6}、18px 槽/21px 间距、旧冷却文字/UV 遮罩、航空机数、按键高亮和准星；删除自创标题等文本（原为字面量，无独占语言键）。
+- 三份贴图为原始字节的小写路径副本。只有 MorphProfile、没有舰实体时无航空机库存字段，显示初始化 0，不宣称已恢复库存管理。
 
-- `ParticleEmotion` -> `LegacyEmotionParticle`: all constructor cases (0/default,
-  1–34), frame counts, loops, frame size, fade and stay state machine, host
-  tracking, yaw-relative position and boss offsets. Modern CUSTOM particles must
-  explicitly begin/end their buffers; the API adapter uses the original quad
-  coordinates, UVs and full brightness. Zero-size custom particles opt out of
-  modern frustum culling.
-- `ParticleTexts` -> `LegacyTextParticle`: all five rows, fixed 0.8/0.2 quad,
-  max age 25 with the original post-increment expiry, initial upward speed 0.1
-  and 0.9 damping. Entity text starts at host height * 1.3. TEXT_* owns these
-  visuals; combat-react packets no longer add a second smoke/vanilla approximation.
-- Northern Hime's existing mouth effect now uses actual dripping water with
-  the legacy +/-0.35 horizontal random offset, not an emotion-sheet sprite.
-- HUD uses the old HOTBAR Pre phase, 18px texture slots at 21px spacing,
-  `Position_HUD=[0.5,0.6]`, cooldown UV mask/text, aircraft counts, key highlight
-  and crosshair. Aircraft counts come from existing synchronized ship fields.
-  Modern MorphProfile has no aircraft-stock counters: without a ship entity
-  those two values remain zero, as in the draw array's initialization. Restoring
-  actual stock management for profile-only carrier morphs is **not completed**.
-- Canonical lowercase HUD/emotion/text textures are byte-identical copies of
-  the original resources. The removed HUD labels were literals, not language
-  keys; shared morph inventory and combat actionbar translations are retained.
+## 剩余 17 类：仍是原版近似或缺少对应分支
 
-## Remaining custom classes / branches (not claimed as ported)
+重载标识：
+A=spawnAttackParticleAt(x,y,z,lookX,lookY,lookZ,type)；
+B=spawnAttackParticleAtEntity(entity,par1,par2,par3,type)；
+C=spawnAttackParticleAtEntity(entity,type,double[])；
+D=spawnAttackParticleAtEntity(host,target,par1,par2,par3,type,setAtkTime)；
+E=spawnAttackParticleAt(text,x,y,z,type,int...)。
 
-Overload labels:
+| 原类 | 重载/类型 | 未完成部分 |
+| --- | --- | --- |
+| ParticleLaser | A:14,21 | 纹理光束平面/动画 UV 未移植，原版轨迹不等价 |
+| ParticleLaserNoTexture | B:8；D:0–6 | LEGACY_RE_LASER 仍用 DRAGON_BREATH；BEAM_* 用 END_ROD/ELECTRIC_SPARK/爆炸近似 |
+| ParticleSpray | A:15–18,21–23,26,27,29,32,33,37–39,41,47；C:1,2 | 云/泡/水花/导弹近似缺逐类型颜色、大小、速度限制和寿命 |
+| ParticleLightning | B:3 | 电火花不等价于自定义闪电几何 |
+| ParticleStickyLightning | B:4,6,7,9 | 未实现宿主绑定多段闪电 |
+| ParticleCube | B:7；D:1,2 | 未实现立方体及振动/目标联动生命周期 |
+| ParticleLine | A:44–46 | 未实现多线高速光环 |
+| ParticleSphereLight | B:11,24 | 未实现内向光束/球体 |
+| ParticleGradient | B:12,14 | 未实现外扩渐变/双渐变 |
+| ParticleCraning | A:40 | 未实现方块/模型作业粒子 |
+| ParticleSparkle | B:13,17,21–23 | HEALING_SPARKLE 用 HAPPY_VILLAGER；填充/作业/眼/女神变体未实现 |
+| ParticleSweep | B:15,16 | 未实现垂直/水平彩色剑气 |
+| Particle91Type | A:21 | 未实现穿甲拳第四阶段复合粒子 |
+| ParticleChi | B:1 | 未实现能量球 |
+| ParticleDebugPlane | B:18–20 | 未实现身体/目标/调试平面 |
+| ParticleSmoke | A:43 | 未移植可变缩放大烟子类 |
+| ParticleTextsCustom | E:0,1 | 未实现自由文字/实体文字 |
 
-- A: `spawnAttackParticleAt(x,y,z,lookX,lookY,lookZ,type)`
-- B: `spawnAttackParticleAtEntity(entity,par1,par2,par3,type)`
-- C: `spawnAttackParticleAtEntity(entity,type,double[])`
-- D: `spawnAttackParticleAtEntity(host,target,par1,par2,par3,type,setAtkTime)`
-- E: `spawnAttackParticleAt(text,x,y,z,type,int...)`
+共约 4243 行旧源码；不能把缺少实现的项说成已有完整原版替代。
+此外 ParticleTeam（A:25；B:2，约 314 行）保留现有 LegacyTeamMarkerParticle，全模式机械一致性未验证，不计入上述 17 类。
 
-| Original class | Overload/types | Current state / required remaining work |
-|---|---|---|
-| ParticleLaser | A:14,21 | Not ported; requires original textured beam planes/animated UV, not a vanilla beam trail |
-| ParticleLaserNoTexture | B:8; D:0–6 | Not ported; LEGACY_RE_LASER still emits DRAGON_BREATH along its ray, and BEAM_* still approximate with END_ROD/ELECTRIC_SPARK/explosion |
-| ParticleSpray | A:15–18,21–23,26,27,29,32,33,37–39,41,47; C:1,2 | Not ported; cloud/bubble/splash/missile approximations do not implement these per-type colors, sizes, speed limits and lifetimes |
-| ParticleLightning | B:3 | No corresponding custom renderer; electric-spark approximations are not equivalent |
-| ParticleStickyLightning | B:4,6,7,9 | No host-bound multi-segment lightning renderer |
-| ParticleCube | B:7; D:1,2 | No corresponding cube renderer or vibrate/target-linked lifecycle |
-| ParticleLine | A:44–46 | No corresponding multi-line high-speed aura renderer |
-| ParticleSphereLight | B:11,24 | No corresponding inward-beam/sphere renderer |
-| ParticleGradient | B:12,14 | No original outward gradient/double gradient renderer |
-| ParticleCraning | A:40 | No original block/model craning particle renderer |
-| ParticleSparkle | B:13,17,21–23 | Not ported; HEALING_SPARKLE uses HAPPY_VILLAGER, fill/craning/eye/goddess variants are not implemented |
-| ParticleSweep | B:15,16 | No original vertical/horizontal colored sword-sweep renderer |
-| Particle91Type | A:21 | No original AP-fist phase-4 composite particle |
-| ParticleChi | B:1 | No corresponding energy-ball renderer |
-| ParticleDebugPlane | B:18–20 | No original body/target/debug geometry renderer |
-| ParticleSmoke | A:43 | Original custom-scale large-smoke subclass not ported |
-| ParticleTextsCustom | E:0,1 | No original free-text/entity-text renderer |
-| ParticleTeam | A:25; B:2 | Existing LegacyTeamMarkerParticle retained; full mechanical parity of all original modes not verified here |
+其它 LAUNCH_SMOKE、HIT_EXPLOSION、AIR/MISSILE/AIRCRAFT/BOMB/TORPEDO、
+FLARE_BURST、SEARCHLIGHT_MARK、BLACK_HOLE 及非文字战斗反馈仍保留已有实现/近似；
+原版粒子分支的数量和运动并未在本次逐一认证。
 
-These are 17 not-yet-ported classes (~4,243 legacy lines), plus the existing team
-particle (~314 lines) requiring a separate parity check. They include distinct
-immediate-mode geometry, matrices, host/target tracking and block/font rendering;
-they were not replaced with newly invented algorithms to call this task complete.
-The new emotion/text quad adapter alone is insufficient to port them faithfully.
-
-Other vanilla-particle branches and their burst counts/motion were not rewritten
-or certified as exact. In particular LAUNCH_SMOKE, HIT_EXPLOSION, AIR/MISSILE/
-AIRCRAFT/BOMB/TORPEDO effects, FLARE_BURST, SEARCHLIGHT_MARK, BLACK_HOLE and the
-non-text combat-react effects retain pre-existing implementations/approximations.
-
-## Checks
-
-`python3 src/modern/scripts/check_particle_parity.py LEGACY_ROOT OUTPUT_DIRECTORY`
-checks mechanical constructor/tick/position parity and original texture bytes,
-then compiles the actual ported state methods against headless API stubs. It
-exercises normal and invalid types, no host/moving host, all entity modes and
-small/boss heights, sprite bounds, expiry and text damping. This is not a
-Minecraft/client render test. Actual HUD/particle rendering remains visually
-unverified.
+## 证据解释
+状态自检对正常/无效类型、无/移动宿主、小型/Boss 高度、UV、过期、文字阻尼作无头检查；
+机械比较覆盖构造/tick/位置和贴图字节，API 桩不是 Minecraft 画面。
+测试入口统一见 [测试矩阵](../../MIGRATION-TEST-MATRIX.md#客户端还原收尾门禁)；
+本批次 HUD/粒子的实际渲染仍未视觉验证。

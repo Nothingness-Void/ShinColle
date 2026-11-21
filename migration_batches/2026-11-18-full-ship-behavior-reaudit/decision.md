@@ -23,6 +23,9 @@
    - `LegacyShipEntity.hurt()` 完整对齐 1.12.2：免疫摔落/窒息/仙人掌/饥饿伤害、友方掉入虚空传送回 `Y=4` 救援、纯魔法 `< 1% maxHP` 忽略、女神复活 `>= health - 1` 触发及完整 120t `goddessImmuneTicks` 无敌、抗性/抗火药水 `20% * min(4, lv)` 减伤、最小 `1.0F` 伤害保底、受击起身与 `-5` 士气；`TeitokuEvents` 补齐玩家 32 格与敌舰 64 格群体复仇传播；修正 `AntiAir`/`AntiSub` 不误伤蝙蝠/蜜蜂且不阻断原版恶魂/幻翼/溺尸/守卫者，并接入 `TargetClass` 自定义白名单。
 5. **坐骑、召唤物、投射物、指挥棒、起重机、道具与模型渲染对齐**：
    - 修复 `LegacyShipMountEntity` 与 `LegacyMountEntity` 双人座位 `rotateXZByAxis` 的 X/Z 轴向反置与水面浮力；修复坐骑、舰载机、连装炮、浮游要塞渲染器缺失 `scale(-1, -1, 1)` + `translate(0, -1.501F, 0)` 导致的模型倒置钻地，补齐 `Glow*` 全亮渲染通道、敌舰 `shadowRadius` 缩放、情绪表情切换与坐姿。
+
+> **已撤销（见 D-013）**：本条旧解析模型/目录作为完整动画、死亡、情绪和发光等价实现的口径已撤销；原数值/部件审计仅留作历史证据。替代实现与边界见 [客户端还原决定](../2026-11-22-parity-fix-client/decision.md)。
+
    - `LegacyShipModelTransformCatalog` 补齐缺失的 15 个舰娘 `scaleLevel`（`0..3`）缩放偏移表；`LegacyShipModelStateCatalog` 补齐 `ModelCarrierHime`、`ModelSubmHime`（bit 2 `GlowEquipBase` 与平时隐藏鱼雷架）及全部 13 个深海基础舰（含 `DestroyerI/Ro/Ha/Ni` `isKisaragi` 发饰位）的部件显隐规则。
    - 修正舰载机 `3x`/`2.5x` 攻速倍率、基于母舰 `MOV` 的航速与可击落 HP/闪避/减伤；连装炮补齐敌对 `+0.15` 暴击与召唤物闪避/减伤；浮游要塞补齐可击落 HP 与黑洞特效；导弹消除 `ThrowableProjectile` 空气/水阻力衰减、补齐 `moveType=2` 鱼雷入水延迟重算与 `accY2` 加速、子母弹 5t 引信门控、黑洞弹 miss 照常生成引力场及可拦截属性。
    - 修正指挥棒 `friendlyFire=false` 移动回退、64 格水面/远距射线、左键非己方船不污染目标表、编队增删重置阵型、护卫同一目标二次点击取消；补齐钓鱼任务任意护卫方块支持与浮点等级+幸运药水加成；补齐起重机电源门控、`WaitMode` `1..4` 与红石模式 `1/2` 信号输出；补齐沉船回收蛋 `level - 1` 与经验清零、生存孵化 `level / 3` 经验等级消耗、手持战斗口粮 16t 吸引舰娘、变身饮用快修桶及 `SOUNDRATE` 语音概率。

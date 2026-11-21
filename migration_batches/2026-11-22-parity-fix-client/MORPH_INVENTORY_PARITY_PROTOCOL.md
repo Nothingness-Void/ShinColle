@@ -1,77 +1,36 @@
-# Morph inventory API adaptation
+# 变身背包对照附件
 
-Truth: 0aad501 GuiMorphInventory, GuiHelper GUI 0 and 7, ContainerMorphInventory,
-C2SGUIPackets MorphBtn/MorphBtn2, PacketHelper.setEntityByGUI.
+真源：0aad501 GuiMorphInventory、GuiHelper GUI 0/7、ContainerMorphInventory、
+C2SGUIPackets MorphBtn/MorphBtn2、PacketHelper.setEntityByGUI。
 
-The current src/main GuiDesk.mouseClicked was checked before correcting the
-previous desk port. It only opens inventory on a repeated list-row click. Map
-points are hover-only again; the added point-selection/opening and offset helper
-were removed from code generation, generated code, assertions and desk notes.
+## 界面与状态映射
+- 原 GuiShipMorph 小写贴图、256×214、旧图标/文字/含边界矩形和三页；
+  六装备槽/玩家背包坐标保持 ContainerMorph，不显示档案箭头、序号和激活开关。
+- 模型锚点 (218,100)，旧逐舰模型位置，鼠标偏移 (215-xMouse,60-yMouse)；
+  共用旧舰船背包渲染桥的 atan 旋转及实体/相机状态恢复，实际使用机械移植的旧模型。
+- 当前/最大生命为 ceil(player.getHealth/getMaxHealth)，不是档案舰船最大 HP。
+- MorphBtn → MORPH_GUI_BUTTON，保留 ShipGuiButton ID/value：
+  NoFuel 赋 value>0，Sit 忽略 value 直接翻转，Emotion 使用 nextInt(9)，Emotion4 为 0/4，
+  模型位 XOR，光环/持物按传入值赋标志；未知 ID 无修改。
+- 缺失状态保存在 MorphProfile.MorphGui 并随档案同步；旧档缺字段为 false/0。
+  不造怨念补充、消耗或新的燃料规则。MorphBtn2 三个供应热区复用已有补给消耗处理。
+- 既有敌对档案的图标/模型位置使用明确 friendlyCounterpart 映射，
+  实际战斗属性与预览实体仍用原敌对 spec，不修改身份。
+- 删除 GUI 专属循环/激活网络、辅助方法、标签及测试；保留其它功能使用的档案存储、
+  显式选择和 active 状态。新激活入口缺失的证据统一见 [批次决定](decision.md#变身激活入口核查)。
 
-## GUI
+## 限制与历史画面证据
+MorphProfile 没有历史击杀/航空机库存，相应展示维持 0，不造新生命周期；
+预览临时实体不等价于外部世界变身系统。
 
-- 256x214 and the original lower-case GuiShipMorph texture copy; unchanged old
-  icon sheets, text positions, inclusive rectangles and three main tabs.
-- Foreground, background, attributes, hover text, button dispatch and initial
-  translated labels are mechanically adapted from GuiMorphInventory.
-- The model anchor is (218,100), model positioning comes from the old per-ship
-  metadata, and mouse offsets are (215-xMouse,60-yMouse). The existing ship GUI
-  renderer bridge preserves the original atan rotation formulas and restores
-  entity/camera rotations; rendering goes through the migrated legacy models.
-- Current/max HP are ceil(player.getHealth/getMaxHealth), not profile ship HP.
-- The six equipment slots and all player inventory slots retain ContainerMorph's
-  coordinates; there are no added profile arrows/counter or activation switch.
+一次客户端启动，通过已有目标扳手解锁爱宕：
+当前/最大 HP 为 20/24，后自然回复至 21/24；三页、鼠标旋转和 Sit/NoFuel 勾选/姿态已检查。
+其它舰种与外部世界变身没有视觉检查。
+截图目录 `/home/ubuntu/screenshots/`：
+- ss_09dec2df.png / ss_84ee9487.png：相反鼠标位置；后者显示 HP。
+- ss_9f64688b.png / ss_6d360779.png：坐姿与 NoFuel 姿态/勾选。
+- ss_1023c9eb.png / ss_b836dcea.png：第二/第三页。
 
-## Buttons and state
-
-- MorphBtn adapts to MORPH_GUI_BUTTON with original ShipGuiButton IDs and value.
-  NoFuel assigns value>0, Sit toggles regardless of value, Emotion assigns
-  nextInt(9), Emotion4 toggles 0/4, model bits XOR, and aura/held
-  assign the supplied flag. Unknown button IDs are ignored without mutation.
-- Those missing GUI states persist/sync in MorphProfile.MorphGui. Old data without
-  the compound reads the original false/zero defaults. Preview flags do not
-  fabricate grudge refills, resource costs, or a new fuel-consumption rule.
-- MorphBtn2 supply rectangles map to the existing three supply commands and
-  existing server item-consumption handlers.
-- Hostile profiles can be unlocked by existing gameplay. Their GUI icon/model-
-  position metadata uses the existing explicit friendlyCounterpart table; combat
-  stats and the actual preview entity retain the original hostile profile spec.
-- Removed GUI-only cycle/activate routes, helpers, menu readouts, language keys
-  and cycle assertions. Profile storage, explicit external selection and the
-  active runtime flag remain because skill/mount/compatibility paths use them.
-  This screen no longer supplies an activation entry point; no replacement or
-  automatic activation is invented.
-
-## Limits of this step
-
-The modern profile has no historical kill counter or aircraft stock. Their
-existing default values remain zero in the presentation; this task does not
-invent a new kill/aircraft lifecycle. Actual world morph rendering/selection by
-external mods is not replaced by the inventory's temporary preview entity.
-
-## Reproduction
-
-    python3 src/modern/scripts/port_morph_inventory.py ~/legacy0aad --check
-    bash ./gradlew compileJava --no-daemon
-    bash ./gradlew runGameTestServer --no-daemon
-
-The generator reuses the existing ship GUI API-adaptation functions/render bridge
-without executing that generator's writes or modifying ship inventory sources.
-Regression assertions are included in the existing morph-support GameTest to
-avoid adding world fixtures; they cover tabs, flag packets, supplies, model bits,
-hostile metadata, empty/old data and invalid buttons.
-
-## Verified in this step
-
-compileJava succeeded; GameTest completed 301/301 required tests successfully.
-The one client launch used an owned Atago unlocked through the existing wrench
-interaction. The GUI showed player HP 20/24 (then natural regeneration to 21/24),
-all three tabs, mouse-driven model rotation, and checkbox/pose updates for Sit
-and NoFuel. Other ship models and external world morph rendering were not
-visually checked.
-
-Screenshots under /home/ubuntu/screenshots:
-
-- ss_09dec2df.png / ss_84ee9487.png: opposite mouse positions; second shows HP.
-- ss_9f64688b.png / ss_6d360779.png: sitting and NoFuel model poses/checkboxes.
-- ss_1023c9eb.png / ss_b836dcea.png: second and third tabs.
+生成脚本只复用舰船背包的适配函数/渲染桥，不执行其写入或修改舰船背包源码。
+回归并入已有变身补给测试，避免新增世界夹具；覆盖页签、标志包、补给、模型位、
+敌对元数据、空/旧数据和无效按钮。方法见 [测试矩阵](../../MIGRATION-TEST-MATRIX.md#客户端还原收尾门禁)。

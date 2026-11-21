@@ -1,0 +1,4 @@
+[21:38:29] [Server thread/ERROR] [minecraft/LogTestReporter]: gameplayparitygametests.autocombatrationuseslegacytickandfoodrules failed! auto combat ration should wait for the legacy 128-tick boundary
+[21:38:33] [Server thread/INFO] [minecraft/GameTestServer]: ========= 301 GAME TESTS COMPLETE ======================
+[21:38:33] [Server thread/INFO] [minecraft/GameTestServer]: 1 required tests failed :(
+BUILD FAILED in 34s

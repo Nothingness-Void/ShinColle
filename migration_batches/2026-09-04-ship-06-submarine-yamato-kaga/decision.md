@@ -20,6 +20,9 @@
 
 ## Code changes
 
+
+> **已撤销（见 D-013）**：本条旧解析模型/目录作为完整动画、死亡、情绪和发光等价实现的口径已撤销；原数值/部件审计仅留作历史证据。替代实现与边界见 [客户端还原决定](../2026-11-22-parity-fix-client/decision.md)。
+
 - 新增 `LegacyShipModelTransformCatalog`，只投影冻结旧版模型中已确认的 scale/offset 分支，不替换模型架构。
 - `LegacyModelSourceParser` 支持旧版 `scale * number` 参数形式；`LegacyShipModel` 将已确认的 scale-level/offset 应用于 bake 后渲染。
 - `LegacyShipModelStateCatalog` 补齐 U-511、Ro-500、Submarine Hime、SSNH、Yamato、Kaga 的旧版 `showEquip` 位规则。
