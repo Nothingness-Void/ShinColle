@@ -78,9 +78,9 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_MOUNT_STYLE, LegacyMountControls.STYLE_BATTLESHIP);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_HOST_ID, -1);
+        builder.define(DATA_MOUNT_STYLE, LegacyMountControls.STYLE_BATTLESHIP);
     }
 
     @Override

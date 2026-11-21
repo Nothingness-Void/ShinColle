@@ -28,13 +28,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.List;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class MorphDamageHandler {
 
     private MorphDamageHandler() {
@@ -119,7 +120,7 @@ public final class MorphDamageHandler {
                     player.getInventory().setChanged();
                     player.setHealth(player.getMaxHealth());
                     player.invulnerableTime = 120;
-                    TeitokuHelper.get(player).resolve().orElseThrow().getMorphRuntimeState().setImmuneTicks(120);
+                    TeitokuHelper.get(player).orElseThrow().getMorphRuntimeState().setImmuneTicks(120);
                     CombatFxDispatcher.sendParticle(player, GameplayParticleType.REPAIR_GODDESS,
                             player.getX(), player.getY(), player.getZ(), 0D, 0.03D, 0D, player.getId());
                     event.setAmount(0F);

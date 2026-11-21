@@ -111,7 +111,7 @@ public class DeskScreen extends DeskScreenSupport {
     }
     @Override public void render(GuiGraphics g, int mx, int my, float partial) {
         this.graphics = g; this.xMouse = mx; this.yMouse = my;
-        renderBackground(g);
+        renderBackground(g, mx, my, partial);
         com.mojang.blaze3d.systems.RenderSystem.enableBlend();
         com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
         g.setColor(1F, 1F, 1F, 1F);

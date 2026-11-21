@@ -1,5 +1,6 @@
 package com.lulan.shincolle.crafting;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import net.minecraft.nbt.CompoundTag;
@@ -50,7 +51,7 @@ public final class LegacyShipConstructionHelper {
     }
 
     public static boolean hasConstructionRecipe(ItemStack stack) {
-        return hasConstructionRecipe(stack.getTag());
+        return hasConstructionRecipe(LegacyItemData.getTag(stack));
     }
 
     public static boolean hasConstructionRecipe(@Nullable CompoundTag tag) {
@@ -62,7 +63,7 @@ public final class LegacyShipConstructionHelper {
     }
 
     public static int[] readMaterialAmounts(ItemStack stack) {
-        return readMaterialAmounts(stack.getTag());
+        return readMaterialAmounts(LegacyItemData.getTag(stack));
     }
 
     public static int[] readMaterialAmounts(@Nullable CompoundTag tag) {
@@ -86,7 +87,7 @@ public final class LegacyShipConstructionHelper {
     }
 
     public static @Nullable ShipEntitySpec resolveConstructionEgg(ItemStack stack, String itemPath, RandomSource random) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         if (!hasConstructionRecipe(tag)) {
             return null;
         }

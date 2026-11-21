@@ -23,9 +23,7 @@ public class ShipCacheSavedData extends SavedData {
 
     public static ShipCacheSavedData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
-                ShipCacheSavedData::load,
-                ShipCacheSavedData::new,
-                DATA_NAME);
+                new SavedData.Factory<>(ShipCacheSavedData::new, (tag, registries) -> ShipCacheSavedData.load(tag)), DATA_NAME);
     }
 
     public static ShipCacheSavedData load(CompoundTag tag) {
@@ -85,7 +83,7 @@ public class ShipCacheSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         ListTag list = new ListTag();
         for (ShipWorldCacheEntry entry : this.shipByUid.values()) {
             if (entry.shipUid() <= 0) {

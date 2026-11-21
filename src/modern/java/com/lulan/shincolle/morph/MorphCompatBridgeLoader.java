@@ -2,7 +2,7 @@ package com.lulan.shincolle.morph;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;

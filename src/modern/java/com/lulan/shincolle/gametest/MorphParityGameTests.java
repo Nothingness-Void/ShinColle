@@ -32,11 +32,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.UUID;
 
@@ -49,7 +49,7 @@ public final class MorphParityGameTests {
     }
 
     private static TeitokuData activate(ServerPlayer player) {
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.unlockMorph(58);
         data.setSelectedMorphProfile(58);
         data.setMorphActive(true);
@@ -162,7 +162,7 @@ public final class MorphParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void acquisitionAndSkillHostsUseOwnerNotCommanderAndLegacyOrder(GameTestHelper helper) {
         ServerPlayer owner = player(helper);
-        TeitokuData data = TeitokuHelper.get(owner).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(owner).orElseThrow();
         data.setPlayerUid(98301);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         ship.setVariantEggMeta(58);

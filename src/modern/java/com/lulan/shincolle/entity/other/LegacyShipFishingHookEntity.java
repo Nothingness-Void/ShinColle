@@ -51,8 +51,8 @@ public final class LegacyShipFishingHookEntity extends Entity {
     private LegacyShipEntity host;
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_HOST_ID, -1);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_HOST_ID, -1);
     }
 
     @Override

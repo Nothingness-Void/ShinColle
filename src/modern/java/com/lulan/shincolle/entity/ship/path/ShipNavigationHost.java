@@ -38,7 +38,7 @@ public interface ShipNavigationHost {
         BlockPos pos = BlockPos.containing(entity.getX(), (int) (entity.getBoundingBox().minY + 0.5D), entity.getZ());
         BlockState state = entity.level().getBlockState(pos);
         return state.isAir() || isLiquid(state) || state.is(ModBlocks.BLOCK_WAYPOINT.get())
-                || state.isPathfindable(entity.level(), pos, PathComputationType.LAND);
+                || state.isPathfindable( PathComputationType.LAND);
     }
 
     static void update(Mob entity, boolean sitting) {

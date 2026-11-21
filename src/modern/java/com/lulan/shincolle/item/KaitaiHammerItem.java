@@ -51,7 +51,8 @@ public class KaitaiHammerItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         int remainingUses = stack.getMaxDamage() - stack.getDamageValue();
         tooltip.add(Component.translatable("gui.shincolle.kaitaihammer.remaining", remainingUses).withStyle(ChatFormatting.GOLD));
         tooltip.add(Component.translatable("gui.shincolle.kaitaihammer.use").withStyle(ChatFormatting.DARK_GRAY));

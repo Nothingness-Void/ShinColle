@@ -23,9 +23,7 @@ public class WorldCombatRulesSavedData extends SavedData {
 
     public static WorldCombatRulesSavedData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
-                WorldCombatRulesSavedData::load,
-                WorldCombatRulesSavedData::new,
-                DATA_NAME);
+                new SavedData.Factory<>(WorldCombatRulesSavedData::new, (tag, registries) -> WorldCombatRulesSavedData.load(tag)), DATA_NAME);
     }
 
     public static WorldCombatRulesSavedData load(CompoundTag tag) {
@@ -68,7 +66,7 @@ public class WorldCombatRulesSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         ListTag list = new ListTag();
         for (String targetClass : this.unattackableClasses) {
             list.add(StringTag.valueOf(targetClass));

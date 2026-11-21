@@ -1,5 +1,6 @@
 package com.lulan.shincolle.teitoku;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import net.minecraft.core.BlockPos;
@@ -20,25 +21,25 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.AttachCapabilitiesEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingAttackEvent;
+import net.neoforged.neoforge.event.entity.player.EntityItemPickupEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class TeitokuEvents {
 
     private static final ResourceLocation TEITOKU_ID =
@@ -47,24 +48,10 @@ public final class TeitokuEvents {
     private TeitokuEvents() {
     }
 
-    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
-        event.register(TeitokuData.class);
-    }
-
-    @SubscribeEvent
-    public static void attachCapabilities(AttachCapabilitiesEvent<Entity> event) {
-        if (event.getObject() instanceof Player) {
-            event.addCapability(TEITOKU_ID, new TeitokuDataProvider());
-        }
-    }
-
     @SubscribeEvent
     public static void clonePlayer(PlayerEvent.Clone event) {
-        event.getOriginal().reviveCaps();
-        event.getOriginal().getCapability(TeitokuHelper.TEITOKU_CAPABILITY).ifPresent(oldData ->
-                event.getEntity().getCapability(TeitokuHelper.TEITOKU_CAPABILITY).ifPresent(newData ->
-                        newData.copyFrom(oldData)));
-        event.getOriginal().invalidateCaps();
+        TeitokuHelper.get(event.getOriginal()).ifPresent(oldData ->
+                TeitokuHelper.get(event.getEntity()).ifPresent(newData -> newData.copyFrom(oldData)));
     }
 
     @SubscribeEvent
@@ -148,15 +135,15 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
-    public static void onRingScan(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || (event.player.tickCount & 15) != 0) {
+    public static void onRingScan(PlayerTickEvent.Pre event) {
+        if ((event.getEntity().tickCount & 15) != 0) {
             return;
         }
-        Player player = event.player;
+        Player player = event.getEntity();
         ItemStack ring = findFirstMarriageRing(player);
         TeitokuHelper.get(player).ifPresent(data -> {
             boolean hasRing = !ring.isEmpty();
-            boolean active = ring.hasTag() ? MarriageRingItem.isActive(ring) : data.isRingActive();
+            boolean active = LegacyItemData.hasTag(ring) ? MarriageRingItem.isActive(ring) : data.isRingActive();
             boolean changed = data.hasRing() != hasRing || data.isRingActive() != active;
             if (data.hasRing() && !hasRing) {
                 player.getAbilities().flying = false;
@@ -242,11 +229,11 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
-    public static void onPeriodicPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !(event.player instanceof ServerPlayer player)) {
+    public static void onPeriodicPlayerTick(PlayerTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data == null) {
             return;
         }
@@ -282,11 +269,11 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide()) {
+    public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (event.getEntity().level().isClientSide()) {
             return;
         }
-        if (!(event.player instanceof ServerPlayer serverPlayer)) {
+        if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) {
             return;
         }
 

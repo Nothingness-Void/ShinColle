@@ -28,11 +28,15 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 
 public class CraneBlock extends BaseEntityBlock {
+
+    @Override
+    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return simpleCodec(CraneBlock::new);
+    }
 
     private static final VoxelShape SHAPE = Shapes.or(
             Block.box(0.0D, 0.0D, 2.0D, 16.0D, 3.0D, 14.0D),
@@ -102,7 +106,23 @@ public class CraneBlock extends BaseEntityBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+    protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack, BlockState state, Level level,
+            BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return switch (useLegacy(state, level, pos, player, hand, hitResult)) {
+            case SUCCESS -> net.minecraft.world.ItemInteractionResult.SUCCESS;
+            case CONSUME -> net.minecraft.world.ItemInteractionResult.CONSUME;
+            case CONSUME_PARTIAL -> net.minecraft.world.ItemInteractionResult.CONSUME_PARTIAL;
+            case FAIL -> net.minecraft.world.ItemInteractionResult.FAIL;
+            default -> net.minecraft.world.ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
+        };
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        return useLegacy(state, level, pos, player, InteractionHand.MAIN_HAND, hitResult);
+    }
+
+    private InteractionResult useLegacy(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (!(level.getBlockEntity(pos) instanceof CraneBlockEntity crane)) {
             return InteractionResult.PASS;
         }
@@ -110,8 +130,7 @@ public class CraneBlock extends BaseEntityBlock {
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
             ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-            NetworkHooks.openScreen(serverPlayer,
-                    new SimpleMenuProvider(
+            serverPlayer.openMenu(new SimpleMenuProvider(
                             (containerId, inventory, ignoredPlayer) -> new CraneTerminalMenu(containerId, inventory, pos),
                             Component.translatable("block.shincolle.blockcrane")),
                     buffer -> buffer.writeBlockPos(pos));
@@ -135,7 +154,7 @@ public class CraneBlock extends BaseEntityBlock {
     }
 
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
         return false;
     }
 }

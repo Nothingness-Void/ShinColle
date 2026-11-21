@@ -22,12 +22,12 @@ public class TexturedQuad {
         Vec3 normal = b.cross(a).normalize();
         var pose = LegacyRenderContext.poseStack.last();
         for (PositionTextureVertex vertex : vertexPositions) {
-            LegacyRenderContext.vertices.vertex(pose.pose(), (float)(vertex.vector3D.x * scale),
+            LegacyRenderContext.vertices.addVertex(pose.pose(), (float)(vertex.vector3D.x * scale),
                             (float)(vertex.vector3D.y * scale), (float)(vertex.vector3D.z * scale))
-                    .color(LegacyRenderContext.red, LegacyRenderContext.green, LegacyRenderContext.blue, LegacyRenderContext.alpha)
-                    .uv(vertex.texturePositionX, vertex.texturePositionY)
-                    .overlayCoords(LegacyRenderContext.overlay).uv2(LegacyRenderContext.light)
-                    .normal(pose.normal(), (float)normal.x, (float)normal.y, (float)normal.z).endVertex();
+                    .setColor(LegacyRenderContext.red, LegacyRenderContext.green, LegacyRenderContext.blue, LegacyRenderContext.alpha)
+                    .setUv(vertex.texturePositionX, vertex.texturePositionY)
+                    .setOverlay(LegacyRenderContext.overlay).setLight(LegacyRenderContext.light)
+                    .setNormal(pose.normal(), (float)normal.x, (float)normal.y, (float)normal.z);
         }
     }
 }

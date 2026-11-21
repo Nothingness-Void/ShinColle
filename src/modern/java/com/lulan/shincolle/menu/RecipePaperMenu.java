@@ -1,5 +1,6 @@
 package com.lulan.shincolle.menu;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import net.minecraft.nbt.CompoundTag;
@@ -155,7 +156,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             return;
         }
 
-        CompoundTag tag = hostStack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(hostStack);
 
         if (tag == null || !tag.contains(RECIPE_TAG, Tag.TAG_LIST)) {
             return;
@@ -174,7 +175,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
     }
 
     private void saveRecipeToStack(ItemStack hostStack) {
-        CompoundTag tag = hostStack.getOrCreateTag();
+        CompoundTag tag = LegacyItemData.copyTag(hostStack);
         ListTag recipeEntries = new ListTag();
 
         for (int i = 0; i < CRAFT_SLOT_COUNT; i++) {
@@ -198,6 +199,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
         }
 
         tag.put(RECIPE_TAG, recipeEntries);
+        LegacyItemData.setTag(hostStack, tag);
     }
 
     private void updateResult(Level level) {

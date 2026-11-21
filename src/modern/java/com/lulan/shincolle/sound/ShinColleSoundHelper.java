@@ -6,7 +6,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import javax.annotation.Nullable;
 import java.util.EnumMap;
@@ -42,7 +42,7 @@ public final class ShinColleSoundHelper {
     }
 
     public static SoundEvent getShipVoice(ShipSoundType type, int shipId) {
-        RegistryObject<SoundEvent> variant = ModSoundEvents.getShipVoiceVariant(shipId, type);
+        DeferredHolder<SoundEvent, SoundEvent> variant = ModSoundEvents.getShipVoiceVariant(shipId, type);
         if (variant != null) {
             float rate = getCustomSoundRate(shipId, type);
             if (rate > 0.0F && (rate >= 1.0F || ThreadLocalRandom.current().nextFloat() < rate)) {

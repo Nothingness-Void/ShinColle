@@ -65,7 +65,7 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
         this.renderHoverTooltip(guiGraphics, mouseX, mouseY);
     }

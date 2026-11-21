@@ -45,7 +45,7 @@ public class TrainingBookItem extends Item {
     }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
+    public int getUseDuration(ItemStack stack, net.minecraft.world.entity.LivingEntity entity) {
         return 80;
     }
 
@@ -72,7 +72,8 @@ public class TrainingBookItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.trainingbook").withStyle(ChatFormatting.GOLD));
         tooltip.add(Component.translatable("gui.shincolle.trainingbook.effect").withStyle(ChatFormatting.AQUA));
     }

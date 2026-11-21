@@ -49,7 +49,11 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
 
     @Override
     public void renderToBuffer(PoseStack poses, VertexConsumer vertices, int light, int overlay,
-                               float red, float green, float blue, float alpha) {
+                               int color) {
+        float red = (color >> 16 & 255) / 255.0F;
+        float green = (color >> 8 & 255) / 255.0F;
+        float blue = (color & 255) / 255.0F;
+        float alpha = (color >>> 24) / 255.0F;
         ModelBase model = getLegacyModel(entity);
         model.swingProgress = attackTime;
         model.isRiding = riding;

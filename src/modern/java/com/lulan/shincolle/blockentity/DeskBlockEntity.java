@@ -30,8 +30,8 @@ public class DeskBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         this.selectedFunction = clampFunction(tag.getInt(SELECTED_FUNCTION_TAG));
         this.radarZoomIndex = Mth.clamp(tag.getInt(RADAR_ZOOM_TAG), 0, 2);
         this.bookChapter = Mth.clamp(tag.getInt(BOOK_CHAPTER_TAG), 0, 6);
@@ -39,8 +39,8 @@ public class DeskBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         tag.putInt(SELECTED_FUNCTION_TAG, this.selectedFunction);
         tag.putInt(RADAR_ZOOM_TAG, this.radarZoomIndex);
         tag.putInt(BOOK_CHAPTER_TAG, this.bookChapter);
@@ -48,9 +48,9 @@ public class DeskBlockEntity extends BlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        this.saveAdditional(tag);
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        CompoundTag tag = super.getUpdateTag(registries);
+        this.saveAdditional(tag, registries);
         return tag;
     }
 

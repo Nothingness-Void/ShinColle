@@ -112,9 +112,9 @@ public final class LegacyShipBeamEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_BEAM_TYPE, NORMAL_BEAM_TYPE);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_HOST_ID, -1);
+        builder.define(DATA_BEAM_TYPE, NORMAL_BEAM_TYPE);
     }
 
     @Override

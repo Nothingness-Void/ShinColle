@@ -8,7 +8,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -56,12 +56,12 @@ public final class LegacyEquipmentBuildHelper {
     private static final List<List<Enchantment>> ENCHANT_TABLE = List.of(
             List.of(Enchantments.RESPIRATION, Enchantments.THORNS, Enchantments.FROST_WALKER, Enchantments.SHARPNESS,
                     Enchantments.SMITE, Enchantments.BANE_OF_ARTHROPODS, Enchantments.KNOCKBACK, Enchantments.FIRE_ASPECT,
-                    Enchantments.MOB_LOOTING, Enchantments.BLOCK_EFFICIENCY, Enchantments.BLOCK_FORTUNE, Enchantments.POWER_ARROWS,
-                    Enchantments.PUNCH_ARROWS, Enchantments.FLAMING_ARROWS, Enchantments.INFINITY_ARROWS, Enchantments.FISHING_LUCK),
-            List.of(Enchantments.ALL_DAMAGE_PROTECTION, Enchantments.FIRE_PROTECTION, Enchantments.BLAST_PROTECTION,
+                    Enchantments.LOOTING, Enchantments.EFFICIENCY, Enchantments.FORTUNE, Enchantments.POWER,
+                    Enchantments.PUNCH, Enchantments.FLAME, Enchantments.INFINITY, Enchantments.LUCK_OF_THE_SEA),
+            List.of(Enchantments.PROTECTION, Enchantments.FIRE_PROTECTION, Enchantments.BLAST_PROTECTION,
                     Enchantments.PROJECTILE_PROTECTION, Enchantments.SILK_TOUCH, Enchantments.UNBREAKING, Enchantments.MENDING),
-            List.of(Enchantments.FALL_PROTECTION, Enchantments.AQUA_AFFINITY, Enchantments.DEPTH_STRIDER,
-                    Enchantments.SILK_TOUCH, Enchantments.FISHING_SPEED, Enchantments.MENDING));
+            List.of(Enchantments.FEATHER_FALLING, Enchantments.AQUA_AFFINITY, Enchantments.DEPTH_STRIDER,
+                    Enchantments.SILK_TOUCH, Enchantments.LURE, Enchantments.MENDING));
 
     private LegacyEquipmentBuildHelper() {
     }
@@ -250,7 +250,7 @@ public final class LegacyEquipmentBuildHelper {
         };
     }
 
-    private static ItemStack stackOf(RegistryObject<net.minecraft.world.item.Item> item) {
+    private static ItemStack stackOf(DeferredHolder<net.minecraft.world.item.Item, net.minecraft.world.item.Item> item) {
         return new ItemStack(item.get());
     }
 

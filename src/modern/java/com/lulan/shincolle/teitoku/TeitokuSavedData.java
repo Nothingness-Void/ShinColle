@@ -32,9 +32,7 @@ public class TeitokuSavedData extends SavedData {
 
     public static TeitokuSavedData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
-                TeitokuSavedData::load,
-                TeitokuSavedData::new,
-                DATA_NAME);
+                new SavedData.Factory<>(TeitokuSavedData::new, (tag, registries) -> TeitokuSavedData.load(tag)), DATA_NAME);
     }
 
     public static TeitokuSavedData load(CompoundTag tag) {
@@ -149,7 +147,7 @@ public class TeitokuSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         tag.putInt(NEXT_PLAYER_UID_TAG, this.nextPlayerUid);
         tag.putInt(NEXT_SHIP_UID_TAG, this.nextShipUid);
 

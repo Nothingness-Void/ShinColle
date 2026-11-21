@@ -30,7 +30,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkHooks;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -165,8 +164,8 @@ public final class GameplayCommandHandler {
                         || player.getOffhandItem().is(ModItems.TARGETWRENCH.get()))
                         && payload.contains("First", 10) && payload.contains("Second", 10)) {
                     TargetWrenchItem.pairTargets(player.level(), player,
-                            NbtUtils.readBlockPos(payload.getCompound("First")),
-                            NbtUtils.readBlockPos(payload.getCompound("Second")));
+                            NbtUtils.readBlockPos(payload, "First").orElse(BlockPos.ZERO),
+                            NbtUtils.readBlockPos(payload, "Second").orElse(BlockPos.ZERO));
                 }
             }
             case SET_FORMATION -> TeitokuHelper.setFormationId(player, resolveFormationId(payload));
@@ -285,8 +284,7 @@ public final class GameplayCommandHandler {
     }
 
     private static void handleOpenFormationScreen(ServerPlayer player) {
-        NetworkHooks.openScreen(player,
-                new SimpleMenuProvider(
+        player.openMenu(new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new FormationMenu(containerId, inventory),
                         Component.translatable("gui.shincolle.formation.title")),
                 buffer -> buffer.writeNbt(FormationMenu.captureVisualData(player)));
@@ -296,8 +294,7 @@ public final class GameplayCommandHandler {
         int selectedFunction = Mth.clamp(payload.getInt(TAG_MODE),
                 DeskMenu.RADAR_VARIANT,
                 4);
-        NetworkHooks.openScreen(player,
-                new SimpleMenuProvider(
+        player.openMenu(new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) ->
                                 new DeskMenu(containerId, inventory, player.blockPosition(), selectedFunction),
                         Component.translatable("block.shincolle.blockdesk")),

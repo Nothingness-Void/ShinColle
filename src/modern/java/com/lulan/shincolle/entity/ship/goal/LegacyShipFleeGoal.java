@@ -133,7 +133,7 @@ public class LegacyShipFleeGoal extends Goal {
         if (floorState.isAir() && !this.ship.level().getFluidState(below).is(FluidTags.WATER)) {
             return false;
         }
-        if (!floorState.isPathfindable(this.ship.level(), below, PathComputationType.LAND)
+        if (!floorState.isPathfindable( PathComputationType.LAND)
                 && !this.ship.level().getFluidState(below).is(FluidTags.WATER)) {
             return false;
         }

@@ -1,31 +1,23 @@
 package com.lulan.shincolle.teitoku;
 
-import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.attachment.IAttachmentHolder;
+import net.neoforged.neoforge.attachment.IAttachmentSerializer;
 
 import javax.annotation.Nullable;
 
-public class TeitokuDataProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
-
-    private final TeitokuData teitokuData = new TeitokuData();
-    private final LazyOptional<TeitokuData> optional = LazyOptional.of(() -> this.teitokuData);
+public class TeitokuDataProvider implements IAttachmentSerializer<CompoundTag, TeitokuData> {
 
     @Override
-    public <T> LazyOptional<T> getCapability(net.minecraftforge.common.capabilities.Capability<T> capability,
-                                             @Nullable Direction side) {
-        return capability == TeitokuHelper.TEITOKU_CAPABILITY ? this.optional.cast() : LazyOptional.empty();
+    public CompoundTag write(TeitokuData data, HolderLookup.Provider registries) {
+        return data.saveToTag(new CompoundTag());
     }
 
     @Override
-    public CompoundTag serializeNBT() {
-        return this.teitokuData.saveToTag(new CompoundTag());
-    }
-
-    @Override
-    public void deserializeNBT(CompoundTag nbt) {
-        this.teitokuData.loadFromTag(nbt);
+    public TeitokuData read(IAttachmentHolder holder, CompoundTag nbt, HolderLookup.Provider registries) {
+        TeitokuData data = new TeitokuData();
+        data.loadFromTag(nbt);
+        return data;
     }
 }

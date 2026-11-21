@@ -21,11 +21,15 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 
 public class DeskBlock extends BaseEntityBlock {
+
+    @Override
+    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return simpleCodec(DeskBlock::new);
+    }
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
@@ -60,7 +64,23 @@ public class DeskBlock extends BaseEntityBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+    protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack, BlockState state, Level level,
+            BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return switch (useLegacy(state, level, pos, player, hand, hitResult)) {
+            case SUCCESS -> net.minecraft.world.ItemInteractionResult.SUCCESS;
+            case CONSUME -> net.minecraft.world.ItemInteractionResult.CONSUME;
+            case CONSUME_PARTIAL -> net.minecraft.world.ItemInteractionResult.CONSUME_PARTIAL;
+            case FAIL -> net.minecraft.world.ItemInteractionResult.FAIL;
+            default -> net.minecraft.world.ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
+        };
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        return useLegacy(state, level, pos, player, InteractionHand.MAIN_HAND, hitResult);
+    }
+
+    private InteractionResult useLegacy(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
         if (player.isShiftKeyDown()) return InteractionResult.PASS;
         if (!(level.getBlockEntity(pos) instanceof DeskBlockEntity desk)) {
@@ -69,8 +89,7 @@ public class DeskBlock extends BaseEntityBlock {
 
         if (!level.isClientSide()) {
             if (player instanceof ServerPlayer serverPlayer) {
-                NetworkHooks.openScreen(serverPlayer,
-                        new SimpleMenuProvider(
+                serverPlayer.openMenu(new SimpleMenuProvider(
                                 (containerId, inventory, ignoredPlayer) -> new DeskMenu(containerId, inventory, pos, 0),
                                 Component.translatable("block.shincolle.blockdesk")),
                         buffer -> DeskMenu.writeOpeningData(buffer, pos, 0));
@@ -81,7 +100,7 @@ public class DeskBlock extends BaseEntityBlock {
     }
 
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
         return false;
     }
 }

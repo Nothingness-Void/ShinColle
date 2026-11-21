@@ -8,11 +8,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.items.IItemHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import java.util.Optional;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
@@ -29,22 +29,22 @@ public class PolymetalServantBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         this.masterPos = tag.contains(MASTER_POS_TAG) ? BlockPos.of(tag.getLong(MASTER_POS_TAG)) : null;
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         if (this.masterPos != null) {
             tag.putLong(MASTER_POS_TAG, this.masterPos.asLong());
         }
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(this.level.registryAccess());
     }
 
     @Override
@@ -52,17 +52,20 @@ public class PolymetalServantBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable net.minecraft.core.Direction side) {
-        if (capability == ForgeCapabilities.ITEM_HANDLER || capability == ForgeCapabilities.FLUID_HANDLER) {
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability) {
+        return getCapability(capability, null);
+    }
+
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability, @Nullable net.minecraft.core.Direction side) {
+        if (capability == Capabilities.ItemHandler.BLOCK || capability == Capabilities.FluidHandler.BLOCK) {
             HeavyGrudgeBlockEntity master = this.getMaster();
             if (master == null || !master.isStructureComplete()) {
-                return LazyOptional.empty();
+                return Optional.empty();
             }
             return master.getCapability(capability, side);
         }
 
-        return super.getCapability(capability, side);
+        return Optional.empty();
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, PolymetalServantBlockEntity servant) {

@@ -1392,7 +1392,7 @@ public final class ShipInventoryScreen extends AbstractContainerScreen<ShipInven
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.graphics = graphics;
-        renderBackground(graphics);
+        renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
         renderTooltip(graphics, mouseX, mouseY);
         this.xMouse = mouseX;

@@ -28,16 +28,18 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import org.lwjgl.glfw.GLFW;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public final class MorphClientEvents {
 
     private static final String KEY_CATEGORY = "key.categories.shincolle";
@@ -62,7 +64,7 @@ public final class MorphClientEvents {
         event.register(OPTOOL_LIST);
     }
 
-    @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+    @EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
     public static final class ForgeEvents {
 
         private static final ResourceLocation HUD = ResourceLocation.fromNamespaceAndPath(
@@ -72,10 +74,7 @@ public final class MorphClientEvents {
         }
 
         @SubscribeEvent
-        public static void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) {
-                return;
-            }
+        public static void onClientTick(ClientTickEvent.Post event) {
 
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer player = minecraft.player;
@@ -120,8 +119,8 @@ public final class MorphClientEvents {
         }
 
         @SubscribeEvent(receiveCanceled = true)
-        public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
-            if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
+        public static void onRenderOverlay(RenderGuiLayerEvent.Pre event) {
+            if (!event.getName().equals(VanillaGuiLayers.HOTBAR)) return;
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer player = minecraft.player;
             if (player == null) {
@@ -136,8 +135,8 @@ public final class MorphClientEvents {
             }
 
             GuiGraphics guiGraphics = event.getGuiGraphics();
-            int width = event.getWindow().getGuiScaledWidth();
-            int height = event.getWindow().getGuiScaledHeight();
+            int width = minecraft.getWindow().getGuiScaledWidth();
+            int height = minecraft.getWindow().getGuiScaledHeight();
             double[] position = ShinColleConfig.posHUD();
             int px = (int)(width * position[0]);
             int py = (int)(height * position[1]);
@@ -254,10 +253,7 @@ public final class MorphClientEvents {
         private static int lastMountKeyMask;
 
         @SubscribeEvent
-        public static void onClientTickMountControl(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END) {
-                return;
-            }
+        public static void onClientTickMountControl(ClientTickEvent.Post event) {
 
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer player = minecraft.player;

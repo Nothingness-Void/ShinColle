@@ -1,17 +1,18 @@
 package com.lulan.shincolle.crafting;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.registry.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.common.ForgeHooks;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.Optional;
 
@@ -90,7 +91,7 @@ public final class SmallShipyardRecipes {
             return lavaValue;
         }
 
-        int burnTime = ForgeHooks.getBurnTime(stack, RecipeType.SMELTING);
+        int burnTime = stack.getBurnTime(RecipeType.SMELTING);
         if (burnTime > 0) {
             return burnTime;
         }
@@ -108,7 +109,7 @@ public final class SmallShipyardRecipes {
             return lavaFuel;
         }
 
-        int burnTime = ForgeHooks.getBurnTime(stack, RecipeType.SMELTING);
+        int burnTime = stack.getBurnTime(RecipeType.SMELTING);
         if (burnTime <= 0) {
             return Optional.empty();
         }
@@ -127,7 +128,7 @@ public final class SmallShipyardRecipes {
     }
 
     private static int getLavaFuelValue(ItemStack stack) {
-        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy());
         if (handler.isEmpty()) {
             return 0;
         }
@@ -137,7 +138,7 @@ public final class SmallShipyardRecipes {
     }
 
     private static Optional<FuelUse> consumeLavaFuel(ItemStack stack) {
-        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        Optional<IFluidHandlerItem> handler = FluidUtil.getFluidHandler(stack.copy());
         if (handler.isEmpty()) {
             return Optional.empty();
         }
@@ -178,7 +179,7 @@ public final class SmallShipyardRecipes {
         ItemStack egg = new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(0).get());
         CompoundTag tag = new CompoundTag();
         LegacyShipConstructionHelper.writeMaterialAmounts(tag, materialAmounts);
-        egg.setTag(tag);
+        LegacyItemData.setTag(egg, tag);
         return egg;
     }
 }

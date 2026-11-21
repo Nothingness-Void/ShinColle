@@ -13,10 +13,12 @@ import net.minecraft.world.level.storage.loot.functions.SetItemCountFunction;
 import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCondition;
 import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
 import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
-import net.minecraftforge.event.LootTableLoadEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.event.LootTableLoadEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -24,7 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class ChestLootInjector {
 
     private static final ResourceLocation BONUS_CHEST = ResourceLocation.fromNamespaceAndPath("minecraft", "chests/spawn_bonus_chest");
@@ -167,7 +169,7 @@ public final class ChestLootInjector {
         }
 
         if (!ShinColle.MOD_ID.equals(id.getNamespace())) {
-            Item item = ForgeRegistries.ITEMS.getValue(id);
+            Item item = BuiltInRegistries.ITEM.get(id);
             return item == null || item == Items.AIR ? List.of() : List.of(() -> item);
         }
 
@@ -222,7 +224,7 @@ public final class ChestLootInjector {
     }
 
     private static @Nullable Item modItem(String path) {
-        Item item = ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, path));
+        Item item = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, path));
         return item == null || item == Items.AIR ? null : item;
     }
 

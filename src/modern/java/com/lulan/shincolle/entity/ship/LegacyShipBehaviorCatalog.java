@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.ship;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.client.GameplayClientEffects;
 import com.lulan.shincolle.config.ShinColleConfig;
@@ -69,7 +70,7 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.ForgeHooks;
+import net.neoforged.neoforge.common.CommonHooks;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -163,7 +164,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     /** Snapshot of the legacy AttackEffectMap entry carried by a launched attack. */
-    public record AttackEffectProfile(MobEffect effect, int amplifier, int durationTicks, int chancePercent) {
+    public record AttackEffectProfile(net.minecraft.core.Holder<MobEffect> effect, int amplifier, int durationTicks, int chancePercent) {
         public static final AttackEffectProfile NONE = new AttackEffectProfile(null, 0, 0, 0);
 
         public boolean isPresent() {
@@ -1124,7 +1125,7 @@ public final class LegacyShipBehaviorCatalog {
                 return 1.5F;
             }
         }
-        return dimensions.height * 0.8F;
+        return dimensions.height() * 0.8F;
     }
 
     /** Mirrors BasicEntityShip's default and the audited per-ship mounted offsets. */
@@ -2145,7 +2146,7 @@ public final class LegacyShipBehaviorCatalog {
 
             ItemStack targetStack = furnace.getItem(targetSlot);
             if (!targetStack.isEmpty()
-                    && !ItemStack.isSameItemSameTags(targetStack, sourceStack)) {
+                    && !ItemStack.isSameItemSameComponents(targetStack, sourceStack)) {
                 continue;
             }
 
@@ -2185,7 +2186,7 @@ public final class LegacyShipBehaviorCatalog {
 
         for (int slot = boundedStart; slot < boundedEnd && !source.isEmpty(); slot++) {
             ItemStack current = target.getItem(slot);
-            if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, source)
+            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, source)
                     || !target.canPlaceItem(slot, source)
                     || current.getCount() >= Math.min(current.getMaxStackSize(), target.getMaxStackSize())) {
                 continue;
@@ -2253,7 +2254,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static @javax.annotation.Nullable ItemStack[] readLegacyRecipePaper(ItemStack paper) {
-        CompoundTag tag = paper.getTag();
+        CompoundTag tag = LegacyItemData.getTag(paper);
         if (tag == null || !tag.contains(RecipePaperMenu.RECIPE_TAG, Tag.TAG_LIST)) {
             return null;
         }
@@ -2301,7 +2302,7 @@ public final class LegacyShipBehaviorCatalog {
         int targetSlot = findLegacyTaskCargoSlot(ship, mainStack,
                 checkMetadata, checkOredict, checkNbt);
         ItemStack offStack = ship.getLegacyTaskOffHandItem();
-        int fuelSlot = offStack.isEmpty() || ForgeHooks.getBurnTime(offStack, RecipeType.SMELTING) <= 0
+        int fuelSlot = offStack.isEmpty() || offStack.getBurnTime(RecipeType.SMELTING) <= 0
                 ? -1
                 : findLegacyTaskCargoSlot(ship, offStack, checkMetadata, checkOredict, checkNbt);
         boolean swing = false;
@@ -2521,7 +2522,7 @@ public final class LegacyShipBehaviorCatalog {
         if (selected.max() > selected.min()) {
             count += ship.getRandom().nextInt(selected.max() - selected.min() + 1);
         }
-        int fortune = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, pickaxe);
+        int fortune = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FORTUNE, pickaxe);
         int luck = ship.hasEffect(MobEffects.LUCK)
                 ? ship.getEffect(MobEffects.LUCK).getAmplifier() + 1 : 0;
         if (selected.fortuneMultiplier() > 0.0F) {
@@ -2679,9 +2680,9 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         float luck = Math.max(
-                EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FISHING_LUCK, rod),
+                EnchantmentHelper.getItemEnchantmentLevel(Enchantments.LUCK_OF_THE_SEA, rod),
                 EnchantmentHelper.getItemEnchantmentLevel(
-                        Enchantments.FISHING_LUCK, ship.getLegacyTaskOffHandItem()));
+                        Enchantments.LUCK_OF_THE_SEA, ship.getLegacyTaskOffHandItem()));
         MobEffectInstance luckEffect = ship.getEffect(MobEffects.LUCK);
         if (luckEffect != null) {
             luck += luckEffect.getAmplifier() + 1;

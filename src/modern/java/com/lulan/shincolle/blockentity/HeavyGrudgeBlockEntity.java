@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.block.HeavyGrudgeBlock;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
@@ -30,14 +31,14 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import java.util.Optional;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -128,8 +129,6 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             return 8;
         }
     };
-    private LazyOptional<IItemHandler> shipyardItemHandler = LazyOptional.empty();
-    private LazyOptional<IFluidHandler> fluidHandler = LazyOptional.empty();
     private int powerConsumed;
     private int powerRemained;
     private int powerGoal;
@@ -144,46 +143,37 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
         super(ModBlockEntities.GRUDGE_HEAVY.get(), pos, state);
     }
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        this.shipyardItemHandler = LazyOptional.of(() -> this.shipyardItems);
-        this.fluidHandler = LazyOptional.of(() -> this.lavaTank);
+
+
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability) {
+        return getCapability(capability, null);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        this.shipyardItemHandler.invalidate();
-        this.fluidHandler.invalidate();
-    }
-
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable net.minecraft.core.Direction side) {
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability, @Nullable net.minecraft.core.Direction side) {
         if (!this.structureComplete) {
-            return super.getCapability(capability, side);
+            return Optional.empty();
         }
 
-        if (capability == ForgeCapabilities.ITEM_HANDLER) {
-            return this.shipyardItemHandler.cast();
+        if (capability == Capabilities.ItemHandler.BLOCK) {
+            return Optional.of(capability.typeClass().cast(this.shipyardItems));
         }
 
-        if (capability == ForgeCapabilities.FLUID_HANDLER) {
-            return this.fluidHandler.cast();
+        if (capability == Capabilities.FluidHandler.BLOCK) {
+            return Optional.of(capability.typeClass().cast(this.lavaTank));
         }
 
-        return super.getCapability(capability, side);
+        return Optional.empty();
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (tag.contains(SHIPYARD_ITEMS_TAG)) {
-            this.shipyardItems.deserializeNBT(tag.getCompound(SHIPYARD_ITEMS_TAG));
+            this.shipyardItems.deserializeNBT(registries, tag.getCompound(SHIPYARD_ITEMS_TAG));
         }
         if (tag.contains(SHIPYARD_TANK_TAG)) {
-            this.lavaTank.readFromNBT(tag.getCompound(SHIPYARD_TANK_TAG));
+            this.lavaTank.readFromNBT(registries, tag.getCompound(SHIPYARD_TANK_TAG));
         }
         this.powerConsumed = getIntCompat(tag, POWER_CONSUMED_TAG, LEGACY_POWER_CONSUMED_TAG);
         this.powerRemained = Mth.clamp(getIntCompat(tag, POWER_REMAINED_TAG, LEGACY_POWER_REMAINED_TAG), 0, powerMax());
@@ -198,14 +188,14 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         }
 
-        tag.put(SHIPYARD_ITEMS_TAG, this.shipyardItems.serializeNBT());
-        tag.put(SHIPYARD_TANK_TAG, this.lavaTank.writeToNBT(new CompoundTag()));
+        tag.put(SHIPYARD_ITEMS_TAG, this.shipyardItems.serializeNBT(registries));
+        tag.put(SHIPYARD_TANK_TAG, this.lavaTank.writeToNBT(registries, new CompoundTag()));
         tag.putInt(POWER_CONSUMED_TAG, this.powerConsumed);
         tag.putInt(POWER_REMAINED_TAG, this.powerRemained);
         tag.putInt(POWER_GOAL_TAG, this.powerGoal);
@@ -218,8 +208,8 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(this.level.registryAccess());
     }
 
     @Override
@@ -500,19 +490,19 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
         }
         tag.putIntArray(HeavyGrudgeBlockItem.MATS_TAG, mats);
         tag.putInt(HeavyGrudgeBlockItem.FUEL_TAG, this.powerRemained);
-        stack.setTag(tag);
+        LegacyItemData.setTag(stack, tag);
         return stack;
     }
 
     public void restoreFromPlacedStack(ItemStack stack) {
         Arrays.fill(this.matsStock, 0);
         this.powerRemained = 0;
-        if (!stack.hasTag()) {
+        if (!LegacyItemData.hasTag(stack)) {
             this.markUpdated();
             return;
         }
 
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         int[] mats = tag.getIntArray(HeavyGrudgeBlockItem.MATS_TAG);
         System.arraycopy(mats, 0, this.matsStock, 0, Math.min(this.matsStock.length, mats.length));
         this.powerRemained = Mth.clamp(tag.getInt(HeavyGrudgeBlockItem.FUEL_TAG), 0, powerMax());

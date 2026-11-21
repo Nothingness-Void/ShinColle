@@ -66,8 +66,7 @@ public final class LegacyRepairGoddessParticle extends Particle {
         RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(false);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         Vec3 cameraPos = camera.getPosition();
         for (float[] beam : this.beams) {
             if (beam[3] == 0F) {
@@ -77,13 +76,13 @@ public final class LegacyRepairGoddessParticle extends Particle {
             for (int i = 0; i < 4; i++) {
                 Vector3f corner = new Vector3f(i < 2 ? -size : size, i == 0 || i == 3 ? -size : size, 0F);
                 corner.rotate(camera.rotation());
-                buffer.vertex(this.x - cameraPos.x + beam[0] + corner.x(),
-                        this.y - cameraPos.y + beam[1] + corner.y(),
-                        this.z - cameraPos.z + beam[2] + corner.z())
-                        .color(beam[3], beam[4], beam[5], beam[6]).endVertex();
+                buffer.addVertex((float) (this.x - cameraPos.x + beam[0] + corner.x()),
+                        (float) (this.y - cameraPos.y + beam[1] + corner.y()),
+                        (float) (this.z - cameraPos.z + beam[2] + corner.z()))
+                        .setColor(beam[3], beam[4], beam[5], beam[6]);
             }
         }
-        BufferUploader.drawWithShader(buffer.end());
+        BufferUploader.drawWithShader(buffer.buildOrThrow());
         RenderSystem.depthMask(true);
         RenderSystem.disableBlend();
     }

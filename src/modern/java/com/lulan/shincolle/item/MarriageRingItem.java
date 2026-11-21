@@ -21,7 +21,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -40,7 +40,7 @@ public class MarriageRingItem extends Item {
 
         if (!level.isClientSide()) {
             boolean active = !isActive(stack);
-            stack.getOrCreateTag().putBoolean(ACTIVE_TAG, active);
+            LegacyItemData.update(stack, tag -> tag.putBoolean(ACTIVE_TAG, active));
             if (player instanceof ServerPlayer serverPlayer) {
                 TeitokuHelper.markRingState(serverPlayer, active);
 
@@ -79,7 +79,7 @@ public class MarriageRingItem extends Item {
         }
 
         // Passive water breathing applies whenever the ring is in inventory, even when inactive.
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data != null) {
             int[] ringAbility = TeitokuHelper.getEffectiveRingAbility(level);
             int breatheThreshold = ringAbility.length > 0 ? ringAbility[0] : 0;
@@ -120,7 +120,7 @@ public class MarriageRingItem extends Item {
             return;
         }
 
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data == null) {
             return;
         }
@@ -162,7 +162,8 @@ public class MarriageRingItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         if (FMLEnvironment.dist.isClient()) {
             int marriageNum = ClientShipVisibilityHelper.getClientMarriageNum();
             if (marriageNum >= 0) {
@@ -176,7 +177,7 @@ public class MarriageRingItem extends Item {
     }
 
     public static boolean isActive(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         return tag != null && tag.getBoolean(ACTIVE_TAG);
     }
 }

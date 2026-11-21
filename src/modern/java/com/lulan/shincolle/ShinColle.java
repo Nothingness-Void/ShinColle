@@ -47,20 +47,21 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
+import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.ModContainer;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import org.slf4j.Logger;
 
 @Mod(ShinColle.MOD_ID)
@@ -70,18 +71,16 @@ public class ShinColle {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public ShinColle(FMLJavaModLoadingContext context) {
+    public ShinColle(IEventBus modEventBus, ModContainer context) {
         context.registerConfig(ModConfig.Type.COMMON, ShinColleConfig.COMMON_SPEC);
         context.registerConfig(ModConfig.Type.CLIENT, ShinColleConfig.CLIENT_SPEC);
-        IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::onCommonSetup);
         modEventBus.addListener(this::onEntityAttributeCreation);
-        modEventBus.addListener(TeitokuEvents::registerCapabilities);
-        modEventBus.addListener((RegisterEvent event) -> {
-            if (event.getRegistryKey().equals(ForgeRegistries.Keys.RECIPE_SERIALIZERS)) {
-                CraftingHelper.register(PolyAsMnCondition.Serializer.INSTANCE);
-            }
-        });
+        com.lulan.shincolle.teitoku.TeitokuHelper.ATTACHMENTS.register(modEventBus);
+        com.lulan.shincolle.registry.ModDataComponents.COMPONENTS.register(modEventBus);
+        modEventBus.addListener(ShipChunkLoader::register);
+        modEventBus.addListener(com.lulan.shincolle.registry.ModCapabilities::register);
+        PolyAsMnCondition.SERIALIZERS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModBlocks.BLOCKS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);
@@ -90,13 +89,12 @@ public class ShinColle {
         ModMenus.MENUS.register(modEventBus);
         ModSoundEvents.SOUND_EVENTS.register(modEventBus);
         ModCreativeModeTabs.TABS.register(modEventBus);
-        ModNetwork.register();
-        MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.addListener(ShinColleCommands::register);
+        modEventBus.addListener(ModNetwork::register);
+        NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(ShinColleCommands::register);
     }
 
     private void onCommonSetup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(ShipChunkLoader::register);
         LOGGER.info("Initializing ShinColle 1.20.1 port content batch");
     }
 
@@ -110,22 +108,26 @@ public class ShinColle {
         LOGGER.info("ShinColle 1.20.1 server starting");
     }
 
-    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
+
+        @SubscribeEvent
+        public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+            event.register(ModMenus.CRANE_TERMINAL.get(), CraneTerminalScreen::new);
+            event.register(ModMenus.RECIPE_PAPER.get(), RecipePaperScreen::new);
+            event.register(ModMenus.DESK.get(), DeskScreen::new);
+            event.register(ModMenus.FORMATION.get(), FormationScreen::new);
+            event.register(ModMenus.LARGE_SHIPYARD.get(), LargeShipyardScreen::new);
+            event.register(ModMenus.LEGACY_CORE.get(), LegacyCoreScreen::new);
+            event.register(ModMenus.MORPH_INVENTORY.get(), MorphInventoryScreen::new);
+            event.register(ModMenus.SMALL_SHIPYARD.get(), SmallShipyardScreen::new);
+            event.register(ModMenus.SHIP_INVENTORY.get(), ShipInventoryScreen::new);
+        }
 
         @SubscribeEvent
         @SuppressWarnings("removal")
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
-                MenuScreens.register(ModMenus.CRANE_TERMINAL.get(), CraneTerminalScreen::new);
-                MenuScreens.register(ModMenus.RECIPE_PAPER.get(), RecipePaperScreen::new);
-                MenuScreens.register(ModMenus.DESK.get(), DeskScreen::new);
-                MenuScreens.register(ModMenus.FORMATION.get(), FormationScreen::new);
-                MenuScreens.register(ModMenus.LARGE_SHIPYARD.get(), LargeShipyardScreen::new);
-                MenuScreens.register(ModMenus.LEGACY_CORE.get(), LegacyCoreScreen::new);
-                MenuScreens.register(ModMenus.MORPH_INVENTORY.get(), MorphInventoryScreen::new);
-                MenuScreens.register(ModMenus.SMALL_SHIPYARD.get(), SmallShipyardScreen::new);
-                MenuScreens.register(ModMenus.SHIP_INVENTORY.get(), ShipInventoryScreen::new);
                 BlockEntityRenderers.register(ModBlockEntities.DESK.get(), DeskBlockEntityRenderer::new);
                 BlockEntityRenderers.register(ModBlockEntities.GRUDGE_HEAVY.get(), HeavyGrudgeBlockEntityRenderer::new);
                 BlockEntityRenderers.register(ModBlockEntities.SMALL_SHIPYARD.get(), SmallShipyardBlockEntityRenderer::new);

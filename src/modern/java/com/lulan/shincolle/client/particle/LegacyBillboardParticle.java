@@ -26,8 +26,8 @@ abstract class LegacyBillboardParticle extends Particle {
     }
 
     @Override
-    public boolean shouldCull() {
-        return false;
+    public net.minecraft.world.phys.AABB getRenderBoundingBox(float partialTick) {
+        return net.minecraft.world.phys.AABB.INFINITE;
     }
 
     protected void drawQuad(Camera camera, float partialTick, ResourceLocation texture,
@@ -49,8 +49,7 @@ abstract class LegacyBillboardParticle extends Particle {
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
         RenderSystem.setShader(GameRenderer::getParticleShader);
         RenderSystem.setShaderTexture(0, texture);
-        BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         vertex(buffer, px - rotX * width - rotXY * width, py - rotZ * height,
                 pz - rotYZ * width - rotXZ * width, u1, v1);
         vertex(buffer, px - rotX * width + rotXY * width, py + rotZ * height,
@@ -69,12 +68,12 @@ abstract class LegacyBillboardParticle extends Particle {
             vertex(buffer, px - rotX * width - rotXY * width, py - rotZ * height,
                     pz - rotYZ * width - rotXZ * width, u1, v1);
         }
-        Tesselator.getInstance().end();
+        com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.buildOrThrow());
         RenderSystem.disableBlend();
         RenderSystem.depthMask(false);
     }
 
     private void vertex(BufferBuilder buffer, float x, float y, float z, float u, float v) {
-        buffer.vertex(x, y, z).uv(u, v).color(1F, 1F, 1F, alpha).uv2(240, 240).endVertex();
+        buffer.addVertex(x, y, z).setUv(u, v).setColor(1F, 1F, 1F, alpha).setUv2(240, 240);
     }
 }

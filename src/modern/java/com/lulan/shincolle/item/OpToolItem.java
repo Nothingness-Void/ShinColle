@@ -33,7 +33,8 @@ public class OpToolItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.optool1").withStyle(ChatFormatting.RED));
         tooltip.add(Component.translatable("gui.shincolle.optool2").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("gui.shincolle.optool3").withStyle(ChatFormatting.GRAY));

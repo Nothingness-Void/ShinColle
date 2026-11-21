@@ -202,20 +202,20 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(DATA_ATTACK_KIND, LegacyShipAttackKind.HEAVY.ordinal());
-        this.entityData.define(DATA_PROJECTILE_VISUAL, LegacyShipProjectileVisual.NONE.ordinal());
-        this.entityData.define(DATA_MOVE_TYPE, LegacyShipProjectileMoveType.NONE.ordinal());
-        this.entityData.define(DATA_LAUNCH_PARTICLE, GameplayParticleType.LAUNCH_SMOKE.ordinal());
-        this.entityData.define(DATA_TRAIL_PARTICLE, GameplayParticleType.NONE.ordinal());
-        this.entityData.define(DATA_HIT_PARTICLE, GameplayParticleType.HIT_EXPLOSION.ordinal());
-        this.entityData.define(DATA_EFFECT_FLAGS, 0);
-        this.entityData.define(DATA_LEGACY_MOTION_OVERRIDE, false);
-        this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_1, 0.0F);
-        this.entityData.define(DATA_LEGACY_ARC_ACCELERATION_2, 0.0F);
-        this.entityData.define(DATA_LEGACY_ARC_RISE_TICKS, 0);
-        this.entityData.define(DATA_LEGACY_TORPEDO_STARTED, false);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_ATTACK_KIND, LegacyShipAttackKind.HEAVY.ordinal());
+        builder.define(DATA_PROJECTILE_VISUAL, LegacyShipProjectileVisual.NONE.ordinal());
+        builder.define(DATA_MOVE_TYPE, LegacyShipProjectileMoveType.NONE.ordinal());
+        builder.define(DATA_LAUNCH_PARTICLE, GameplayParticleType.LAUNCH_SMOKE.ordinal());
+        builder.define(DATA_TRAIL_PARTICLE, GameplayParticleType.NONE.ordinal());
+        builder.define(DATA_HIT_PARTICLE, GameplayParticleType.HIT_EXPLOSION.ordinal());
+        builder.define(DATA_EFFECT_FLAGS, 0);
+        builder.define(DATA_LEGACY_MOTION_OVERRIDE, false);
+        builder.define(DATA_LEGACY_ARC_ACCELERATION_1, 0.0F);
+        builder.define(DATA_LEGACY_ARC_ACCELERATION_2, 0.0F);
+        builder.define(DATA_LEGACY_ARC_RISE_TICKS, 0);
+        builder.define(DATA_LEGACY_TORPEDO_STARTED, false);
     }
 
     @Override
