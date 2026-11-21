@@ -12,6 +12,7 @@ public class LegacyShipRenderer extends MobRenderer<LegacyShipEntity, LegacyShip
 
     public LegacyShipRenderer(EntityRendererProvider.Context context) {
         super(context, new LegacyShipPoseModel(), 0.7F);
+        this.addLayer(new LayerShipHeldItem(this, context.getItemInHandRenderer()));
     }
 
     @Override

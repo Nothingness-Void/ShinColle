@@ -32,6 +32,10 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
 
     public void setBuffers(MultiBufferSource buffers) { this.buffers = buffers; }
 
+    public ModelBase getLegacyModel(LegacyShipEntity entity) {
+        return models.computeIfAbsent(LegacyShipModelKind.forSpec(entity.getSpec()), LegacyShipModels::create);
+    }
+
     @Override
     public void setupAnim(LegacyShipEntity entity, float limbSwing, float limbSwingAmount,
                           float age, float yaw, float pitch) {
@@ -46,7 +50,7 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
     @Override
     public void renderToBuffer(PoseStack poses, VertexConsumer vertices, int light, int overlay,
                                float red, float green, float blue, float alpha) {
-        ModelBase model = models.computeIfAbsent(LegacyShipModelKind.forSpec(entity.getSpec()), LegacyShipModels::create);
+        ModelBase model = getLegacyModel(entity);
         model.swingProgress = attackTime;
         model.isRiding = riding;
         model.isChild = young;

@@ -44,6 +44,10 @@ public final class ShinColleConfig {
         TEST_OVERRIDES.clear();
     }
 
+    public static void clearTestOverride(String key) {
+        TEST_OVERRIDES.remove(key);
+    }
+
     public static boolean friendlyFire() {
         return getBoolean("friendlyFire", COMMON_SPEC, COMMON.friendlyFire, true);
     }
@@ -220,6 +224,29 @@ public final class ShinColleConfig {
 
     public static float volumeFire() {
         return (float) getDouble("volumeFire", CLIENT_SPEC, CLIENT.volumeFire, 0.7D);
+    }
+
+    public static double[] scaleHeldItem() {
+        Object configured = TEST_OVERRIDES.get("scaleHeldItem");
+        if (configured == null && CLIENT_SPEC.isLoaded()) {
+            try {
+                configured = CLIENT.scaleHeldItem.get();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+        if (configured instanceof double[] values && values.length == 4) {
+            return Arrays.copyOf(values, 4);
+        }
+        if (isHeldItemSettings(configured)) {
+            List<?> values = (List<?>) configured;
+            return new double[] {((Number)values.get(0)).doubleValue(), ((Number)values.get(1)).doubleValue(),
+                    ((Number)values.get(2)).doubleValue(), ((Number)values.get(3)).doubleValue()};
+        }
+        return new double[] {2.5D, 0D, 0D, 0D};
+    }
+
+    private static boolean isHeldItemSettings(Object value) {
+        return value instanceof List<?> list && list.size() == 4 && list.stream().allMatch(Number.class::isInstance);
     }
 
     private static boolean getBoolean(String key, ForgeConfigSpec spec, ForgeConfigSpec.BooleanValue value, boolean fallback) {
@@ -400,6 +427,7 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.DoubleValue volumeTimekeep;
         public final ForgeConfigSpec.DoubleValue volumeShip;
         public final ForgeConfigSpec.DoubleValue volumeFire;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Double>> scaleHeldItem;
 
         private Client(ForgeConfigSpec.Builder builder) {
             builder.push("client");
@@ -414,6 +442,8 @@ public final class ShinColleConfig {
             this.volumeTimekeep = builder.defineInRange("volumeTimekeep", 1.0D, 0.0D, 10.0D);
             this.volumeShip = builder.defineInRange("volumeShip", 1.0D, 0.0D, 10.0D);
             this.volumeFire = builder.defineInRange("volumeFire", 0.7D, 0.0D, 10.0D);
+            this.scaleHeldItem = builder.define("scaleHeldItem", List.of(2.5D, 0D, 0D, 0D),
+                    ShinColleConfig::isHeldItemSettings);
             builder.pop();
         }
     }
