@@ -457,4 +457,8 @@ public final class LegacyShipStats {
         LegacyShipStatTables.clamp(result);
         return result;
     }
+
+    public float moraleStat(int attrId) {
+        return this.morale[attrId];
+    }
 }

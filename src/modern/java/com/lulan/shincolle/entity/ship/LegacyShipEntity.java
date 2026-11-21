@@ -3517,7 +3517,7 @@ public class LegacyShipEntity extends PathfinderMob {
         return super.killedEntity(level, entity);
     }
 
-    private int getModernizationSteps(int index) {
+    public int getModernizationSteps(int index) {
         return switch (index) {
             case 0 -> this.modernHealthSteps;
             case 1 -> this.modernAttackSteps;
@@ -6964,8 +6964,7 @@ public class LegacyShipEntity extends PathfinderMob {
                         (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, this.getId(), this.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", this.getName())),
                 buffer -> {
-                    buffer.writeVarInt(this.getId());
-                    buffer.writeVarInt(this.getShipUid());
+                    ShipInventoryMenu.writeOpeningData(buffer, this);
                 });
     }
 

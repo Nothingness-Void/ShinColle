@@ -14,6 +14,7 @@ import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.network.ShipCommandService;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
+import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -35,7 +36,6 @@ import javax.annotation.Nullable;
 
 public class ShipInventoryMenu extends AbstractContainerMenu {
 
-    public static final int BUTTON_TOGGLE_MODE = 0;
     private static final String HEALTH_TAG = "Health";
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
@@ -74,6 +74,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private final int shipId;
     private final int shipUid;
     private final Container shipInventory;
+    private final ShipInventoryPresentation presentation = new ShipInventoryPresentation();
+    private CompoundTag lastPresentation;
 
     private @Nullable LegacyShipEntity ship;
 
@@ -88,6 +90,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         this.shipUid = shipUid > 0 ? shipUid : resolveInitialShipUid(playerInventory, shipId);
         this.ship = resolveShip(playerInventory, shipId, this.shipUid);
         this.shipInventory = this.ship != null ? this.ship.getShipInventory() : new SimpleContainer(LegacyShipEntity.SHIP_INVENTORY_SIZE);
+        this.presentation.apply(ShipInventoryPresentation.capture(this.ship));
 
         checkContainerSize(this.shipInventory, LegacyShipEntity.SHIP_SLOT_COUNT);
         this.shipInventory.startOpen(playerInventory.player);
@@ -116,7 +119,35 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     }
 
     public static ShipInventoryMenu fromNetwork(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
-        return new ShipInventoryMenu(containerId, inventory, buffer.readVarInt(), buffer.readVarInt());
+        ShipInventoryMenu menu = new ShipInventoryMenu(containerId, inventory, buffer.readVarInt(), buffer.readVarInt());
+        CompoundTag data = buffer.readNbt();
+        if (data != null) menu.applyPresentation(data);
+        return menu;
+    }
+
+    public static void writeOpeningData(FriendlyByteBuf buffer, LegacyShipEntity ship) {
+        buffer.writeVarInt(ship.getId());
+        buffer.writeVarInt(ship.getShipUid());
+        buffer.writeNbt(ShipInventoryPresentation.capture(ship));
+    }
+
+    public ShipInventoryPresentation getPresentation() { return this.presentation; }
+
+    public void applyPresentation(CompoundTag tag) { this.presentation.apply(tag); }
+
+    @Override
+    public void broadcastChanges() {
+        if (this.playerInventory.player instanceof ServerPlayer player) {
+            CompoundTag next = ShipInventoryPresentation.capture(this.getShip());
+            if (!next.equals(this.lastPresentation)) {
+                this.lastPresentation = next.copy();
+                CompoundTag payload = new CompoundTag();
+                payload.putInt("ShipInventoryContainerId", this.containerId);
+                payload.put("ShipInventoryPresentation", next);
+                ModNetwork.syncGameplayState(player, payload);
+            }
+        }
+        super.broadcastChanges();
     }
 
     public @Nullable LegacyShipEntity getShip() {
@@ -566,11 +597,13 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     }
 
     public int getInventoryPage() {
+        if (this.playerInventory.player.level().isClientSide()) return this.presentation.getInventoryPage();
         LegacyShipEntity ship = this.getShip();
         return ship != null ? ship.getInventoryPage() : 0;
     }
 
     public int getInventoryPageSize() {
+        if (this.playerInventory.player.level().isClientSide()) return this.presentation.getInventoryPageSize();
         LegacyShipEntity ship = this.getShip();
         return ship != null ? ship.getInventoryPageSize() : 0;
     }
@@ -649,19 +682,6 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         }
 
         return used;
-    }
-
-    @Override
-    public boolean clickMenuButton(Player player, int id) {
-        if (id != BUTTON_TOGGLE_MODE) {
-            return false;
-        }
-
-        ServerboundShipCommandPacket packet = ServerboundShipCommandPacket.toggleSit(0, this.shipId, this.getShipUid());
-        if (player instanceof ServerPlayer serverPlayer) {
-            return ShipCommandService.handle(serverPlayer, packet);
-        }
-        return ShipCommandService.handleForTesting(player, packet);
     }
 
     @Override

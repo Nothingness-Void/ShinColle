@@ -282,6 +282,11 @@ public final class ShipCommandService {
 
         setEntityByGui(ship, button, value);
         markShipDirty(ship);
+        if (button == ShipGuiButton.INV_PAGE && player.containerMenu instanceof ShipInventoryMenu menu
+                && menu.getShipUid() == ship.getShipUid()) {
+            menu.broadcastChanges();
+            menu.broadcastFullState();
+        }
         return ShipCommandResult.SUCCESS;
     }
 
@@ -389,8 +394,7 @@ public final class ShipCommandService {
                         (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, ship.getId(), ship.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", ship.getName())),
                 buffer -> {
-                    buffer.writeVarInt(ship.getId());
-                    buffer.writeVarInt(ship.getShipUid());
+                    ShipInventoryMenu.writeOpeningData(buffer, ship);
                 });
         }
         return true;

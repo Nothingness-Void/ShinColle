@@ -1620,11 +1620,13 @@ public final class GameplayParityGameTests {
         if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
                 || "- / -".equals(shipMenu.getRouteEnergyText())
                 || "-".equals(shipMenu.getAttackText())
-                || !shipMenu.clickMenuButton(player, ShipInventoryMenu.BUTTON_TOGGLE_MODE)
-                || !ship.isOrderedToSit()) {
-            helper.fail("ship inventory menu should expose combat/AI route data and mutate escort mode through the server button");
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(
+                        ship.getId(), ship.getShipUid(), ShipGuiButton.FLEE_HP, 37))
+                || ship.getFleeHp() != 37) {
+            helper.fail("ship inventory should expose server data and dispatch the legacy retreat slider button");
             return;
         }
+        ShipInventoryParityGameTests.check(helper, player, ship);
 
         if (!configureTeitoku(helper, player, data -> data.assignCurrentTeamSlot(0, ship.getShipUid()))) {
             return;
