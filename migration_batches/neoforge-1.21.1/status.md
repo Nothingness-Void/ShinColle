@@ -38,7 +38,6 @@ integration and an actual old-world upgrade are not claimed by this batch.
 - Synced entity data uses builders; entity, block, block entity, SavedData,
   model, particle and screen signature adaptations applied.
 - Chunk tickets use a registered `TicketController`.
-
 - Recipe holders/inputs, enchantment holders, potion components, renderer and
   screen signatures, spawn/gravity signatures and falling-block codecs adapted.
 - `processResources` lowercase resource copying, `syncGameTestStructures`,
@@ -63,7 +62,7 @@ integration and an actual old-world upgrade are not claimed by this batch.
   default UID of `-1`, not a newly invented zero default. Providers are propagated
   through Teitoku and MorphProfile equipment reads/writes.
 - **Items:** `LegacyItemData` upgrades nested old `Count`/`tag` ItemStacks through
-  the Minecraft item data fixer (3700 to the running version), preserving slot
+  the Minecraft item data fixer (3465 to the running version), preserving slot
   metadata and unrelated custom data. Entry points include player/ship load,
   block-entity inventories, MorphProfile equipment and recipe-paper reads.
   Empty stacks serialize without throwing; unknown items retain vanilla's empty
@@ -93,7 +92,7 @@ integration and an actual old-world upgrade are not claimed by this batch.
   synced entity data is initialized, as required by 1.21's projectile constructor.
 - **GameTest API/fixtures:** retain the baseline mock-player game modes explicitly.
   NeoForge FakePlayer now refuses riding and menu opening, so those assertions
-  use a connected server-player fixture with no-op packet delivery instead of
+  use a server-player fixture with a stub connection/no-op packet delivery instead of
   bypassing production checks. Resource assertions inspect the new valid paths.
   The 1.21 GameTest enclosure placed barriers through Nagato's old out-of-template
   corridor (verified in the saved region); moving the corridor inside the 9x9
