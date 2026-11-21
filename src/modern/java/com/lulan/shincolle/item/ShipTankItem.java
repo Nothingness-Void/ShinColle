@@ -101,11 +101,13 @@ public class ShipTankItem extends Item {
 
         BlockEntity blockEntity = level.getBlockEntity(clickedPos);
         if (blockEntity != null) {
-            IFluidHandler blockHandler = blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, clickedFace)
+            boolean hasFluidHandler = blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, clickedFace).isPresent();
+            IFluidHandler blockHandler = stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM)
                     .resolve()
                     .orElse(null);
-            if (blockHandler != null && transferFluid(player, context.getHand(), stack, blockHandler)) {
-                return InteractionResult.sidedSuccess(level.isClientSide());
+            if (hasFluidHandler) {
+                return blockHandler != null && transferFluid(player, context.getHand(), stack, blockHandler)
+                        ? InteractionResult.sidedSuccess(level.isClientSide()) : InteractionResult.PASS;
             }
         }
 

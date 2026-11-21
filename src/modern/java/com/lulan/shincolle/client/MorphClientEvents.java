@@ -4,6 +4,7 @@ import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.item.OpToolItem;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
@@ -270,6 +271,9 @@ public final class MorphClientEvents {
         private static void sendOpToolToggle() {
             CompoundTag payload = new CompoundTag();
             LivingEntity target = resolveCrosshairTarget();
+            if (OpToolItem.isExcludedTarget(target)) {
+                return;
+            }
             if (target != null) {
                 payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, target.getId());
             }

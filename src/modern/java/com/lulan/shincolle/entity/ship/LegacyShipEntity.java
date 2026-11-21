@@ -94,6 +94,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.item.ItemEntity;
+import com.lulan.shincolle.registry.ModEntityTypes;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
@@ -901,7 +902,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.aiPickItem = getBooleanWithLegacyFlagsFallback(
                 tag, AI_PICK_ITEM_TAG, LEGACY_PICK_ITEM_FLAG_TAG, true);
         this.aiFollowRange = tag.contains(AI_FOLLOW_RANGE_TAG)
-                ? Mth.clamp(tag.getInt(AI_FOLLOW_RANGE_TAG), 4, 64)
+                ? Mth.clamp(tag.getInt(AI_FOLLOW_RANGE_TAG), 2, 64)
                 : DEFAULT_AI_FOLLOW_RANGE;
         this.aiRespectRouteStay = !tag.contains(AI_ROUTE_STAY_TAG) || tag.getBoolean(AI_ROUTE_STAY_TAG);
         int loadedAiFlags = this.encodeAiFlags();
@@ -3604,7 +3605,10 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void spawnOwnerLockedRecoveryEgg(ItemStack recoveredEgg) {
-        ItemEntity itemEntity = new ItemEntity(this.level(), this.getX(), this.getY() + 0.5D, this.getZ(), recoveredEgg);
+        ItemEntity itemEntity = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(this.level());
+        if (itemEntity == null) return;
+        itemEntity.setPos(this.getX(), this.getY() + 0.5D, this.getZ());
+        itemEntity.setItem(recoveredEgg);
         itemEntity.setPickUpDelay(10);
         this.getOwnerUuid().ifPresent(itemEntity::setTarget);
         this.level().addFreshEntity(itemEntity);
@@ -5468,7 +5472,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.aiAutoSupply = (flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0;
         this.aiPickItem = (flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0;
         this.aiRespectRouteStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
-        this.aiFollowRange = Mth.clamp(followRange, 4, 64);
+        this.aiFollowRange = Mth.clamp(followRange, 2, 64);
     }
 
     private int computeActiveEffectSignature() {

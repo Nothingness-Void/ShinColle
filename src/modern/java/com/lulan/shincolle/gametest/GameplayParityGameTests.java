@@ -715,6 +715,144 @@ public final class GameplayParityGameTests {
 
 
     @GameTest(template = "empty")
+    public static void finalItemProtectionRingAndOpToolMatchLegacy(GameTestHelper helper) {
+        ItemEntity egg = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
+        if (egg == null) {
+            helper.fail("recovered item must instantiate");
+            return;
+        }
+        egg.setItem(new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(2).get()));
+        if (!egg.fireImmune() || egg.isAttackable()
+                || egg.hurt(helper.getLevel().damageSources().generic(), 100F)
+                || egg.hurt(helper.getLevel().damageSources().lava(), 100F)
+                || egg.hurt(helper.getLevel().damageSources().fellOutOfWorld(), 100F)) {
+            helper.fail("recovered eggs must reject all damage and be fire immune");
+            return;
+        }
+        CompoundTag saved = new CompoundTag();
+        egg.save(saved);
+        Entity restored = net.minecraft.world.entity.EntityType.loadEntityRecursive(saved, helper.getLevel(), entity -> entity);
+        if (!(restored instanceof ItemEntity item) || !item.fireImmune()
+                || item.hurt(helper.getLevel().damageSources().generic(), 100F)) {
+            helper.fail("recovered egg protection must survive entity reload");
+            return;
+        }
+        ItemStack ring = new ItemStack(ModItems.MARRIAGERING.get());
+        if (com.lulan.shincolle.item.MarriageRingItem.isActive(ring)) {
+            helper.fail("untagged rings must be inactive");
+            return;
+        }
+        ring.getOrCreateTag().putBoolean("isActive", true);
+        if (!com.lulan.shincolle.item.MarriageRingItem.isActive(ring)) {
+            helper.fail("legacy isActive ring NBT must be recognized");
+            return;
+        }
+        ServerPlayer player = makeServerBackedPlayer(helper, "FinalOpTool");
+        LegacyShipEntity ship = createOwnedShip(helper, player, 2, egg.getX(), egg.getY(), egg.getZ());
+        if (ship == null) return;
+        ItemStack tool = new ItemStack(ModItems.OPTOOL.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, tool);
+        String targetClass = TeitokuHelper.resolveTargetClass(ship);
+        boolean before = WorldCombatRulesSavedData.get(helper.getLevel()).isUnattackable(targetClass);
+        tool.getItem().interactLivingEntity(tool, player, ship, InteractionHand.MAIN_HAND);
+        if (before != WorldCombatRulesSavedData.get(helper.getLevel()).isUnattackable(targetClass)
+                || tool.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND).getResult().consumesAction()
+                || !com.lulan.shincolle.item.OpToolItem.isExcludedTarget(ship)) {
+            helper.fail("OPTool must not add right-click behavior or allow ship targets");
+            return;
+        }
+        ship.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void finalShipTankMachineTargetAndWrenchMemoryMatchLegacy(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "FinalTankWrench");
+        BlockPos machinePos = helper.absolutePos(new BlockPos(2, 2, 2));
+        helper.getLevel().setBlock(machinePos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), 3);
+        var machine = helper.getLevel().getBlockEntity(machinePos)
+                .getCapability(ForgeCapabilities.FLUID_HANDLER, Direction.UP).orElseThrow(IllegalStateException::new);
+        ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
+        var tankHandler = FluidUtil.getFluidHandler(tank).orElseThrow(IllegalStateException::new);
+        tankHandler.fill(new FluidStack(Fluids.LAVA, 1000), IFluidHandler.FluidAction.EXECUTE);
+        player.setItemInHand(InteractionHand.MAIN_HAND, tank);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(machinePos), Direction.UP, machinePos, false);
+        tank.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        if (machine.getFluidInTank(0).getAmount() != 0
+                || FluidUtil.getFluidContained(player.getMainHandItem()).map(FluidStack::getAmount).orElse(0) != 1000) {
+            helper.fail("legacy machine transfer must address the tank item itself, not fill the machine");
+            return;
+        }
+        machine.fill(new FluidStack(Fluids.LAVA, 1000), IFluidHandler.FluidAction.EXECUTE);
+        player.setShiftKeyDown(true);
+        tank.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        if (machine.getFluidInTank(0).getAmount() != 1000) {
+            helper.fail("sneaking must not drain the machine through the legacy item-targeted branch");
+            return;
+        }
+        var wrench = (com.lulan.shincolle.item.TargetWrenchItem) ModItems.TARGETWRENCH.get();
+        ItemStack first = new ItemStack(wrench);
+        ItemStack second = new ItemStack(wrench);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        wrench.selectTarget(helper.getLevel(), player, machinePos.above());
+        BlockPos cranePos = machinePos.offset(2, 0, 0);
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        wrench.selectTarget(helper.getLevel(), player, cranePos);
+        if (first.hasTag()) {
+            helper.fail("wrench selection must not be persisted in stack NBT");
+            return;
+        }
+        BlockPos chestPos = cranePos.offset(2, 0, 0);
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, second);
+        BlockPos selected = ((com.lulan.shincolle.item.TargetWrenchItem) second.getItem())
+                .selectTarget(helper.getLevel(), player, chestPos);
+        if (!cranePos.equals(selected)) {
+            helper.fail("wrench stacks must share client item selection without stack NBT");
+            return;
+        }
+        CompoundTag pair = new CompoundTag();
+        pair.put("First", net.minecraft.nbt.NbtUtils.writeBlockPos(selected));
+        pair.put("Second", net.minecraft.nbt.NbtUtils.writeBlockPos(chestPos));
+        GameplayCommandHandler.handle(player, GameplayCommandType.WRENCH_PAIR_TARGETS, pair);
+        if (!chestPos.equals(((CraneBlockEntity) helper.getLevel().getBlockEntity(cranePos)).getPairedChest())) {
+            helper.fail("wrench stacks must share the registered item's in-memory selection");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void finalShipEggPermissionsAndCollisionMatchLegacy(GameTestHelper helper) {
+        ServerPlayer denied = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "FinalEggDenied")) {
+            @Override
+            public boolean mayUseItemAt(BlockPos pos, Direction direction, ItemStack stack) { return false; }
+        };
+        BlockPos water = helper.absolutePos(new BlockPos(2, 2, 2));
+        helper.getLevel().setBlock(water, Blocks.WATER.defaultBlockState(), 3);
+        denied.moveTo(water.getX() + 0.5D, water.getY() + 1D, water.getZ() + 0.5D, 0F, 90F);
+        ItemStack egg = new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(2).get());
+        denied.setItemInHand(InteractionHand.MAIN_HAND, egg);
+        if (egg.getItem().use(helper.getLevel(), denied, InteractionHand.MAIN_HAND).getResult().consumesAction()
+                || egg.getCount() != 1) {
+            helper.fail("water deployment must obey explicit edit permission without consuming the egg");
+            return;
+        }
+        ServerPlayer owner = makeServerBackedPlayer(helper, "FinalEggCollision");
+        BlockPos ground = water.offset(3, 0, 0);
+        helper.getLevel().setBlock(ground, Blocks.STONE.defaultBlockState(), 3);
+        helper.getLevel().setBlock(ground.above(), Blocks.STONE.defaultBlockState(), 3);
+        owner.setItemInHand(InteractionHand.MAIN_HAND, egg);
+        if (!egg.useOn(new UseOnContext(owner, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(ground), Direction.UP, ground, false))).consumesAction()) {
+            helper.fail("legacy deployment must not add a collision rejection condition");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void morphSupportItemsKeepLegacyLimitsAndAircraft(GameTestHelper helper) {
         if (new ItemStack(ModItems.MODERNKIT.get()).getMaxStackSize() != 64
                 || new ItemStack(ModItems.TRAININGBOOK.get()).getMaxStackSize() != 64) {
@@ -1299,7 +1437,9 @@ public final class GameplayParityGameTests {
         }
         if (ship.getCraneState() != 0 || ship.getCraneTime() != 0
                 || !nextPos.equals(ship.getCommandedPos()) || ship.getAiFollowRange() != 2 || crane.getRedstoneTicks() <= 0) {
-            helper.fail("empty work must finish, reset crane timers, signal redstone and advance the route; EU without IC2 must not work");
+            helper.fail("empty work must finish, reset crane timers, signal redstone and advance the route; EU without IC2 must not work: state="
+                    + ship.getCraneState() + " time=" + ship.getCraneTime() + " command=" + ship.getCommandedPos()
+                    + " next=" + nextPos + " follow=" + ship.getAiFollowRange() + " redstone=" + crane.getRedstoneTicks());
             return;
         }
         CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);

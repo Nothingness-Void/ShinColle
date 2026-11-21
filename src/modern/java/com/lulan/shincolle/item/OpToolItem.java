@@ -1,25 +1,28 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
-import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 
 public class OpToolItem extends Item {
+
+    public static boolean isExcludedTarget(Entity entity) {
+        return entity instanceof LegacyShipEntity || entity instanceof LegacyMountEntity
+                || entity instanceof LegacyShipMountEntity || entity instanceof LegacyShipAircraftEntity
+                || entity instanceof LegacyShipRensouhouEntity;
+    }
 
     public OpToolItem(Properties properties) {
         super(properties);
@@ -37,29 +40,4 @@ public class OpToolItem extends Item {
         tooltip.add(Component.translatable("gui.shincolle.optool3").withStyle(ChatFormatting.GRAY));
     }
 
-    @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            List<String> blocked = new ArrayList<>(WorldCombatRulesSavedData.get(serverPlayer.serverLevel()).getAllUnattackableClasses());
-            if (blocked.isEmpty()) {
-                player.displayClientMessage(Component.literal("World unattackable list is empty"), false);
-            } else {
-                player.displayClientMessage(Component.literal("World unattackable: " + String.join(", ", blocked)), false);
-            }
-        }
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-    }
-
-    @Override
-    public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity interactionTarget, InteractionHand usedHand) {
-        if (player.level().isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
-            return InteractionResult.sidedSuccess(player.level().isClientSide());
-        }
-
-        String targetClass = TeitokuHelper.resolveTargetClass(interactionTarget);
-        boolean added = WorldCombatRulesSavedData.get(serverPlayer.serverLevel()).toggleUnattackable(targetClass);
-        player.displayClientMessage(Component.literal((added ? "Blocked " : "Allowed ") + targetClass), true);
-        return InteractionResult.CONSUME;
-    }
 }
