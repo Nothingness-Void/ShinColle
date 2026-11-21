@@ -6037,15 +6037,13 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void firstDestroyersAndRiKeepLegacyIdleSupplyAccounting(GameTestHelper helper) {
         ServerPlayer owner = makeServerBackedPlayer(helper, "Ship01IdleSupply");
-        LegacyShipEntity destroyer = createOwnedShip(helper, owner, 2, 2.5D, 2.0D, 2.5D);
+        // 避开共享测试实体，同时保持移动消耗检查所需的正 Y 坐标。
+        BlockPos origin = helper.absolutePos(new BlockPos(2, 100, 2));
+        LegacyShipEntity destroyer = createIdleSupplyShip(helper, owner, 2, origin);
         if (destroyer == null) {
             return;
         }
 
-        destroyer.setNoAi(true);
-        destroyer.setNoGravity(true);
-        destroyer.setInvulnerable(true);
-        destroyer.setAiAutoSupply(false);
         destroyer.setLightAmmo(0);
         destroyer.setHeavyAmmo(0);
         destroyer.setGrudge(1000);
@@ -6060,27 +6058,27 @@ public final class GameplayParityGameTests {
         if (destroyer.getLightAmmo() != 30
                 || destroyer.getHeavyAmmo() != 15
                 || destroyer.getGrudge() != 995
+                || destroyer.isLegacyOutOfCombat()
+                || destroyer.getMorale() != 3890
                 || !destroyer.getShipInventory().getItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT).isEmpty()
                 || !destroyer.getShipInventory().getItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1).isEmpty()) {
-            helper.fail("destroyer should reload one light and one heavy supply and pay idle grudge");
+            helper.fail("驱逐舰应各补给一件弹药、消耗 5 怨念，并在战斗窗口内扣除 10 士气");
             return;
         }
 
         destroyer.setPos(destroyer.getX() + 4.0D, destroyer.getY(), destroyer.getZ());
         destroyer.tickCount = 256;
         destroyer.tick();
-        if (destroyer.getGrudge() != 978 || destroyer.getMorale() != 3875) {
-            helper.fail("destroyer should pay legacy movement grudge and cumulative clamped morale cost: grudge="
-                    + destroyer.getGrudge() + ", morale=" + destroyer.getMorale());
+        if (destroyer.getGrudge() != 978 || !destroyer.isLegacyOutOfCombat() || destroyer.getMorale() != 3885) {
+            helper.fail("脱战后移动四格应额外消耗 12 怨念，士气只扣移动下限 5：怨念="
+                    + destroyer.getGrudge() + "，士气=" + destroyer.getMorale());
             return;
         }
 
-        LegacyShipEntity ri = createOwnedShip(helper, owner, 11, 8.5D, 2.0D, 2.5D);
+        LegacyShipEntity ri = createIdleSupplyShip(helper, owner, 11, origin.offset(6, 0, 0));
         if (ri == null) {
             return;
         }
-        ri.setNoAi(true);
-        ri.setAiAutoSupply(false);
         ri.setLightAmmo(0);
         ri.setHeavyAmmo(0);
         ri.setGrudge(1000);
@@ -6098,12 +6096,10 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        LegacyShipEntity normalGrudge = createOwnedShip(helper, owner, 2, 2.5D, 2.0D, 5.5D);
+        LegacyShipEntity normalGrudge = createIdleSupplyShip(helper, owner, 2, origin.offset(0, 0, 3));
         if (normalGrudge == null) {
             return;
         }
-        normalGrudge.setNoAi(true);
-        normalGrudge.setAiAutoSupply(false);
         normalGrudge.setLightAmmo(100);
         normalGrudge.setHeavyAmmo(100);
         normalGrudge.setGrudge(0);
@@ -6119,12 +6115,10 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        LegacyShipEntity blockGrudge = createOwnedShip(helper, owner, 2, 8.5D, 2.0D, 5.5D);
+        LegacyShipEntity blockGrudge = createIdleSupplyShip(helper, owner, 2, origin.offset(6, 0, 3));
         if (blockGrudge == null) {
             return;
         }
-        blockGrudge.setNoAi(true);
-        blockGrudge.setAiAutoSupply(false);
         blockGrudge.setLightAmmo(100);
         blockGrudge.setHeavyAmmo(100);
         blockGrudge.setGrudge(0);
@@ -6145,6 +6139,22 @@ public final class GameplayParityGameTests {
         normalGrudge.discard();
         blockGrudge.discard();
         helper.succeed();
+    }
+
+    private static LegacyShipEntity createIdleSupplyShip(
+            GameTestHelper helper, ServerPlayer owner, int eggMeta, BlockPos pos) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("无法创建舰娘补给测试的实体");
+            return null;
+        }
+        ship.setVariantEggMeta(eggMeta);
+        ship.setOwner(owner);
+        ship.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.setAiAutoSupply(false);
+        return ship;
     }
 
     @GameTest(template = "empty")
@@ -11071,9 +11081,10 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(41);
         ship.setNoAi(true);
-        ship.setPos(1.5D, 2.0D, 1.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
+        ship.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
         target.setNoAi(true);
-        target.setPos(7.5D, 2.0D, 1.5D);
+        target.setPos(ship.getX() + 6.0D, ship.getY(), ship.getZ());
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(target);
         ship.setLightAmmo(20);
@@ -11085,6 +11096,7 @@ public final class GameplayParityGameTests {
         ship.setUseAttackAirLight(false);
         ship.setUseAttackAirHeavy(false);
 
+        ship.getRandom().setSeed(0L);
         float healthBefore = target.getHealth();
         if (!ship.performPlayerCompatAttack(target, LegacyShipAttackKind.LIGHT)) {
             helper.fail("Ro500 light attack should launch with the legacy light ammo path");
@@ -11105,12 +11117,14 @@ public final class GameplayParityGameTests {
         // back to DIRECT when this launch's computed acceleration exceeds 0.15.
         LegacyShipProjectileMoveType expectedMoveType = LegacyShipProjectileMoveType.DIRECT;
         if (projectile.getProjectileVisual() != LegacyShipProjectileVisual.MISSILE
+                || projectile.isMissedShot()
                 || projectile.getMoveType() != expectedMoveType
                 || projectile.getIntendedTargetId() != target.getId()
                 || projectile.getImpactRadius() != 3.5D
                 || projectile.getKnockbackStrength() != 0.15D) {
             helper.fail("Ro500 missile mismatch: expectedMove=" + expectedMoveType
                     + ", actualMove=" + projectile.getMoveType()
+                    + "，脱靶=" + projectile.isMissedShot()
                     + ", depth=" + ship.getLegacyLiquidDepth()
                     + ", radius=" + projectile.getImpactRadius()
                     + ", knockback=" + projectile.getKnockbackStrength());
@@ -11126,6 +11140,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        projectile.discard();
+        ship.discard();
+        target.discard();
         helper.succeed();
     }
 
@@ -18112,21 +18129,33 @@ public final class GameplayParityGameTests {
         for (int i = 0; i < 121; i++) {
             ship.tick();
         }
+        Arrow arrow = EntityType.ARROW.create(level);
+        if (arrow == null) {
+            helper.fail("无法创建伤害抗性测试用的箭");
+            ship.discard();
+            return;
+        }
+        arrow.setPos(ship.getX(), ship.getY(), ship.getZ());
+        var arrowDamage = level.damageSources().arrow(arrow, arrow);
+        ship.setHealth(maxHp);
+        ship.invulnerableTime = 0;
+        ship.getRandom().setSeed(1L);
+        float hpBefore = ship.getHealth();
+        ship.hurt(arrowDamage, 20.0F);
+        float unresisted = hpBefore - ship.getHealth();
+
         ship.setHealth(maxHp);
         ship.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 200, 1));
-        Arrow arrow = EntityType.ARROW.create(level);
-        if (arrow != null) {
-            arrow.setPos(ship.getX(), ship.getY(), ship.getZ());
-            level.addFreshEntity(arrow);
-            float hpBefore = ship.getHealth();
-            ship.hurt(level.damageSources().arrow(arrow, arrow), 20.0F);
-            float taken = hpBefore - ship.getHealth();
-            arrow.discard();
-            if (taken > 13.0F) {
-                helper.fail("DAMAGE_RESISTANCE lv2 should mitigate projectile damage by 40% (taken=" + taken + ")");
-                ship.discard();
-                return;
-            }
+        ship.invulnerableTime = 0;
+        ship.getRandom().setSeed(1L);
+        hpBefore = ship.getHealth();
+        ship.hurt(arrowDamage, 20.0F);
+        float resisted = hpBefore - ship.getHealth();
+        if (unresisted <= 0.0F || Math.abs(resisted - unresisted * 0.6F) > 0.01F) {
+            helper.fail("二级伤害抗性应减免同一次防御随机结果的 40% 伤害：基准="
+                    + unresisted + "，抗性后=" + resisted);
+            ship.discard();
+            return;
         }
 
         if (ShinColleConfig.dmgSvS() <= 0) {
