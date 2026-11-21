@@ -2,6 +2,8 @@
 
 ## 2026-11-22
 
+- 战斗与投射物七项一致性复核及修复：[批次记录](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
 - 舰娘核心行为一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-core/)。
 
 ## 2026-11-18

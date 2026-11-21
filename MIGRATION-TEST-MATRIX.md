@@ -16,6 +16,8 @@
 
 ## 舰娘核心回归
 
+- 战斗与投射物：`launchMissStillResolvesAreaDamage` 覆盖脱靶/正常/空范围撞击，`invisibilityAndGlowingDoNotChangeCombatRolls` 覆盖隐身发光和装备冷却，`potionDamageUsesMaxHealthAndLevelWithoutDefense` 覆盖药水/药水云及 HARM 等级 0/1/2；已有友伤、伤害倍率、照明和弹道断言同步恢复旧版语义。JDK 17 运行 `./gradlew compileJava`、`./gradlew runGameTestServer`（脚本无执行位时用 `bash ./gradlew`），证据见 [战斗批次](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
 - `shipCoreRestoresLegacyNoFuelAndConfiguredSupplies`：零资源起点、资源不封顶、二级饥饿耗怨念五倍、断粮归零、配置补给及单件消耗。
 - 既有资源存档、炮击与航空消耗、128 刻士气和菜单用例按 1.12.2 行为断言。运行 JDK 17 的 `./gradlew compileJava` 与 `./gradlew runGameTestServer`；结果归档到 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md)。
 

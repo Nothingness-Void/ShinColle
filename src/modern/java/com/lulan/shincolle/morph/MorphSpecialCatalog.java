@@ -8,6 +8,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipStats;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.CombatReactType;
 import com.lulan.shincolle.network.GameplayParticleType;
+import com.lulan.shincolle.world.LightBlockHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -297,7 +298,7 @@ final class MorphSpecialCatalog {
                 damage, roll.miss(), roll.crit(), roll.doubleHit(), roll.tripleHit());
 
         if (illuminate) {
-            target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 60, 0, false, true, true));
+            LightBlockHelper.placeLightBlock(player.level(), target.blockPosition().above());
         }
 
         if (adjustedRoll.miss()) {

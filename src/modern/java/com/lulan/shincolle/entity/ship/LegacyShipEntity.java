@@ -23,6 +23,7 @@ import com.lulan.shincolle.entity.ship.goal.LegacyShipRangeTargetGoal;
 import com.lulan.shincolle.entity.projectile.LegacyShipBeamEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
+import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
@@ -76,6 +77,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ExperienceOrb;
@@ -97,6 +99,7 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -1394,7 +1397,27 @@ public class LegacyShipEntity extends PathfinderMob {
             }
             return false;
         }
-        if (damageSource.is(DamageTypes.MAGIC) || damageSource.is(DamageTypes.DRAGON_BREATH)) {
+        Entity directEntity = damageSource.getDirectEntity();
+        boolean potionDamage = directEntity instanceof ThrownPotion || directEntity instanceof AreaEffectCloud;
+        if (potionDamage) {
+            List<MobEffectInstance> effects;
+            if (directEntity instanceof ThrownPotion potion) {
+                effects = PotionUtils.getMobEffects(potion.getItem());
+            } else {
+                CompoundTag cloudTag = new CompoundTag();
+                directEntity.saveWithoutId(cloudTag);
+                effects = PotionUtils.getAllEffects(cloudTag);
+            }
+            int potionLevel = 0;
+            for (MobEffectInstance effect : effects) {
+                if (effect.getEffect() == MobEffects.HARM) {
+                    potionLevel = effect.getAmplifier() + 1;
+                    break;
+                }
+            }
+            amount += (Math.max(1F, this.getMaxHealth() * 0.01F) * 2F + 2F) * potionLevel;
+        }
+        if (!potionDamage && (damageSource.is(DamageTypes.MAGIC) || damageSource.is(DamageTypes.DRAGON_BREATH))) {
             if (amount < this.getMaxHealth() * 0.01F) {
                 return false;
             }
@@ -1402,7 +1425,6 @@ public class LegacyShipEntity extends PathfinderMob {
             return super.hurt(damageSource, amount);
         }
 
-        Entity directEntity = damageSource.getDirectEntity();
         Entity attacker = directEntity != null ? directEntity : damageSource.getEntity();
         Entity hurtSourceEntity = damageSource.getEntity() != null ? damageSource.getEntity() : attacker;
 
@@ -1412,8 +1434,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 this.setEmotion(1);
                 return super.hurt(damageSource, amount);
             }
-            if (!playerAttacker.getAbilities().instabuild
-                    && !this.isHostileVariant()
+            if (!this.isHostileVariant()
                     && !ShinColleConfig.friendlyFire()) {
                 return false;
             }
@@ -1433,9 +1454,6 @@ public class LegacyShipEntity extends PathfinderMob {
         if (!this.level().isClientSide() && hurtSourceEntity instanceof LegacyShipEntity attackerShip) {
             if (!LegacyShipBehaviorCatalog.isLegacyFriendlyFireAllowed(attackerShip, this)) {
                 return false;
-            }
-            if (!attackerShip.isHostileVariant()) {
-                amount *= ShinColleConfig.dmgSvS() * 0.01F;
             }
         }
 
@@ -1457,7 +1475,26 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        amount = LegacyShipCombatHelper.applyDefenseReduction(this.random, this.legacyStats, amount);
+        if (!potionDamage) {
+            amount = LegacyShipCombatHelper.applyDefenseReduction(this.random, this.legacyStats, amount);
+        }
+        LegacyShipEntity sourceShip = hurtSourceEntity instanceof LegacyShipEntity ship ? ship : null;
+        if (hurtSourceEntity instanceof LegacyShipRensouhouEntity summon) {
+            Entity host = this.level().getEntity(summon.getHostId());
+            sourceShip = host instanceof LegacyShipEntity ship ? ship : null;
+        } else if (hurtSourceEntity instanceof LegacyShipAircraftEntity aircraft) {
+            Entity host = this.level().getEntity(aircraft.getOwnerId());
+            sourceShip = host instanceof LegacyShipEntity ship ? ship : null;
+        } else if (hurtSourceEntity instanceof LegacyShipFloatingFortEntity fort) {
+            Entity host = this.level().getEntity(fort.getHostId());
+            sourceShip = host instanceof LegacyShipEntity ship ? ship : null;
+        } else if (hurtSourceEntity instanceof LegacyShipMountEntity mount) {
+            sourceShip = mount.getHostShip();
+        }
+        if (!this.level().isClientSide() && (sourceShip != null && sourceShip.getOwnerUid() > 0
+                || hurtSourceEntity instanceof LegacyMountEntity mount && mount.getOwnerUuid().isPresent())) {
+            amount *= ShinColleConfig.dmgSvS() * 0.01F;
+        }
 
         if (directEntity instanceof LegacyShipProjectileEntity) {
             MobEffectInstance resist = this.getEffect(MobEffects.DAMAGE_RESISTANCE);
@@ -2900,7 +2937,7 @@ public class LegacyShipEntity extends PathfinderMob {
     public int getCompatAttackAimTime() {
         int shipLevel = Math.min(150, this.getShipLevel());
         int baseAimTime = Mth.clamp((int) (20F * (150 - shipLevel) / 150F) + 10, 8, 30);
-        return Math.max(6, baseAimTime - this.equipmentBehaviorState.aimTimeReductionTicks(LegacyShipAttackKind.LIGHT));
+        return baseAimTime;
     }
 
     public float getCompatAttackRange() {
@@ -3863,7 +3900,6 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
         if (attackKind != LegacyShipAttackKind.MELEE && this.equipmentBehaviorState.flareLevel() > 0) {
-            this.applyIllumination(target, this.equipmentBehaviorState.flareDurationTicks());
             this.emitIlluminationFx(target, true);
         }
 
@@ -4264,6 +4300,24 @@ public class LegacyShipEntity extends PathfinderMob {
 
         this.markLegacyCombat();
 
+        if (attackKind == LegacyShipAttackKind.AIR_HEAVY) {
+            Entity launchSource = attackSource == null ? this : attackSource;
+            boolean missed = LegacyShipCombatHelper.rollMissAtDistance(this,
+                    LegacyShipAttackKind.HEAVY, launchSource.distanceTo(target));
+            LegacyShipProjectileProfile missileProfile = new LegacyShipProjectileProfile(
+                    LegacyShipProjectileVisual.MISSILE, LegacyShipProjectileMoveType.DIRECT,
+                    0.5D, 0F, 0.2F, 160, 0F, 0F,
+                    GameplayParticleType.LAUNCH_SMOKE, GameplayParticleType.MISSILE_TRAIL,
+                    GameplayParticleType.MISSILE_IMPACT);
+            Vec3 launchOffset = launchSource.position().subtract(this.position()).add(0D, -0.8D, 0D);
+            LegacyShipProjectileEntity missile = LegacyShipProjectileEntity.create(this.level(), this,
+                    target, attackKind, this.legacyStats.attackAirHeavy(), missed, missileProfile,
+                    null, 0.15D, true, 3.5D, launchOffset);
+            this.level().addFreshEntity(missile);
+            this.setLastHurtMob(target);
+            return true;
+        }
+
         LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, attackKind);
         if (roll.miss()) {
             this.setLastHurtMob(target);
@@ -4495,7 +4549,6 @@ public class LegacyShipEntity extends PathfinderMob {
         switch (actionType) {
             case AIR_ASSAULT -> {
                 acted = this.tryCompatAirAttack(target) || this.tryCompatCannonAttack(target);
-                this.applyIllumination(target, 40 + this.hostileRuntimeState.getPhase() * 20);
             }
             case CANNON_BURST -> {
                 acted = this.tryCompatCannonAttack(target);
@@ -6418,7 +6471,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         if (target != null) {
-            this.applyIllumination(target, this.equipmentBehaviorState.searchlightDurationTicks());
             this.emitIlluminationFx(target, false);
         }
     }
@@ -6440,10 +6492,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         return closest;
-    }
-
-    private void applyIllumination(LivingEntity target, int durationTicks) {
-        target.addEffect(new MobEffectInstance(MobEffects.GLOWING, durationTicks, 0, false, true, true));
     }
 
     private void emitIlluminationFx(LivingEntity target, boolean flareSource) {

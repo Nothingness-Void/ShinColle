@@ -105,13 +105,17 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
@@ -8375,6 +8379,137 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        Vec3 aim = projectiles.get(0).getLegacyTargetPosition();
+        double dy = aim.y - (target.getY() + target.getBbHeight()
+                * ship.getAttackProfile().projectileProfile(LegacyShipAttackKind.HEAVY).targetHeightFactor());
+        if (Math.abs(aim.x - target.getX()) > 5D || Math.abs(aim.z - target.getZ()) > 5D
+                || dy < 0D || dy > 5D) {
+            helper.fail("脱靶落点必须只按旧版 XZ ±5、Y +0~5 偏移");
+            return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void launchMissStillResolvesAreaDamage(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        ship.setVariantEggMeta(40);
+        ship.setShipLevel(150);
+        ship.setPos(helper.absoluteVec(new Vec3(1, 3, 1)));
+        target.setPos(helper.absoluteVec(new Vec3(5, 3, 1)));
+        target.setNoAi(true);
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(target);
+        for (boolean missed : new boolean[] {false, true}) {
+            target.invulnerableTime = 0;
+            target.setHealth(target.getMaxHealth());
+            LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(helper.getLevel(),
+                    ship, target, LegacyShipAttackKind.HEAVY, 8F, missed);
+            projectile.setPos(target.position());
+            helper.getLevel().addFreshEntity(projectile);
+            long hitSeed = 0;
+            for (; hitSeed < 10000; hitSeed++) {
+                ship.getRandom().setSeed(hitSeed);
+                if (!LegacyShipCombatHelper.rollProjectileImpactAttack(ship, target, 8F).miss()) break;
+            }
+            ship.getRandom().setSeed(hitSeed);
+            projectile.hurt(helper.getLevel().damageSources().magic(), 1F);
+            if (target.getHealth() >= target.getMaxHealth()) {
+                helper.fail("发射脱靶标记不得禁止撞击范围伤害，脱靶=" + missed);
+                return;
+            }
+        }
+        target.discard();
+        LegacyShipProjectileEntity empty = LegacyShipProjectileEntity.create(helper.getLevel(), ship,
+                null, LegacyShipAttackKind.HEAVY, 8F, true,
+                LegacyShipAttackProfile.legacyHeavyMissileProfile(), ship.position().add(30D, 0D, 0D),
+                0.15D, false, 3.5D);
+        empty.setPos(ship.position().add(30D, 0D, 0D));
+        helper.getLevel().addFreshEntity(empty);
+        if (!empty.hurt(helper.getLevel().damageSources().magic(), 1F) || !empty.isRemoved()) {
+            helper.fail("无目标的脱靶导弹也应正常结束撞击结算");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void invisibilityAndGlowingDoNotChangeCombatRolls(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
+        ship.setVariantEggMeta(40);
+        ship.setPos(helper.absoluteVec(new Vec3(1, 3, 1)));
+        target.setPos(helper.absoluteVec(new Vec3(5, 3, 1)));
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(target);
+        for (long seed = 0; seed < 128; seed++) {
+            target.removeAllEffects();
+            ship.getRandom().setSeed(seed);
+            var plain = LegacyShipCombatHelper.rollAttack(ship, target, LegacyShipAttackKind.LIGHT);
+            target.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 100));
+            target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100));
+            ship.getRandom().setSeed(seed);
+            var lit = LegacyShipCombatHelper.rollAttack(ship, target, LegacyShipAttackKind.LIGHT);
+            if (!plain.equals(lit)) {
+                helper.fail("目标隐身或发光不得改变命中或暴击结算");
+                return;
+            }
+        }
+        SimpleContainer gear = new SimpleContainer(LegacyShipEntity.SHIP_SLOT_COUNT);
+        gear.setItem(0, new ItemStack(ModItems.EQUIPRADAR_ITEMS.get(8).get()));
+        gear.setItem(1, new ItemStack(ModItems.EQUIPCATAPULT_ITEMS.get(3).get()));
+        var behavior = ShipEquipmentBehaviorState.fromInventory(gear, ShipArchetype.CARRIER);
+        for (var kind : LegacyShipAttackKind.values()) {
+            if (LegacyShipCombatHelper.attackDelay(ship.getLegacyStats(), behavior, kind)
+                    != LegacyShipCombatHelper.attackDelay(ship.getLegacyStats(), kind)) {
+                helper.fail("相同攻速不得再按装备类型缩短攻击间隔");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void potionDamageUsesMaxHealthAndLevelWithoutDefense(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        ship.setVariantEggMeta(40);
+        ship.setShipLevel(150);
+        ship.setPos(helper.absoluteVec(new Vec3(2, 3, 2)));
+        helper.getLevel().addFreshEntity(ship);
+        for (int level = 0; level <= 2; level++) {
+            for (boolean cloud : new boolean[] {false, true}) {
+                Entity direct;
+                if (cloud) {
+                    AreaEffectCloud area = new AreaEffectCloud(helper.getLevel(), ship.getX(), ship.getY(), ship.getZ());
+                    area.setPotion(level == 0 ? Potions.WATER : level == 1 ? Potions.HARMING : Potions.STRONG_HARMING);
+                    direct = area;
+                } else {
+                    ThrownPotion potion = new ThrownPotion(EntityType.POTION, helper.getLevel());
+                    potion.setItem(PotionUtils.setPotion(new ItemStack(Items.SPLASH_POTION),
+                            level == 0 ? Potions.WATER : level == 1 ? Potions.HARMING : Potions.STRONG_HARMING));
+                    direct = potion;
+                }
+                direct.setPos(ship.position());
+                ship.invulnerableTime = 0;
+                ship.setHealth(ship.getMaxHealth());
+                long seed = 0;
+                for (; seed < 10000; seed++) {
+                    ship.getRandom().setSeed(seed);
+                    if (ship.getRandom().nextFloat() > LegacyShipCombatHelper.calculateDodgeChance(ship, direct)) break;
+                }
+                ship.getRandom().setSeed(seed);
+                float expected = 6F + (Math.max(1F, ship.getMaxHealth() * 0.01F) * 2F + 2F) * level;
+                ship.hurt(helper.getLevel().damageSources().indirectMagic(direct, null), 6F);
+                float actual = ship.getMaxHealth() - ship.getHealth();
+                if (Math.abs(expected - actual) > 0.001F) {
+                    helper.fail("药水伤害应按最大生命和等级重算且不经 DEF：等级=" + level
+                            + "，药水云=" + cloud + "，期望=" + expected + "，实际=" + actual);
+                    return;
+                }
+            }
+        }
         helper.succeed();
     }
 
@@ -9109,8 +9244,7 @@ public final class GameplayParityGameTests {
         Vec3 legacyTargetPosition = projectile.getLegacyTargetPosition();
         Vec3 distanceVector = legacyTargetPosition.subtract(projectile.position());
         double distance = distanceVector.length();
-        double speed = projectileProfile.baseSpeed()
-                * ship.getEquipmentBehaviorState().projectileSpeedMultiplier(LegacyShipAttackKind.HEAVY);
+        double speed = ship.getEquipmentBehaviorState().legacyProjectileSpeed(projectileProfile.baseSpeed());
         Vec3 expectedMotion = distance <= 1.0E-7D || speed <= 1.0E-7D
                 ? Vec3.ZERO : distanceVector.normalize().scale(speed);
         LegacyShipProjectileMoveType expectedMoveType = projectileProfile.moveType();
@@ -11036,8 +11170,7 @@ public final class GameplayParityGameTests {
         double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
         double distance = Math.sqrt(horizontalDistance * horizontalDistance
                 + (targetY - launchY) * (targetY - launchY));
-        double speed = profile.baseSpeed()
-                * ship.getEquipmentBehaviorState().projectileSpeedMultiplier(LegacyShipAttackKind.LIGHT);
+        double speed = ship.getEquipmentBehaviorState().legacyProjectileSpeed(profile.baseSpeed());
         double additionalHeight = distance * profile.launchArcLift();
         double verticalDistance = Math.abs(launchY - targetY);
         double heightRatio = Math.sqrt(additionalHeight / (additionalHeight + verticalDistance));
@@ -16914,11 +17047,13 @@ public final class GameplayParityGameTests {
             ShinColleConfig.setTestOverride("friendlyFire", false);
             ownerShip.setHealth(ownerShip.getMaxHealth());
             rensouhou.setHealth(rensouhou.getMaxHealth());
+            neutral.getAbilities().instabuild = true;
             if (ownerShip.hurt(helper.getLevel().damageSources().playerAttack(neutral), 6.0F)
                     || rensouhou.hurt(helper.getLevel().damageSources().playerAttack(neutral), 6.0F)) {
                 helper.fail("friendlyFire=false should block non-owner player damage on ships and summons");
                 return;
             }
+            neutral.getAbilities().instabuild = false;
             if (!ownerShip.hurt(helper.getLevel().damageSources().playerAttack(owner), 6.0F)
                     || !rensouhou.hurt(helper.getLevel().damageSources().playerAttack(owner), 6.0F)) {
                 helper.fail("friendlyFire=false should still allow owner player hits on ships and summons");
@@ -16930,6 +17065,15 @@ public final class GameplayParityGameTests {
             bannedShip.invulnerableTime = 0;
             bannedShip.setHealth(bannedShip.getMaxHealth());
             float hpBeforeFull = bannedShip.getHealth();
+            ShinColleConfig.setTestOverride("dmgSvS", 100);
+            ownerShip.getRandom().setSeed(112L);
+            var rollAt100 = LegacyShipCombatHelper.rollAttack(ownerShip, bannedShip, LegacyShipAttackKind.HEAVY);
+            ShinColleConfig.setTestOverride("dmgSvS", 20);
+            ownerShip.getRandom().setSeed(112L);
+            if (!rollAt100.equals(LegacyShipCombatHelper.rollAttack(ownerShip, bannedShip, LegacyShipAttackKind.HEAVY))) {
+                helper.fail("dmgSvS 不得在攻击端重复缩放");
+                return;
+            }
             ShinColleConfig.setTestOverride("dmgSvS", 100);
             bannedShip.hurt(helper.getLevel().damageSources().mobAttack(ownerShip), 50.0F);
             float damageAt100 = hpBeforeFull - bannedShip.getHealth();
@@ -17415,6 +17559,10 @@ public final class GameplayParityGameTests {
             }
             if (findPlacedLightPos(level, target2Anchor.above()) == null) {
                 helper.fail("canFlare=true should place dynamic light block at illuminated target");
+                return;
+            }
+            if (target2.hasEffect(MobEffects.GLOWING)) {
+                helper.fail("照明弹只应产生光源，不得给目标添加战斗状态");
                 return;
             }
         } finally {

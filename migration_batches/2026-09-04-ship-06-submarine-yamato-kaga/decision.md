@@ -1,5 +1,7 @@
 # Batch Decision
 
+- **已撤销**：下表与实现记录中将“非伤害 miss”及投射物 miss 伤害边界视为旧版一致的部分；其他弹道、坐标和目标排除结论不变。更正见 [D-006](../../MIGRATION-DECISIONS.md#d-006投射物-miss-语义不可丢失)。
+
 - 结论：`COMPLETE (SP submarine/Yamato/Kaga boundary)`
 - 影响矩阵：class `38`、`39`、`44`、`46`、`47`
 - 关联模块：M2、M4、M5、M6、M7、M8

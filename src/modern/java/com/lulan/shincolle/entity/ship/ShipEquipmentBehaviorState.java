@@ -131,63 +131,6 @@ public record ShipEquipmentBehaviorState(
         return Mth.clamp(bonus, 0, 64);
     }
 
-    public float rangedAccuracyBonus(boolean flying, boolean undersea, boolean darkCombat, boolean illuminated) {
-        float bonus;
-        if (flying) {
-            bonus = this.airRadarLevel * 0.025F;
-        } else if (undersea) {
-            bonus = this.sonarLevel * 0.03F;
-        } else {
-            bonus = this.surfaceRadarLevel * 0.02F + this.fcsLevel * 0.025F;
-        }
-
-        if (darkCombat) {
-            bonus += this.searchlightLevel * 0.025F;
-        }
-
-        if (illuminated) {
-            bonus += this.flareLevel * 0.03F + this.searchlightLevel * 0.02F;
-        }
-
-        return Mth.clamp(bonus, 0.0F, 0.24F);
-    }
-
-    public float critBonus(boolean illuminated) {
-        float bonus = this.fcsLevel * 0.015F;
-        if (illuminated) {
-            bonus += this.flareLevel * 0.01F;
-        }
-        return Mth.clamp(bonus, 0.0F, 0.10F);
-    }
-
-    public float illuminatedDodgePenalty(boolean darkCombat) {
-        float penalty = this.flareLevel * 0.02F + this.searchlightLevel * 0.015F;
-        if (darkCombat) {
-            penalty += this.searchlightLevel * 0.015F;
-        }
-        return Mth.clamp(penalty, 0.0F, 0.16F);
-    }
-
-    public int aimTimeReductionTicks(LegacyShipAttackKind attackKind) {
-        int reduction = this.fcsLevel * 2;
-        if (attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY) {
-            reduction += this.catapultLevel * 2 + this.airRadarLevel;
-        } else if (attackKind != LegacyShipAttackKind.MELEE) {
-            reduction += this.surfaceRadarLevel;
-        }
-        return Mth.clamp(reduction, 0, 12);
-    }
-
-    public float attackDelayMultiplier(LegacyShipAttackKind attackKind) {
-        float reduction = 0.0F;
-        if (attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY) {
-            reduction += this.catapultLevel * 0.06F + this.airRadarLevel * 0.015F;
-        } else if (attackKind == LegacyShipAttackKind.LIGHT || attackKind == LegacyShipAttackKind.HEAVY) {
-            reduction += this.fcsLevel * 0.025F + this.surfaceRadarLevel * 0.015F;
-        }
-        return Mth.clamp(1.0F - reduction, 0.65F, 1.0F);
-    }
-
     public double followSpeedMultiplier() {
         return 1.0D + Mth.clamp(this.turbineLevel * 0.035D, 0.0D, 0.22D);
     }
@@ -196,31 +139,9 @@ public record ShipEquipmentBehaviorState(
         return 1.0D + Mth.clamp(this.turbineLevel * 0.045D, 0.0D, 0.30D);
     }
 
-    public double projectileSpeedMultiplier(LegacyShipAttackKind attackKind) {
-        double multiplier = 1.0D;
-        if (attackKind == LegacyShipAttackKind.LIGHT || attackKind == LegacyShipAttackKind.HEAVY) {
-            multiplier += this.torpedoSpeedLevel * 0.05D + this.fcsLevel * 0.02D;
-        } else if (attackKind == LegacyShipAttackKind.AIR_LIGHT || attackKind == LegacyShipAttackKind.AIR_HEAVY) {
-            multiplier += this.catapultLevel * 0.04D + this.airRadarLevel * 0.015D;
-        }
-        return Mth.clamp(multiplier, 1.0D, 1.35D);
-    }
-
     /** Mirrors EquipCalc's additive missile-speed bonus before launch. */
     public double legacyProjectileSpeed(double baseSpeed) {
         return Math.max(0.0D, baseSpeed) + this.torpedoSpeedLevel * 0.025D;
-    }
-
-    public double airGuidanceBlend() {
-        return Mth.clamp(0.18D + this.catapultLevel * 0.035D + this.airRadarLevel * 0.02D, 0.18D, 0.42D);
-    }
-
-    public int flareDurationTicks() {
-        return 40 + this.flareLevel * 20;
-    }
-
-    public int searchlightDurationTicks() {
-        return 50 + this.searchlightLevel * 20;
     }
 
     public int searchlightRange() {

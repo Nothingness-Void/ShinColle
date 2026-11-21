@@ -1,5 +1,7 @@
 # Decision Record: B3-MULTIPLAYER-TEAM
 
+- **已撤销**：本批中将创造模式玩家排除于 `friendlyFire` 免伤门禁之外，以及仅按“友好舰船”而非主人归属判断 `dmgSvS` 条件的决定；其他结论不变。复核与落实见 [战斗与投射物批次](../2026-11-22-parity-fix-combat-projectile/decision.md)。
+
 - 结论：`COMPLETED`（Part 1 与 Part 2 全部收口，全套 `286/286` GameTest 全绿通过）
 - 影响矩阵：M2、M3、M4、M6、M7、M8
 

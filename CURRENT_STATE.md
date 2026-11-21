@@ -12,6 +12,8 @@
 
 ## 当前任务
 
+- `devin/parity-fix-combat-projectile` 专题分支：用户指定的战斗/投射物一致性修复，范围见 [协议](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)，复核结论见 [批次决定](migration_batches/2026-11-22-parity-fix-combat-projectile/decision.md)，检查证据见 [验证结果](migration_batches/2026-11-22-parity-fix-combat-projectile/STATUS.md)。用户已授权提交并推送同名专题分支，保留 ship-core 基线。
+
 - `devin/parity-fix-ship-core` 专题分支：[舰娘核心一致性修复](migration_batches/2026-11-22-parity-fix-ship-core/) 已恢复旧版资源、士气与断粮行为，新增一项 GameTest；本批次验证以 [STATUS.md](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md) 为准。上方 298 项通过是此前基线的结果。
 
 - 当前阶段：**全量迁移已完成收口（SP mainline + B1–B6 Parity Backlog）**。V0 单人验收于 2026-09-16 由用户人工确认通过，M0-M9 全部为 `Done (SP mainline)`；2026-11-16～2026-11-18 已顺序完成 `GAMETEST-REPAIR-B4`（`91/91`）、`B5-ORE-TAGS`（`94/94`）、`GAMETEST-BACKFILL`（`276/276`）、`B1-GUI-PARITY`（`276/276`）、生存方块采集/信标 Tag 补全（`277/277`）、`B2-PACKET-PARITY`（`282/282`）、`B3-MULTIPLAYER-TEAM` Part 1+2（`286/286`）以及最终收官批次 `B6-INTERMOD-DETAILS`（9 条 `/ship*` Brigadier 指令、120-tick 动态光方块与 Searchlight/Flare 联动、`SystemConfig` 同步与全量 `ShinColleConfig` 接线、`PolyAsMnCondition` 与动态 Manganese 标签匹配、`ShipKills`/`Raiden` 角色标识与 Curios 反射软钩 → `289/289`，见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。
