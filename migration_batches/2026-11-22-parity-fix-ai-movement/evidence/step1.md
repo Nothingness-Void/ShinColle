@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../decision.md)为准。
+
 # AI movement parity — step 1
 
 Scope: independent FollowMin/FollowMax state, GUI drag bars, persistence and sync; server-effective teleport configuration. No commits. `src/main/**` remains read-only.

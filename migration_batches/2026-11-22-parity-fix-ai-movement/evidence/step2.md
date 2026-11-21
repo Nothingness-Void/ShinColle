@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../decision.md)为准。
+
 # AI movement parity — step 2
 
 Scope: port EntityAIShipFollowOwner's predicates, cached distance/target, 10-tick initial and 32-tick subsequent path requests at speed 1, two teleport counters, and formation standing positions/owner-only markers. Provide reusable standing-position and safe-block helpers for the next guard step; do not rewrite guard AI. Read-only legacy references: ai/EntityAIShipFollowOwner.java:62-290, utility/EntityHelper.java:2179-2239, utility/FormationHelper.java:814-922, utility/BlockHelper.java:52-150,258-273. Modern entry points: LegacyShipFollowOwnerGoal, LegacyShipEntity.registerGoals, formation/LegacyFormationHelper, existing particle packet bus. Checks: compileJava and existing GameTest suite; no client launch or commits.

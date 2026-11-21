@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../../decision.md)为准。
+
 # 第5步完成
 
 最终验收：compileJava通过1m28s；GameTest319/319通过3m19s，失败0。详见results/verification.md。客户端视觉未验证；飞机/坐骑及debug路径粒子边界见decision.md。

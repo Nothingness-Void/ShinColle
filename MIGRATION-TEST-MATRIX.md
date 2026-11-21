@@ -16,6 +16,18 @@
 
 ## 舰娘核心回归
 
+### AI移动与目标回归
+
+- 完整服务端套件规模为 **319项GameTest**（本批次代码完成时的覆盖规模，不是文档整理重跑结果）；历史实测输出归 [AI批次STATUS](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)。
+- 状态/跟随/传送：独立FollowMin/Max默认、范围、NBT与同步；Min/Max加宽度与PickItem距离，32tick缓存/寻路，严格传送冷却、精确Y+0.75、未加载区块拒绝及正常/缺失主人。
+- 阵型/守卫/路线：安全扫描成功与无落脚点回退、无效槽位、实体阵型位置、min/max迟滞、GuardType存档、仅移动且type>0攻击、旧瞄准公式、维度取消、路点/起重机16/32/128tick调度和距离边界。
+- 目标/杂项：Selector正常/空/失效目标与显式攻击入口分离；一船一玩家的确定候选和超过2候选时最近3随机（64种子）；碰撞宽²×16与冷却；游荡1/180、友10/5敌12/1及状态禁用；守卫/有目标时可拾取和旧音量配置。
+- 真实3D移动新增：`shipNavigatorMovesUpThroughWater`、`shipNavigatorMovesDownThroughWater`、`shipNavigatorFliesWithoutGravity`、`shipNavigatorRejectsUnavailablePathsAndClearsStoppedPaths`。要求生成包含垂直边的水面/水下路径并实际接近目标，canFly静止不受重力且实际飞向高处；null/empty/blocked路径与坐下清除有显式断言。不能只凭“路径非空”声称移动验证通过。
+- 行为/共享helper修改触发T1/T2：JDK17下 `bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`，全部required通过且失败0。仅文档移动/链接更新不触发GameTest重跑；执行T0与相对链接/旧路径残留检查。
+- 319项服务端回归不覆盖飞机/坐骑3D接线、debug路径粒子和客户端视觉；边界见 [批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。
+
+### 战斗、投射物与资源回归
+
 - 战斗与投射物：`launchMissStillResolvesAreaDamage` 覆盖脱靶/正常/空范围撞击，`invisibilityAndGlowingDoNotChangeCombatRolls` 覆盖隐身发光和装备冷却，`potionDamageUsesMaxHealthAndLevelWithoutDefense` 覆盖药水/药水云及 HARM 等级 0/1/2；已有友伤、伤害倍率、照明和弹道断言同步恢复旧版语义。JDK 17 运行 `./gradlew compileJava`、`./gradlew runGameTestServer`（脚本无执行位时用 `bash ./gradlew`），证据见 [战斗批次](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
 
 - `shipCoreRestoresLegacyNoFuelAndConfiguredSupplies`：零资源起点、资源不封顶、二级饥饿耗怨念五倍、断粮归零、配置补给及单件消耗。

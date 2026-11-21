@@ -6,9 +6,10 @@
   uses the integer attack range for its horizontal search box, and falls back
   to `max(2, FollowMax + 2)` when that integer range is below two. The legacy
   base default is `FollowMax = 12`, so the effective fallback is `14`.
-- Modern `aiFollowRange` already carries that effective compatibility default.
+- **已撤销（仅此现代状态等价认可）**：Modern `aiFollowRange` already carries that effective compatibility default.
   `getHostileTargetSearchRange()` now uses it only for the same low-range case;
   normal hostile bosses continue to use the integer compatibility attack range.
+  该段现代读取方式已被[AI移动批次](../2026-11-22-parity-fix-ai-movement/decision.md)替代；上文旧版低射程回退规则不因此撤销。
 - Legacy hostile Tenryuu and Tatsuta skill replacement searches use fixed
   `8` and `13` block AABBs respectively, with `TargetHelper.SelectorForHostile`.
   The modern catalog now keeps that skill search radius separate from the

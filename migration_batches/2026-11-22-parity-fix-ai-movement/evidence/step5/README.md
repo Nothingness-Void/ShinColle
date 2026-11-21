@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../../decision.md)为准。
+
 # 舰船3D导航
 
 入口：protocol.md（冻结范围）、decision.md（API适配和边界）、STATUS.md（执行记录）、results/（验收）。

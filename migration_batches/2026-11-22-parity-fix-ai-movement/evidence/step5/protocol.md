@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../../decision.md)为准。
+
 # 舰船3D水空寻路冻结协议
 
 只改src/modern与文档，不改src/main。逐行适配旧自定义六类，不使用vanilla PathFinder/NodeEvaluator替代。

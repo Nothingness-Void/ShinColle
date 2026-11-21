@@ -55,3 +55,23 @@
 - **已撤销**：[2026-11-18 再审决定](migration_batches/2026-11-18-full-ship-behavior-reaudit/decision.md)第 3 项中的现代士气阈值。
 - **已撤销**：`91a3796` 引入的独立舰娘燃料、依其判定断粮以及用现代上限判定补给档位的做法。不影响造船厂等其他模块的燃料。
 - 旧版依据与落实见 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/decision.md)。
+
+## D-013：AI移动与目标的现代偏离已撤销
+
+以下现代偏离实现/历史认可均 **已撤销**，不再作为后续迁移依据。逐条旧版证据、纠正结果和未实现边界只保存在 [AI移动批次](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md) 与 [13项审计](migration_batches/2026-11-22-parity-fix-ai-movement/evidence/audit-13.md)，不在根文档复制算法结论。
+
+| 已撤销项 | 历史记录核查与替代入口 |
+| --- | --- |
+| 单一aiFollowRange及其等价默认值推断 | [hostile-target-range决定](migration_batches/2026-09-04-hostile-target-range/decision.md)中明确认可已撤销；审计1 |
+| 狼式跟随、外圈传送落点、额外指令门槛与装备速度公式 | 撤销旧现代实现的迁移口径；审计3；未发现单独明确批准“狼式跟随”的旧decision条目，不虚构历史编号 |
+| 守卫每tick moveTo、固定半径、Y+0.1与commandSpeed | 撤销旧现代移动规则；[SHIP-02历史记录](migration_batches/2026-09-03-ship-02-command-route-target/decision.md)不再能证明完整守卫等价；审计5 |
+| CLIENT canTeleport | 撤销客户端配置归属；[全舰再审的canTeleport接线记录](migration_batches/2026-11-18-full-ship-behavior-reaudit/decision.md)不能继续作为配置归属已等价的证明；审计2 |
+| vanilla GroundPathNavigation足以替代舰船水/空导航 | 撤销该实现假设；审计13，保留旧版明确的vanilla路径清理用途，不等于删除整个原版navigator |
+| 主人联动OwnerHurtBy/OwnerHurt目标Goal与伤害记忆捷径 | [B3多人批次Goal接线记录](migration_batches/2026-11-17-b3-multiplayer-team/decision.md)的保留口径已撤销；审计7/8 |
+| 独立玩家优先Goal | [SP-CLOSE目标等价认可](migration_batches/2026-09-04-sp-close-singleplayer-mainline/decision.md#hostile-target-and-feedback-audit)的该部分已撤销；审计9 |
+| MeleeAttackGoal与舰种近战距离表 | 撤销旧现代替代实现；审计10 |
+| RandomStrollGoal及现代触发/速度 | 撤销旧现代替代实现；审计11 |
+| 守卫20tick预热、瞄准下限与装备缩减公式 | 撤销旧现代公式；审计6 |
+| 拾取的combat/无指令/无目标额外门槛 | 撤销旧现代限制；审计12；FollowMax范围复核已匹配，不制造重复变更 |
+
+没有在旧decision中找到明确认可的项目按“撤销现代实现假设”记录，不将协议read-set中的类名列举误说成设计决定。旧批次过程与结果保留历史语境，冲突部分已在原决定标注撤销并链接本批次。

@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../../decision.md)为准。
+
 # 决策与边界
 
 - IntHashMap适配FastUtil Int2ObjectOpenHashMap；ChunkCache适配PathNavigationRegion；旧Material液体适配FluidState，门的铁/木分类使用DoorBlock.type().canOpenByHand；碰撞外形使用VoxelShape.bounds，空形状沿用旧默认整格高度。

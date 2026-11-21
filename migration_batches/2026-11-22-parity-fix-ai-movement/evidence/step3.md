@@ -1,3 +1,5 @@
+> 历史步骤证据：保留当时的指令、失败和待办语境；最终结论与后续交付以[统一批次决定](../decision.md)为准。
+
 # AI movement parity — step 3
 
 Scope: first isolate guardTargetUsesLegacyGuardingBounds; restore EntityAIShipGuarding movement/teleport/formation and moving-only guard attacks. Read-only sources: ai/EntityAIShipGuarding.java:115-531, ai/EntityAIShipRangeTarget.java:70-145,195-205; route/crane arrival handling is checked against its separate legacy handlers. Modern entries: LegacyShipGuardGoal, LegacyShipEntity.tickCommandState and guard predicates, LegacyShipBehaviorCatalog.findLegacyRangeTarget. Reuse step 2 formation and teleport helpers. Existing step 1/2 modifications remain untouched except where this step explicitly replaces behavior. Checks: compileJava and runGameTestServer. No commits, no legacy edits.

@@ -1,14 +1,17 @@
 # Current State
 
-## 当前追加批次：AI移动与目标一致性
+<a id="当前任务"></a>
 
-- 用户指定分支 `devin/parity-fix-ai-movement`；第1—3步已本地提交 `e2c9a74`（311/311 GameTest）。
-- 第4步目标、碰撞近战、游荡与拾取已完成，最终315/315 GameTest通过；混合列表失败实证为额外遗留舰候选，已修fixture，未改生产随机规则。见[批次](migration_batches/2026-11-21-parity-fix-ai-targets/README.md)与[检查状态](migration_batches/2026-11-21-parity-fix-ai-targets/STATUS.md)。仅本地提交，不push；下一步等待用户指令。
+## 当前专题批次：AI移动与目标一致性
+
+- 用户指定分支 `devin/parity-fix-ai-movement`；第1—5步已提交并推送，最近实现提交 `1dcd150`。当前第6步仅文档收尾，不修改代码/资源，不重跑GameTest。
+- 统一入口：[批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)、[最近实现验证证据](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)、[测试矩阵](MIGRATION-TEST-MATRIX.md)、[撤销决定](MIGRATION-DECISIONS.md#d-013ai移动与目标的现代偏离已撤销)。工作区边界为本次文档归并与引用修正，src/main继续只读。
+- 文档收尾无已知阻塞；不晋级客户端/多人或飞机坐骑验收，未接入项与粒子降级只见[批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。唯一下一步入口仍为[ROADMAP.md](ROADMAP.md)，不另立队列；完成用户授权的提交推送后停止。
 - 下方保留此前主线的基线快照；不以旧分支和旧测试数量覆盖当前批次证据。不晋级全舰种/客户端验收状态。
 
 本文件是迁移项目的当前事实唯一来源，也是压缩或换人后的最小交接快照。历史结论见 [MIGRATION-CHANGELOG.md](MIGRATION-CHANGELOG.md)，下一步只看 [ROADMAP.md](ROADMAP.md)。发生冲突时，以本文件为准。
 
-## 快照
+## 此前主线快照（历史，不是当前专题分支）
 
 - 分支：`codex/mc-1.20.1`
 - 基线提交：`3c9fe42d`，`v0.0.2-alpha`
@@ -16,7 +19,7 @@
 - legacy：`src/main/java`、`src/main/resources` 未作为实现目标，继续只读。
 - 当前完成口径：单人主线（M0-M9 + V0）与完整 1.12 parity backlog（B1–B6）均已全面收口（[ROADMAP.md](ROADMAP.md) 当前指针为 `NONE`）。
 
-## 当前任务
+## 此前主线任务记录（历史）
 
 - `devin/parity-fix-combat-projectile` 专题分支：用户指定的战斗/投射物一致性修复，范围见 [协议](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)，复核结论见 [批次决定](migration_batches/2026-11-22-parity-fix-combat-projectile/decision.md)，检查证据见 [验证结果](migration_batches/2026-11-22-parity-fix-combat-projectile/STATUS.md)。用户已授权提交并推送同名专题分支，保留 ship-core 基线。
 
