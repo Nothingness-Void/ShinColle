@@ -2,6 +2,7 @@ package com.lulan.shincolle.entity.ship.goal;
 
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -85,15 +86,14 @@ public class LegacyShipPickItemGoal extends Goal {
     }
 
     private boolean canRunPickupLogic() {
-        return this.ship.canExecuteCombatGoal()
-                && !this.ship.isHostileVariant()
+        return !this.ship.isHostileVariant()
                 && LegacyShipBehaviorCatalog.supportsItemPickup(this.ship.getSpec())
                 && this.ship.isAiPickItem()
                 && !this.ship.isOrderedToSit()
                 && !this.ship.isPassenger()
                 && !this.ship.hasNoFuel()
-                && !this.ship.hasActiveCommandState()
-                && this.ship.getTarget() == null
+                && this.ship.getLegacyCraneState() < 1
+                && this.ship.getFishingHook() == null
                 && this.hasAnyCargoSpace();
     }
 
@@ -152,7 +152,7 @@ public class LegacyShipPickItemGoal extends Goal {
         stack.shrink(moved);
         this.ship.take(this.targetItem, moved);
         this.ship.level().playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
-                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), 1.0F,
+                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), (float) ShinColleConfig.volumeShip(),
                 ((this.ship.getRandom().nextFloat() - this.ship.getRandom().nextFloat()) * 0.7F + 1.0F) * 2.0F);
         this.ship.playLegacyItemPickupVoice();
         this.ship.addShipExperience(LegacyShipBehaviorCatalog.pickupExperience());

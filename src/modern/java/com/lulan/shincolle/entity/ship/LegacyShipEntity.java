@@ -13,10 +13,9 @@ import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFloatGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFollowOwnerGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipGuardGoal;
-import com.lulan.shincolle.entity.ship.goal.LegacyShipHostilePlayerTargetGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipAttackOnCollideGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipOpenDoorGoal;
-import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtByTargetGoal;
-import com.lulan.shincolle.entity.ship.goal.LegacyShipOwnerHurtTargetGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipWanderGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangedAttackGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangeTargetGoal;
@@ -92,12 +91,11 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.food.FoodProperties;
@@ -526,6 +524,12 @@ public class LegacyShipEntity extends PathfinderMob {
     private int routeWaitTicks;
     private int legacyCraneState;
     private int legacyGuardType;
+    @Nullable
+    private LegacyShipAttackOnCollideGoal meleeGoal;
+    private boolean meleeGoalRegistered;
+    @Nullable
+    private LegacyShipWanderGoal wanderGoal;
+    private int wanderPriority;
     private int waypointStayMode;
     private int routeTransferCooldown;
     private boolean routePreferLoad = true;
@@ -663,57 +667,14 @@ public class LegacyShipEntity extends PathfinderMob {
         this.goalSelector.addGoal(1, new LegacyShipFleeGoal(this));
         this.goalSelector.addGoal(1, new LegacyShipGuardGoal(this));
         this.goalSelector.addGoal(2, new LegacyShipRangedAttackGoal(this, 1.0D));
-        this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.0D, true) {
-            @Override
-            public boolean canUse() {
-                LivingEntity target = LegacyShipEntity.this.getTarget();
-                return LegacyShipEntity.this.canExecuteCombatGoal()
-                        && LegacyShipEntity.this.useAttackMelee()
-                        && !LegacyShipEntity.this.isPassengerOfLegacyShipMount()
-                        && target != null
-                        && LegacyShipEntity.this.canEngage(target)
-                        && super.canUse();
-            }
-
-            @Override
-            public boolean canContinueToUse() {
-                LivingEntity target = LegacyShipEntity.this.getTarget();
-                return LegacyShipEntity.this.canExecuteCombatGoal()
-                        && LegacyShipEntity.this.useAttackMelee()
-                        && !LegacyShipEntity.this.isPassengerOfLegacyShipMount()
-                        && target != null
-                        && LegacyShipEntity.this.canEngage(target)
-                        && super.canContinueToUse();
-            }
-
-            @Override
-            protected double getAttackReachSqr(LivingEntity target) {
-                double reach = switch (LegacyShipEntity.this.getSpec().archetype()) {
-                    case DESTROYER, SUBMARINE -> 2.2D;
-                    case CRUISER, TRANSPORT -> 2.6D;
-                    case BATTLESHIP, CARRIER -> 2.9D;
-                    case PRINCESS -> 3.2D;
-                    case INSTALLATION -> 3.6D;
-                };
-
-                return reach * reach + target.getBbWidth();
-            }
-        });
+        this.meleeGoal = new LegacyShipAttackOnCollideGoal(this, 1.0D);
         this.goalSelector.addGoal(4, new LegacyShipFollowOwnerGoal(this));
         this.goalSelector.addGoal(5, new LegacyShipPickItemGoal(this, 1.0D));
-        this.goalSelector.addGoal(6, new RandomStrollGoal(this, 0.9D) {
-            @Override
-            public boolean canUse() {
-                return !LegacyShipEntity.this.isOrderedToSit() && super.canUse();
-            }
-
-            @Override
-            public boolean canContinueToUse() {
-                return !LegacyShipEntity.this.isOrderedToSit() && super.canContinueToUse();
-            }
-        });
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 8.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        this.wanderGoal = new LegacyShipWanderGoal(this);
+        this.wanderPriority = 24;
+        this.goalSelector.addGoal(this.wanderPriority, this.wanderGoal);
+        this.goalSelector.addGoal(25, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        this.goalSelector.addGoal(26, new RandomLookAroundGoal(this));
         this.goalSelector.addGoal(8, new LegacyShipOpenDoorGoal(this, true));
         this.targetSelector.addGoal(0, new HurtByTargetGoal(this) {
             @Override
@@ -738,9 +699,6 @@ public class LegacyShipEntity extends PathfinderMob {
                         : LegacyShipEntity.this.canCommandOrRevengeEngage(target);
             }
         });
-        this.targetSelector.addGoal(1, new LegacyShipOwnerHurtByTargetGoal(this));
-        this.targetSelector.addGoal(2, new LegacyShipOwnerHurtTargetGoal(this));
-        this.targetSelector.addGoal(1, new LegacyShipHostilePlayerTargetGoal(this));
         this.targetSelector.addGoal(3, new LegacyShipRangeTargetGoal(this));
     }
 
@@ -1355,7 +1313,15 @@ public class LegacyShipEntity extends PathfinderMob {
 
     @Override
     public boolean doHurtTarget(Entity target) {
-        if (!(target instanceof LivingEntity livingTarget) || this.meleeAttackCooldown > 0) {
+        return this.performMeleeAttack(target, true);
+    }
+
+    public boolean performCollideAttack(LivingEntity target) {
+        return this.performMeleeAttack(target, false);
+    }
+
+    private boolean performMeleeAttack(Entity target, boolean checkCooldown) {
+        if (!(target instanceof LivingEntity livingTarget) || (checkCooldown && this.meleeAttackCooldown > 0)) {
             return false;
         }
 
@@ -2240,7 +2206,23 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public void setUseAttackMelee(boolean enabled) {
         this.entityData.set(DATA_USE_MELEE, enabled);
+        this.updateMeleeGoal();
         this.setPersistenceRequired();
+    }
+
+    private void updateMeleeGoal() {
+        if (this.meleeGoal == null || this.level().isClientSide()) {
+            return;
+        }
+        boolean enabled = this.useAttackMelee() && !this.isHostileVariant();
+        if (enabled != this.meleeGoalRegistered) {
+            if (enabled) {
+                this.goalSelector.addGoal(15, this.meleeGoal);
+            } else {
+                this.goalSelector.removeGoal(this.meleeGoal);
+            }
+            this.meleeGoalRegistered = enabled;
+        }
     }
 
     /** Legacy ShipFlags.AmmoL controls the autonomous light cannon channel. */
@@ -3062,7 +3044,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public CompatAttackFailureReason getCompatAttackFailureReason(@Nullable LivingEntity target,
                                                                   LegacyShipAttackKind attackKind) {
-        if (target == null || !this.canEngage(target)) {
+        if (target == null || !this.canAttackLegacyTarget(target)) {
             return CompatAttackFailureReason.TARGET_INVALID;
         }
         if (!this.canUseCompatAttack(attackKind)) {
@@ -3155,12 +3137,16 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public boolean canEngage(@Nullable LivingEntity target) {
-        return this.canEngage(target, true);
+        return this.canSelectLegacyTarget(target);
+    }
+
+    private boolean canAttackLegacyTarget(@Nullable LivingEntity target) {
+        return this.canCommandOrRevengeEngage(target);
     }
 
     /** Keeps the legacy skill replacement search radius separate from the normal target leash. */
     boolean canEngageIgnoringHostileTargetRange(@Nullable LivingEntity target) {
-        return this.canEngage(target, false);
+        return this.canSelectLegacyTarget(target);
     }
 
     public boolean canCommandOrRevengeEngage(@Nullable LivingEntity target) {
@@ -3183,110 +3169,68 @@ public class LegacyShipEntity extends PathfinderMob {
         return true;
     }
 
-    private boolean canEngage(@Nullable LivingEntity target, boolean enforceHostileTargetRange) {
-        boolean mode3PlayerTarget = target instanceof Player && !this.isHostileVariant() && ShinColleConfig.shipAttackPlayer() == 3;
-        if (target == null || !target.isAlive() || target == this || (!mode3PlayerTarget && this.isAlliedTo(target))) {
+    private boolean canSelectLegacyTarget(@Nullable LivingEntity target) {
+        if (target == null || !target.isAlive() || target == this) {
             return false;
+        }
+        if (target instanceof Player player) {
+            if (player.getAbilities().invulnerable || player.isCreative() || player.isSpectator()) {
+                return false;
+            }
+            if (this.isHostileVariant()) {
+                return ShinColleConfig.mobAttackPlayer();
+            }
+            boolean allowed = switch (ShinColleConfig.shipAttackPlayer()) {
+                case 0 -> false;
+                case 1 -> this.isLegacyBannedTarget(player);
+                case 2 -> !this.isAlliedTo(player);
+                case 3 -> !this.isOwnedBy(player);
+                default -> false;
+            };
+            if (allowed) {
+                return true;
+            }
         }
         if (this.level() instanceof ServerLevel serverLevel
                 && WorldCombatRulesSavedData.get(serverLevel).isUnattackable(TeitokuHelper.resolveTargetClass(target))) {
             return false;
         }
-
-        Player owner = this.getOwnerPlayer();
-
-        if (enforceHostileTargetRange && this.isHostileVariant() && !this.isWithinHostileTargetRange(target)) {
-            return false;
-        }
-
-        if (!this.isHostileVariant() && target == this.getTarget()) {
-            return this.canCommandOrRevengeEngage(target);
-        }
-
-        if (target instanceof Player player) {
-            // 1.12 TargetHelper uses capabilities.disableDamage.  In modern
-            // Minecraft creative mode can expose that state through the
-            // game-mode flag before the ability mirror is refreshed.
-            if (player.getAbilities().invulnerable || player.isCreative() || player.isSpectator()) {
-                return false;
-            }
-
-            if (this.isHostileVariant()) {
-                return ShinColleConfig.mobAttackPlayer();
-            }
-
-            if (this.isOwnedBy(player)) {
-                return false;
-            }
-
-            return switch (ShinColleConfig.shipAttackPlayer()) {
-                case 0 -> false;
-                case 1 -> {
-                    if (this.level() instanceof ServerLevel serverLevel) {
-                        int targetOwnerUid = TeitokuHelper.getPlayerUid(player);
-                        yield this.ownerUid > 0 && targetOwnerUid > 0 && TeitokuHelper.isBanned(serverLevel, this.ownerUid, targetOwnerUid);
-                    }
-                    yield false;
-                }
-                case 2 -> !this.isAlliedTo(player);
-                case 3 -> true;
-                default -> false;
-            };
-        }
-
         if (!LegacyShipBehaviorCatalog.canTargetLegacyInvisibleEntity(this, target)) {
             return false;
         }
-
-        if (target instanceof LegacyShipEntity otherShip) {
-            if (this.isHostileVariant() != otherShip.isHostileVariant()) {
-                return true;
+        if (this.isHostileVariant()) {
+            if (target instanceof LegacyShipEntity ship) {
+                return !ship.isHostileVariant();
             }
-
-            if (this.isHostileVariant()) {
-                return false;
-            }
-
-            if (!this.aiAllowPvp) {
-                return false;
-            }
-
-            if (this.level() instanceof ServerLevel serverLevel) {
-                return this.ownerUid > 0
-                        && otherShip.ownerUid > 0
-                        && TeitokuHelper.isBanned(serverLevel, this.ownerUid, otherShip.ownerUid);
+            if (target instanceof LegacyShipRensouhouEntity summon) {
+                Entity host = this.level().getEntity(summon.getHostId());
+                return host != null && !this.isAlliedTo(host);
             }
             return false;
         }
-
-        if (!this.isHostileVariant()
-                && this.isAiAntiAir()
-                && LegacyShipCombatHelper.isFlyingTarget(target)) {
+        if (this.isAiOnSightChase() && !this.getSensing().hasLineOfSight(target)) {
+            return false;
+        }
+        if (LegacyShipBehaviorCatalog.isLegacyUnderseaTarget(target)) {
+            return this.isAiAntiSub() && this.isLegacyBannedTarget(target);
+        }
+        if (this.isAiPvpFirst() && target instanceof LegacyShipEntity && this.isLegacyBannedTarget(target)) {
             return true;
         }
+        return target instanceof Monster || target instanceof Slime
+                || LegacyShipBehaviorCatalog.isExplicitCustomTarget(this, target);
+    }
 
-        if (this.isHostileVariant()) {
+    private boolean isLegacyBannedTarget(LivingEntity target) {
+        if (target instanceof LegacyShipEntity ship && ship.isHostileVariant()) {
             return true;
         }
-
-        if (target instanceof Enemy) {
-            return true;
+        if (this.level() instanceof ServerLevel serverLevel) {
+            int targetOwner = target instanceof Player player ? TeitokuHelper.getPlayerUid(player)
+                    : target instanceof LegacyShipEntity ship ? ship.ownerUid : 0;
+            return this.ownerUid > 0 && targetOwner > 0
+                    && TeitokuHelper.isBanned(serverLevel, this.ownerUid, targetOwner);
         }
-
-        if (owner != null) {
-            if (target == owner.getLastHurtMob() || target == owner.getLastHurtByMob()) {
-                return true;
-            }
-
-            if (owner.equals(target.getLastHurtByMob())) {
-                return true;
-            }
-
-            if (target instanceof Mob mob && mob.getTarget() == owner) {
-                return true;
-            }
-        }
-
         return false;
     }
 
@@ -3300,17 +3244,13 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.getBoundingBox().inflate(targetRange, targetRange * 0.75D, targetRange);
     }
 
-    private boolean isWithinHostileTargetRange(LivingEntity target) {
-        double targetRange = this.getHostileTargetSearchRange();
-        return this.distanceToSqr(target) <= targetRange * targetRange;
-    }
-
     public boolean canAutoTargetEnemyMob(@Nullable LivingEntity target) {
         if (!this.aiAutoTarget || this.hasExplicitMovementCommand()) {
             return false;
         }
 
-        if (!(target instanceof Mob mob) || !target.isAlive() || !(target instanceof Enemy) || !this.canEngage(target)) {
+        if (!(target instanceof Mob mob) || !target.isAlive()
+                || !(target instanceof Monster || target instanceof Slime) || !this.canEngage(target)) {
             return false;
         }
 
@@ -3580,6 +3520,15 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void refreshFromVariant(boolean preserveHealth) {
         ShipEntitySpec spec = this.getSpec();
+        this.updateMeleeGoal();
+        if (this.wanderGoal != null && !this.level().isClientSide()) {
+            int priority = spec.hostile() ? 23 : 24;
+            if (priority != this.wanderPriority) {
+                this.goalSelector.removeGoal(this.wanderGoal);
+                this.goalSelector.addGoal(priority, this.wanderGoal);
+                this.wanderPriority = priority;
+            }
+        }
         this.setMaxUpStep(LegacyShipBehaviorCatalog.stepHeightFor(spec));
         this.attackProfile = LegacyShipBehaviorCatalog.attackProfile(spec);
         this.equipmentBehaviorState = LegacyShipBehaviorCatalog.equipmentBehaviorFor(
@@ -3876,7 +3825,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private boolean performCompatAttack(LivingEntity target, LegacyShipAttackKind attackKind,
                                         boolean respectEntityCooldown) {
-        if (!this.canEngage(target) || !this.canUseCompatAttack(attackKind)
+        if (!this.canAttackLegacyTarget(target) || !this.canUseCompatAttack(attackKind)
                 || !this.hasRequiredAttackResources(attackKind)) {
             return false;
         }
@@ -4086,7 +4035,7 @@ public class LegacyShipEntity extends PathfinderMob {
     boolean performCatalogSpecialAttack(LivingEntity target, LegacyShipAttackKind attackKind, float damageScale,
                                         boolean knockback, LegacyShipProjectileVisual projectileVisual,
                                         GameplayParticleType hitParticleType) {
-        if (!this.canEngage(target) || !this.canUseCompatAttack(attackKind)
+        if (!this.canAttackLegacyTarget(target) || !this.canUseCompatAttack(attackKind)
                 || !this.hasRequiredAttackResources(attackKind)) {
             return false;
         }
@@ -4158,7 +4107,7 @@ public class LegacyShipEntity extends PathfinderMob {
                                         LegacyShipProjectileVisual projectileVisual,
                                         GameplayParticleType hitParticleType,
                                         boolean legacyAreaAttack) {
-        if (!legacyAreaAttack && !this.canEngage(target)) {
+        if (!legacyAreaAttack && !this.canAttackLegacyTarget(target)) {
             return false;
         }
         this.markLegacyCombat();
@@ -4329,7 +4278,7 @@ public class LegacyShipEntity extends PathfinderMob {
                                                LegacyShipAttackKind attackKind,
                                                LegacyShipProjectileVisual projectileVisual, GameplayParticleType hitParticleType,
                                                boolean flarePayload, boolean searchlightPayload) {
-        if (!this.canEngage(target) || (attackKind != LegacyShipAttackKind.AIR_LIGHT && attackKind != LegacyShipAttackKind.AIR_HEAVY)) {
+        if (!this.canAttackLegacyTarget(target) || (attackKind != LegacyShipAttackKind.AIR_LIGHT && attackKind != LegacyShipAttackKind.AIR_HEAVY)) {
             return false;
         }
 
@@ -4538,7 +4487,8 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         LivingEntity target = this.getTarget();
-        if (target == null || (target.isAlive() && this.canEngage(target))) {
+        double range = this.getHostileTargetSearchRange();
+        if (target == null || (target.isAlive() && this.distanceToSqr(target) <= range * range && this.canEngage(target))) {
             return false;
         }
 

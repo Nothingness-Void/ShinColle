@@ -30,7 +30,7 @@ public class LegacyShipRangedAttackGoal extends Goal {
         return this.ship.canExecuteCombatGoal()
                 && this.ship.canUseCompatRangedCombat()
                 && target != null
-                && this.ship.canEngage(target);
+                && this.ship.canCommandOrRevengeEngage(target);
     }
 
     @Override
@@ -40,7 +40,7 @@ public class LegacyShipRangedAttackGoal extends Goal {
                 && this.ship.canUseCompatRangedCombat()
                 && target != null
                 && target.isAlive()
-                && this.ship.canEngage(target);
+                && this.ship.canCommandOrRevengeEngage(target);
     }
 
     @Override

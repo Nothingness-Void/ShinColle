@@ -41,6 +41,8 @@ import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipAttackOnCollideGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipWanderGoal;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
@@ -3899,8 +3901,9 @@ public final class GameplayParityGameTests {
 
         double legacyRange = boss.getCompatAttackRange();
         player.setPos(5.0D + legacyRange + 1.0D, 2.0D, 5.0D);
-        if (boss.canEngage(player)) {
-            helper.fail("hostile bosses should use legacy attack range as the player target leash");
+        boss.setTarget(player);
+        if (!boss.canEngage(player) || new LegacyShipRangeTargetGoal(boss).canContinueToUse()) {
+            helper.fail("hostile Selector must be distance-independent; RangeTarget must enforce the range leash");
             return;
         }
 
@@ -4243,19 +4246,19 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void shipPickupGoalYieldsToOrdersCombatAndSupplyFlag(GameTestHelper helper) {
+    public static void shipPickupGoalAllowsOrdersAndCombatButRespectsLegacyFlags(GameTestHelper helper) {
         if (!pickupGoalCanUseWith(helper, 0, ship -> {
         })) {
             helper.fail("pickup goal should still activate for an idle friendly ship with auto-supply enabled");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 1, ship -> ship.commandMoveTo(new BlockPos(4, 2, 4),
+        if (!pickupGoalCanUseWith(helper, 1, ship -> ship.commandMoveTo(new BlockPos(4, 2, 4),
                 helper.getLevel().dimension().location().toString()))) {
-            helper.fail("pickup goal must not interrupt an active move or route command");
+            helper.fail("legacy pickup eligibility must allow an active move or route command");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 2, ship -> ship.commandGuardEntity(UUID.randomUUID()))) {
-            helper.fail("pickup goal must not interrupt an active guard command");
+        if (!pickupGoalCanUseWith(helper, 2, ship -> ship.commandGuardEntity(UUID.randomUUID()))) {
+            helper.fail("legacy pickup eligibility must allow an active guard command");
             return;
         }
         if (pickupGoalCanUseWith(helper, 3, ship -> ship.setOrderedToSit(true))) {
@@ -4266,7 +4269,7 @@ public final class GameplayParityGameTests {
             helper.fail("pickup goal must respect the pick-item AI flag");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 5, ship -> {
+        if (!pickupGoalCanUseWith(helper, 5, ship -> {
             Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
             if (target != null) {
                 target.setPos(ship.getX() + 2.0D, ship.getY(), ship.getZ());
@@ -4274,7 +4277,7 @@ public final class GameplayParityGameTests {
                 ship.setTarget(target);
             }
         })) {
-            helper.fail("pickup goal must not interrupt active combat targeting");
+            helper.fail("legacy pickup eligibility must allow an existing combat target");
             return;
         }
 
@@ -13167,8 +13170,9 @@ public final class GameplayParityGameTests {
                 return;
             }
             player.setPos(5.0D + boss.getHostileTargetSearchRange() + 1.0D, 2.0D, 5.0D);
-            if (boss.canEngage(player)) {
-                helper.fail("hostile hime bosses should drop players outside the legacy range: egg=" + eggMeta);
+            boss.setTarget(player);
+            if (!boss.canEngage(player) || new LegacyShipRangeTargetGoal(boss).canContinueToUse()) {
+                helper.fail("hostile range leash belongs to RangeTarget, not Selector: egg=" + eggMeta);
                 return;
             }
             player.setPos(7.0D, 2.0D, 5.0D);
@@ -13259,19 +13263,19 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void shipPickupGoalYieldsToOrdersCombatAndIndependentAiFlags(GameTestHelper helper) {
+    public static void shipPickupGoalAllowsOrdersCombatAndIndependentAiFlags(GameTestHelper helper) {
         if (!pickupGoalCanUseWith(helper, 0, ship -> {
         })) {
             helper.fail("pickup goal should still activate for an idle friendly ship with auto-supply enabled");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 1, ship -> ship.commandMoveTo(new BlockPos(4, 2, 4),
+        if (!pickupGoalCanUseWith(helper, 1, ship -> ship.commandMoveTo(new BlockPos(4, 2, 4),
                 helper.getLevel().dimension().location().toString()))) {
-            helper.fail("pickup goal must not interrupt an active move or route command");
+            helper.fail("legacy pickup eligibility must allow an active move or route command");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 2, ship -> ship.commandGuardEntity(UUID.randomUUID()))) {
-            helper.fail("pickup goal must not interrupt an active guard command");
+        if (!pickupGoalCanUseWith(helper, 2, ship -> ship.commandGuardEntity(UUID.randomUUID()))) {
+            helper.fail("legacy pickup eligibility must allow an active guard command");
             return;
         }
         if (pickupGoalCanUseWith(helper, 3, ship -> ship.setOrderedToSit(true))) {
@@ -13286,7 +13290,7 @@ public final class GameplayParityGameTests {
             helper.fail("pickup goal must respect the legacy PickItem AI flag");
             return;
         }
-        if (pickupGoalCanUseWith(helper, 6, ship -> {
+        if (!pickupGoalCanUseWith(helper, 6, ship -> {
             Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
             if (target != null) {
                 target.setPos(ship.getX() + 2.0D, ship.getY(), ship.getZ());
@@ -13294,7 +13298,7 @@ public final class GameplayParityGameTests {
                 ship.setTarget(target);
             }
         })) {
-            helper.fail("pickup goal must not interrupt active combat targeting");
+            helper.fail("legacy pickup eligibility must allow an existing combat target");
             return;
         }
 
@@ -15108,24 +15112,29 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "step4_categories")
     public static void shipRangeTargetUsesLegacyCategoryPriority(GameTestHelper helper) {
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity hostileSubmarine = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity hostileSurfaceShip = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LivingEntity normalTarget = EntityType.CREEPER.create(helper.getLevel());
-        LivingEntity airTarget = EntityType.PHANTOM.create(helper.getLevel());
+        LivingEntity airTarget = EntityType.GHAST.create(helper.getLevel());
         if (ship == null || hostileSubmarine == null || hostileSurfaceShip == null
                 || normalTarget == null || airTarget == null) {
             helper.fail("legacy range target test entities should be creatable");
             return;
         }
 
-        BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos origin = helper.absolutePos(new BlockPos(8, 160, 8));
         double originX = origin.getX() + 0.5D;
         double originY = origin.getY();
         double originZ = origin.getZ() + 0.5D;
         ship.setVariantEggMeta(53);
+        ServerPlayer owner = makeServerBackedPlayer(helper, "CategoryOwner");
+        helper.getLevel().players().add(owner);
+        owner.setPos(originX, originY, originZ);
+        ship.setOwner(owner);
+        TeitokuHelper.get(owner).ifPresent(data -> data.addTargetClass(TeitokuHelper.resolveTargetClass(airTarget)));
         ship.setPos(originX, originY, originZ);
         hostileSubmarine.setVariantEggMeta(2040);
         hostileSubmarine.setPos(originX + 3.0D, originY, originZ);
@@ -15176,7 +15185,7 @@ public final class GameplayParityGameTests {
         ship.setAiPvpFirst(false);
         LivingEntity normalTargetSelection = LegacyShipBehaviorCatalog.findLegacyRangeTarget(ship);
         if (normalTargetSelection == null
-                || !(normalTargetSelection instanceof Enemy)
+                || !ship.canEngage(normalTargetSelection)
                 || LegacyShipBehaviorCatalog.isLegacyUnderseaTarget(normalTargetSelection)) {
             helper.fail("normal target selection should remain after disabled special categories");
             return;
@@ -16685,6 +16694,394 @@ public final class GameplayParityGameTests {
                 ShipEntitySpecs.getByEggMeta(eggMeta), level, hostileScaleLevel).isPresent();
     }
 
+    @GameTest(template = "guard", batch = "step4_selector")
+    public static void legacySelectorUsesExplicitMobClassesAndNotOwnerMemory(GameTestHelper helper) {
+        ServerPlayer owner = makeServerBackedPlayer(helper, "SelectorOwner");
+        helper.getLevel().players().add(owner);
+        Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
+        owner.setPos(position);
+        GuardTestShip ship = new GuardTestShip(helper, owner, 53, position);
+        ship.setAiOnSightChase(false);
+        var cow = EntityType.COW.create(helper.getLevel());
+        var zombie = EntityType.ZOMBIE.create(helper.getLevel());
+        var slime = EntityType.SLIME.create(helper.getLevel());
+        var ghast = EntityType.GHAST.create(helper.getLevel());
+        for (LivingEntity target : List.of(cow, zombie, slime, ghast)) {
+            target.setPos(position.add(3.0D, 0.0D, 0.0D));
+        }
+        if (ship.targetGoalCount() != 2 || ship.canEngage(null) || ship.canEngage(ship)
+                || !ship.canEngage(zombie) || !ship.canEngage(slime) || ship.canEngage(ghast)) {
+            helper.fail("legacy target list must have only Revenge/Range and select Monster|Slime, not every Enemy");
+            return;
+        }
+        owner.setLastHurtMob(cow);
+        owner.setLastHurtByMob(cow);
+        cow.setLastHurtByMob(owner);
+        cow.setTarget(owner);
+        ship.setTarget(cow);
+        if (ship.canEngage(cow) || !ship.canCommandOrRevengeEngage(cow)) {
+            helper.fail("owner/current-target memories must not turn neutral animals into automatic Selector targets");
+            return;
+        }
+        TeitokuEvents.onLivingHurt(new net.minecraftforge.event.entity.living.LivingHurtEvent(owner,
+                helper.getLevel().damageSources().mobAttack(cow), 4.0F));
+        if (ship.getLastHurtByMob() != cow || ship.canEngage(cow)
+                || !new LegacyShipRangedAttackGoal(ship, 1.0D).canUse()) {
+            helper.fail("event-propagated player revenge must remain usable without changing automatic Selector membership");
+            return;
+        }
+        ship.setAiOnSightChase(true);
+        BlockPos wall = BlockPos.containing(position).east();
+        for (int y = 0; y < 4; y++) {
+            for (int z = -1; z <= 1; z++) {
+                helper.getLevel().setBlockAndUpdate(wall.offset(0, y, z), Blocks.STONE.defaultBlockState());
+            }
+        }
+        ship.getSensing().tick();
+        if (ship.canEngage(zombie)) {
+            helper.fail("friendly Selector must apply OnSightChase before selecting ordinary monsters");
+            return;
+        }
+        zombie.discard();
+        if (ship.canEngage(zombie)) {
+            helper.fail("dead or removed Selector targets must be rejected");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "step4_hostile_range")
+    public static void hostileRangeTargetMixesPlayersAndShipsBeforeNearestThreeRoll(GameTestHelper helper) {
+        Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
+        GuardTestShip hostile = new GuardTestShip(helper, helper.makeMockPlayer(), 2049, position);
+        hostile.setAiOnSightChase(false);
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, hostile.getHostileTargetSearchArea(),
+                ship -> ship != hostile).forEach(Entity::discard);
+        List<LegacyShipEntity> fixtureShips = new java.util.ArrayList<>(List.of(hostile));
+        ServerPlayer player = makeServerBackedPlayer(helper, "MixedRangePlayer");
+        helper.getLevel().addNewPlayer(player);
+        try {
+            player.setPos(position.add(6.0D, 0.0D, 0.0D));
+            GuardTestShip near = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(2.0D, 0.0D, 0.0D));
+            fixtureShips.add(near);
+            List<LivingEntity> initialCandidates = helper.getLevel().getEntitiesOfClass(
+                    LivingEntity.class, hostile.getHostileTargetSearchArea(), hostile::canEngage);
+            if (initialCandidates.size() != 2 || !initialCandidates.containsAll(List.of(player, near))) {
+                helper.fail("isolated hostile fixture must contain exactly one selectable player and one ship; "
+                        + hostileRangeDiagnostics(hostile, null));
+                return;
+            }
+            LivingEntity initial = LegacyShipBehaviorCatalog.findLegacyRangeTarget(hostile);
+            if (hostile.targetGoalCount() != 2 || initial != near) {
+                helper.fail("hostile RangeTarget must choose a nearer ship over a farther player without a player-priority goal; "
+                        + hostileRangeDiagnostics(hostile, initial));
+                return;
+            }
+            GuardTestShip third = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(3.0D, 0.0D, 0.0D));
+            GuardTestShip fourth = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(4.0D, 0.0D, 0.0D));
+            fixtureShips.addAll(List.of(third, fourth));
+            player.setPos(position.add(1.0D, 0.0D, 0.0D));
+            List<LivingEntity> mergedCandidates = helper.getLevel().getEntitiesOfClass(
+                    LivingEntity.class, hostile.getHostileTargetSearchArea(), hostile::canEngage);
+            if (mergedCandidates.size() != 4 || !mergedCandidates.containsAll(List.of(player, near, third, fourth))) {
+                helper.fail("merged hostile fixture must contain exactly the four known candidates; "
+                        + hostileRangeDiagnostics(hostile, null));
+                return;
+            }
+            java.util.Set<LivingEntity> selected = new java.util.HashSet<>();
+            for (int seed = 0; seed < 64; seed++) {
+                hostile.getRandom().setSeed(seed);
+                LivingEntity found = LegacyShipBehaviorCatalog.findLegacyRangeTarget(hostile);
+                if (found == null || found == fourth || (found != player && found != near && found != third)) {
+                    helper.fail("hostile random selection must be confined to the nearest three of the merged list; "
+                            + hostileRangeDiagnostics(hostile, found));
+                    return;
+                }
+                selected.add(found);
+            }
+            if (selected.size() != 3 || hostile.canEngage(EntityType.ZOMBIE.create(helper.getLevel()))
+                    || hostile.canEngage(EntityType.COW.create(helper.getLevel()))) {
+                helper.fail("SelectorForHostile must include all nearest-three choices but exclude ordinary monsters and animals");
+                return;
+            }
+            player.getAbilities().invulnerable = true;
+            near.setInvisible(true);
+            if (hostile.canEngage(player) || hostile.canEngage(near)) {
+                helper.fail("hostile Selector must reject invulnerable players and invisible ships");
+                return;
+            }
+            player.getAbilities().invulnerable = false;
+            LegacyShipRangeTargetGoal goal = new LegacyShipRangeTargetGoal(hostile);
+            hostile.tickCount = 8;
+            if (!goal.canUse()) {
+                helper.fail("the merged hostile list must be reachable through RangeTarget");
+                return;
+            }
+            goal.start();
+            hostile.getTarget().setPos(position.add(hostile.getHostileTargetSearchRange() + 2.0D, 0.0D, 0.0D));
+            if (goal.canContinueToUse()) {
+                helper.fail("RangeTarget, not Selector, must stop when its chosen target exceeds the attack-range leash");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            helper.getLevel().removePlayerImmediately(player, Entity.RemovalReason.DISCARDED);
+            fixtureShips.forEach(Entity::discard);
+        }
+    }
+
+    private static String hostileRangeDiagnostics(GuardTestShip hostile, LivingEntity selected) {
+        List<LivingEntity> nearby = hostile.level().getEntitiesOfClass(
+                LivingEntity.class, hostile.getHostileTargetSearchArea());
+        nearby.sort(java.util.Comparator.comparingDouble(hostile::distanceToSqr));
+        return "goalCount=" + hostile.targetGoalCount()
+                + ", searchArea=" + hostile.getHostileTargetSearchArea()
+                + ", selected=" + hostileRangeEntityDescription(hostile, selected)
+                + ", nearby=" + nearby.stream().map(entity -> hostileRangeEntityDescription(hostile, entity)).toList();
+    }
+
+    private static String hostileRangeEntityDescription(GuardTestShip hostile, LivingEntity entity) {
+        if (entity == null) {
+            return "null";
+        }
+        return entity.getType().toShortString() + "#" + entity.getId() + "@" + entity.position()
+                + " distance=" + hostile.distanceTo(entity) + " selectable=" + hostile.canEngage(entity)
+                + (entity instanceof Player player ? " creative=" + player.isCreative()
+                        + " spectator=" + player.isSpectator() + " invulnerable=" + player.getAbilities().invulnerable : "");
+    }
+
+    @GameTest(template = "guard", batch = "step4_collide")
+    public static void collideMeleeUsesLegacyWidthCadenceAndFlagRegistration(GameTestHelper helper) {
+        Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
+        CollideTestShip ship = new CollideTestShip(helper, position);
+        if (ship.hasMeleeGoal()) {
+            helper.fail("UseMelee=false must not install a collision attack goal");
+            return;
+        }
+        ship.setUseAttackMelee(true);
+        if (!ship.hasMeleeGoal()) {
+            helper.fail("enabling UseMelee after construction must install the legacy collision goal");
+            return;
+        }
+        ship.setVariantEggMeta(2049);
+        if (ship.hasMeleeGoal()) {
+            helper.fail("hostile setAIList must not inherit the friendly collision goal");
+            return;
+        }
+        ship.setVariantEggMeta(53);
+        ship.setUseAttackMelee(false);
+        if (ship.hasMeleeGoal()) {
+            helper.fail("disabling UseMelee must remove the collision goal");
+            return;
+        }
+        ship.setUseAttackMelee(true);
+        LegacyShipAttackOnCollideGoal goal = new LegacyShipAttackOnCollideGoal(ship, 1.0D);
+        if (goal.canUse()) {
+            helper.fail("collision goal must reject an empty target");
+            return;
+        }
+        LivingEntity target = EntityType.COW.create(helper.getLevel());
+        double reach = ship.getBbWidth() * 4.0D;
+        target.setPos(position.add(reach + 0.01D, 0.0D, 0.0D));
+        ship.setTarget(target);
+        ship.setGrudge(0);
+        ship.commandGuardBlock(BlockPos.containing(position).east(20), "");
+        ship.setTarget(target);
+        if (!goal.canUse()) {
+            helper.fail("legacy melee must not invent combat/fuel/command/Selector gates for an existing live target");
+            return;
+        }
+        ship.tickCount = 31;
+        goal.tick();
+        if (ship.guardNavigation().requests != 0 || ship.attacks != 0) {
+            helper.fail("collision path refresh must wait for the 32-tick boundary");
+            return;
+        }
+        ship.tickCount = 32;
+        goal.tick();
+        if (ship.guardNavigation().requests != 1 || ship.guardNavigation().requestedSpeed != 1.0D) {
+            helper.fail("collision goal must navigate at speed1 beyond width-squared times16");
+            return;
+        }
+        target.setPos(position.add(reach - 0.01D, 0.0D, 0.0D));
+        for (int tick = 33; tick < 52; tick++) {
+            ship.tickCount = tick;
+            goal.tick();
+        }
+        if (ship.attacks != 0) {
+            helper.fail("initial collision attack delay must count twenty in-range updates");
+            return;
+        }
+        ship.tickCount = 52;
+        goal.tick();
+        if (ship.attacks != 1) {
+            helper.fail("first collision attack must occur on the twentieth in-range update");
+            return;
+        }
+        int delay = ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.MELEE);
+        for (int tick = 1; tick < delay; tick++) {
+            ship.tickCount = 52 + tick;
+            goal.tick();
+        }
+        if (ship.attacks != 1) {
+            helper.fail("collision attacks must wait for CombatHelper's melee delay, not vanilla's20 ticks");
+            return;
+        }
+        ship.tickCount = 52 + delay;
+        goal.tick();
+        if (ship.attacks != 2 || !ship.getNavigation().isDone()) {
+            helper.fail("collision attack must repeat on its exact legacy delay and stop path inside reach");
+            return;
+        }
+        ship.setOrderedToSit(true);
+        if (goal.canContinueToUse()) {
+            helper.fail("collision goal must stop while sitting");
+            return;
+        }
+        ship.setOrderedToSit(false);
+        Entity mount = EntityType.PIG.create(helper.getLevel());
+        mount.setPos(position);
+        helper.getLevel().addFreshEntity(mount);
+        ship.startRiding(mount, true);
+        if (goal.canUse()) {
+            helper.fail("collision goal must reject riding state");
+            return;
+        }
+        ship.stopRiding();
+        target.discard();
+        if (goal.canUse()) {
+            helper.fail("collision goal must reject dead targets");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static final class CollideTestShip extends GuardTestShip {
+        private int attacks;
+
+        private CollideTestShip(GameTestHelper helper, Vec3 position) {
+            super(helper, helper.makeMockPlayer(), 53, position);
+        }
+
+        @Override
+        public boolean performCollideAttack(LivingEntity target) {
+            this.attacks++;
+            return true;
+        }
+    }
+
+    @GameTest(template = "guard", batch = "step4_wander")
+    public static void wanderUsesLegacyProbabilityRangesAndStateGates(GameTestHelper helper) {
+        Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position);
+        RecordingWanderGoal goal = new RecordingWanderGoal(ship, position.add(3.0D, 0.0D, 0.0D));
+        for (int seed = 0; seed < 360; seed++) {
+            ship.getRandom().setSeed(seed);
+            if (goal.canUse() != (RandomSource.create(seed).nextInt(180) == 0)) {
+                helper.fail("wander trigger must make exactly one1/180 roll, not vanilla's interval");
+                return;
+            }
+        }
+        long seed = 0;
+        while (RandomSource.create(seed).nextInt(180) != 0) {
+            seed++;
+        }
+        ship.getRandom().setSeed(seed);
+        if (!goal.canUse() || goal.horizontal != 10 || goal.vertical != 5) {
+            helper.fail("friendly wander must use horizontal10 and vertical5");
+            return;
+        }
+        goal.start();
+        if (ship.guardNavigation().requestedSpeed != 0.8D || !goal.canContinueToUse()) {
+            helper.fail("wander must navigate at0.8 and continue while a path exists");
+            return;
+        }
+        ship.getNavigation().stop();
+        if (goal.canContinueToUse()) {
+            helper.fail("wander must finish when its path ends");
+            return;
+        }
+        ship.setVariantEggMeta(2049);
+        ship.getRandom().setSeed(seed);
+        if (!goal.canUse() || goal.horizontal != 12 || goal.vertical != 1) {
+            helper.fail("hostile wander must use horizontal12 and vertical1");
+            return;
+        }
+        ship.setVariantEggMeta(53);
+        ship.setOrderedToSit(true);
+        ship.getRandom().setSeed(seed);
+        if (goal.canUse()) {
+            helper.fail("wander must not start while sitting");
+            return;
+        }
+        ship.setOrderedToSit(false);
+        Entity mount = EntityType.PIG.create(helper.getLevel());
+        mount.setPos(position);
+        helper.getLevel().addFreshEntity(mount);
+        ship.startRiding(mount, true);
+        ship.getRandom().setSeed(seed);
+        if (goal.canUse()) {
+            helper.fail("wander must not start while riding");
+            return;
+        }
+        ship.stopRiding();
+        ship.setGrudge(0);
+        ship.getRandom().setSeed(seed);
+        if (!goal.canUse()) {
+            helper.fail("legacy wander must not add a fuel gate");
+            return;
+        }
+        ship.setGrudge(1000);
+        LegacyShipFishingHookEntity hook = LegacyShipFishingHookEntity.create(helper.getLevel(), ship);
+        ship.setFishingHook(hook);
+        ship.getRandom().setSeed(seed);
+        if (goal.canUse() || pickupGoalCanUseWith(helper, 0, pickup -> pickup.setFishingHook(hook))) {
+            helper.fail("wander and pickup must both reject legacy fishing state");
+            return;
+        }
+        ship.setFishingHook(null);
+        CompoundTag saved = new CompoundTag();
+        ship.addAdditionalSaveData(saved);
+        saved.putInt("CraneState", 2);
+        ship.readAdditionalSaveData(saved);
+        ship.getRandom().setSeed(seed);
+        ship.setAiPickItem(true);
+        ItemEntity drop = new ItemEntity(helper.getLevel(), ship.getX() + 1.0D, ship.getY(), ship.getZ(),
+                new ItemStack(ModItems.GRUDGE.get()));
+        helper.getLevel().addFreshEntity(drop);
+        if (goal.canUse() || new LegacyShipPickItemGoal(ship, 1.0D).canUse()) {
+            helper.fail("wander and pickup must reject crane loading independently of command/combat gates");
+            return;
+        }
+        saved.putInt("CraneState", 0);
+        ship.readAdditionalSaveData(saved);
+        goal.candidate = null;
+        ship.getRandom().setSeed(seed);
+        if (goal.canUse()) {
+            helper.fail("wander must reject a failed random-position search");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static final class RecordingWanderGoal extends LegacyShipWanderGoal {
+        private int horizontal;
+        private int vertical;
+        private Vec3 candidate;
+
+        private RecordingWanderGoal(LegacyShipEntity ship, Vec3 candidate) {
+            super(ship);
+            this.candidate = candidate;
+        }
+
+        @Override
+        protected Vec3 findPosition(int horizontalRange, int verticalRange) {
+            this.horizontal = horizontalRange;
+            this.vertical = verticalRange;
+            return this.candidate;
+        }
+    }
+
     private static void primeGuardMovement(LegacyShipEntity ship, LegacyShipGuardGoal goal) {
         goal.start();
         for (int tick = 1; tick <= 30; tick++) {
@@ -16709,7 +17106,7 @@ public final class GameplayParityGameTests {
         return ship.getNavigation().moveTo(path, 1.0D) && !ship.getNavigation().isDone();
     }
 
-    private static final class GuardTestShip extends LegacyShipEntity {
+    private static class GuardTestShip extends LegacyShipEntity {
         private int formationId;
         private int formationSlot;
 
@@ -16740,8 +17137,17 @@ public final class GameplayParityGameTests {
             return this.formationSlot;
         }
 
-        private GuardTestNavigation guardNavigation() {
+        protected GuardTestNavigation guardNavigation() {
             return (GuardTestNavigation) this.getNavigation();
+        }
+
+        protected boolean hasMeleeGoal() {
+            return this.goalSelector.getAvailableGoals().stream()
+                    .anyMatch(goal -> goal.getGoal() instanceof LegacyShipAttackOnCollideGoal);
+        }
+
+        protected int targetGoalCount() {
+            return this.targetSelector.getAvailableGoals().size();
         }
     }
 
@@ -16753,6 +17159,11 @@ public final class GameplayParityGameTests {
 
         private GuardTestNavigation(Mob mob, Level level) {
             super(mob, level);
+        }
+
+        @Override
+        public boolean moveTo(Entity entity, double speed) {
+            return this.moveTo(entity.getX(), entity.getY(), entity.getZ(), speed);
         }
 
         @Override

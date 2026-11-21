@@ -1,5 +1,11 @@
 # Current State
 
+## 当前追加批次：AI移动与目标一致性
+
+- 用户指定分支 `devin/parity-fix-ai-movement`；第1—3步已本地提交 `e2c9a74`（311/311 GameTest）。
+- 第4步目标、碰撞近战、游荡与拾取已完成，最终315/315 GameTest通过；混合列表失败实证为额外遗留舰候选，已修fixture，未改生产随机规则。见[批次](migration_batches/2026-11-21-parity-fix-ai-targets/README.md)与[检查状态](migration_batches/2026-11-21-parity-fix-ai-targets/STATUS.md)。仅本地提交，不push；下一步等待用户指令。
+- 下方保留此前主线的基线快照；不以旧分支和旧测试数量覆盖当前批次证据。不晋级全舰种/客户端验收状态。
+
 本文件是迁移项目的当前事实唯一来源，也是压缩或换人后的最小交接快照。历史结论见 [MIGRATION-CHANGELOG.md](MIGRATION-CHANGELOG.md)，下一步只看 [ROADMAP.md](ROADMAP.md)。发生冲突时，以本文件为准。
 
 ## 快照

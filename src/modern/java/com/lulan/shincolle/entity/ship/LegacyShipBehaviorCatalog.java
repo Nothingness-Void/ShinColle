@@ -32,7 +32,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.Container;
@@ -445,41 +444,11 @@ public final class LegacyShipBehaviorCatalog {
             return target;
         }
 
-        return chooseRangeTarget(ship, nearby, candidate -> {
-            if (isExplicitCustomTarget(ship, candidate)) {
-                return true;
-            }
-            if (!(candidate instanceof Enemy) || isPassiveFlyingAnimal(candidate)) {
-                return false;
-            }
-            Player owner = ship.getOwnerPlayer();
-            return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, candidate);
-        });
+        return chooseRangeTarget(ship, nearby, candidate -> true);
     }
 
     public static boolean isLegacyRangeTarget(LegacyShipEntity ship, LivingEntity target) {
-        if (!isSelectableLegacyRangeTarget(ship, target)) {
-            return false;
-        }
-        if (ship.isHostileVariant()) {
-            return isHostileRangeTarget(target);
-        }
-        if ((ship.isAiAntiAir()
-                && LegacyShipCombatHelper.isFlyingTarget(target)
-                && (!isPassiveFlyingAnimal(target) || isExplicitCustomTarget(ship, target)))
-                || (ship.isAiAntiSub() && isLegacyUnderseaTarget(target))
-                || (ship.isAiPvpFirst() && target instanceof LegacyShipEntity other
-                && !isLegacyUnderseaTarget(other))) {
-            return true;
-        }
-        if (isExplicitCustomTarget(ship, target)) {
-            return true;
-        }
-        if (!(target instanceof Enemy) || isPassiveFlyingAnimal(target)) {
-            return false;
-        }
-        Player owner = ship.getOwnerPlayer();
-        return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, target);
+        return isSelectableLegacyRangeTarget(ship, target);
     }
 
     /** Mirrors TargetHelper's flare/searchlight gate for invisible non-player targets. */
@@ -501,31 +470,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static boolean isSelectableLegacyRangeTarget(LegacyShipEntity ship, LivingEntity target) {
-        if (target == null || target == ship || !target.isAlive()) {
-            return false;
-        }
-        if (ship.isAiOnSightChase() && !ship.getSensing().hasLineOfSight(target)) {
-            return false;
-        }
-        if (!ship.isHostileVariant() && isPassiveFlyingAnimal(target) && !isExplicitCustomTarget(ship, target)) {
-            return false;
-        }
-        if (ship.canEngage(target)) {
-            return true;
-        }
-        if (!ship.isHostileVariant()
-                && !(target instanceof Player)
-                && !(target instanceof LegacyShipEntity)
-                && isExplicitCustomTarget(ship, target)
-                && canTargetLegacyInvisibleEntity(ship, target)) {
-            if (ship.level() instanceof ServerLevel serverLevel
-                    && com.lulan.shincolle.combat.WorldCombatRulesSavedData.get(serverLevel)
-                            .isUnattackable(com.lulan.shincolle.teitoku.TeitokuHelper.resolveTargetClass(target))) {
-                return false;
-            }
-            return true;
-        }
-        return false;
+        return ship.canEngage(target);
     }
 
     private static boolean isPassiveFlyingAnimal(LivingEntity target) {
@@ -539,7 +484,7 @@ public final class LegacyShipBehaviorCatalog {
                 || type == EntityType.ALLAY;
     }
 
-    private static boolean isExplicitCustomTarget(LegacyShipEntity ship, LivingEntity target) {
+    public static boolean isExplicitCustomTarget(LegacyShipEntity ship, LivingEntity target) {
         Player owner = ship.getOwnerPlayer();
         if (owner == null || target == null) {
             return false;
@@ -554,7 +499,8 @@ public final class LegacyShipBehaviorCatalog {
 
     private static boolean isHostileRangeTarget(LivingEntity target) {
         return target instanceof Player
-                || target instanceof LegacyShipEntity ship && !ship.isHostileVariant();
+                || target instanceof LegacyShipEntity ship && !ship.isHostileVariant()
+                || target instanceof LegacyShipRensouhouEntity;
     }
 
     /** Mirrors TargetHelper.SelectorForHostile for the modern LivingEntity target family. */
@@ -5153,7 +5099,7 @@ public final class LegacyShipBehaviorCatalog {
         if (!shouldUseCombatHook(ship.getSpec(), attackKind)
                 || !behavior.hasCombatHook()
                 || respectEntityCooldown && ship.getCompatAttackCooldown(attackKind) > 0
-                || !ship.canEngage(target)) {
+                || !ship.canCommandOrRevengeEngage(target)) {
             return CombatHookResult.NOT_HANDLED;
         }
 
