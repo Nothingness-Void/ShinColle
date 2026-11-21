@@ -8,6 +8,7 @@ import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
+import com.lulan.shincolle.network.ShipGuiButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -231,9 +232,13 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
 
         if (inside(localX, localY, TOP_PANEL_LEFT, BEHAVIOR_AREA_Y, BEHAVIOR_AREA_W, BEHAVIOR_AREA_H)) {
             guiGraphics.renderComponentTooltip(this.font, List.of(
-                    Component.literal("T: AutoTarget  Y: PVP  U: AutoSupply"),
-                     Component.literal("I: RouteStay  P: PickItem  O: Aura Effect"),
-                     Component.literal("J/K: FollowRange  [ ]: WpStay"),
+                    Component.literal("Z/X/C/B/N: Melee AmmoL AmmoH AirL AirH"),
+                     Component.literal("T: PassiveAI  Y: PVP  U: OnSight  I: AA  G: ASM"),
+                     Component.literal("P: PickItem  O: Aura  H: ShowHeld"),
+                     Component.literal("J/K: FollowMin  Shift+J/K: FollowMax"),
+                     Component.literal("[ ]: WpStay  Shift+[ ]: FleeHP " + this.menu.getFleeHp()),
+                     Component.literal("PgUp/PgDn: Page " + (this.menu.getInventoryPage() + 1)
+                             + " / " + (Math.min(this.menu.getInventoryPageSize(), 2) + 1)),
                      Component.literal("L: TimeKeeper  " + onOff(this.menu.isTimeKeeper())
                              + "  V: AutoPump " + onOff(this.menu.isAutoPump())),
                      Component.literal("AutoCR: " + this.menu.getCombatRationLevel() + " (Shift-click +/-)"),
@@ -278,7 +283,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
         if (inside(localX, localY, BOTTOM_PANEL_LEFT - 2, 130, 78, 78)) {
             guiGraphics.renderComponentTooltip(this.font, List.of(
                     Component.translatable("gui.shincolle.ship_inventory.slots"),
-                    Component.literal((this.menu.getEquipmentUsedSlots() + this.menu.getCargoUsedSlots()) + " / " + LegacyShipEntity.SHIP_SLOT_COUNT)),
+                    Component.literal((this.menu.getEquipmentUsedSlots() + this.menu.getCargoUsedSlots()) + " / " + this.menu.getInventorySizePaged())),
                     mouseX, mouseY);
         }
     }
@@ -377,93 +382,106 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (this.menu.canEdit()) {
-            if (keyCode == GLFW.GLFW_KEY_T) {
-                this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_AUTO_TARGET);
-                return true;
+            LegacyShipEntity ship = this.menu.getShip();
+            boolean shift = Screen.hasShiftDown();
+            int flags = this.menu.getAiFlags();
+            switch (keyCode) {
+                case GLFW.GLFW_KEY_Z -> this.sendToggle(ShipGuiButton.MELEE, ship != null && ship.useAttackMelee());
+                case GLFW.GLFW_KEY_X -> this.sendToggle(ShipGuiButton.AMMO_LIGHT, ship != null && ship.useAttackLight());
+                case GLFW.GLFW_KEY_C -> this.sendToggle(ShipGuiButton.AMMO_HEAVY, ship != null && ship.useAttackHeavy());
+                case GLFW.GLFW_KEY_B -> this.sendToggle(ShipGuiButton.AIR_LIGHT, ship != null && ship.useAttackAirLight());
+                case GLFW.GLFW_KEY_N -> this.sendToggle(ShipGuiButton.AIR_HEAVY, ship != null && ship.useAttackAirHeavy());
+                case GLFW.GLFW_KEY_T -> this.sendToggle(ShipGuiButton.TAR_AI,
+                        (flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) == 0);
+                case GLFW.GLFW_KEY_Y -> this.sendToggle(ShipGuiButton.PVP_AI, ship != null && ship.isAiPvpFirst());
+                case GLFW.GLFW_KEY_U -> this.sendToggle(ShipGuiButton.ON_SIGHT_AI, ship != null && ship.isAiOnSightChase());
+                case GLFW.GLFW_KEY_I -> this.sendToggle(ShipGuiButton.AA_AI, ship != null && ship.isAiAntiAir());
+                case GLFW.GLFW_KEY_G -> this.sendToggle(ShipGuiButton.ASM_AI, ship != null && ship.isAiAntiSub());
+                case GLFW.GLFW_KEY_P -> this.sendToggle(ShipGuiButton.PICKITEM_AI,
+                        (flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0);
+                case GLFW.GLFW_KEY_H -> this.sendToggle(ShipGuiButton.SHOW_HELD, ship != null && ship.canShowHeldItem());
+                case GLFW.GLFW_KEY_O -> this.toggleRingEffect();
+                case GLFW.GLFW_KEY_J -> this.adjustFollow(shift, -1);
+                case GLFW.GLFW_KEY_K -> this.adjustFollow(shift, 1);
+                case GLFW.GLFW_KEY_LEFT_BRACKET -> {
+                    if (shift) {
+                        this.adjustFleeHp(-1);
+                    } else {
+                        this.adjustWaypointStay(-1);
+                    }
+                }
+                case GLFW.GLFW_KEY_RIGHT_BRACKET -> {
+                    if (shift) {
+                        this.adjustFleeHp(1);
+                    } else {
+                        this.adjustWaypointStay(1);
+                    }
+                }
+                case GLFW.GLFW_KEY_L -> this.toggleTimeKeeper();
+                case GLFW.GLFW_KEY_V -> this.toggleAutoPump();
+                case GLFW.GLFW_KEY_PAGE_UP -> this.changeInventoryPage(this.menu.getInventoryPage() - 1);
+                case GLFW.GLFW_KEY_PAGE_DOWN -> this.changeInventoryPage(this.menu.getInventoryPage() + 1);
+                default -> {
+                    return super.keyPressed(keyCode, scanCode, modifiers);
+                }
             }
-            if (keyCode == GLFW.GLFW_KEY_Y) {
-                this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_ALLOW_PVP);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_U) {
-                this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_I) {
-                this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_ROUTE_STAY);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_P) {
-                this.toggleAiFlag(GameplayCommandHandler.AI_FLAG_PICK_ITEM);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_O) {
-                this.toggleRingEffect();
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_J) {
-                this.adjustFollowRange(-2);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_K) {
-                this.adjustFollowRange(2);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_LEFT_BRACKET) {
-                this.adjustWaypointStay(-1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_RIGHT_BRACKET) {
-                this.adjustWaypointStay(1);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_L) {
-                this.toggleTimeKeeper();
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_V) {
-                this.toggleAutoPump();
-                return true;
-            }
+            return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private void renderAiControlArea(GuiGraphics guiGraphics) {
         int flags = this.menu.getAiFlags();
-        boolean autoTarget = (flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) != 0;
-        boolean allowPvp = (flags & GameplayCommandHandler.AI_FLAG_ALLOW_PVP) != 0;
-        boolean autoSupply = (flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0;
+        boolean passive = (flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) == 0;
         boolean pickItem = (flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0;
-        boolean routeStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
+        LegacyShipEntity ship = this.menu.getShip();
+        boolean pvp = ship != null && ship.isAiPvpFirst();
 
         this.drawScaledString(guiGraphics,
-                "A:" + onOff(autoTarget) + " P:" + onOff(allowPvp)
+                "Pa:" + onOff(passive) + " P:" + onOff(pvp)
                         + " I:" + onOff(pickItem) + " W:" + onOff(this.menu.isRingEffectEnabled()),
                 TOP_PANEL_LEFT, 106, 0xD0D7DC, 0.75F);
         this.drawScaledString(guiGraphics,
-                "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getAiFollowRange() + " E" + this.menu.getRouteEnergyText(),
+                "F" + this.menu.getFollowMin() + "-" + this.menu.getFollowMax()
+                        + " Pg" + (this.menu.getInventoryPage() + 1) + " E" + this.menu.getRouteEnergyText(),
                 TOP_PANEL_LEFT, 112, 0xD0D7DC, 0.75F);
     }
 
-    private void toggleAiFlag(int flag) {
-        int nextFlags = this.menu.getAiFlags() ^ flag;
-        this.sendAiFlags(nextFlags);
+    private void sendGuiButton(int button, int value) {
+        ModNetwork.sendToServer(ServerboundShipCommandPacket.guiButton(
+                this.menu.getShipId(), this.resolveShipUid(), button, value));
     }
 
-    private void adjustFollowRange(int delta) {
-        int next = Mth.clamp(this.menu.getAiFollowRange() + delta, 4, 64);
-        ModNetwork.sendToServer(ServerboundShipCommandPacket.setFollowRange(this.menu.getShipId(), this.resolveShipUid(), next));
+    /** Legacy GuiShipInventory sends getInverseInt(currentSwitch). */
+    private void sendToggle(int button, boolean current) {
+        this.sendGuiButton(button, current ? 0 : 1);
+    }
+
+    /** Legacy follow sliders: FollowMin 1..31, FollowMax 2..32. */
+    private void adjustFollow(boolean max, int delta) {
+        if (max) {
+            this.sendGuiButton(ShipGuiButton.FOLLOW_MAX, Mth.clamp(this.menu.getFollowMax() + delta, 2, 32));
+        } else {
+            this.sendGuiButton(ShipGuiButton.FOLLOW_MIN, Mth.clamp(this.menu.getFollowMin() + delta, 1, 31));
+        }
+    }
+
+    /** Legacy flee-HP slider range 0..100. */
+    private void adjustFleeHp(int delta) {
+        this.sendGuiButton(ShipGuiButton.FLEE_HP, Mth.clamp(this.menu.getFleeHp() + delta, 0, 100));
+    }
+
+    /** Legacy GuiShipInventory only sends page 1/2 when DrumState unlocks it. */
+    private void changeInventoryPage(int page) {
+        if (page >= 0 && page <= Math.min(this.menu.getInventoryPageSize(), 2)) {
+            this.sendGuiButton(ShipGuiButton.INV_PAGE, page);
+        }
     }
 
     private void adjustWaypointStay(int delta) {
         int mode = this.menu.getWaypointStayMode();
         int next = Math.floorMod(mode + delta, LegacyShipEntity.MAX_WP_STAY_MODE + 1);
         ModNetwork.sendToServer(ServerboundShipCommandPacket.setWaypointStay(this.menu.getShipId(), this.resolveShipUid(), next));
-    }
-
-    private void sendAiFlags(int flags) {
-        ModNetwork.sendToServer(ServerboundShipCommandPacket.setAiFlags(this.menu.getShipId(), this.resolveShipUid(), flags));
     }
 
     private void toggleRingEffect() {

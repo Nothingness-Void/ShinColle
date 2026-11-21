@@ -65,8 +65,6 @@ public final class GameplayCommandHandler {
     public static final String TAG_TARGET_CLASS = "TargetClass";
     public static final String TAG_RELATION_TEAM_ID = "RelationTeamId";
     public static final String TAG_TEAM_NAME = "TeamName";
-    public static final String TAG_AI_FLAGS = "AiFlags";
-    public static final String TAG_FOLLOW_RANGE = "FollowRange";
     public static final String TAG_ATTACK_KIND = "AttackKind";
     public static final String TAG_SKILL_SLOT = "SkillSlot";
     public static final String TAG_FORMATION_ID = "FormationId";
@@ -76,10 +74,8 @@ public final class GameplayCommandHandler {
     public static final String TAG_HIT_HEIGHT = "HitHeight";
     public static final String TAG_HIT_ANGLE = "HitAngle";
 
+    // Entity-data packing of legacy !PassiveAI and PickItem; not a network payload.
     public static final int AI_FLAG_AUTO_TARGET = 1;
-    public static final int AI_FLAG_ALLOW_PVP = 1 << 1;
-    public static final int AI_FLAG_AUTO_SUPPLY = 1 << 2;
-    public static final int AI_FLAG_ROUTE_STAY = 1 << 3;
     public static final int AI_FLAG_PICK_ITEM = 1 << 4;
 
     private GameplayCommandHandler() {
@@ -124,7 +120,6 @@ public final class GameplayCommandHandler {
             case OPEN_FORMATION_SCREEN -> handleOpenFormationScreen(player);
             case OPEN_DESK_SCREEN -> handleOpenDeskScreen(player, payload);
             case OPEN_MORPH_SCREEN -> MorphHelper.openMorphScreen(player);
-            case SET_SHIP_AI_FLAGS, SET_SHIP_FOLLOW_RANGE -> ShipCommandService.handleLegacy(player, type, payload);
             case MORPH_CYCLE_PROFILE_PREV -> handleMorphCycle(player, false);
             case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
             case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);

@@ -53,6 +53,9 @@ import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import com.lulan.shincolle.network.ShipCommandAction;
 import com.lulan.shincolle.network.ShipCommandService;
+import com.lulan.shincolle.network.ShipGuiButton;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
+import net.minecraft.world.level.GameType;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
 import com.lulan.shincolle.menu.DeskReferenceMenu;
 import com.lulan.shincolle.menu.DeskTerminalMenu;
@@ -1539,9 +1542,8 @@ public final class GameplayParityGameTests {
                 ServerboundShipCommandPacket.guard(1, 12, 102, 44),
                 ServerboundShipCommandPacket.attack(1, 13, 103, 45),
                 ServerboundShipCommandPacket.stop(2, 14, 104),
-                ServerboundShipCommandPacket.setAiFlags(15, 105,
-                        GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY),
-                ServerboundShipCommandPacket.setFollowRange(16, 106, 42),
+                ServerboundShipCommandPacket.guiButton(15, 105, ShipGuiButton.PVP_AI, 1),
+                ServerboundShipCommandPacket.guiButton(16, 106, ShipGuiButton.FOLLOW_MAX, 42),
                 ServerboundShipCommandPacket.toggleSit(0, 17, 107),
                 ServerboundShipCommandPacket.openInventory(18, 108),
                 ServerboundShipCommandPacket.toggleRingEffect(19, 109)
@@ -1650,24 +1652,23 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        int flags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
-        CompoundTag legacyFlags = new CompoundTag();
-        legacyFlags.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
-        legacyFlags.putInt(GameplayCommandHandler.TAG_AI_FLAGS, flags);
-        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_AI_FLAGS, legacyFlags)
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(typedShip.getId(), typedShip.getShipUid(), flags))
-                || legacyShip.getAiFlagsBitmask() != typedShip.getAiFlagsBitmask()) {
-            helper.fail("legacy and typed AI flag commands should share behavior");
+        // Legacy PacketHelper.setEntityByGUI: TarAI writes PassiveAI; FollowMin >= FollowMax pushes FollowMax to min + 1.
+        ShipCommandService.setEntityByGui(legacyShip, ShipGuiButton.TAR_AI, 1);
+        ShipCommandService.setEntityByGui(legacyShip, ShipGuiButton.FOLLOW_MIN, 28);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.TAR_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.FOLLOW_MIN, 28))
+                || legacyShip.getAiFlagsBitmask() != typedShip.getAiFlagsBitmask()
+                || typedShip.isAiAutoTarget()
+                || typedShip.getFollowMin() != 28
+                || typedShip.getFollowMax() != 29
+                || legacyShip.getFollowMax() != typedShip.getFollowMax()) {
+            helper.fail("legacy ShipBtn handler and typed GUI button packets should share behavior");
             return;
         }
-
-        CompoundTag legacyFollow = new CompoundTag();
-        legacyFollow.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
-        legacyFollow.putInt(GameplayCommandHandler.TAG_FOLLOW_RANGE, 28);
-        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_FOLLOW_RANGE, legacyFollow)
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(typedShip.getId(), typedShip.getShipUid(), 28))
-                || legacyShip.getAiFollowRange() != typedShip.getAiFollowRange()) {
-            helper.fail("legacy and typed follow-range commands should share behavior");
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.FOLLOW_MAX, 10))
+                || typedShip.getFollowMax() != 10
+                || typedShip.getFollowMin() != 9) {
+            helper.fail("legacy FollowMax <= FollowMin should push FollowMin to max - 1");
             return;
         }
 
@@ -1902,10 +1903,9 @@ public final class GameplayParityGameTests {
         movingShip.setOwner(owner, "PersistAdmiral", 9001);
         movingShip.setOrderedToSit(true);
         movingShip.setAiAutoTarget(false);
-        movingShip.setAiAllowPvp(true);
-        movingShip.setAiAutoSupply(false);
-        movingShip.setAiRespectRouteStay(false);
-        movingShip.setAiFollowRange(36);
+        movingShip.setAiPvpFirst(true);
+        movingShip.setFollowMin(5);
+        movingShip.setFollowMax(20);
         movingShip.commandMoveTo(commandTarget, "minecraft:overworld");
 
         CompoundTag movingTag = new CompoundTag();
@@ -1919,21 +1919,19 @@ public final class GameplayParityGameTests {
         if (!commandTarget.equals(loadedMovingShip.getCommandedPos())
                 || !"minecraft:overworld".equals(loadedMovingShip.getCommandDimension())
                 || !loadedMovingShip.isOrderedToSit()
-                || loadedMovingShip.getAiFollowRange() != 36
+                || loadedMovingShip.getFollowMin() != 5
+                || loadedMovingShip.getFollowMax() != 20
                 || loadedMovingShip.isAiAutoTarget()
-                || !loadedMovingShip.isAiAllowPvp()
-                || loadedMovingShip.isAiAutoSupply()
-                || loadedMovingShip.isAiRespectRouteStay()) {
+                || !loadedMovingShip.isAiPvpFirst()) {
             helper.fail("ship command, standby, and AI runtime state should persist through NBT: pos="
                     + loadedMovingShip.getCommandedPos()
                     + " dim=" + loadedMovingShip.getCommandDimension()
                     + " sit=" + loadedMovingShip.isOrderedToSit()
                     + " flags=" + loadedMovingShip.getAiFlagsBitmask()
-                    + " follow=" + loadedMovingShip.getAiFollowRange()
+                    + " followMin=" + loadedMovingShip.getFollowMin()
+                    + " followMax=" + loadedMovingShip.getFollowMax()
                     + " autoTarget=" + loadedMovingShip.isAiAutoTarget()
-                    + " allowPvp=" + loadedMovingShip.isAiAllowPvp()
-                    + " autoSupply=" + loadedMovingShip.isAiAutoSupply()
-                    + " routeStay=" + loadedMovingShip.isAiRespectRouteStay());
+                    + " pvpFirst=" + loadedMovingShip.isAiPvpFirst());
             return;
         }
 
@@ -2579,9 +2577,108 @@ public final class GameplayParityGameTests {
             helper.fail("cache fallback menu should preserve route energy text");
             return;
         }
-        if (menu.getAiFollowRange() != ship.getAiFollowRange()) {
-            helper.fail("cache fallback menu should preserve AI follow range");
+        if (menu.getFollowMin() != ship.getFollowMin() || menu.getFollowMax() != ship.getFollowMax()) {
+            helper.fail("cache fallback menu should preserve FollowMin/FollowMax");
             return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipGuiButtonsAndInventoryPagingMirrorLegacy(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8113);
+            data.setCurrentTeamId(0);
+        })) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for legacy ShipBtn tests");
+            return;
+        }
+
+        // Legacy ShipStateHandler defaults and PacketHelper.setEntityByGUI button semantics.
+        if (ship.getFollowMin() != LegacyShipEntity.DEFAULT_FOLLOW_MIN || ship.getFollowMax() != LegacyShipEntity.DEFAULT_FOLLOW_MAX) {
+            helper.fail("legacy FollowMin/FollowMax defaults should be 3/12");
+            return;
+        }
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.MELEE, 0);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.AA_AI, 1);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.ASM_AI, 1);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.ON_SIGHT_AI, 0);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.FLEE_HP, 50);
+        int modelState = ship.getModelState();
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.MODEL_STATE_01 + 2, 0);
+        boolean sitting = ship.isOrderedToSit();
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.SIT, 0);
+        if (ship.useAttackMelee()
+                || !ship.isAiAntiAir()
+                || !ship.isAiAntiSub()
+                || ship.isAiOnSightChase()
+                || ship.getFleeHp() != 50
+                || ship.getModelState() != (modelState ^ 4)
+                || ship.isOrderedToSit() == sitting) {
+            helper.fail("legacy ShipBtn buttons should write UseMelee/AntiAir/AntiSS/OnSightChase/FleeHP/ModelState/Sit");
+            return;
+        }
+
+        // Legacy CapaShipInventory.setInventoryPage accepts 0..2, otherwise resets to 0.
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.INV_PAGE, 1);
+        ShipInventoryMenu menu = new ShipInventoryMenu(9, player.getInventory(), ship.getId(), ship.getShipUid());
+        if (ship.getInventoryPage() != 1
+                || menu.getSlot(LegacyShipEntity.EQUIPMENT_SLOT_COUNT).getContainerSlot()
+                != LegacyShipEntity.EQUIPMENT_SLOT_COUNT + LegacyShipEntity.CARGO_SLOT_COUNT) {
+            helper.fail("InvPage 1 should map cargo slots to the second 18-slot page");
+            return;
+        }
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.INV_PAGE, 3);
+        if (ship.getInventoryPage() != 0 || ship.getInventorySizePaged() != LegacyShipEntity.SHIP_SLOT_COUNT) {
+            helper.fail("invalid InvPage should reset to 0 and drumless ships should only unlock 24 slots");
+            return;
+        }
+        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(0).get()));
+        if (ship.getInventorySizePaged() != LegacyShipEntity.SHIP_SLOT_COUNT + LegacyShipEntity.CARGO_SLOT_COUNT) {
+            helper.fail("one drum should unlock one extra 18-slot page like legacy DrumState");
+            return;
+        }
+        ship.getShipInventory().setItem(0, ItemStack.EMPTY);
+
+        // Legacy ContainerShipInventory.transferStackInSlot.
+        int cargoMenuSlot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
+        int playerMenuSlot = LegacyShipEntity.SHIP_SLOT_COUNT;
+        for (int slot = 0; slot < LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot++) {
+            ship.getShipInventory().setItem(slot, ItemStack.EMPTY);
+        }
+        ship.getShipInventory().setItem(cargoMenuSlot, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(0).get()));
+        menu.quickMoveStack(player, cargoMenuSlot);
+        boolean equipped = false;
+        for (int slot = 0; slot < LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot++) {
+            equipped |= ship.getShipInventory().getItem(slot).is(ModItems.EQUIPDRUM_ITEMS.get(0).get());
+        }
+        if (!equipped || !ship.getShipInventory().getItem(cargoMenuSlot).isEmpty()) {
+            helper.fail("equipment shift-clicked from ship cargo should go to equipment slots first");
+            return;
+        }
+
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+            ship.getShipInventory().setItem(slot, new ItemStack(Items.DIRT, 64));
+        }
+        player.getInventory().clearContent();
+        player.getInventory().setItem(9, new ItemStack(Items.STONE, 16));
+        menu.quickMoveStack(player, playerMenuSlot);
+        if (player.getInventory().getItem(9).getCount() != 16) {
+            helper.fail("non-equipment shift-click from player inventory should stay put when ship cargo is full");
+            return;
+        }
+        for (int slot = 0; slot < 9; slot++) {
+            if (!player.getInventory().getItem(slot).isEmpty()) {
+                helper.fail("legacy shift-click must not move items between main inventory and hotbar");
+                return;
+            }
         }
 
         helper.succeed();
@@ -2606,11 +2703,11 @@ public final class GameplayParityGameTests {
 
         TeitokuHelper.refreshShipCache(ship, false);
         int shipUid = ship.getShipUid();
-        int nextFlags = GameplayCommandHandler.AI_FLAG_ALLOW_PVP | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+        int nextFlags = ship.getAiFlagsBitmask() & ~GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
 
         if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.toggleSit(0, ship.getId(), shipUid))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), shipUid, nextFlags))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), shipUid, 30))) {
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), shipUid, ShipGuiButton.TAR_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), shipUid, ShipGuiButton.FOLLOW_MAX, 30))) {
             helper.fail("ship commands should succeed before detached cache refresh validation");
             return;
         }
@@ -2626,7 +2723,7 @@ public final class GameplayParityGameTests {
             helper.fail("detached ship inventory cache should refresh AI flag state after ship commands");
             return;
         }
-        if (menu.getAiFollowRange() != 30) {
+        if (menu.getFollowMax() != 30) {
             helper.fail("detached ship inventory cache should refresh follow range after ship commands");
             return;
         }
@@ -3728,14 +3825,13 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        int aiFlags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET
-                | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
-                | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
-        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), ship.getShipUid(), aiFlags))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), ship.getShipUid(), 24))
-                || ship.getAiFlagsBitmask() != aiFlags
-                || ship.getAiFollowRange() != 24) {
-            helper.fail("ship inventory command controls should update AI flags and follow range");
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.PVP_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.FOLLOW_MIN, 8))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.FOLLOW_MAX, 24))
+                || !ship.isAiPvpFirst()
+                || ship.getFollowMin() != 8
+                || ship.getFollowMax() != 24) {
+            helper.fail("ship inventory GUI buttons should update PVPFirst and FollowMin/FollowMax");
             return;
         }
 
@@ -5167,14 +5263,15 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void passiveAiStopsAutomaticRangeTargeting(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        Vec3 shipPos = helper.absoluteVec(new Vec3(2.5D, 2.0D, 2.5D));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, shipPos.x, shipPos.y, shipPos.z);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
             return;
         }
 
         target.setNoAi(true);
-        target.setPos(4.0D, 2.0D, 2.5D);
+        target.setPos(shipPos.x + 1.5D, shipPos.y, shipPos.z);
         helper.getLevel().addFreshEntity(target);
         ship.setAiAutoTarget(false);
         ship.tickCount = 8;
@@ -6048,7 +6145,6 @@ public final class GameplayParityGameTests {
         destroyer.setNoAi(true);
         destroyer.setNoGravity(true);
         destroyer.setInvulnerable(true);
-        destroyer.setAiAutoSupply(false);
         destroyer.setShipFuel(0);
         destroyer.setLightAmmo(0);
         destroyer.setHeavyAmmo(0);
@@ -6084,7 +6180,6 @@ public final class GameplayParityGameTests {
             return;
         }
         ri.setNoAi(true);
-        ri.setAiAutoSupply(false);
         ri.setLightAmmo(0);
         ri.setHeavyAmmo(0);
         ri.setGrudge(1000);
@@ -6107,7 +6202,6 @@ public final class GameplayParityGameTests {
             return;
         }
         normalGrudge.setNoAi(true);
-        normalGrudge.setAiAutoSupply(false);
         normalGrudge.setLightAmmo(100);
         normalGrudge.setHeavyAmmo(100);
         normalGrudge.setGrudge(0);
@@ -6128,7 +6222,6 @@ public final class GameplayParityGameTests {
             return;
         }
         blockGrudge.setNoAi(true);
-        blockGrudge.setAiAutoSupply(false);
         blockGrudge.setLightAmmo(100);
         blockGrudge.setHeavyAmmo(100);
         blockGrudge.setGrudge(0);
@@ -12786,7 +12879,7 @@ public final class GameplayParityGameTests {
         if (attackRange >= 2 || ship.getHostileTargetSearchRange() != 14.0D) {
             helper.fail("low hostile attack ranges should use the legacy FollowMax + 2 effective fallback"
                     + ": attackRange=" + attackRange
-                    + ", followRange=" + ship.getAiFollowRange()
+                    + ", followMax=" + ship.getFollowMax()
                     + ", searchRange=" + ship.getHostileTargetSearchRange());
             return;
         }
@@ -13071,7 +13164,7 @@ public final class GameplayParityGameTests {
             helper.fail("pickup goal must not run while the ship is standing by");
             return;
         }
-        if (!pickupGoalCanUseWith(helper, 4, ship -> ship.setAiAutoSupply(false))) {
+        if (!pickupGoalCanUseWith(helper, 4, ship -> ship.setCombatRationLevel(0))) {
             helper.fail("pickup goal should remain independent from the combat-ration AI flag");
             return;
         }
@@ -13720,7 +13813,7 @@ public final class GameplayParityGameTests {
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
 
-        int lastCargoSlot = ship.getShipInventory().getContainerSize() - 1;
+        int lastCargoSlot = ship.getInventorySizePaged() - 1;
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < lastCargoSlot; slot++) {
             ship.getShipInventory().setItem(slot, new ItemStack(Items.COBBLESTONE, 64));
         }
@@ -15189,7 +15282,6 @@ public final class GameplayParityGameTests {
         }
 
         ship.setNoGravity(true);
-        ship.setAiAutoSupply(true);
         ship.setCombatRationLevel(2);
         ship.setMorale(3900);
         ship.setFoodSaturation(0);
@@ -15450,7 +15542,7 @@ public final class GameplayParityGameTests {
         ship.setGrudge(1);
         ship.setCanFollow(true);
 
-        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship, 1.1D, 5.0F, 2.0F, 14.0F);
+        LegacyShipFollowOwnerGoal goal = new LegacyShipFollowOwnerGoal(ship, 1.1D, 14.0F);
         if (!goal.canUse()) {
             helper.fail("follow goal should activate for a distant idle friendly ship");
             return;
@@ -17137,9 +17229,19 @@ public final class GameplayParityGameTests {
             ShipCacheSavedData.get(level).updateFromShip(kongou, false, true);
 
             Commands commands = level.getServer().getCommands();
+            // Legacy EntityHelper.checkOP: creative players count as OP, otherwise the server OP list.
+            ownerA.setGameMode(GameType.CREATIVE);
             CommandSourceStack opSource = ownerA.createCommandSourceStack()
                     .withPermission(4)
                     .withRotation(new Vec2(0.0F, 0.0F));
+            CommandSourceStack nonOpSource = ownerB.createCommandSourceStack().withPermission(4);
+            boolean stopAiBefore = LegacyShipEntity.isStopAi();
+            if (commands.performPrefixedCommand(nonOpSource, "shipstopai") > 0
+                    || commands.performPrefixedCommand(level.getServer().createCommandSourceStack(), "shipstopai") > 0
+                    || LegacyShipEntity.isStopAi() != stopAiBefore) {
+                helper.fail("legacy /ship* OP commands should reject non-OP survival players and non-player senders");
+                return;
+            }
 
             if (commands.performPrefixedCommand(opSource, "shipinfo") <= 0
                     || commands.performPrefixedCommand(opSource, "shipemotes lol") <= 0
@@ -17199,8 +17301,12 @@ public final class GameplayParityGameTests {
 
             drop = new ItemEntity(level, origin.getX() + 1.5D, origin.getY() + 0.5D, origin.getZ() + 1.5D, new ItemStack(Items.APPLE));
             level.addFreshEntity(drop);
-            if (commands.performPrefixedCommand(opSource, "shipcleardrop 16") <= 0 || drop.isAlive()) {
-                helper.fail("/shipcleardrop should remove nearby dropped ItemEntities");
+            ItemEntity legacyDrop = LegacyEntityItemMarker.mark(new ItemEntity(level,
+                    origin.getX() + 2.5D, origin.getY() + 0.5D, origin.getZ() + 1.5D, new ItemStack(Items.EGG)));
+            level.addFreshEntity(legacyDrop);
+            if (commands.performPrefixedCommand(opSource, "shipcleardrop 16") <= 0 || legacyDrop.isAlive() || !drop.isAlive()) {
+                legacyDrop.discard();
+                helper.fail("/shipcleardrop should only remove legacy BasicEntityItem drops, not vanilla ItemEntities");
                 return;
             }
 
@@ -17686,7 +17792,6 @@ public final class GameplayParityGameTests {
         }
         carrier.setNoAi(true);
         carrier.setNoGravity(true);
-        carrier.setAiAutoSupply(false);
         carrier.setShipFuel(100);
         carrier.setGrudge(1000);
         carrier.setAircraftLight(0);

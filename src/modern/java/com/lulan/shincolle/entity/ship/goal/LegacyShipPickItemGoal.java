@@ -98,7 +98,7 @@ public class LegacyShipPickItemGoal extends Goal {
     }
 
     private boolean hasAnyCargoSpace() {
-        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getShipInventory().getContainerSize(); slot++) {
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getInventorySizePaged(); slot++) {
             ItemStack stack = this.ship.getShipInventory().getItem(slot);
             if (stack.isEmpty()) {
                 return true;
@@ -110,7 +110,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
     private @Nullable ItemEntity findNearestItem() {
         double pickupRangeBase = LegacyShipBehaviorCatalog.pickupRangeBaseFor(this.ship.getSpec());
-        double range = Math.min(pickupRangeBase + this.ship.getAiFollowRange(),
+        double range = Math.min(pickupRangeBase + this.ship.getFollowMax(),
                 pickupRangeBase + this.ship.getCompatAttackRange() * 0.5D);
         List<ItemEntity> nearbyItems = this.ship.level().getEntitiesOfClass(ItemEntity.class,
                 this.ship.getBoundingBox().inflate(range, range * 0.5D + 1.0D, range),

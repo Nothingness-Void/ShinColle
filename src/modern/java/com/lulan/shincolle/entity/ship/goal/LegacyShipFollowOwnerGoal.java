@@ -16,18 +16,13 @@ public class LegacyShipFollowOwnerGoal extends Goal {
 
     private final LegacyShipEntity ship;
     private final double speedModifier;
-    private final float startDistance;
-    private final float stopDistance;
     private final float teleportDistance;
     private @Nullable Player owner;
     private int timeToRecalcPath;
 
-    public LegacyShipFollowOwnerGoal(LegacyShipEntity ship, double speedModifier, float startDistance,
-                                     float stopDistance, float teleportDistance) {
+    public LegacyShipFollowOwnerGoal(LegacyShipEntity ship, double speedModifier, float teleportDistance) {
         this.ship = ship;
         this.speedModifier = speedModifier;
-        this.startDistance = startDistance;
-        this.stopDistance = stopDistance;
         this.teleportDistance = teleportDistance;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
     }
@@ -145,16 +140,19 @@ public class LegacyShipFollowOwnerGoal extends Goal {
                 pos.getZ() + 0.5D - this.ship.getZ()));
     }
 
+    /** Legacy EntityAIShipFollowOwner: fMax = FollowMax + width * 0.75, +5 while PickItem is on. */
     private float dynamicStartDistance() {
-        return Math.max(this.startDistance, this.ship.getAiFollowRange() * 0.5F);
+        float fMax = this.ship.getFollowMax() + this.ship.getBbWidth() * 0.75F;
+        return this.ship.isAiPickItem() ? fMax + 5.0F : fMax;
     }
 
+    /** Legacy EntityAIShipFollowOwner: fMin = FollowMin + width * 0.75. */
     private float dynamicStopDistance() {
-        return Math.max(this.stopDistance, this.dynamicStartDistance() * 0.4F);
+        return this.ship.getFollowMin() + this.ship.getBbWidth() * 0.75F;
     }
 
     private float dynamicTeleportDistance() {
-        return Math.max(this.teleportDistance, this.ship.getAiFollowRange() * (float) this.ship.getFollowMovementSpeedModifier());
+        return Math.max(this.teleportDistance, this.ship.getFollowMax() * (float) this.ship.getFollowMovementSpeedModifier());
     }
 
     private boolean canFollowOwner() {

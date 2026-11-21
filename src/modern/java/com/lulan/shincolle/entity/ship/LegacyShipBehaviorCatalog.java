@@ -2124,7 +2124,7 @@ public final class LegacyShipBehaviorCatalog {
                                                boolean checkNbt) {
         Container inventory = ship.getShipInventory();
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
-             slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+             slot < ship.getInventorySizePaged(); slot++) {
             if (slot == LegacyShipEntity.LEGACY_MAIN_HAND_SLOT
                     || slot == LegacyShipEntity.LEGACY_OFF_HAND_SLOT) {
                 continue;
@@ -2248,7 +2248,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static int moveLegacyTaskStackToShip(LegacyShipEntity ship, ItemStack source) {
         return insertLegacyTaskStack(ship.getShipInventory(), source,
-                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, LegacyShipEntity.SHIP_SLOT_COUNT);
+                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, ship.getInventorySizePaged());
     }
 
     private static void dropLegacyTaskRemainder(LegacyShipEntity ship, ItemStack stack) {

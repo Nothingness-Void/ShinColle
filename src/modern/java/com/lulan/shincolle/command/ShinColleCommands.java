@@ -4,6 +4,7 @@ import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
@@ -56,6 +57,26 @@ public final class ShinColleCommands {
     private ShinColleCommands() {
     }
 
+    /** Legacy ShipCmd* checkPermission only accepted EntityPlayer senders. */
+    private static boolean isPlayerSource(CommandSourceStack source) {
+        return source.getEntity() instanceof ServerPlayer;
+    }
+
+    /** Legacy EntityHelper.checkOP: creative mode counts as OP, otherwise PlayerList op check. */
+    public static boolean checkOp(ServerPlayer player) {
+        return player.isCreative() || player.server.getPlayerList().isOp(player.getGameProfile());
+    }
+
+    private static boolean checkOp(CommandSourceStack source, boolean notifyNotOp) {
+        if (source.getEntity() instanceof ServerPlayer player && checkOp(player)) {
+            return true;
+        }
+        if (notifyNotOp) {
+            source.sendFailure(Component.translatable("chat.shincolle.command.notop"));
+        }
+        return false;
+    }
+
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
         registerChangeOwner(dispatcher, "shipchangeowner");
@@ -77,10 +98,12 @@ public final class ShinColleCommands {
 
     private static void registerChangeOwner(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
         LiteralArgumentBuilder<CommandSourceStack> cmd = Commands.literal(name)
-                .requires(source -> source.hasPermission(2))
+                .requires(ShinColleCommands::isPlayerSource)
                 .then(Commands.argument("player", StringArgumentType.word())
                         .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(collectPlayerNames(ctx.getSource().getServer()), builder))
-                        .executes(ctx -> executeChangeOwner(ctx.getSource(), StringArgumentType.getString(ctx, "player"))));
+                        .executes(ctx -> checkOp(ctx.getSource(), true)
+                                ? executeChangeOwner(ctx.getSource(), StringArgumentType.getString(ctx, "player"))
+                                : 0));
         dispatcher.register(cmd);
     }
 
@@ -95,44 +118,52 @@ public final class ShinColleCommands {
 
     private static void registerShip(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("ship")
+                .requires(ShinColleCommands::isPlayerSource)
                 .then(Commands.literal("list")
                         .executes(ctx -> executeShipList(ctx.getSource(), 1))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
                                 .executes(ctx -> executeShipList(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))))
                 .then(Commands.literal("get")
-                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("uid", IntegerArgumentType.integer(1))
-                                .executes(ctx -> executeShipGet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "uid")))))
+                                .executes(ctx -> checkOp(ctx.getSource(), true)
+                                        ? executeShipGet(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "uid"))
+                                        : 0)))
                 .then(Commands.literal("del")
-                        .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("uid", IntegerArgumentType.integer(1))
-                                .executes(ctx -> executeShipDel(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "uid"))))));
+                                .executes(ctx -> checkOp(ctx.getSource(), true)
+                                        ? executeShipDel(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "uid"))
+                                        : 0))));
     }
 
     private static void registerShipKill(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("shipkill")
-                .requires(source -> source.hasPermission(2))
+                .requires(ShinColleCommands::isPlayerSource)
                 .then(Commands.argument("classId", IntegerArgumentType.integer(2))
-                        .executes(ctx -> executeShipKill(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "classId"), 64))
+                        .executes(ctx -> checkOp(ctx.getSource(), false)
+                                ? executeShipKill(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "classId"), 64)
+                                : 0)
                         .then(Commands.argument("range", IntegerArgumentType.integer(1, 512))
-                                .executes(ctx -> executeShipKill(ctx.getSource(),
-                                        IntegerArgumentType.getInteger(ctx, "classId"),
-                                        IntegerArgumentType.getInteger(ctx, "range"))))));
+                                .executes(ctx -> checkOp(ctx.getSource(), false)
+                                        ? executeShipKill(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "classId"),
+                                                IntegerArgumentType.getInteger(ctx, "range"))
+                                        : 0))));
     }
 
     private static void registerShipAttrs(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("shipattrs")
-                .requires(source -> source.hasPermission(2))
+                .requires(ShinColleCommands::isPlayerSource)
                 .then(Commands.argument("level", IntegerArgumentType.integer(1, 150))
-                        .executes(ctx -> executeShipAttrs(ctx.getSource(),
-                                IntegerArgumentType.getInteger(ctx, "level"), null))
+                        .executes(ctx -> checkOp(ctx.getSource(), true)
+                                ? executeShipAttrs(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "level"), null)
+                                : 0)
                         .then(Commands.argument("hp", IntegerArgumentType.integer(0, 100))
                                 .then(Commands.argument("atk", IntegerArgumentType.integer(0, 100))
                                         .then(Commands.argument("def", IntegerArgumentType.integer(0, 100))
                                                 .then(Commands.argument("spd", IntegerArgumentType.integer(0, 100))
                                                         .then(Commands.argument("mov", IntegerArgumentType.integer(0, 100))
                                                                 .then(Commands.argument("hit", IntegerArgumentType.integer(0, 100))
-                                                                        .executes(ctx -> executeShipAttrs(ctx.getSource(),
+                                                                        .executes(ctx -> !checkOp(ctx.getSource(), true) ? 0 : executeShipAttrs(ctx.getSource(),
                                                                                 IntegerArgumentType.getInteger(ctx, "level"),
                                                                                 new int[] {
                                                                                         IntegerArgumentType.getInteger(ctx, "hp"),
@@ -146,10 +177,12 @@ public final class ShinColleCommands {
 
     private static void registerShipClearDrop(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("shipcleardrop")
-                .requires(source -> source.hasPermission(2))
-                .executes(ctx -> executeShipClearDrop(ctx.getSource(), 128))
+                .requires(ShinColleCommands::isPlayerSource)
+                .executes(ctx -> checkOp(ctx.getSource(), false) ? executeShipClearDrop(ctx.getSource(), 128) : 0)
                 .then(Commands.argument("range", IntegerArgumentType.integer(0, 512))
-                        .executes(ctx -> executeShipClearDrop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "range")))));
+                        .executes(ctx -> checkOp(ctx.getSource(), false)
+                                ? executeShipClearDrop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "range"))
+                                : 0)));
     }
 
     private static void registerShipInfo(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -159,17 +192,19 @@ public final class ShinColleCommands {
 
     private static void registerStopAi(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
         dispatcher.register(Commands.literal(name)
-                .requires(source -> source.hasPermission(2))
-                .executes(ctx -> executeStopAi(ctx.getSource())));
+                .requires(ShinColleCommands::isPlayerSource)
+                .executes(ctx -> checkOp(ctx.getSource(), false) ? executeStopAi(ctx.getSource()) : 0));
     }
 
     private static void registerUpdateOwnerUid(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("shipupdateowneruid")
+                .requires(ShinColleCommands::isPlayerSource)
                 .executes(ShinColleCommands::executeUpdateOwnerUidSelf)
                 .then(Commands.argument("player", StringArgumentType.word())
-                        .requires(source -> source.hasPermission(2))
                         .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(collectPlayerNames(ctx.getSource().getServer()), builder))
-                        .executes(ctx -> executeUpdateOwnerUidTarget(ctx.getSource(), StringArgumentType.getString(ctx, "player")))));
+                        .executes(ctx -> checkOp(ctx.getSource(), true)
+                                ? executeUpdateOwnerUidTarget(ctx.getSource(), StringArgumentType.getString(ctx, "player"))
+                                : 0)));
     }
 
     private static int executeChangeOwner(CommandSourceStack source, String targetPlayerName) {
@@ -311,18 +346,19 @@ public final class ShinColleCommands {
         spawned.setVariantEggMeta(spec.eggMeta());
         spawned.moveTo(senderPos.x, senderPos.y + 0.5D, senderPos.z, 0.0F, 0.0F);
         spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(senderPos)), MobSpawnType.COMMAND, null, null);
+        // Legacy EntityHelper.createShipEntity: full health first, then the saved NBT restores stored HP.
+        spawned.setHealth(spawned.getMaxHealth());
         if (!entry.entityTag().isEmpty()) {
             CompoundTag restoreTag = entry.entityTag().copy();
             restoreTag.putInt("ShipUID", uid);
             spawned.readAdditionalSaveData(restoreTag);
+            if (spawned.getHealth() < 1.0F) {
+                spawned.setHealth(1.0F);
+            }
+            spawned.setCanDropItem(true);
         }
-        spawned.clearCommandState();
         spawned.setDeltaMovement(Vec3.ZERO);
         spawned.moveTo(senderPos.x, senderPos.y + 0.5D, senderPos.z, 0.0F, 0.0F);
-        spawned.setHealth(Math.max(1.0F, spawned.getMaxHealth()));
-        spawned.setOrderedToSit(false);
-        spawned.setCanFollow(false);
-        spawned.commandGuardBlock(BlockPos.containing(senderPos.x, senderPos.y + 0.5D, senderPos.z), dimId);
         level.addFreshEntity(spawned);
         cache.updateFromShip(spawned, false, true);
         source.sendSuccess(() -> Component.literal("ship: spawn: " + uid), true);
@@ -381,8 +417,11 @@ public final class ShinColleCommands {
     private static int executeShipClearDrop(CommandSourceStack source, int rawRange) {
         int range = rawRange <= 0 ? 128 : rawRange;
         Vec3 pos = source.getPosition();
-        AABB area = new AABB(pos.x - range, -256.0D, pos.z - range, pos.x + range, 512.0D, pos.z + range);
-        List<ItemEntity> drops = source.getLevel().getEntitiesOfClass(ItemEntity.class, area, Entity::isAlive);
+        // Legacy ShipCmdShipClearDrop searched the full 1.12 build height (0..256); 1.20.1 uses the level build limits.
+        AABB area = new AABB(pos.x - range, source.getLevel().getMinBuildHeight(), pos.z - range,
+                pos.x + range, source.getLevel().getMaxBuildHeight(), pos.z + range);
+        List<ItemEntity> drops = source.getLevel().getEntitiesOfClass(ItemEntity.class, area,
+                drop -> drop.isAlive() && LegacyEntityItemMarker.isMarked(drop));
         for (ItemEntity drop : drops) {
             drop.discard();
         }

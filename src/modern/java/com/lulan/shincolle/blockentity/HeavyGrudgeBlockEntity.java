@@ -5,6 +5,7 @@ import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
 import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.item.HeavyGrudgeBlockItem;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.registry.ModBlockEntities;
@@ -17,6 +18,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -474,7 +476,14 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             }
         }
 
-        Block.popResource(this.level, this.worldPosition, this.createDroppedBlockStack());
+        RandomSource random = this.level.getRandom();
+        ItemEntity blockDrop = new ItemEntity(this.level,
+                this.worldPosition.getX() + random.nextFloat() * 0.5F + 0.2F,
+                this.worldPosition.getY() + random.nextFloat() * 0.5F + 0.2F,
+                this.worldPosition.getZ() + random.nextFloat() * 0.5F + 0.2F,
+                this.createDroppedBlockStack());
+        blockDrop.setDefaultPickUpDelay();
+        this.level.addFreshEntity(LegacyEntityItemMarker.mark(blockDrop));
     }
 
     public ItemStack createDroppedBlockStack() {

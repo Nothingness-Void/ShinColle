@@ -1,0 +1,22 @@
+{
+  "batchId": "2026-11-22-parity-fix-menu-network-command",
+  "date": "2026-11-22",
+  "status": "COMPLETED",
+  "jdk": "17.0.20.1",
+  "commands": [
+    "git diff --check",
+    "git diff --name-only -- src/main",
+    "bash ./gradlew compileJava runGameTestServer --no-daemon"
+  ],
+  "legacyTouched": false,
+  "legacyHistoricalReference": "0aad501 (CapaShipInventory / ContainerShipInventory / SlotShipInventory)",
+  "gameTests": {
+    "total": 299,
+    "passed": 299,
+    "failed": 0,
+    "skipped": 0,
+    "addedTests": ["shipGuiButtonsAndInventoryPagingMirrorLegacy"],
+    "rewrittenTests": ["b6SlashShipCommandsParity", "passiveAiStopsAutomaticRangeTargeting", "shipPickupGoalUsesLegacySelectionAndCooldown"]
+  },
+  "skipped": ["ShipInv_NoFuel (button 39): no legacy ship GUI sender; only GuiMorphInventory via MorphBtn"]
+}

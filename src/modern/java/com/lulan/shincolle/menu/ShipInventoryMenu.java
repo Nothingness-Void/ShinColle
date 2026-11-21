@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 public class ShipInventoryMenu extends AbstractContainerMenu {
 
     public static final int BUTTON_TOGGLE_MODE = 0;
-    private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
     private static final String HEALTH_TAG = "Health";
     private static final String ORDERED_TO_SIT_TAG = "OrderedToSit";
     private static final String SHIP_LEVEL_TAG = "ShipLevel";
@@ -59,10 +58,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String MODERN_RANGE_TAG = "ModernRange";
     private static final String ROUTE_ENERGY_TAG = "RouteEnergy";
     private static final String AI_AUTO_TARGET_TAG = "AiAutoTarget";
-    private static final String AI_ALLOW_PVP_TAG = "AiAllowPvp";
-    private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
-    private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
-    private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
+    private static final String SHIP_FOLLOW_MIN_TAG = "ShipFollowMin";
+    private static final String SHIP_FOLLOW_MAX_TAG = "ShipFollowMax";
     private static final String LEGACY_EXTENDED_PROPERTIES_TAG = "ShipExtProps";
     private static final String LEGACY_MINOR_TAG = "Minor";
     private static final String LEGACY_EXPERIENCE_TAG = "Exp";
@@ -90,7 +87,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         this.shipId = shipId;
         this.shipUid = shipUid > 0 ? shipUid : resolveInitialShipUid(playerInventory, shipId);
         this.ship = resolveShip(playerInventory, shipId, this.shipUid);
-        this.shipInventory = this.ship != null ? this.ship.getShipInventory() : new SimpleContainer(LegacyShipEntity.SHIP_SLOT_COUNT);
+        this.shipInventory = this.ship != null ? this.ship.getShipInventory() : new SimpleContainer(LegacyShipEntity.SHIP_INVENTORY_SIZE);
 
         checkContainerSize(this.shipInventory, LegacyShipEntity.SHIP_SLOT_COUNT);
         this.shipInventory.startOpen(playerInventory.player);
@@ -102,7 +99,8 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         for (int row = 0; row < 6; row++) {
             for (int col = 0; col < 3; col++) {
                 int slot = CARGO_SLOT_START + row * 3 + col;
-                this.addSlot(new Slot(this.shipInventory, slot, 8 + col * 18, 18 + row * 18));
+                this.addSlot(new ShipPagedCargoSlot(this.shipInventory, slot, 8 + col * 18, 18 + row * 18,
+                        this::getInventoryPage));
             }
         }
 
@@ -149,18 +147,9 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         return cached != null && spec != null && !spec.hostile() && !cached.dead() && this.isOwnedByViewer(cached);
     }
 
+    /** Legacy SlotShipInventory.isItemValid: equipment slots accept any BasicEquip. */
     public boolean isValidShipEquipment(ItemStack stack) {
-        LegacyShipEntity ship = this.getShip();
-        if (ship != null) {
-            return ship.canEquip(stack);
-        }
-
-        ShipEntitySpec spec = this.resolveCachedSpec(this.getShipCacheEntry());
-        if (spec == null) {
-            return stack.getItem() instanceof LegacyEquipmentItem;
-        }
-
-        return ShipEquipmentProfile.canEquip(spec, stack);
+        return stack.getItem() instanceof LegacyEquipmentItem;
     }
 
     public Component getOwnerLabel() {
@@ -551,26 +540,44 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         if (cached != null ? cached.isAiAutoTarget() : this.getCachedBoolean(tag, AI_AUTO_TARGET_TAG, true)) {
             flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
         }
-        if (this.getCachedBoolean(tag, AI_ALLOW_PVP_TAG, false)) {
-            flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_ALLOW_PVP;
-        }
-        if (this.getCachedBoolean(tag, AI_AUTO_SUPPLY_TAG, true)) {
-            flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY;
-        }
         if (cached != null && cached.isAiPickItem()) {
             flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_PICK_ITEM;
-        }
-        if (this.getCachedBoolean(tag, AI_ROUTE_STAY_TAG, true)) {
-            flags |= com.lulan.shincolle.network.GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
         }
         return flags;
     }
 
-    public int getAiFollowRange() {
+    public int getFollowMin() {
         LegacyShipEntity ship = this.getShip();
         return ship != null
-                ? ship.getAiFollowRange()
-                : this.getCachedInt(this.getCachedEntityTag(), AI_FOLLOW_RANGE_TAG, DEFAULT_AI_FOLLOW_RANGE);
+                ? ship.getFollowMin()
+                : this.getCachedInt(this.getCachedEntityTag(), SHIP_FOLLOW_MIN_TAG, LegacyShipEntity.DEFAULT_FOLLOW_MIN);
+    }
+
+    public int getFollowMax() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null
+                ? ship.getFollowMax()
+                : this.getCachedInt(this.getCachedEntityTag(), SHIP_FOLLOW_MAX_TAG, LegacyShipEntity.DEFAULT_FOLLOW_MAX);
+    }
+
+    public int getFleeHp() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getFleeHp() : LegacyShipEntity.DEFAULT_FLEE_HP;
+    }
+
+    public int getInventoryPage() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getInventoryPage() : 0;
+    }
+
+    public int getInventoryPageSize() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getInventoryPageSize() : 0;
+    }
+
+    public int getInventorySizePaged() {
+        LegacyShipEntity ship = this.getShip();
+        return ship != null ? ship.getInventorySizePaged() : LegacyShipEntity.SHIP_SLOT_COUNT;
     }
 
     public String getRouteEnergyText() {
@@ -623,7 +630,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     public int getCargoUsedSlots() {
         int used = 0;
 
-        for (int slot = CARGO_SLOT_START; slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+        for (int slot = CARGO_SLOT_START; slot < this.getInventorySizePaged(); slot++) {
             if (!this.shipInventory.getItem(slot).isEmpty()) {
                 used++;
             }
@@ -684,27 +691,22 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         ItemStack copy = stackInSlot.copy();
         boolean moved;
 
-        if (index < PLAYER_SLOT_START) {
-            moved = this.moveItemStackTo(stackInSlot, PLAYER_SLOT_START, SLOT_END, true);
-        } else {
-            moved = false;
-
-            LegacyShipEntity ship = this.getShip();
-            if (ship != null && ship.canEquip(stackInSlot)) {
-                moved = this.moveItemStackTo(stackInSlot, EQUIPMENT_SLOT_START, CARGO_SLOT_START, false);
-            }
-
+        // Legacy ContainerShipInventory.transferStackInSlot: equipment check is instanceof BasicEquip.
+        boolean isEquip = stackInSlot.getItem() instanceof LegacyEquipmentItem;
+        if (index < CARGO_SLOT_START) {
+            moved = this.moveItemStackTo(stackInSlot, CARGO_SLOT_START, SLOT_END, true);
+        } else if (index < PLAYER_SLOT_START) {
+            moved = isEquip && this.moveItemStackTo(stackInSlot, EQUIPMENT_SLOT_START, CARGO_SLOT_START, false);
             if (!moved) {
-                moved = this.moveItemStackTo(stackInSlot, CARGO_SLOT_START, PLAYER_SLOT_START, false);
+                moved = this.moveItemStackTo(stackInSlot, PLAYER_SLOT_START, SLOT_END, true);
             }
-
-            if (!moved && index < HOTBAR_SLOT_START) {
-                moved = this.moveItemStackTo(stackInSlot, HOTBAR_SLOT_START, SLOT_END, false);
+        } else if (isEquip) {
+            moved = this.moveItemStackTo(stackInSlot, EQUIPMENT_SLOT_START, CARGO_SLOT_START, false);
+            if (!moved) {
+                moved = this.moveItemStackTo(stackInSlot, CARGO_SLOT_START, PLAYER_SLOT_START, true);
             }
-
-            if (!moved && index >= HOTBAR_SLOT_START) {
-                moved = this.moveItemStackTo(stackInSlot, PLAYER_SLOT_START, HOTBAR_SLOT_START, false);
-            }
+        } else {
+            moved = this.moveItemStackTo(stackInSlot, CARGO_SLOT_START, PLAYER_SLOT_START, false);
         }
 
         if (!moved) {

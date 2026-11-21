@@ -95,6 +95,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.item.ItemEntity;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
@@ -203,11 +204,11 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String AI_PVP_FIRST_TAG = "AiPvpFirst";
     private static final String AI_ANTI_AIR_TAG = "AiAntiAir";
     private static final String AI_ANTI_SUB_TAG = "AiAntiSub";
-    private static final String AI_ALLOW_PVP_TAG = "AiAllowPvp";
-    private static final String AI_AUTO_SUPPLY_TAG = "AiAutoSupply";
     private static final String AI_PICK_ITEM_TAG = "AiPickItem";
-    private static final String AI_FOLLOW_RANGE_TAG = "AiFollowRange";
-    private static final String AI_ROUTE_STAY_TAG = "AiRouteStay";
+    private static final String SHIP_FOLLOW_MIN_TAG = "ShipFollowMin";
+    private static final String SHIP_FOLLOW_MAX_TAG = "ShipFollowMax";
+    private static final String LEGACY_FOLLOW_MIN_TAG = "FMin";
+    private static final String LEGACY_FOLLOW_MAX_TAG = "FMax";
     private static final String SHIP_INVENTORY_TAG = "ShipInventory";
     private static final String SHIP_INVENTORY_SLOT_TAG = "Slot";
     private static final String HOSTILE_RUNTIME_TAG = "HostileRuntime";
@@ -304,7 +305,9 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final int DEFAULT_LIGHT_AMMO = MAX_LIGHT_AMMO;
     private static final int DEFAULT_HEAVY_AMMO = MAX_HEAVY_AMMO;
     private static final int DEFAULT_GRUDGE = MAX_GRUDGE;
-    private static final int DEFAULT_AI_FOLLOW_RANGE = 14;
+    // Legacy ShipStateHandler defaults: FollowMin 3, FollowMax 12.
+    public static final int DEFAULT_FOLLOW_MIN = 3;
+    public static final int DEFAULT_FOLLOW_MAX = 12;
     private static final boolean DEFAULT_AI_ON_SIGHT_CHASE = true;
     public static final boolean DEFAULT_AI_PVP_FIRST = true;
     public static final boolean DEFAULT_AI_ANTI_AIR = false;
@@ -384,7 +387,11 @@ public class LegacyShipEntity extends PathfinderMob {
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_AI_FLAGS =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Integer> DATA_AI_FOLLOW_RANGE =
+    private static final EntityDataAccessor<Integer> DATA_INVENTORY_PAGE =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FOLLOW_MIN =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FOLLOW_MAX =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_ROUTE_ENERGY =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -447,11 +454,15 @@ public class LegacyShipEntity extends PathfinderMob {
     public static final int EQUIPMENT_SLOT_COUNT = 6;
     public static final int CARGO_SLOT_COUNT = 18;
     public static final int SHIP_SLOT_COUNT = EQUIPMENT_SLOT_COUNT + CARGO_SLOT_COUNT;
+    // Legacy CapaShipInventory: 6 equip + 18 cargo * 3 pages, pages unlocked by DrumState.
+    public static final int INVENTORY_PAGE_COUNT = 3;
+    public static final int SHIP_INVENTORY_SIZE = EQUIPMENT_SLOT_COUNT + CARGO_SLOT_COUNT * INVENTORY_PAGE_COUNT;
+    private static final int LEGACY_TRANSPORT_WA_CLASS_ID = 16;
     // BasicEntityShip's task hands were the final two slots in the 24-slot handler.
     public static final int LEGACY_MAIN_HAND_SLOT = SHIP_SLOT_COUNT - 2;
     public static final int LEGACY_OFF_HAND_SLOT = SHIP_SLOT_COUNT - 1;
 
-    private final SimpleContainer shipInventory = new SimpleContainer(SHIP_SLOT_COUNT) {
+    private final SimpleContainer shipInventory = new SimpleContainer(SHIP_INVENTORY_SIZE) {
         @Override
         public void setChanged() {
             super.setChanged();
@@ -554,11 +565,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private boolean aiPvpFirst = DEFAULT_AI_PVP_FIRST;
     private boolean aiAntiAir = DEFAULT_AI_ANTI_AIR;
     private boolean aiAntiSub = DEFAULT_AI_ANTI_SUB;
-    private boolean aiAllowPvp;
-    private boolean aiAutoSupply = true;
     private boolean aiPickItem = true;
-    private int aiFollowRange = DEFAULT_AI_FOLLOW_RANGE;
-    private boolean aiRespectRouteStay = true;
     private final HostileRuntimeState hostileRuntimeState = new HostileRuntimeState();
     @Nullable
     private LegacyShipFishingHookEntity fishingHook;
@@ -624,10 +631,10 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_MODERNIZATION_TOTAL, 0);
         this.entityData.define(DATA_FORMATION_ID, TeitokuData.DEFAULT_FORMATION_ID);
         this.entityData.define(DATA_AI_FLAGS, GameplayCommandHandler.AI_FLAG_AUTO_TARGET
-                | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
-                | GameplayCommandHandler.AI_FLAG_ROUTE_STAY
                 | GameplayCommandHandler.AI_FLAG_PICK_ITEM);
-        this.entityData.define(DATA_AI_FOLLOW_RANGE, DEFAULT_AI_FOLLOW_RANGE);
+        this.entityData.define(DATA_INVENTORY_PAGE, 0);
+        this.entityData.define(DATA_FOLLOW_MIN, DEFAULT_FOLLOW_MIN);
+        this.entityData.define(DATA_FOLLOW_MAX, DEFAULT_FOLLOW_MAX);
         this.entityData.define(DATA_ROUTE_ENERGY, 0);
         this.entityData.define(DATA_WP_STAY_MODE, DEFAULT_WP_STAY_MODE);
         this.entityData.define(DATA_TASK, DEFAULT_TASK);
@@ -699,7 +706,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 return reach * reach + target.getBbWidth();
             }
         });
-        this.goalSelector.addGoal(4, new LegacyShipFollowOwnerGoal(this, 1.1D, 5.0F, 2.0F, 14.0F));
+        this.goalSelector.addGoal(4, new LegacyShipFollowOwnerGoal(this, 1.1D, 14.0F));
         this.goalSelector.addGoal(5, new LegacyShipPickItemGoal(this, 1.0D));
         this.goalSelector.addGoal(6, new RandomStrollGoal(this, 0.9D) {
             @Override
@@ -903,18 +910,14 @@ public class LegacyShipEntity extends PathfinderMob {
                 tag, AI_ANTI_AIR_TAG, LEGACY_ANTI_AIR_FLAG_TAG, DEFAULT_AI_ANTI_AIR);
         this.aiAntiSub = getBooleanWithLegacyFlagsFallback(
                 tag, AI_ANTI_SUB_TAG, LEGACY_ANTI_SUB_FLAG_TAG, DEFAULT_AI_ANTI_SUB);
-        this.aiAllowPvp = tag.getBoolean(AI_ALLOW_PVP_TAG);
-        this.aiAutoSupply = !tag.contains(AI_AUTO_SUPPLY_TAG) || tag.getBoolean(AI_AUTO_SUPPLY_TAG);
         this.aiPickItem = getBooleanWithLegacyFlagsFallback(
                 tag, AI_PICK_ITEM_TAG, LEGACY_PICK_ITEM_FLAG_TAG, true);
-        this.aiFollowRange = tag.contains(AI_FOLLOW_RANGE_TAG)
-                ? Mth.clamp(tag.getInt(AI_FOLLOW_RANGE_TAG), 4, 64)
-                : DEFAULT_AI_FOLLOW_RANGE;
-        this.aiRespectRouteStay = !tag.contains(AI_ROUTE_STAY_TAG) || tag.getBoolean(AI_ROUTE_STAY_TAG);
         int loadedAiFlags = this.encodeAiFlags();
-        int loadedFollowRange = this.aiFollowRange;
         this.entityData.set(DATA_AI_FLAGS, loadedAiFlags);
-        this.entityData.set(DATA_AI_FOLLOW_RANGE, loadedFollowRange);
+        this.entityData.set(DATA_FOLLOW_MIN, getIntWithLegacyMinorFallback(
+                tag, SHIP_FOLLOW_MIN_TAG, null, LEGACY_FOLLOW_MIN_TAG, DEFAULT_FOLLOW_MIN));
+        this.entityData.set(DATA_FOLLOW_MAX, getIntWithLegacyMinorFallback(
+                tag, SHIP_FOLLOW_MAX_TAG, null, LEGACY_FOLLOW_MAX_TAG, DEFAULT_FOLLOW_MAX));
         this.entityData.set(DATA_ON_SIGHT_CHASE, this.aiOnSightChase);
         this.entityData.set(DATA_PVP_FIRST, this.aiPvpFirst);
         this.entityData.set(DATA_ANTI_AIR, this.aiAntiAir);
@@ -927,7 +930,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 tag, SHIP_SHOW_HELD_ITEM_TAG, LEGACY_HELD_ITEM_FLAG_TAG, DEFAULT_SHOW_HELD_ITEM));
         this.canDropItem = getBooleanWithLegacyFlagsFallback(
                 tag, SHIP_CAN_DROP_TAG, LEGACY_CAN_DROP_FLAG_TAG, DEFAULT_CAN_DROP_ITEM);
-        this.applyAiData(loadedAiFlags, loadedFollowRange);
+        this.applyAiData(loadedAiFlags);
         this.entityData.set(DATA_MODERNIZATION_TOTAL, this.getModernizationCount());
         this.loadShipInventory(tag);
         if (tag.contains(HOSTILE_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
@@ -1027,11 +1030,9 @@ public class LegacyShipEntity extends PathfinderMob {
         tag.putBoolean(AI_PVP_FIRST_TAG, this.isAiPvpFirst());
         tag.putBoolean(AI_ANTI_AIR_TAG, this.isAiAntiAir());
         tag.putBoolean(AI_ANTI_SUB_TAG, this.isAiAntiSub());
-        tag.putBoolean(AI_ALLOW_PVP_TAG, this.aiAllowPvp);
-        tag.putBoolean(AI_AUTO_SUPPLY_TAG, this.aiAutoSupply);
         tag.putBoolean(AI_PICK_ITEM_TAG, this.aiPickItem);
-        tag.putInt(AI_FOLLOW_RANGE_TAG, this.aiFollowRange);
-        tag.putBoolean(AI_ROUTE_STAY_TAG, this.aiRespectRouteStay);
+        tag.putInt(SHIP_FOLLOW_MIN_TAG, this.getFollowMin());
+        tag.putInt(SHIP_FOLLOW_MAX_TAG, this.getFollowMax());
         tag.putBoolean(SHIP_CAN_FLOAT_TAG, this.canFloatUp());
         tag.putBoolean(SHIP_CAN_FOLLOW_TAG, this.canFollow());
         tag.putBoolean(SHIP_CAN_DROP_TAG, this.canDropItem);
@@ -1172,7 +1173,7 @@ public class LegacyShipEntity extends PathfinderMob {
             this.refreshFromVariant(true);
         }
 
-        if (DATA_AI_FLAGS.equals(key) || DATA_AI_FOLLOW_RANGE.equals(key)) {
+        if (DATA_AI_FLAGS.equals(key)) {
             this.applySyncedAiData();
         }
 
@@ -2615,24 +2616,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
     }
 
-    public boolean isAiAllowPvp() {
-        return this.aiAllowPvp;
-    }
-
-    public void setAiAllowPvp(boolean aiAllowPvp) {
-        this.aiAllowPvp = aiAllowPvp;
-        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
-    }
-
-    public boolean isAiAutoSupply() {
-        return this.aiAutoSupply;
-    }
-
-    public void setAiAutoSupply(boolean aiAutoSupply) {
-        this.aiAutoSupply = aiAutoSupply;
-        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
-    }
-
     public boolean isAiPickItem() {
         return this.aiPickItem;
     }
@@ -2642,22 +2625,54 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
     }
 
-    public int getAiFollowRange() {
-        return this.aiFollowRange;
+    /** Legacy CapaShipInventory.inventoryPage; not persisted, like the legacy capability field. */
+    public int getInventoryPage() {
+        return this.entityData.get(DATA_INVENTORY_PAGE);
     }
 
-    public void setAiFollowRange(int aiFollowRange) {
-        this.aiFollowRange = Mth.clamp(aiFollowRange, 4, 64);
-        this.entityData.set(DATA_AI_FOLLOW_RANGE, this.aiFollowRange);
+    public void setInventoryPage(int page) {
+        this.entityData.set(DATA_INVENTORY_PAGE, page >= 0 && page < INVENTORY_PAGE_COUNT ? page : 0);
     }
 
-    public boolean isAiRespectRouteStay() {
-        return this.aiRespectRouteStay;
+    /** Legacy DrumState: +1 per drum equipment (EquipCalc misc[0]); EntityTransportWa forces 2. */
+    public int getInventoryPageSize() {
+        if (!this.isHostileVariant() && this.getSpec().legacyClassId() == LEGACY_TRANSPORT_WA_CLASS_ID) {
+            return 2;
+        }
+
+        int drums = 0;
+        for (int slot = 0; slot < EQUIPMENT_SLOT_COUNT; slot++) {
+            if (this.shipInventory.getItem(slot).getItem() instanceof LegacyEquipmentItem equipment
+                    && equipment.family() == LegacyEquipmentFamily.DRUM) {
+                drums++;
+            }
+        }
+        return drums;
     }
 
-    public void setAiRespectRouteStay(boolean aiRespectRouteStay) {
-        this.aiRespectRouteStay = aiRespectRouteStay;
-        this.entityData.set(DATA_AI_FLAGS, this.encodeAiFlags());
+    /** Legacy CapaShipInventory.isSlotAvailable / getSizeInventoryPaged. */
+    public int getInventorySizePaged() {
+        return SHIP_SLOT_COUNT + Math.min(this.getInventoryPageSize(), INVENTORY_PAGE_COUNT - 1) * CARGO_SLOT_COUNT;
+    }
+
+    /** Legacy StateMinor FollowMin. */
+    public int getFollowMin() {
+        return this.entityData.get(DATA_FOLLOW_MIN);
+    }
+
+    public void setFollowMin(int followMin) {
+        this.entityData.set(DATA_FOLLOW_MIN, followMin);
+        this.setPersistenceRequired();
+    }
+
+    /** Legacy StateMinor FollowMax. */
+    public int getFollowMax() {
+        return this.entityData.get(DATA_FOLLOW_MAX);
+    }
+
+    public void setFollowMax(int followMax) {
+        this.entityData.set(DATA_FOLLOW_MAX, followMax);
+        this.setPersistenceRequired();
     }
 
     public int getAiFlagsBitmask() {
@@ -3193,7 +3208,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 return false;
             }
 
-            if (!this.aiAllowPvp) {
+            if (!this.aiPvpFirst) {
                 return false;
             }
 
@@ -3238,7 +3253,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     public double getHostileTargetSearchRange() {
         int attackRange = (int) this.getCompatAttackRange();
-        return attackRange < 2 ? Math.max(2, this.getAiFollowRange()) : attackRange;
+        return attackRange < 2 ? Math.max(2, this.getFollowMax() + 2) : attackRange;
     }
 
     public AABB getHostileTargetSearchArea() {
@@ -3456,7 +3471,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < SHIP_SLOT_COUNT; slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack current = this.shipInventory.getItem(slot);
             if (current.isEmpty()) {
                 ItemStack inserted = sourceStack.copy();
@@ -3631,7 +3646,8 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void spawnOwnerLockedRecoveryEgg(ItemStack recoveredEgg) {
-        ItemEntity itemEntity = new ItemEntity(this.level(), this.getX(), this.getY() + 0.5D, this.getZ(), recoveredEgg);
+        ItemEntity itemEntity = LegacyEntityItemMarker.mark(
+                new ItemEntity(this.level(), this.getX(), this.getY() + 0.5D, this.getZ(), recoveredEgg));
         itemEntity.setPickUpDelay(10);
         this.getOwnerUuid().ifPresent(itemEntity::setTarget);
         this.level().addFreshEntity(itemEntity);
@@ -4655,7 +4671,10 @@ public class LegacyShipEntity extends PathfinderMob {
             if (this.random.nextFloat() < lootProfile.eggDropChance()) {
                 ItemStack eggDrop = this.resolveHostileEggDrop();
                 if (!eggDrop.isEmpty()) {
-                    this.spawnAtLocation(eggDrop);
+                    ItemEntity eggEntity = this.spawnAtLocation(eggDrop);
+                    if (eggEntity != null) {
+                        LegacyEntityItemMarker.mark(eggEntity);
+                    }
                 }
             }
         }
@@ -4877,7 +4896,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        double minimumDistance = 3.0D + this.getBbWidth() * 0.5D;
+        double minimumDistance = this.getFollowMin() + this.getBbWidth() * 0.5D;
         double minimumDistanceSqr = minimumDistance * minimumDistance;
         if (this.guardEntityUuid != null && this.level() instanceof ServerLevel serverLevel) {
             Entity guardedEntity = serverLevel.getEntity(this.guardEntityUuid);
@@ -4898,7 +4917,7 @@ public class LegacyShipEntity extends PathfinderMob {
         if (this.canFollow()) {
             Player owner = this.getOwnerPlayer();
             if (owner != null) {
-                double maximumDistance = this.getAiFollowRange() + this.getBbWidth() * 0.5D;
+                double maximumDistance = this.getFollowMax() + this.getBbWidth() * 0.5D;
                 return this.distanceToSqr(owner) < maximumDistance * maximumDistance;
             }
         }
@@ -4908,10 +4927,6 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private boolean handleWaypointRouteNode(ServerLevel serverLevel, WaypointBlockEntity waypoint) {
         this.trySupplyAtRouteNode(serverLevel, waypoint.getPairedChest());
-
-        if (!this.aiRespectRouteStay) {
-            return false;
-        }
 
         return this.waitAtRouteNode(Math.max(this.getWaypointStayTicks(), waypoint.getStayTicks()));
     }
@@ -5002,12 +5017,6 @@ public class LegacyShipEntity extends PathfinderMob {
             }
         }
 
-        if (!this.aiRespectRouteStay) {
-            if (crane.getRedstoneMode() == 2) {
-                crane.emitRedstoneSignal(2);
-            }
-            return false;
-        }
 
         boolean continueCraning;
         int waitMode = crane.getWaitMode();
@@ -5082,7 +5091,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean isShipCargoFull() {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
                 return false;
@@ -5102,7 +5111,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean hasMatchingItemInShipCargo(Predicate<ItemStack> predicate) {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (!stack.isEmpty() && predicate.test(stack)) {
                 return true;
@@ -5129,7 +5138,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 continue;
             }
             int total = 0;
-            for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+            for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
                 ItemStack stack = this.shipInventory.getItem(slot);
                 if (!stack.isEmpty() && com.lulan.shincolle.crafting.LegacyItemMatchHelper.matchesTargetItem(
                         stack, filter, crane.isCheckMetadata(), crane.isCheckOredict(), crane.isCheckNbt())) {
@@ -5240,7 +5249,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean hasShipToContainerTransfer(Container target, Predicate<ItemStack> predicate) {
-        for (int slot = CARGO_SLOT_COUNT > 0 ? EQUIPMENT_SLOT_COUNT : 0; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = CARGO_SLOT_COUNT > 0 ? EQUIPMENT_SLOT_COUNT : 0; slot < this.getInventorySizePaged(); slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (!stack.isEmpty() && predicate.test(stack) && this.canInsertIntoContainer(target, stack)) {
                 return true;
@@ -5304,7 +5313,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack tankStack = this.shipInventory.getItem(slot);
             if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
                 continue;
@@ -5340,7 +5349,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 continue;
             }
 
-            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged(); shipSlot++) {
                 ItemStack tankStack = this.shipInventory.getItem(shipSlot);
                 if (!this.isRouteFluidContainer(tankStack)) {
                     continue;
@@ -5361,7 +5370,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged(); shipSlot++) {
             ItemStack tankStack = this.shipInventory.getItem(shipSlot);
             if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
                 continue;
@@ -5386,7 +5395,7 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged(); shipSlot++) {
             ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
             if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
                 continue;
@@ -5448,7 +5457,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private int transferShipCargoToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
         int moved = 0;
 
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && moved < budget; slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged() && moved < budget; slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (stack.isEmpty() || !predicate.test(stack)) {
                 continue;
@@ -5474,7 +5483,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private int transferBlockFluidToShip(IFluidHandler source, Predicate<ItemStack> predicate, int budget) {
         int moved = 0;
 
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged() && moved < budget; shipSlot++) {
             ItemStack tankStack = this.shipInventory.getItem(shipSlot);
             if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
                 continue;
@@ -5531,7 +5540,7 @@ public class LegacyShipEntity extends PathfinderMob {
                 continue;
             }
 
-            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged() && moved < budget; shipSlot++) {
                 ItemStack tankStack = this.shipInventory.getItem(shipSlot);
                 if (!this.isRouteFluidContainer(tankStack)) {
                     continue;
@@ -5571,7 +5580,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private int transferShipFluidToBlock(IFluidHandler target, Predicate<ItemStack> predicate, int budget) {
         int moved = 0;
 
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged() && moved < budget; shipSlot++) {
             ItemStack tankStack = this.shipInventory.getItem(shipSlot);
             if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
                 continue;
@@ -5612,7 +5621,7 @@ public class LegacyShipEntity extends PathfinderMob {
     private int transferShipFluidToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
         int moved = 0;
 
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
+        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.getInventorySizePaged() && moved < budget; shipSlot++) {
             ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
             if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
                 continue;
@@ -5720,7 +5729,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
         int remaining = Math.min(maxItems, sourceStack.getCount());
 
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && remaining > 0; slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged() && remaining > 0; slot++) {
             ItemStack current = this.shipInventory.getItem(slot);
             if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
                 continue;
@@ -5732,7 +5741,7 @@ public class LegacyShipEntity extends PathfinderMob {
             remaining -= insert;
         }
 
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && remaining > 0; slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged() && remaining > 0; slot++) {
             ItemStack current = this.shipInventory.getItem(slot);
             if (!current.isEmpty()) {
                 continue;
@@ -5786,7 +5795,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private boolean canInsertIntoShipCargo(ItemStack sourceStack) {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack current = this.shipInventory.getItem(slot);
             if (current.isEmpty()) {
                 return true;
@@ -5895,7 +5904,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void tickAutoPumpExperience() {
         int bottleSlot = -1;
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             if (this.shipInventory.getItem(slot).is(Items.GLASS_BOTTLE)) {
                 bottleSlot = slot;
                 break;
@@ -5994,7 +6003,7 @@ public class LegacyShipEntity extends PathfinderMob {
         FluidStack remaining = source.copy();
 
         for (int slot = EQUIPMENT_SLOT_COUNT;
-             slot < this.shipInventory.getContainerSize() && !remaining.isEmpty();
+             slot < this.getInventorySizePaged() && !remaining.isEmpty();
              slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (stack.isEmpty() || stack.getCount() != 1) {
@@ -6058,7 +6067,7 @@ public class LegacyShipEntity extends PathfinderMob {
             }
         }
 
-        if (this.aiAutoSupply && (this.tickCount & 127) == 0
+        if ((this.tickCount & 127) == 0
                 && LegacyShipBehaviorCatalog.legacyMoraleIdFor(this.getMorale()) >= this.getCombatRationLevel()
                 && this.getFoodSaturation() < this.getFoodSaturationMax()) {
             this.autoUseCombatRation();
@@ -6075,7 +6084,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     private void autoUseCombatRation() {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
+        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged(); slot++) {
             ItemStack stack = this.shipInventory.getItem(slot);
             if (!(stack.getItem() instanceof CombatRationItem ration)) {
                 continue;
@@ -6247,32 +6256,19 @@ public class LegacyShipEntity extends PathfinderMob {
         if (this.aiAutoTarget) {
             flags |= GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
         }
-        if (this.aiAllowPvp) {
-            flags |= GameplayCommandHandler.AI_FLAG_ALLOW_PVP;
-        }
-        if (this.aiAutoSupply) {
-            flags |= GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY;
-        }
         if (this.aiPickItem) {
             flags |= GameplayCommandHandler.AI_FLAG_PICK_ITEM;
-        }
-        if (this.aiRespectRouteStay) {
-            flags |= GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
         }
         return flags;
     }
 
     private void applySyncedAiData() {
-        this.applyAiData(this.entityData.get(DATA_AI_FLAGS), this.entityData.get(DATA_AI_FOLLOW_RANGE));
+        this.applyAiData(this.entityData.get(DATA_AI_FLAGS));
     }
 
-    private void applyAiData(int flags, int followRange) {
+    private void applyAiData(int flags) {
         this.aiAutoTarget = (flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) != 0;
-        this.aiAllowPvp = (flags & GameplayCommandHandler.AI_FLAG_ALLOW_PVP) != 0;
-        this.aiAutoSupply = (flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0;
         this.aiPickItem = (flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0;
-        this.aiRespectRouteStay = (flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0;
-        this.aiFollowRange = Mth.clamp(followRange, 4, 64);
     }
 
     private int computeActiveEffectSignature() {

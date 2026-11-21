@@ -48,3 +48,12 @@
 - `ConfigHandler.polyAsMn` 的默认 `false` 静态包契约不变（不改动 `data/forge/tags/items/` 静态 JSON），运行时由 `PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 承担动态切换；`SystemConfig` 随 `TeitokuHelper` 状态包向客户端同步。
 - 1.12.2 外置依赖按 1.20.1 原生能力与零编译期强依赖原则收口：Metamorph 使用原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge`；IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代；Curios 仅通过 `ModList` + 反射触发结婚戒指佩戴槽周期效果。
 - 40 个仅存在于 `ID.java` 的历史名称（含 `Raiden` 作为合体形态而非独立注册实体）继续按 D-009 保持 `HISTORICAL_SOURCE_GAP` 记录，不虚构实现。详细证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)。
+
+## D-012：舰船 GUI 按钮、AI 标志、跟随距离与 `/ship*` 权限回到 1.12.2（撤销此前偏离）
+
+以下此前现代实现中的偏离 **已撤销**，以 [PARITY-FIX-MENU-NETWORK-COMMAND](migration_batches/2026-11-22-parity-fix-menu-network-command/decision.md) 为准：
+
+- ~~舰船 AI 用 `AUTO_TARGET/ALLOW_PVP/AUTO_SUPPLY/ROUTE_STAY/PICK_ITEM` 位掩码（`SET_AI_FLAGS`）~~ → **已撤销**：改为旧版 `PID.ShipBtn` 43 个按钮（`ShipCommandAction.SHIP_GUI_BUTTON`），标志为 PassiveAI/PVPFirst/OnSightChase/AntiAir/AntiSS/PickItem 等。
+- ~~单值跟随距离 4..64、默认 14（`SET_FOLLOW_RANGE`）~~ → **已撤销**：FollowMin/FollowMax 两值，默认 3/12，旧版联动规则。
+- ~~舰船背包固定 24 槽、无翻页；Shift 点击货仓一律进玩家背包并在热栏/主背包间互转，装备按舰种 `canEquip`~~ → **已撤销**：60 槽 3 页（DrumState 解锁）与 `0aad501` `transferStackInSlot` 顺序。
+- ~~`/ship*` 使用 `hasPermission(2)`；`/shipcleardrop` 清除全部 `ItemEntity`；`/ship get` 生成时满血并清除坐守/跟随/守卫~~ → **已撤销**：旧版 `checkOP`（玩家发送者，创造即 OP）、只清 `BasicEntityItem` 语义掉落（整列世界高度，旧版 Y 0..256 即 1.12 全高）、`createShipEntity` 血量与 `CanDrop` 语义。

@@ -6,7 +6,7 @@
 
 - 分支：`codex/mc-1.20.1`
 - 基线提交：`3c9fe42d`，`v0.0.2-alpha`
-- 工作区：已有迁移生产代码与文档改动全部保留在工作区，不能清理或覆盖；`DOC-01` 文档解耦、`SHIP-01` 至 `SHIP-09`、`SP-CLOSE`、`COMBAT-REGRESSION-SUITE`、`ALL-SHIP-OVERRIDE-AUDIT`、`SHIP-ATTACK-PROFILE-AUDIT`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`MINECRAFT-BLOCK-TAGS`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM`、`B6-INTERMOD-DETAILS` 与 `FULL-SHIP-BEHAVIOR-REAUDIT` 均已留存实现与批次记录。[GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 现共有 `298` 个 `@GameTest` 且全绿通过。
+- 工作区：已有迁移生产代码与文档改动全部保留在工作区，不能清理或覆盖；`DOC-01` 文档解耦、`SHIP-01` 至 `SHIP-09`、`SP-CLOSE`、`COMBAT-REGRESSION-SUITE`、`ALL-SHIP-OVERRIDE-AUDIT`、`SHIP-ATTACK-PROFILE-AUDIT`、`V0-CLIENT-GATE`、`WORLDGEN-AUDIT`、`GAMETEST-REPAIR-B4`、`B5-ORE-TAGS`、`GAMETEST-BACKFILL`、`B1-GUI-PARITY`、`MINECRAFT-BLOCK-TAGS`、`B2-PACKET-PARITY`、`B3-MULTIPLAYER-TEAM`、`B6-INTERMOD-DETAILS` 与 `FULL-SHIP-BEHAVIOR-REAUDIT` 均已留存实现与批次记录。[GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 现共有 `299` 个 `@GameTest` 且全绿通过（2026-11-22 [PARITY-FIX-MENU-NETWORK-COMMAND](migration_batches/2026-11-22-parity-fix-menu-network-command/) 按 1.12.2 还原舰船 GUI 按钮、FollowMin/FollowMax、背包翻页与 Shift 点击、`/ship*` 权限，见 D-012）。
 - legacy：`src/main/java`、`src/main/resources` 未作为实现目标，继续只读。
 - 当前完成口径：单人主线（M0-M9 + V0）与完整 1.12 parity backlog（B1–B6）均已全面收口（[ROADMAP.md](ROADMAP.md) 当前指针为 `NONE`）。
 
