@@ -1,6 +1,5 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
@@ -294,7 +293,6 @@ public class TargetWrenchItem extends Item {
             }
 
             if (blockEntity instanceof Container
-                    || blockEntity instanceof RouteEnergyAccess
                     || (blockEntity != null && blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent())) {
                 return CONTAINER;
             }

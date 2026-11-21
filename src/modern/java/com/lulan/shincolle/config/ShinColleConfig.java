@@ -44,6 +44,35 @@ public final class ShinColleConfig {
         TEST_OVERRIDES.clear();
     }
 
+    public static double[] tileShipyardSmall() { return numericList("tileShipyardSmall", COMMON.tileShipyardSmall, 460800, 48, 1); }
+    public static double[] tileShipyardLarge() { return numericList("tileShipyardLarge", COMMON.tileShipyardLarge, 1382400, 48, 1); }
+    public static double[] tileVolCore() { return numericList("tileVolCore", COMMON.tileVolCore, 9600, 16, 240); }
+    public static double[] drumLiquid() { return numericList("drumLiquid", COMMON.drumLiquid, 40, 5); }
+    public static int craneWorkExperience() { return (int) numericList("expGain", COMMON.expGain, 2, 4, 5, 8, 10, 1, 2)[6]; }
+    public static double[] tileCrane() { return numericList("tileCrane", COMMON.tileCrane, 2048000, 160000000); }
+    public static int shipTankCapacity(int tier) { return (int) numericList("itemShipTank", COMMON.itemShipTank, 32000, 128000, 512000, 2048000)[tier]; }
+
+    private static double[] numericList(String key, ForgeConfigSpec.ConfigValue<List<? extends Number>> value, double... fallback) {
+        Object loaded = TEST_OVERRIDES.get(key);
+        if (loaded instanceof int[] ints && ints.length == fallback.length) {
+            return Arrays.stream(ints).asDoubleStream().toArray();
+        }
+        if (loaded instanceof double[] doubles && doubles.length == fallback.length) {
+            return doubles.clone();
+        }
+        if (loaded == null && COMMON_SPEC.isLoaded()) {
+            loaded = value.get();
+        }
+        if (loaded instanceof List<?> list && list.size() == fallback.length) {
+            double[] result = fallback.clone();
+            for (int i = 0; i < result.length; i++) {
+                if (list.get(i) instanceof Number number) result[i] = number.doubleValue();
+            }
+            return result;
+        }
+        return fallback;
+    }
+
     public static boolean friendlyFire() {
         return getBoolean("friendlyFire", COMMON_SPEC, COMMON.friendlyFire, true);
     }
@@ -294,8 +323,23 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.DoubleValue morphHpRatio;
         public final ForgeConfigSpec.DoubleValue morphDmgTakenRatio;
 
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileVolCore;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileCrane;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> drumLiquid;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> expGain;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> itemShipTank;
+
         private Common(ForgeConfigSpec.Builder builder) {
             builder.push("general");
+            this.tileShipyardSmall = builder.defineList("tileShipyardSmall", List.of(460800D, 48D, 1D), entry -> entry instanceof Number);
+            this.tileShipyardLarge = builder.defineList("tileShipyardLarge", List.of(1382400D, 48D, 1D), entry -> entry instanceof Number);
+            this.tileVolCore = builder.defineList("tileVolCore", List.of(9600D, 16D, 240D), entry -> entry instanceof Number);
+            this.drumLiquid = builder.defineList("drumLiquid", List.of(40, 5), entry -> entry instanceof Number);
+            this.expGain = builder.defineList("expGain", List.of(2, 4, 5, 8, 10, 1, 2), entry -> entry instanceof Number);
+            this.tileCrane = builder.defineList("tileCrane", List.of(2048000, 160000000), entry -> entry instanceof Number);
+            this.itemShipTank = builder.defineList("itemShipTank", List.of(32000, 128000, 512000, 2048000), entry -> entry instanceof Number);
             this.friendlyFire = builder
                     .comment("false: disable damage done by player (except owner) and ally friendly-fire")
                     .define("friendlyFire", true);

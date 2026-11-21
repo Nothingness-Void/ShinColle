@@ -1,5 +1,25 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.ShipArchetype;
+import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
+import com.lulan.shincolle.item.equipment.LegacyEquipmentFamily;
+import com.lulan.shincolle.network.CombatFxDispatcher;
+import com.lulan.shincolle.network.GameplayParticleType;
+import com.lulan.shincolle.registry.ModSoundEvents;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemHandlerHelper;
+import net.minecraftforge.items.wrapper.InvWrapper;
+import net.minecraftforge.items.wrapper.RangedWrapper;
+import com.lulan.shincolle.config.ShinColleConfig;
+import net.minecraft.core.Direction;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
 import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
 import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
@@ -43,6 +63,32 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private static final int MAX_THREE_STATE_MODE = 2;
     public static final int FILTER_SLOT_COUNT = 18;
 
+    private final FluidTank tank = new FluidTank((int) ShinColleConfig.tileCrane()[0]) {
+        @Override
+        public int getCapacity() { return (int) ShinColleConfig.tileCrane()[0]; }
+        @Override
+        protected void onContentsChanged() { CraneBlockEntity.this.setChanged(); }
+    };
+    private LazyOptional<IFluidHandler> fluidHandler = LazyOptional.empty();
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        this.fluidHandler = LazyOptional.of(() -> this.tank);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        this.fluidHandler.invalidate();
+    }
+
+    @Override
+    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable Direction side) {
+        if (capability == ForgeCapabilities.FLUID_HANDLER && side != Direction.DOWN) return this.fluidHandler.cast();
+        return super.getCapability(capability, side);
+    }
+
     @Nullable
     private PlayerOwnerData owner;
     @Nullable
@@ -77,6 +123,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
+        this.tank.readFromNBT(tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         this.lastWaypoint = readOptionalPos(tag, LAST_WAYPOINT_TAG);
         this.nextWaypoint = readOptionalPos(tag, NEXT_WAYPOINT_TAG);
@@ -100,6 +147,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
+        this.tank.writeToNBT(tag);
 
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
@@ -135,6 +183,12 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     public void setOwner(Player player) {
         this.owner = PlayerOwnerData.of(player);
         this.markUpdated();
+    }
+
+    public boolean canDestroy(Player player) {
+        return player.isCreative() || player.hasPermissions(2)
+                || (this.owner != null && (this.owner.uuid() != null ? this.owner.uuid().equals(player.getUUID())
+                : this.owner.uid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player)));
     }
 
     @Override
@@ -299,9 +353,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         if (ticks <= 0) {
             return;
         }
-        boolean wasZero = this.redstoneTicks <= 0;
-        this.redstoneTicks = Math.max(this.redstoneTicks, ticks);
-        if (wasZero && this.level != null) {
+        this.redstoneTicks = ticks;
+        if (this.level != null) {
             this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
         }
     }
@@ -309,10 +362,257 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     public static void serverTick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state, CraneBlockEntity crane) {
         if (crane.redstoneTicks > 0) {
             crane.redstoneTicks--;
-            if (crane.redstoneTicks <= 0) {
-                level.updateNeighborsAt(pos, state.getBlock());
+            if (crane.redstoneTicks <= 0) level.updateNeighborsAt(pos, state.getBlock());
+        }
+        crane.tickWork();
+    }
+
+
+    private int workTicks;
+    private boolean hadPairedInventory;
+
+    private void tickWork() {
+        this.workTicks++;
+        if (!this.active || this.pairedChest == null || this.workTicks <= 64 || (this.workTicks & 15) != 0) return;
+        IItemHandler chest = this.getPairedInventory();
+        if (chest == null && this.hadPairedInventory) {
+            this.setPairedChest(null);
+            this.hadPairedInventory = false;
+            return;
+        }
+        this.hadPairedInventory = chest != null;
+        LegacyShipEntity ship = this.findCraningShip();
+        if (ship != null && this.redstoneMode == 1) this.emitRedstoneSignal(18);
+        if (chest != null) this.applyPreLiquidTransfer(chest);
+        if (chest == null || ship == null || ship.getCraneState() != 2) return;
+
+        IItemHandler cargo = new RangedWrapper(new InvWrapper(ship.getShipInventory()),
+                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, ship.getShipInventory().getContainerSize());
+        boolean[] work = new boolean[4];
+        if (this.loadEnabled) work[0] = this.applyItemTransfer(chest, cargo, true);
+        if (this.unloadEnabled) work[1] = this.applyItemTransfer(cargo, chest, false);
+        int rate = this.liquidTransferRate(ship);
+        if (this.liquidMode != 0 && rate > 0) work[2] = this.applyLiquidTransfer(cargo, rate);
+        // Legacy EU work requires IC2; no IC2 integration is present in this port.
+        if (ship.getSpec().archetype() == ShipArchetype.TRANSPORT) {
+            for (boolean ignored : work) ship.addShipExperience(ShinColleConfig.craneWorkExperience());
+        }
+        CombatFxDispatcher.sendParticle(ship, GameplayParticleType.CRANING_SPARKLE,
+                ship.getX(), ship.getY() + ship.getBbHeight() * 0.4D, ship.getZ(), 0D, 0.1D, 0D);
+        if (this.checkCraneEnding(ship, chest, cargo, work)) {
+            if (this.redstoneMode == 2) this.emitRedstoneSignal(2);
+            ship.finishCraning(this);
+            ship.playSound(ModSoundEvents.SHIP_BELL.get(), ShinColleConfig.volumeShip() * 1.5F,
+                    ship.getRandom().nextFloat() * 0.3F + 1F);
+        }
+    }
+
+    private @Nullable IItemHandler getPairedInventory() {
+        if (this.level == null || this.pairedChest == null || !this.level.hasChunkAt(this.pairedChest)) return null;
+        BlockEntity tile = this.level.getBlockEntity(this.pairedChest);
+        if (tile == null) return null;
+        if (tile instanceof net.minecraft.world.level.block.entity.ChestBlockEntity
+                && tile.getBlockState().getBlock() instanceof net.minecraft.world.level.block.ChestBlock block) {
+            net.minecraft.world.Container inventory = net.minecraft.world.level.block.ChestBlock.getContainer(
+                    block, tile.getBlockState(), this.level, this.pairedChest, true);
+            return inventory == null ? null : new InvWrapper(inventory);
+        }
+        IItemHandler handler = tile.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().orElse(null);
+        if (handler != null) return handler;
+        return tile instanceof net.minecraft.world.Container inventory ? new InvWrapper(inventory) : null;
+    }
+
+    private @Nullable LegacyShipEntity findCraningShip() {
+        var ships = this.level.getEntitiesOfClass(LegacyShipEntity.class,
+                new net.minecraft.world.phys.AABB(this.worldPosition.getX() - 6D, this.worldPosition.getY() - 12D,
+                        this.worldPosition.getZ() - 6D, this.worldPosition.getX() + 6D,
+                        this.worldPosition.getY(), this.worldPosition.getZ() + 6D),
+                ship -> ship.isAlive() && ship.isDockedAtCrane(this.worldPosition));
+        for (int state = 2; state >= 1; state--) {
+            for (LegacyShipEntity ship : ships) {
+                if (ship.getCraneState() == state) {
+                    ship.beginCraning(this.worldPosition);
+                    return ship;
+                }
             }
         }
+        return null;
+    }
+
+    private int liquidTransferRate(LegacyShipEntity ship) {
+        int pumps = ship.getSpec().archetype() == ShipArchetype.TRANSPORT && ship.isMarried() ? 1 : 0;
+        int enchantments = 0;
+        for (int slot = 0; slot < Math.min(6, ship.getShipInventory().getContainerSize()); slot++) {
+            ItemStack stack = ship.getShipInventory().getItem(slot);
+            if (stack.getItem() instanceof LegacyEquipmentItem equipment
+                    && equipment.family() == LegacyEquipmentFamily.DRUM && equipment.variantIndex() == 1) {
+                pumps++;
+                for (int i = 0; i < stack.getEnchantmentTags().size(); i++) {
+                    enchantments += stack.getEnchantmentTags().getCompound(i).getInt("lvl");
+                }
+            }
+        }
+        double[] rates = ShinColleConfig.drumLiquid();
+        return ((int) rates[0] * pumps + (int) rates[1] * enchantments) * 16
+                * ((int) (ship.getShipLevel() * 0.1F) + 1);
+    }
+
+    private boolean matches(ItemStack stack, ItemStack filter) {
+        return LegacyItemMatchHelper.matchesTargetItem(stack, filter,
+                this.checkMetadata, this.checkOredict, this.checkNbt);
+    }
+
+    private int countMatchingStacks(IItemHandler inventory, ItemStack filter) {
+        int count = 0;
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            if (this.matches(inventory.getStackInSlot(slot), filter)) count++;
+        }
+        return count;
+    }
+
+    private boolean applyItemTransfer(IItemHandler source, IItemHandler target, boolean loading) {
+        int start = loading ? 0 : 9;
+        boolean hasPositive = false;
+        for (int i = start; i < start + 9; i++) {
+            ItemStack filter = this.getFilterStack(i);
+            if (filter.isEmpty() || this.isFilterInverted(i)) continue;
+            hasPositive = true;
+            if (this.waitMode == 3 && this.countMatchingStacks(target, filter) >= filter.getCount()) continue;
+            if (this.waitMode == 4 && this.countMatchingStacks(source, filter) <= filter.getCount()) continue;
+            for (int slot = 0; slot < source.getSlots(); slot++) {
+                if (this.matches(source.getStackInSlot(slot), filter)) {
+                    if (moveStack(source, target, slot)) return true;
+                    break;
+                }
+            }
+        }
+        if (!hasPositive) {
+            for (int slot = 0; slot < source.getSlots(); slot++) {
+                if (this.matchesTransferFilter(source.getStackInSlot(slot), loading)) {
+                    return moveStack(source, target, slot);
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean moveStack(IItemHandler source, IItemHandler target, int slot) {
+        ItemStack available = source.extractItem(slot, source.getStackInSlot(slot).getCount(), true);
+        ItemStack remaining = ItemHandlerHelper.insertItemStacked(target, available, true);
+        int amount = available.getCount() - remaining.getCount();
+        if (amount <= 0) return false;
+        ItemStack extracted = source.extractItem(slot, amount, false);
+        ItemStack rejected = ItemHandlerHelper.insertItemStacked(target, extracted, false);
+        if (!rejected.isEmpty()) source.insertItem(slot, rejected, false);
+        return extracted.getCount() > rejected.getCount();
+    }
+
+    private void applyPreLiquidTransfer(IItemHandler chest) {
+        if (this.liquidMode == 0) return;
+        for (int slot = 0; slot < chest.getSlots(); slot++) {
+            if (this.transferFluidContainer(chest, slot, this.liquidMode == 1, this.liquidMode == 1 ? 64000 : 16000) > 0) break;
+        }
+    }
+
+    private int transferFluidContainer(IItemHandler inventory, int slot, boolean toCrane, int limit) {
+        ItemStack stack = inventory.getStackInSlot(slot);
+        if (stack.isEmpty() || stack.getCount() != 1) return 0;
+        var optional = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        if (optional.isEmpty()) return 0;
+        var container = optional.get();
+        FluidTank preview = new FluidTank(this.tank.getCapacity());
+        preview.setFluid(this.tank.getFluid().copy());
+        FluidStack moved = toCrane
+                ? FluidUtil.tryFluidTransfer(preview, container, limit, true)
+                : FluidUtil.tryFluidTransfer(container, preview, limit, true);
+        ItemStack result = container.getContainer();
+        if (moved.isEmpty() || !inventory.isItemValid(slot, result)
+                || inventory.extractItem(slot, 1, true).isEmpty()) return 0;
+        ItemStack original = inventory.extractItem(slot, 1, false);
+        if (original.isEmpty()) return 0;
+        ItemStack rejected = inventory.insertItem(slot, result, false);
+        if (!rejected.isEmpty()) {
+            inventory.insertItem(slot, original, false);
+            return 0;
+        }
+        if (toCrane) this.tank.fill(moved, IFluidHandler.FluidAction.EXECUTE);
+        else this.tank.drain(moved, IFluidHandler.FluidAction.EXECUTE);
+        return moved.getAmount();
+    }
+
+    private boolean applyLiquidTransfer(IItemHandler cargo, int rate) {
+        int remaining = rate;
+        for (int slot = 0; slot < cargo.getSlots() && remaining > 0; slot++) {
+            remaining -= this.transferFluidContainer(cargo, slot, this.liquidMode == 2, remaining);
+        }
+        return remaining != rate;
+    }
+
+    private boolean checkCraneEnding(LegacyShipEntity ship, IItemHandler chest, IItemHandler cargo, boolean[] work) {
+        return switch (this.waitMode) {
+            case 0 -> !work[0] && !work[1] && !work[2] && !work[3];
+            case 1 -> (!this.loadEnabled || inventoryFull(cargo)) && (!this.unloadEnabled || inventoryFull(chest))
+                    && (this.liquidMode != 1 || this.fluidContainersDone(cargo, true))
+                    && (this.liquidMode != 2 || this.fluidContainersDone(chest, true));
+            case 2 -> (!this.loadEnabled || this.inventoryEmpty(chest, true))
+                    && (!this.unloadEnabled || this.inventoryEmpty(cargo, false))
+                    && (this.liquidMode != 1 || this.fluidContainersDone(chest, false))
+                    && (this.liquidMode != 2 || this.fluidContainersDone(cargo, false));
+            case 3 -> !work[2] && !work[3] && (!this.loadEnabled || this.inventoryAmount(cargo, true, true))
+                    && (!this.unloadEnabled || this.inventoryAmount(chest, false, true));
+            case 4 -> !work[2] && !work[3] && (!this.loadEnabled || this.inventoryAmount(chest, true, false))
+                    && (!this.unloadEnabled || this.inventoryAmount(cargo, false, false));
+            default -> ship.getCraneTime() >= getWaitTime(this.waitMode);
+        };
+    }
+
+    private static boolean inventoryFull(IItemHandler inventory) {
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            if (inventory.getStackInSlot(slot).isEmpty()) return false;
+        }
+        return true;
+    }
+
+    private boolean inventoryEmpty(IItemHandler inventory, boolean loading) {
+        int start = loading ? 0 : 9;
+        boolean hasFilter = false;
+        for (int i = start; i < start + 9; i++) {
+            ItemStack filter = this.getFilterStack(i);
+            if (filter.isEmpty()) continue;
+            hasFilter = true;
+            if (!this.isFilterInverted(i) && this.countMatchingStacks(inventory, filter) > 0) return false;
+        }
+        if (hasFilter) return true;
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            if (!inventory.getStackInSlot(slot).isEmpty()) return false;
+        }
+        return true;
+    }
+
+    private boolean inventoryAmount(IItemHandler inventory, boolean loading, boolean excess) {
+        int start = loading ? 0 : 9;
+        for (int i = start; i < start + 9; i++) {
+            ItemStack filter = this.getFilterStack(i);
+            if (filter.isEmpty() || this.isFilterInverted(i)) continue;
+            int stacks = this.countMatchingStacks(inventory, filter);
+            if (excess ? stacks < filter.getCount() : stacks > filter.getCount()) return false;
+        }
+        return true;
+    }
+
+    private boolean fluidContainersDone(IItemHandler inventory, boolean full) {
+        if (this.tank.isEmpty()) return true;
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            var handler = FluidUtil.getFluidHandler(inventory.getStackInSlot(slot)).resolve();
+            if (handler.isEmpty()) continue;
+            for (int i = 0; i < handler.get().getTanks(); i++) {
+                FluidStack fluid = handler.get().getFluidInTank(i);
+                if (full ? fluid.isEmpty() || (fluid.isFluidEqual(this.tank.getFluid())
+                        && handler.get().fill(this.tank.getFluid(), IFluidHandler.FluidAction.SIMULATE) > 0)
+                        : !handler.get().drain(Integer.MAX_VALUE, IFluidHandler.FluidAction.SIMULATE).isEmpty()) return false;
+            }
+        }
+        return true;
     }
 
     public void cycleWaitMode() {
@@ -392,37 +692,23 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     public boolean matchesTransferFilter(ItemStack candidate, boolean loading) {
-        if (candidate.isEmpty()) {
-            return false;
-        }
-
+        if (candidate.isEmpty()) return false;
         int start = loading ? 0 : 9;
-        int end = start + 9;
-        boolean hasPositiveFilter = false;
+        boolean hasPositive = false;
         boolean matchesPositive = false;
-
-        for (int slot = start; slot < end; slot++) {
-            ItemStack filter = this.filterItems.getStackInSlot(slot);
-            if (filter.isEmpty()) {
-                continue;
-            }
-
-            boolean inverted = this.isFilterInverted(slot);
-            boolean matches = LegacyItemMatchHelper.matchesTargetItem(
-                    candidate, filter, this.checkMetadata, this.checkOredict, this.checkNbt);
-            if (inverted && matches) {
-                return false;
-            }
-
-            if (!inverted) {
-                hasPositiveFilter = true;
-                if (matches) {
-                    matchesPositive = true;
-                }
+        boolean excluded = false;
+        for (int slot = start; slot < start + 9; slot++) {
+            ItemStack filter = this.getFilterStack(slot);
+            if (filter.isEmpty()) continue;
+            boolean matches = this.matches(candidate, filter);
+            if (this.isFilterInverted(slot)) {
+                excluded |= matches;
+            } else {
+                hasPositive = true;
+                matchesPositive |= matches;
             }
         }
-
-        return !hasPositiveFilter || matchesPositive;
+        return hasPositive ? matchesPositive : !excluded;
     }
 
     public void setFilter(int slot, ItemStack stack, boolean inverted) {

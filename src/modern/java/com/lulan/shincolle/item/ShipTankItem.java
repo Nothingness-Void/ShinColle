@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -40,16 +41,23 @@ import java.util.Optional;
 
 public class ShipTankItem extends Item {
 
-    private final int capacity;
+    private final int tier;
 
-    public ShipTankItem(Properties properties, int capacity) {
+    public ShipTankItem(Properties properties, int tier) {
         super(properties);
-        this.capacity = capacity;
+        this.tier = tier;
     }
 
     @Override
     public @Nullable ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-        return new FluidHandlerItemStack(stack, this.capacity) {
+        return new FluidHandlerItemStack(stack, ShinColleConfig.shipTankCapacity(this.tier)) {
+            @Override
+            public int getTankCapacity(int tank) { return ShinColleConfig.shipTankCapacity(ShipTankItem.this.tier); }
+            @Override
+            public int fill(FluidStack resource, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction action) {
+                this.capacity = ShinColleConfig.shipTankCapacity(ShipTankItem.this.tier);
+                return super.fill(resource, action);
+            }
             @Override
             protected void setContainerToEmpty() {
                 if (this.container.hasTag()) {
@@ -123,7 +131,7 @@ public class ShipTankItem extends Item {
     @Override
     public int getBarWidth(ItemStack stack) {
         int amount = FluidUtil.getFluidContained(stack).map(FluidStack::getAmount).orElse(0);
-        return Math.round(13.0F * amount / (float) this.capacity);
+        return Math.round(13.0F * amount / (float) ShinColleConfig.shipTankCapacity(this.tier));
     }
 
     @Override
@@ -143,7 +151,7 @@ public class ShipTankItem extends Item {
 
         tooltip.add(Component.literal(name)
                 .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal((name.isEmpty() ? "" : " ") + amount + " / " + this.capacity + " mB").withStyle(ChatFormatting.WHITE)));
+                .append(Component.literal((name.isEmpty() ? "" : " ") + amount + " / " + ShinColleConfig.shipTankCapacity(this.tier) + " mB").withStyle(ChatFormatting.WHITE)));
     }
 
     private static BlockPos getPlacePos(UseOnContext context) {

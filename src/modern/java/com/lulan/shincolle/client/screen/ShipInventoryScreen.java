@@ -442,7 +442,7 @@ public class ShipInventoryScreen extends AbstractContainerScreen<ShipInventoryMe
                         + " I:" + onOff(pickItem) + " W:" + onOff(this.menu.isRingEffectEnabled()),
                 TOP_PANEL_LEFT, 106, 0xD0D7DC, 0.75F);
         this.drawScaledString(guiGraphics,
-                "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getAiFollowRange() + " E" + this.menu.getRouteEnergyText(),
+                "S:" + onOff(autoSupply) + " R:" + onOff(routeStay) + " F" + this.menu.getAiFollowRange(),
                 TOP_PANEL_LEFT, 112, 0xD0D7DC, 0.75F);
     }
 

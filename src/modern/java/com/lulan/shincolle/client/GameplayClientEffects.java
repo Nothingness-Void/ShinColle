@@ -59,6 +59,9 @@ public final class GameplayClientEffects {
         }
 
         switch (packet.particleType()) {
+            case CRANING_SPARKLE -> level.addParticle(new net.minecraft.core.particles.DustParticleOptions(
+                    new org.joml.Vector3f(0F, 0.1F, 0F), 0.05F),
+                    packet.x(), packet.y(), packet.z(), 0D, 0.1D, 0D);
             case NONE -> {
             }
             case LAUNCH_SMOKE -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 8, 0.2D);

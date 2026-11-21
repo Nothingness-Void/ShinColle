@@ -1,7 +1,6 @@
 package com.lulan.shincolle.entity.ship;
 
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
-import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.mojang.datafixers.util.Pair;
@@ -196,7 +195,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final String GUARD_BLOCK_DIM_TAG = "GuardBlockDim";
     private static final String ROUTE_NODE_TAG = "RouteNode";
     private static final String ROUTE_WAIT_TAG = "RouteWait";
-    private static final String ROUTE_ENERGY_TAG = "RouteEnergy";
     private static final String SHIP_WP_STAY_TAG = "ShipWpStay";
     private static final String AI_AUTO_TARGET_TAG = "AiAutoTarget";
     private static final String AI_ON_SIGHT_CHASE_TAG = "AiOnSightChase";
@@ -332,8 +330,6 @@ public class LegacyShipEntity extends PathfinderMob {
     public static final int MAX_WP_STAY_MODE = 16;
     public static final int MODERN_LIMIT = 3;
     private static final int MODERN_ATTRIBUTE_COUNT = 6;
-    private static final int ROUTE_FLUID_TRANSFER_UNIT = 250;
-    private static final int ROUTE_ENERGY_TRANSFER_UNIT = 100;
     public static final int AUTO_PUMP_WATER_DEPTH = 12;
     private static final int AUTO_PUMP_LAVA_DEPTH = 8;
     private static final int AUTO_PUMP_BUCKET_AMOUNT = 1000;
@@ -385,8 +381,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private static final EntityDataAccessor<Integer> DATA_AI_FLAGS =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_AI_FOLLOW_RANGE =
-            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Integer> DATA_ROUTE_ENERGY =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_WP_STAY_MODE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
@@ -527,10 +521,11 @@ public class LegacyShipEntity extends PathfinderMob {
     // GuardHandler.lastWaypoint was runtime-only in the legacy entity.
     @Nullable
     private BlockPos lastWaypointPos;
+    private int craneState;
+    private int craneTime;
     private int routeWaitTicks;
     private int waypointStayMode;
     private int routeTransferCooldown;
-    private boolean routePreferLoad = true;
     // Legacy AttrNum.XP was runtime-only and was intentionally not serialized.
     private int autoPumpExperience;
     private double legacyLiquidDepth;
@@ -628,7 +623,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 | GameplayCommandHandler.AI_FLAG_ROUTE_STAY
                 | GameplayCommandHandler.AI_FLAG_PICK_ITEM);
         this.entityData.define(DATA_AI_FOLLOW_RANGE, DEFAULT_AI_FOLLOW_RANGE);
-        this.entityData.define(DATA_ROUTE_ENERGY, 0);
         this.entityData.define(DATA_WP_STAY_MODE, DEFAULT_WP_STAY_MODE);
         this.entityData.define(DATA_TASK, DEFAULT_TASK);
         this.entityData.define(DATA_TASK_SIDE, DEFAULT_TASK_SIDE);
@@ -888,7 +882,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setWaypointStayMode(Mth.clamp(getIntWithLegacyMinorFallback(
                 tag, SHIP_WP_STAY_TAG, null, LEGACY_WP_STAY_TAG, DEFAULT_WP_STAY_MODE),
                 DEFAULT_WP_STAY_MODE, MAX_WP_STAY_MODE));
-        this.setRouteEnergyBuffer(tag.getInt(ROUTE_ENERGY_TAG));
         this.aiAutoTarget = tag.contains(AI_AUTO_TARGET_TAG, Tag.TAG_BYTE)
                 ? tag.getBoolean(AI_AUTO_TARGET_TAG)
                 : !getBooleanWithLegacyFlagsFallback(
@@ -1020,7 +1013,6 @@ public class LegacyShipEntity extends PathfinderMob {
             tag.putLong(ROUTE_NODE_TAG, this.routeNodePos.asLong());
             tag.putInt(ROUTE_WAIT_TAG, Math.max(0, this.routeWaitTicks));
         }
-        tag.putInt(ROUTE_ENERGY_TAG, this.getRouteEnergyBuffer());
         tag.putInt(SHIP_WP_STAY_TAG, this.getWaypointStayMode());
         tag.putBoolean(AI_AUTO_TARGET_TAG, this.aiAutoTarget);
         tag.putBoolean(AI_ON_SIGHT_CHASE_TAG, this.isAiOnSightChase());
@@ -1096,6 +1088,7 @@ public class LegacyShipEntity extends PathfinderMob {
             if ((this.tickCount % 20) == 0) {
                 this.cacheShipState(false);
             }
+            if (this.craneState == 2) this.craneTime++;
             this.tickCommandState();
             if ((this.tickCount & 7) == 0) {
                 LegacyShipBehaviorCatalog.tickLegacyTask(this);
@@ -2765,7 +2758,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.routeNodePos = blockEntity instanceof RouteNode ? pos.immutable() : null;
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
     }
 
     public @Nullable BlockPos getCommandedPos() {
@@ -2828,7 +2820,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setTarget(null);
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
     }
 
     public void commandGuardBlock(@Nullable BlockPos pos, String dimensionId) {
@@ -2848,7 +2839,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setTarget(null);
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
     }
 
     public boolean isGuardingBlockAt(BlockPos pos, String dimensionId) {
@@ -2868,7 +2858,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.routeNodePos = null;
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
         this.setCanFollow(true);
     }
 
@@ -3439,18 +3428,6 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.countItemInInventory(ModItems.REPAIRGODDESS.get());
     }
 
-    public int getRouteEnergyBuffer() {
-        return this.entityData.get(DATA_ROUTE_ENERGY);
-    }
-
-    public int getRouteEnergyCapacity() {
-        return this.getRouteTransferBudget() * 400;
-    }
-
-    public String getRouteEnergyText() {
-        return this.getRouteEnergyBuffer() + " / " + this.getRouteEnergyCapacity();
-    }
-
     public boolean storeSingleItem(ItemStack sourceStack) {
         if (sourceStack.isEmpty()) {
             return false;
@@ -3614,7 +3591,6 @@ public class LegacyShipEntity extends PathfinderMob {
     private void refreshEquipmentProfile(boolean preserveHealth) {
         this.equipmentProfile = ShipEquipmentProfile.fromInventory(this.shipInventory, this.getSpec());
         this.equipmentBehaviorState = ShipEquipmentBehaviorState.fromInventory(this.shipInventory, this.getSpec().archetype());
-        this.setRouteEnergyBuffer(this.getRouteEnergyBuffer());
         this.refreshFromVariant(preserveHealth);
     }
 
@@ -4722,6 +4698,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
             BlockEntity blockEntity = serverLevel.getBlockEntity(this.routeNodePos);
             boolean isCrane = blockEntity instanceof CraneBlockEntity;
+            if (!isCrane) this.craneState = 0;
             double engageDistSq = isCrane ? 25.0D : 4.0D;
             double distSq = this.distanceToSqr(
                     this.routeNodePos.getX() + 0.5D,
@@ -4730,7 +4707,7 @@ public class LegacyShipEntity extends PathfinderMob {
             if (distSq > (isCrane ? 4.0D : 2.0D)) {
                 this.getNavigation().moveTo(
                         this.routeNodePos.getX() + 0.5D,
-                        this.routeNodePos.getY() + 0.1D,
+                        this.routeNodePos.getY() + (isCrane ? -2.0D : 0.1D),
                         this.routeNodePos.getZ() + 0.5D,
                         commandSpeed);
             }
@@ -4741,11 +4718,18 @@ public class LegacyShipEntity extends PathfinderMob {
                         return;
                     }
                     this.advanceAfterRouteNode(waypoint);
-                } else if (blockEntity instanceof CraneBlockEntity crane) {
-                    if (this.handleCraneRouteNode(serverLevel, crane)) {
-                        return;
+                } else if (blockEntity instanceof CraneBlockEntity) {
+                    if (this.craneState == 0) {
+                        this.craneState = 1;
+                        this.craneTime = 20;
+                        for (Entity passenger : this.getPassengers()) {
+                            if (passenger instanceof LegacyShipEntity rider) {
+                                rider.craneState = 1;
+                                rider.stopRiding();
+                            }
+                        }
                     }
-                    this.advanceAfterRouteNode(crane);
+                    return;
                 } else {
                     this.routeNodePos = null;
                     this.setCanFollow(true);
@@ -4811,7 +4795,29 @@ public class LegacyShipEntity extends PathfinderMob {
         }
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
+    }
+
+    public int getCraneState() { return this.craneState; }
+    public int getCraneTime() { return this.craneTime; }
+
+    public boolean isDockedAtCrane(BlockPos pos) {
+        return pos.equals(this.routeNodePos) && !this.canFollow() && !this.isOrderedToSit()
+                && !this.isLeashed() && !this.isPassenger();
+    }
+
+    public void beginCraning(BlockPos pos) {
+        this.craneState = 2;
+        this.getNavigation().moveTo(pos.getX() + 0.5D, pos.getY() - 2D, pos.getZ() + 0.5D, 0.5D);
+    }
+
+    public void finishCraning(CraneBlockEntity crane) {
+        this.craneState = 0;
+        this.craneTime = 0;
+        this.advanceAfterRouteNode(crane);
+        if (crane.getNextWaypoint() != null) {
+            this.aiFollowRange = 2;
+            this.entityData.set(DATA_AI_FOLLOW_RANGE, this.aiFollowRange);
+        }
     }
 
     private void advanceAfterRouteNode(RouteNode routeNode) {
@@ -4821,7 +4827,7 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         BlockPos nextWaypoint = routeNode.getNextWaypoint();
-        if (nextWaypoint != null && nextWaypoint.equals(this.lastWaypointPos)) {
+        if (nextWaypoint != null && nextWaypoint.equals(this.lastWaypointPos) && routeNode.getLastWaypoint() != null) {
             nextWaypoint = routeNode.getLastWaypoint();
         }
 
@@ -4836,7 +4842,6 @@ public class LegacyShipEntity extends PathfinderMob {
         this.commandedPos = currentNode.immutable();
         this.routeWaitTicks = 0;
         this.routeTransferCooldown = 0;
-        this.routePreferLoad = true;
     }
 
     private void updateLegacyWaterState() {
@@ -4916,256 +4921,6 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.waitAtRouteNode(Math.max(this.getWaypointStayTicks(), waypoint.getStayTicks()));
     }
 
-    private boolean handleCraneRouteNode(ServerLevel serverLevel, CraneBlockEntity crane) {
-        if (!crane.isCraneEnabled()) {
-            return false;
-        }
-        Container pairedContainer = this.getPairedRouteContainer(serverLevel, crane.getPairedChest());
-        IFluidHandler pairedFluidHandler = this.getPairedRouteFluidHandler(serverLevel, crane.getPairedChest());
-        RouteEnergyAccess pairedEnergyAccess = this.getPairedRouteEnergyAccess(serverLevel, crane.getPairedChest());
-        boolean canLoad = pairedContainer != null && crane.isLoadEnabled()
-                && this.hasContainerToShipTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true));
-        boolean canUnload = pairedContainer != null && crane.isUnloadEnabled()
-                && this.hasShipToContainerTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, false));
-        boolean canLoadLiquid = crane.getLiquidMode() == 1
-                && this.hasPairedFluidToShipTransfer(pairedFluidHandler, pairedContainer,
-                stack -> crane.matchesTransferFilter(stack, true),
-                this.getRouteFluidTransferBudget());
-        boolean canUnloadLiquid = crane.getLiquidMode() == 2
-                && this.hasShipFluidToPairedTransfer(pairedFluidHandler, pairedContainer,
-                stack -> crane.matchesTransferFilter(stack, false),
-                this.getRouteFluidTransferBudget());
-        boolean canLoadEnergy = crane.getEnergyMode() == 1
-                && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-        boolean canUnloadEnergy = crane.getEnergyMode() == 2
-                && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-        boolean hasTransferWork = canLoad || canUnload;
-        hasTransferWork = hasTransferWork || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
-
-        if (this.routeTransferCooldown > 0) {
-            this.routeTransferCooldown--;
-        }
-
-        if (hasTransferWork && this.routeTransferCooldown <= 0) {
-            int moved = 0;
-            if ((canLoad || canLoadLiquid || canLoadEnergy)
-                    && (!canUnload && !canUnloadLiquid && !canUnloadEnergy || this.routePreferLoad)) {
-                if (canLoadEnergy) {
-                    moved += this.transferPairedEnergyToShip(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-                }
-                if (canLoadLiquid) {
-                    moved += this.transferPairedFluidToShip(pairedFluidHandler, pairedContainer,
-                            stack -> crane.matchesTransferFilter(stack, true),
-                            this.getRouteFluidTransferBudget());
-                }
-                if (moved <= 0 && canLoad) {
-                    moved += this.transferContainerToShipCargo(pairedContainer,
-                            stack -> crane.matchesTransferFilter(stack, true),
-                            this.getRouteTransferBudget());
-                }
-            } else if (canUnload || canUnloadLiquid || canUnloadEnergy) {
-                if (canUnloadEnergy) {
-                    moved += this.transferShipEnergyToPaired(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-                }
-                if (canUnloadLiquid) {
-                    moved += this.transferShipFluidToPaired(pairedFluidHandler, pairedContainer,
-                            stack -> crane.matchesTransferFilter(stack, false),
-                            this.getRouteFluidTransferBudget());
-                }
-                if (moved <= 0 && canUnload) {
-                    moved += this.transferShipCargoToContainer(pairedContainer,
-                            stack -> crane.matchesTransferFilter(stack, false),
-                            this.getRouteTransferBudget());
-                }
-            }
-
-            if (moved > 0) {
-                this.routeTransferCooldown = this.getRouteTransferInterval();
-                this.routePreferLoad = !this.routePreferLoad;
-                canLoad = pairedContainer != null && crane.isLoadEnabled()
-                        && this.hasContainerToShipTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true));
-                canUnload = pairedContainer != null && crane.isUnloadEnabled()
-                        && this.hasShipToContainerTransfer(pairedContainer, stack -> crane.matchesTransferFilter(stack, false));
-                canLoadLiquid = crane.getLiquidMode() == 1
-                        && this.hasPairedFluidToShipTransfer(pairedFluidHandler, pairedContainer,
-                        stack -> crane.matchesTransferFilter(stack, true),
-                        this.getRouteFluidTransferBudget());
-                canUnloadLiquid = crane.getLiquidMode() == 2
-                        && this.hasShipFluidToPairedTransfer(pairedFluidHandler, pairedContainer,
-                        stack -> crane.matchesTransferFilter(stack, false),
-                        this.getRouteFluidTransferBudget());
-                canLoadEnergy = crane.getEnergyMode() == 1
-                        && this.hasPairedEnergyToShipTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-                canUnloadEnergy = crane.getEnergyMode() == 2
-                        && this.hasShipEnergyToPairedTransfer(pairedEnergyAccess, this.getRouteEnergyTransferBudget());
-                hasTransferWork = canLoad || canUnload || canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy;
-            }
-        }
-
-        if (!this.aiRespectRouteStay) {
-            if (crane.getRedstoneMode() == 2) {
-                crane.emitRedstoneSignal(2);
-            }
-            return false;
-        }
-
-        boolean continueCraning;
-        int waitMode = crane.getWaitMode();
-        if (waitMode == 0) {
-            continueCraning = hasTransferWork;
-        } else if (waitMode == 1) {
-            continueCraning = !this.isCraneUntilFullSatisfied(crane, pairedContainer);
-        } else if (waitMode == 2) {
-            continueCraning = !this.isCraneUntilEmptySatisfied(crane, pairedContainer);
-        } else if (waitMode == 3) {
-            continueCraning = canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy
-                    || !this.isCraneExcessSatisfied(crane, pairedContainer);
-        } else if (waitMode == 4) {
-            continueCraning = canLoadLiquid || canUnloadLiquid || canLoadEnergy || canUnloadEnergy
-                    || !this.isCraneRemainSatisfied(crane, pairedContainer);
-        } else {
-            continueCraning = this.waitAtRouteNode(CraneBlockEntity.getWaitTime(waitMode));
-        }
-
-        if (continueCraning) {
-            if (crane.getRedstoneMode() == 1) {
-                crane.emitRedstoneSignal(18);
-            }
-        } else if (crane.getRedstoneMode() == 2) {
-            crane.emitRedstoneSignal(2);
-        }
-        return continueCraning;
-    }
-
-    private boolean isCraneUntilFullSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
-        if (crane.isLoadEnabled() && !this.isShipCargoFull()) {
-            return false;
-        }
-        if (crane.isUnloadEnabled() && pairedContainer != null && !isContainerFull(pairedContainer)) {
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isCraneUntilEmptySatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
-        if (crane.isLoadEnabled() && pairedContainer != null
-                && hasMatchingItemInContainer(pairedContainer, stack -> crane.matchesTransferFilter(stack, true))) {
-            return false;
-        }
-        if (crane.isUnloadEnabled()
-                && this.hasMatchingItemInShipCargo(stack -> crane.matchesTransferFilter(stack, false))) {
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isCraneExcessSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
-        if (crane.isLoadEnabled() && !this.matchesAllFilterAmountsInShipCargo(crane, true, true)) {
-            return false;
-        }
-        if (crane.isUnloadEnabled() && pairedContainer != null
-                && !matchesAllFilterAmountsInContainer(pairedContainer, crane, false, true)) {
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isCraneRemainSatisfied(CraneBlockEntity crane, @Nullable Container pairedContainer) {
-        if (crane.isLoadEnabled() && pairedContainer != null
-                && !matchesAllFilterAmountsInContainer(pairedContainer, crane, true, false)) {
-            return false;
-        }
-        if (crane.isUnloadEnabled() && !this.matchesAllFilterAmountsInShipCargo(crane, false, false)) {
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isShipCargoFull() {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack stack = this.shipInventory.getItem(slot);
-            if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isContainerFull(Container container) {
-        for (int slot = 0; slot < container.getContainerSize(); slot++) {
-            ItemStack stack = container.getItem(slot);
-            if (stack.isEmpty() || stack.getCount() < stack.getMaxStackSize()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean hasMatchingItemInShipCargo(Predicate<ItemStack> predicate) {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack stack = this.shipInventory.getItem(slot);
-            if (!stack.isEmpty() && predicate.test(stack)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean hasMatchingItemInContainer(Container container, Predicate<ItemStack> predicate) {
-        for (int slot = 0; slot < container.getContainerSize(); slot++) {
-            ItemStack stack = container.getItem(slot);
-            if (!stack.isEmpty() && predicate.test(stack)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean matchesAllFilterAmountsInShipCargo(CraneBlockEntity crane, boolean loading, boolean excess) {
-        int start = loading ? 0 : 9;
-        for (int i = start; i < start + 9; i++) {
-            ItemStack filter = crane.getFilterStack(i);
-            if (filter.isEmpty() || crane.isFilterInverted(i)) {
-                continue;
-            }
-            int total = 0;
-            for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
-                ItemStack stack = this.shipInventory.getItem(slot);
-                if (!stack.isEmpty() && com.lulan.shincolle.crafting.LegacyItemMatchHelper.matchesTargetItem(
-                        stack, filter, crane.isCheckMetadata(), crane.isCheckOredict(), crane.isCheckNbt())) {
-                    total += stack.getCount();
-                }
-            }
-            if (excess ? total < filter.getCount() : total > filter.getCount()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean matchesAllFilterAmountsInContainer(Container container, CraneBlockEntity crane,
-                                                              boolean loading, boolean excess) {
-        int start = loading ? 0 : 9;
-        for (int i = start; i < start + 9; i++) {
-            ItemStack filter = crane.getFilterStack(i);
-            if (filter.isEmpty() || crane.isFilterInverted(i)) {
-                continue;
-            }
-            int total = 0;
-            for (int slot = 0; slot < container.getContainerSize(); slot++) {
-                ItemStack stack = container.getItem(slot);
-                if (!stack.isEmpty() && com.lulan.shincolle.crafting.LegacyItemMatchHelper.matchesTargetItem(
-                        stack, filter, crane.isCheckMetadata(), crane.isCheckOredict(), crane.isCheckNbt())) {
-                    total += stack.getCount();
-                }
-            }
-            if (excess ? total < filter.getCount() : total > filter.getCount()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private boolean waitAtRouteNode(int waitTicks) {
         if (waitTicks <= 0 || this.routeWaitTicks < 0) {
             return false;
@@ -5214,210 +4969,6 @@ public class LegacyShipEntity extends PathfinderMob {
         return blockEntity instanceof Container container ? container : null;
     }
 
-    private @Nullable IFluidHandler getPairedRouteFluidHandler(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
-        BlockEntity blockEntity = this.getPairedRouteBlockEntity(serverLevel, pairedChestPos);
-        if (blockEntity == null) {
-            return null;
-        }
-
-        return blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).resolve().orElse(null);
-    }
-
-    private @Nullable RouteEnergyAccess getPairedRouteEnergyAccess(ServerLevel serverLevel, @Nullable BlockPos pairedChestPos) {
-        BlockEntity blockEntity = this.getPairedRouteBlockEntity(serverLevel, pairedChestPos);
-        return blockEntity instanceof RouteEnergyAccess access ? access : null;
-    }
-
-    private boolean hasContainerToShipTransfer(Container source, Predicate<ItemStack> predicate) {
-        for (int slot = 0; slot < source.getContainerSize(); slot++) {
-            ItemStack stack = source.getItem(slot);
-            if (!stack.isEmpty() && predicate.test(stack) && this.canInsertIntoShipCargo(stack)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasShipToContainerTransfer(Container target, Predicate<ItemStack> predicate) {
-        for (int slot = CARGO_SLOT_COUNT > 0 ? EQUIPMENT_SLOT_COUNT : 0; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack stack = this.shipInventory.getItem(slot);
-            if (!stack.isEmpty() && predicate.test(stack) && this.canInsertIntoContainer(target, stack)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasPairedFluidToShipTransfer(@Nullable IFluidHandler sourceHandler,
-                                                 @Nullable Container sourceContainer,
-                                                 Predicate<ItemStack> predicate,
-                                                 int budget) {
-        return (sourceHandler != null && this.hasBlockFluidToShipTransfer(sourceHandler, predicate, budget))
-                || (sourceContainer != null && this.hasContainerFluidToShipTransfer(sourceContainer, predicate, budget));
-    }
-
-    private boolean hasShipFluidToPairedTransfer(@Nullable IFluidHandler targetHandler,
-                                                 @Nullable Container targetContainer,
-                                                 Predicate<ItemStack> predicate,
-                                                 int budget) {
-        return (targetHandler != null && this.hasShipFluidToBlockTransfer(targetHandler, predicate, budget))
-                || (targetContainer != null && this.hasShipFluidToContainerTransfer(targetContainer, predicate, budget));
-    }
-
-    private int transferPairedFluidToShip(@Nullable IFluidHandler sourceHandler,
-                                          @Nullable Container sourceContainer,
-                                          Predicate<ItemStack> predicate,
-                                          int budget) {
-        int moved = 0;
-        if (sourceHandler != null) {
-            moved += this.transferBlockFluidToShip(sourceHandler, predicate, budget);
-        }
-        if (moved <= 0 && sourceContainer != null) {
-            moved += this.transferContainerFluidToShip(sourceContainer, predicate, budget);
-        }
-        return moved;
-    }
-
-    private int transferShipFluidToPaired(@Nullable IFluidHandler targetHandler,
-                                          @Nullable Container targetContainer,
-                                          Predicate<ItemStack> predicate,
-                                          int budget) {
-        int moved = 0;
-        if (targetHandler != null) {
-            moved += this.transferShipFluidToBlock(targetHandler, predicate, budget);
-        }
-        if (moved <= 0 && targetContainer != null) {
-            moved += this.transferShipFluidToContainer(targetContainer, predicate, budget);
-        }
-        return moved;
-    }
-
-    private boolean hasBlockFluidToShipTransfer(IFluidHandler source, Predicate<ItemStack> predicate, int budget) {
-        if (budget <= 0) {
-            return false;
-        }
-
-        FluidStack preview = source.drain(budget, IFluidHandler.FluidAction.SIMULATE);
-        if (preview.isEmpty()) {
-            return false;
-        }
-
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack tankStack = this.shipInventory.getItem(slot);
-            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-            if (tankHandler != null && tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasContainerFluidToShipTransfer(Container source, Predicate<ItemStack> predicate, int budget) {
-        if (budget <= 0) {
-            return false;
-        }
-
-        for (int sourceSlot = 0; sourceSlot < source.getContainerSize(); sourceSlot++) {
-            ItemStack sourceStack = source.getItem(sourceSlot);
-            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
-            if (sourceHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = sourceHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                continue;
-            }
-
-            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
-                ItemStack tankStack = this.shipInventory.getItem(shipSlot);
-                if (!this.isRouteFluidContainer(tankStack)) {
-                    continue;
-                }
-
-                IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-                if (tankHandler != null && tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasShipFluidToBlockTransfer(IFluidHandler target, Predicate<ItemStack> predicate, int budget) {
-        if (budget <= 0) {
-            return false;
-        }
-
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
-            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
-            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-            if (tankHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = tankHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
-            if (!preview.isEmpty() && target.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean hasShipFluidToContainerTransfer(Container target, Predicate<ItemStack> predicate, int budget) {
-        if (budget <= 0) {
-            return false;
-        }
-
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize(); shipSlot++) {
-            ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
-            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
-            if (sourceHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = sourceHandler.drain(budget, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                continue;
-            }
-
-            for (int targetSlot = 0; targetSlot < target.getContainerSize(); targetSlot++) {
-                ItemStack targetStack = target.getItem(targetSlot);
-                if (!this.isRouteFluidContainer(targetStack)) {
-                    continue;
-                }
-
-                IFluidHandlerItem targetHandler = this.createRouteFluidHandler(targetStack);
-                if (targetHandler != null && targetHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE) > 0) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     private int transferContainerToShipCargo(Container source, Predicate<ItemStack> predicate, int budget) {
         int moved = 0;
 
@@ -5443,274 +4994,6 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         return moved;
-    }
-
-    private int transferShipCargoToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
-        int moved = 0;
-
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize() && moved < budget; slot++) {
-            ItemStack stack = this.shipInventory.getItem(slot);
-            if (stack.isEmpty() || !predicate.test(stack)) {
-                continue;
-            }
-
-            int inserted = this.insertIntoContainer(target, stack, budget - moved);
-            if (inserted <= 0) {
-                continue;
-            }
-
-            stack.shrink(inserted);
-            if (stack.isEmpty()) {
-                this.shipInventory.setItem(slot, ItemStack.EMPTY);
-            } else {
-                this.shipInventory.setItem(slot, stack);
-            }
-            moved += inserted;
-        }
-
-        return moved;
-    }
-
-    private int transferBlockFluidToShip(IFluidHandler source, Predicate<ItemStack> predicate, int budget) {
-        int moved = 0;
-
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
-            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
-            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-            if (tankHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = source.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                break;
-            }
-
-            int accepted = tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
-            if (accepted <= 0) {
-                continue;
-            }
-
-            FluidStack extracted = source.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
-            if (extracted.isEmpty()) {
-                continue;
-            }
-
-            int filled = tankHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-            if (filled <= 0) {
-                continue;
-            }
-
-            this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
-            moved += filled;
-        }
-
-        return moved;
-    }
-
-    private int transferContainerFluidToShip(Container source, Predicate<ItemStack> predicate, int budget) {
-        int moved = 0;
-
-        for (int sourceSlot = 0; sourceSlot < source.getContainerSize() && moved < budget; sourceSlot++) {
-            ItemStack sourceStack = source.getItem(sourceSlot);
-            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
-            if (sourceHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = sourceHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                continue;
-            }
-
-            for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
-                ItemStack tankStack = this.shipInventory.getItem(shipSlot);
-                if (!this.isRouteFluidContainer(tankStack)) {
-                    continue;
-                }
-
-                IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-                if (tankHandler == null) {
-                    continue;
-                }
-
-                int accepted = tankHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
-                if (accepted <= 0) {
-                    continue;
-                }
-
-                FluidStack extracted = sourceHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
-                if (extracted.isEmpty()) {
-                    continue;
-                }
-
-                int filled = tankHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-                if (filled <= 0) {
-                    continue;
-                }
-
-                source.setItem(sourceSlot, sourceHandler.getContainer());
-                source.setChanged();
-                this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
-                moved += filled;
-                break;
-            }
-        }
-
-        return moved;
-    }
-
-    private int transferShipFluidToBlock(IFluidHandler target, Predicate<ItemStack> predicate, int budget) {
-        int moved = 0;
-
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
-            ItemStack tankStack = this.shipInventory.getItem(shipSlot);
-            if (!predicate.test(tankStack) || !this.isRouteFluidContainer(tankStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem tankHandler = this.createRouteFluidHandler(tankStack);
-            if (tankHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = tankHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                continue;
-            }
-
-            int accepted = target.fill(preview, IFluidHandler.FluidAction.SIMULATE);
-            if (accepted <= 0) {
-                continue;
-            }
-
-            FluidStack extracted = tankHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
-            if (extracted.isEmpty()) {
-                continue;
-            }
-
-            int filled = target.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-            if (filled <= 0) {
-                continue;
-            }
-
-            this.shipInventory.setItem(shipSlot, tankHandler.getContainer());
-            moved += filled;
-        }
-
-        return moved;
-    }
-
-    private int transferShipFluidToContainer(Container target, Predicate<ItemStack> predicate, int budget) {
-        int moved = 0;
-
-        for (int shipSlot = EQUIPMENT_SLOT_COUNT; shipSlot < this.shipInventory.getContainerSize() && moved < budget; shipSlot++) {
-            ItemStack sourceStack = this.shipInventory.getItem(shipSlot);
-            if (!predicate.test(sourceStack) || !this.isRouteFluidContainer(sourceStack)) {
-                continue;
-            }
-
-            IFluidHandlerItem sourceHandler = this.createRouteFluidHandler(sourceStack);
-            if (sourceHandler == null) {
-                continue;
-            }
-
-            FluidStack preview = sourceHandler.drain(budget - moved, IFluidHandler.FluidAction.SIMULATE);
-            if (preview.isEmpty()) {
-                continue;
-            }
-
-            for (int targetSlot = 0; targetSlot < target.getContainerSize() && moved < budget; targetSlot++) {
-                ItemStack targetStack = target.getItem(targetSlot);
-                if (!this.isRouteFluidContainer(targetStack)) {
-                    continue;
-                }
-
-                IFluidHandlerItem targetHandler = this.createRouteFluidHandler(targetStack);
-                if (targetHandler == null) {
-                    continue;
-                }
-
-                int accepted = targetHandler.fill(preview, IFluidHandler.FluidAction.SIMULATE);
-                if (accepted <= 0) {
-                    continue;
-                }
-
-                FluidStack extracted = sourceHandler.drain(accepted, IFluidHandler.FluidAction.EXECUTE);
-                if (extracted.isEmpty()) {
-                    continue;
-                }
-
-                int filled = targetHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-                if (filled <= 0) {
-                    continue;
-                }
-
-                this.shipInventory.setItem(shipSlot, sourceHandler.getContainer());
-                target.setItem(targetSlot, targetHandler.getContainer());
-                target.setChanged();
-                moved += filled;
-                break;
-            }
-        }
-
-        return moved;
-    }
-
-    private boolean hasPairedEnergyToShipTransfer(@Nullable RouteEnergyAccess source, int budget) {
-        return source != null
-                && budget > 0
-                && this.getRouteEnergyBuffer() < this.getRouteEnergyCapacity()
-                && source.extractRouteEnergy(Math.min(budget, this.getRouteEnergyCapacity() - this.getRouteEnergyBuffer()), true) > 0;
-    }
-
-    private boolean hasShipEnergyToPairedTransfer(@Nullable RouteEnergyAccess target, int budget) {
-        return target != null
-                && budget > 0
-                && this.getRouteEnergyBuffer() > 0
-                && target.receiveRouteEnergy(Math.min(budget, this.getRouteEnergyBuffer()), true) > 0;
-    }
-
-    private int transferPairedEnergyToShip(@Nullable RouteEnergyAccess source, int budget) {
-        if (source == null || budget <= 0) {
-            return 0;
-        }
-
-        int request = Math.min(budget, this.getRouteEnergyCapacity() - this.getRouteEnergyBuffer());
-        if (request <= 0) {
-            return 0;
-        }
-
-        int extracted = source.extractRouteEnergy(request, false);
-        if (extracted > 0) {
-            this.setRouteEnergyBuffer(this.getRouteEnergyBuffer() + extracted);
-        }
-        return extracted;
-    }
-
-    private int transferShipEnergyToPaired(@Nullable RouteEnergyAccess target, int budget) {
-        if (target == null || budget <= 0) {
-            return 0;
-        }
-
-        int request = Math.min(budget, this.getRouteEnergyBuffer());
-        if (request <= 0) {
-            return 0;
-        }
-
-        int accepted = target.receiveRouteEnergy(request, false);
-        if (accepted > 0) {
-            this.setRouteEnergyBuffer(this.getRouteEnergyBuffer() - accepted);
-        }
-        return accepted;
     }
 
     private int insertIntoShipCargo(ItemStack sourceStack, int maxItems) {
@@ -5747,96 +5030,12 @@ public class LegacyShipEntity extends PathfinderMob {
         return Math.min(maxItems, sourceStack.getCount()) - remaining;
     }
 
-    private int insertIntoContainer(Container target, ItemStack sourceStack, int maxItems) {
-        if (sourceStack.isEmpty() || maxItems <= 0) {
-            return 0;
-        }
-
-        int remaining = Math.min(maxItems, sourceStack.getCount());
-
-        for (int slot = 0; slot < target.getContainerSize() && remaining > 0; slot++) {
-            ItemStack current = target.getItem(slot);
-            if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
-                continue;
-            }
-
-            int insert = Math.min(remaining, current.getMaxStackSize() - current.getCount());
-            current.grow(insert);
-            target.setItem(slot, current);
-            remaining -= insert;
-        }
-
-        for (int slot = 0; slot < target.getContainerSize() && remaining > 0; slot++) {
-            ItemStack current = target.getItem(slot);
-            if (!current.isEmpty()) {
-                continue;
-            }
-
-            ItemStack inserted = sourceStack.copy();
-            inserted.setCount(remaining);
-            target.setItem(slot, inserted);
-            remaining = 0;
-        }
-
-        if (remaining != Math.min(maxItems, sourceStack.getCount())) {
-            target.setChanged();
-        }
-
-        return Math.min(maxItems, sourceStack.getCount()) - remaining;
-    }
-
-    private boolean canInsertIntoShipCargo(ItemStack sourceStack) {
-        for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.shipInventory.getContainerSize(); slot++) {
-            ItemStack current = this.shipInventory.getItem(slot);
-            if (current.isEmpty()) {
-                return true;
-            }
-
-            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private boolean canInsertIntoContainer(Container target, ItemStack sourceStack) {
-        for (int slot = 0; slot < target.getContainerSize(); slot++) {
-            ItemStack current = target.getItem(slot);
-            if (current.isEmpty()) {
-                return true;
-            }
-
-            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private int getRouteTransferBudget() {
         return 8 + this.equipmentBehaviorState.transportTier() * 8;
     }
 
-    private int getRouteFluidTransferBudget() {
-        return this.getRouteTransferBudget() * ROUTE_FLUID_TRANSFER_UNIT;
-    }
-
-    private int getRouteEnergyTransferBudget() {
-        return this.getRouteTransferBudget() * ROUTE_ENERGY_TRANSFER_UNIT;
-    }
-
     private int getRouteTransferInterval() {
         return Math.max(6, 20 - this.equipmentBehaviorState.transportTier() * 3);
-    }
-
-    private boolean isRouteFluidContainer(ItemStack stack) {
-        if (stack.isEmpty() || stack.getCount() != 1) {
-            return false;
-        }
-
-        return this.createRouteFluidHandler(stack) != null;
     }
 
     private @Nullable IFluidHandlerItem createRouteFluidHandler(ItemStack stack) {
@@ -6313,10 +5512,6 @@ public class LegacyShipEntity extends PathfinderMob {
                 || this.guardEntityUuid != null
                 || this.guardedBlockPos != null
                 || this.routeNodePos != null;
-    }
-
-    private void setRouteEnergyBuffer(int amount) {
-        this.entityData.set(DATA_ROUTE_ENERGY, Mth.clamp(amount, 0, this.getRouteEnergyCapacity()));
     }
 
     private void tickEquipmentBehaviors() {

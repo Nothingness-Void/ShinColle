@@ -307,8 +307,6 @@
   "gui.shincolle.crane.energy0": "Energy transport disabled",
   "gui.shincolle.crane.energy1": "Transferring energy to ship",
   "gui.shincolle.crane.energy2": "Transferring energy to facility",
-  "gui.shincolle.crane.energy_status.none": "Energy: no linked source",
-  "gui.shincolle.crane.energy_status.value": "Energy: %s / %s",
   "gui.shincolle.desk.book.line1": "The logbook now supports chapter browsing for admiral, fleet, diplomacy, logistics, and morph runtime notes.",
   "gui.shincolle.desk.book.line2": "Use the top arrows to turn pages and the chapter list to jump sections.",
   "gui.shincolle.desk.book.line3": "Use the desk terminal for live team and diplomacy editing.",

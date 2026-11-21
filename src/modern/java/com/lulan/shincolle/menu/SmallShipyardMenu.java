@@ -104,7 +104,7 @@ public class SmallShipyardMenu extends AbstractContainerMenu {
     }
 
     public boolean hasRemainedPower() {
-        return this.getPowerRemained() > SmallShipyardBlockEntity.BUILD_SPEED;
+        return this.getPowerRemained() > SmallShipyardBlockEntity.buildSpeed();
     }
 
     public boolean hasBuildMode() {
@@ -136,7 +136,7 @@ public class SmallShipyardMenu extends AbstractContainerMenu {
     }
 
     public int getPowerRemainingScaled(int height) {
-        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / SmallShipyardBlockEntity.POWER_MAX);
+        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / SmallShipyardBlockEntity.powerMax());
     }
 
     public String getBuildTimeString() {
@@ -144,7 +144,7 @@ public class SmallShipyardMenu extends AbstractContainerMenu {
             return "00:00";
         }
 
-        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) SmallShipyardBlockEntity.BUILD_SPEED) * 0.05F));
+        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) SmallShipyardBlockEntity.buildSpeed()) * 0.05F));
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);

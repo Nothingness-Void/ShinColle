@@ -307,8 +307,6 @@
   "gui.shincolle.crane.energy0": "停用能量传输",
   "gui.shincolle.crane.energy1": "传输能量到船舱中",
   "gui.shincolle.crane.energy2": "传输能量到起重机",
-  "gui.shincolle.crane.energy_status.none": "能量：未连接来源",
-  "gui.shincolle.crane.energy_status.value": "能量：%s / %s",
   "gui.shincolle.desk.book.line1": "日志现在支持浏览提督、舰队、外交、后勤与变身运行状态章节。",
   "gui.shincolle.desk.book.line2": "使用顶部箭头翻页，或通过章节列表跳转。",
   "gui.shincolle.desk.book.line3": "使用办公桌终端进行实时队伍与外交编辑。",

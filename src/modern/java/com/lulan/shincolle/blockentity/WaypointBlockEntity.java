@@ -91,6 +91,12 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
         this.markUpdated();
     }
 
+    public boolean canDestroy(Player player) {
+        return player.isCreative() || player.hasPermissions(2)
+                || (this.owner != null && (this.owner.uuid() != null ? this.owner.uuid().equals(player.getUUID())
+                : this.owner.uid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player)));
+    }
+
     public boolean canEdit(Player player) {
         return this.owner == null || this.owner.canEdit(player);
     }

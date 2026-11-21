@@ -928,61 +928,6 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void routeEnergyCapacityTracksTransportTier(GameTestHelper helper) {
-        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        if (ship == null) {
-            helper.fail("legacy ship entity should be creatable in tests");
-            return;
-        }
-
-        int baseCapacity = ship.getRouteEnergyCapacity();
-        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(2).get()));
-        if (ship.getRouteEnergyCapacity() <= baseCapacity) {
-            helper.fail("transport equipment should increase route energy capacity alongside logistics throughput");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void legacyCoreRouteEnergyAccessHonorsMode(GameTestHelper helper) {
-        LegacyCoreBlockEntity core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
-        if (core.receiveRouteEnergy(1200, false) != 1200 || core.getRouteEnergyStored() != 1200) {
-            helper.fail("volcore route energy receive should fill the legacy power pool");
-            return;
-        }
-        if (core.extractRouteEnergy(400, true) != 400 || core.getRouteEnergyStored() != 1200) {
-            helper.fail("volcore route energy simulation should read from the legacy power pool without spending it");
-            return;
-        }
-        if (core.extractRouteEnergy(400, false) != 400 || core.getRouteEnergyStored() != 800) {
-            helper.fail("volcore route energy extraction should spend legacy stored power without a player discharge mode");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void shipyardRouteEnergyAccessUsesPowerPool(GameTestHelper helper) {
-        HeavyGrudgeBlockEntity shipyard = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
-        shipyard.getContainerData().set(4, 1);
-        shipyard.getContainerData().set(2, 2000);
-
-        if (shipyard.extractRouteEnergy(500, false) != 500 || shipyard.getRouteEnergyStored() != 1500) {
-            helper.fail("legacy large shipyard should export route energy from its power pool");
-            return;
-        }
-        if (shipyard.receiveRouteEnergy(250, false) != 250 || shipyard.getRouteEnergyStored() != 1750) {
-            helper.fail("legacy large shipyard should accept route energy back into its power pool");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
     public static void shipyardFuelConsumesShipTankLavaByBucket(GameTestHelper helper) {
         ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
         var handler = FluidUtil.getFluidHandler(tank).resolve();
@@ -1055,52 +1000,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void craneRouteTransfersEnergyWithoutItemContainer(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 4, 1));
-        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
-        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
-        for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
-            helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
-        }
-
-        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
-            helper.fail("crane block entity should exist for route transfer");
-            return;
-        }
-        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof HeavyGrudgeBlockEntity shipyard) || !shipyard.tryAssembleStructure()) {
-            helper.fail("formed heavy grudge multiblock should expose route energy for crane transfer");
-            return;
-        }
-
-        crane.setPairedChest(shipyardPos);
-        crane.cycleEnergyMode();
-        shipyard.getContainerData().set(2, 1600);
-
-        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        if (ship == null) {
-            helper.fail("legacy ship entity should be creatable in tests");
-            return;
-        }
-
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
-        helper.getLevel().addFreshEntity(ship);
-        ship.commandMoveTo(cranePos, "");
-
-        for (int i = 0; i < 3; i++) {
-            ship.tick();
-        }
-
-        if (ship.getRouteEnergyBuffer() <= 0 || shipyard.getRouteEnergyStored() >= 1600) {
-            helper.fail("crane route should transfer energy from a route-energy block even when no paired item container exists");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void craneRouteTransfersShipTankLavaFromChestToShip(GameTestHelper helper) {
+    public static void craneCycleTransfersShipTankLavaThroughInternalBuffer(GameTestHelper helper) {
         BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos chestPos = helper.absolutePos(new BlockPos(3, 2, 1));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -1115,6 +1015,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        crane.onLoad();
         ItemStack sourceTank = new ItemStack(ModItems.SHIPTANK.get());
         var sourceHandler = FluidUtil.getFluidHandler(sourceTank).resolve();
         if (sourceHandler.isEmpty()) {
@@ -1131,6 +1032,8 @@ public final class GameplayParityGameTests {
         chest.setItem(0, sourceHandler.get().getContainer());
         crane.setPairedChest(chestPos);
         crane.cycleLiquidMode();
+        crane.toggleLoadEnabled();
+        crane.toggleUnloadEnabled();
 
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
@@ -1138,15 +1041,26 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(1).get()));
         int shipTankSlot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
         ship.getShipInventory().setItem(shipTankSlot, new ItemStack(ModItems.SHIPTANK.get()));
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(cranePos, "");
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 79; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
+        if (FluidUtil.getFluidContained(chest.getItem(0)).map(FluidStack::getAmount).orElse(0) != 2000) {
+            helper.fail("crane must not transfer during the initial 64-tick warmup or before its 16-tick work boundary");
+            return;
+        }
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        int buffered = crane.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new)
+                .getFluidInTank(0).getAmount();
 
         int shipTankAmount = FluidUtil.getFluidContained(ship.getShipInventory().getItem(shipTankSlot))
                 .map(FluidStack::getAmount)
@@ -1154,11 +1068,60 @@ public final class GameplayParityGameTests {
         int chestTankAmount = FluidUtil.getFluidContained(chest.getItem(0))
                 .map(FluidStack::getAmount)
                 .orElse(0);
-        if (shipTankAmount <= 0 || chestTankAmount >= 2000) {
+        if (shipTankAmount != 640 || chestTankAmount != 0 || buffered != 1360) {
             helper.fail("crane route should move lava from a paired chest tank into a ship cargo tank");
             return;
         }
 
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void craneCycleWaitsForInventoryThenCompletesEmptyWork(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 3, 1));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 3, 1));
+        BlockPos nextPos = helper.absolutePos(new BlockPos(8, 3, 1));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        CraneBlockEntity crane = (CraneBlockEntity) helper.getLevel().getBlockEntity(cranePos);
+        crane.setPairedChest(chestPos);
+        crane.setNextWaypoint(nextPos);
+        crane.cycleRedstoneMode();
+        crane.cycleRedstoneMode();
+        crane.cycleEnergyMode();
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("ship must be available for crane completion test");
+            return;
+        }
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(cranePos, "");
+        ship.tick();
+        for (int i = 0; i < 80; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        }
+        if (ship.getCraneState() != 2 || !cranePos.equals(ship.getCommandedPos())) {
+            helper.fail("a missing paired inventory must prevent completion and route advancement");
+            return;
+        }
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+        for (int i = 0; i < 16; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        }
+        if (ship.getCraneState() != 0 || ship.getCraneTime() != 0
+                || !nextPos.equals(ship.getCommandedPos()) || ship.getAiFollowRange() != 2 || crane.getRedstoneTicks() <= 0) {
+            helper.fail("empty work must finish, reset crane timers, signal redstone and advance the route; EU without IC2 must not work");
+            return;
+        }
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        if (crane.getRedstoneTicks() > 0) {
+            helper.fail("completion redstone must expire after two ticks");
+            return;
+        }
         helper.succeed();
     }
 
@@ -1179,6 +1142,7 @@ public final class GameplayParityGameTests {
         }
 
         crane.setPairedChest(chestPos);
+        crane.toggleUnloadEnabled();
         crane.setFilter(0, new ItemStack(Items.APPLE), false);
         chest.setItem(0, new ItemStack(Items.APPLE, 6));
         chest.setItem(1, new ItemStack(Items.BREAD, 6));
@@ -1189,11 +1153,14 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(cranePos, "");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 80; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
 
         if (countItems(ship.getShipInventory(), Items.APPLE) <= 0
@@ -1205,12 +1172,14 @@ public final class GameplayParityGameTests {
 
         clearContainer(chest);
         crane.toggleLoadEnabled();
+        crane.toggleUnloadEnabled();
         crane.setFilter(9, new ItemStack(Items.COBBLESTONE), false);
         ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1, new ItemStack(Items.COBBLESTONE, 5));
         ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 2, new ItemStack(Items.DIRT, 5));
         ship.commandMoveTo(cranePos, "");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 16; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
 
         if (countItems(chest, Items.COBBLESTONE) <= 0
@@ -1380,7 +1349,15 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.receiveRouteEnergy(HeavyGrudgeBlockEntity.POWER_MAX, false);
+        shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
+        shipyard.getContainerData().set(1, 1234);
+        shipyard.getContainerData().set(2, 0);
+        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        if (shipyard.getContainerData().get(1) != 1234) {
+            helper.fail("fuel starvation must pause rather than reset legacy build progress");
+            return;
+        }
+        shipyard.getContainerData().set(2, HeavyGrudgeBlockEntity.powerMax());
         shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         if (shipyard.getPowerGoal() <= 0) {
@@ -1388,7 +1365,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.BUILD_SPEED);
+        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.buildSpeed());
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         ItemStack output = shipyard.getItems().getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT);
         if (!output.is(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get())
@@ -1485,7 +1462,6 @@ public final class GameplayParityGameTests {
 
         ShipInventoryMenu shipMenu = new ShipInventoryMenu(5, player.getInventory(), ship.getId());
         if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
-                || "- / -".equals(shipMenu.getRouteEnergyText())
                 || "-".equals(shipMenu.getAttackText())
                 || !shipMenu.clickMenuButton(player, ShipInventoryMenu.BUTTON_TOGGLE_MODE)
                 || !ship.isOrderedToSit()) {
@@ -1957,6 +1933,46 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipyardLiquidFuelAndRuntimeConfig(GameTestHelper helper) {
+        ShinColleConfig.setTestOverride("tileShipyardSmall", new double[]{460800, 48, 2});
+        ShinColleConfig.setTestOverride("itemShipTank", new int[]{1000, 2000, 3000, 4000});
+        try {
+            BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+            helper.getLevel().setBlock(pos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+            var tile = (com.lulan.shincolle.blockentity.SmallShipyardBlockEntity) helper.getLevel().getBlockEntity(pos);
+            tile.onLoad();
+            var tank = tile.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new);
+            if (tank.getTankCapacity(0) != 2000
+                    || tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 40),
+                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE) != 0) {
+                helper.fail("small shipyard must reject water and hold 2000 mB");
+                return;
+            }
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            if (tile.getContainerData().get(2) != 0) {
+                helper.fail("empty tank must not generate fuel");
+                return;
+            }
+            tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.LAVA, 80),
+                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            if (tile.getContainerData().get(2) != 1600 || tank.getFluidInTank(0).getAmount() != 40
+                    || !tank.drain(40, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE).isEmpty()) {
+                helper.fail("one tick must burn 40 mB for 800 times fuel multiplier, with no external drain");
+                return;
+            }
+            var drum = new ItemStack(ModItems.SHIPTANK3.get()).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).orElseThrow(IllegalStateException::new);
+            if (drum.getTankCapacity(0) != 4000) {
+                helper.fail("fluid drum must use configured tier capacity");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void heavyGrudgeSwitchesFromCoreToShipyard(GameTestHelper helper) {
         HeavyGrudgeBlockEntity dropSource = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
         dropSource.setMaterialStockForTest(0, 12);
@@ -1990,9 +2006,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        if (heavy.receiveRouteEnergy(1000, false) != 0
-                || heavy.extractRouteEnergy(1000, false) != 0
-                || heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
+        if (heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
             helper.fail("unformed heavy grudge must not act as an independent energy core or expose machine inventory");
             return;
         }
@@ -2573,10 +2587,6 @@ public final class GameplayParityGameTests {
         }
         if ("-".equals(menu.getAttackText())) {
             helper.fail("cache fallback menu should preserve cached combat stats");
-            return;
-        }
-        if ("- / -".equals(menu.getRouteEnergyText())) {
-            helper.fail("cache fallback menu should preserve route energy text");
             return;
         }
         if (menu.getAiFollowRange() != ship.getAiFollowRange()) {

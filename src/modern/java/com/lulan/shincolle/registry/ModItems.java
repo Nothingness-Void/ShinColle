@@ -93,10 +93,10 @@ public final class ModItems {
             () -> new RecipePaperItem(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> REPAIRGODDESS = ITEMS.register("repairgoddess",
             () -> new RepairGoddessItem(new Item.Properties().stacksTo(16)));
-    public static final RegistryObject<Item> SHIPTANK = shipTank("shiptank", 32000);
-    public static final RegistryObject<Item> SHIPTANK1 = shipTank("shiptank1", 128000);
-    public static final RegistryObject<Item> SHIPTANK2 = shipTank("shiptank2", 512000);
-    public static final RegistryObject<Item> SHIPTANK3 = shipTank("shiptank3", 2048000);
+    public static final RegistryObject<Item> SHIPTANK = shipTank("shiptank", 0);
+    public static final RegistryObject<Item> SHIPTANK1 = shipTank("shiptank1", 1);
+    public static final RegistryObject<Item> SHIPTANK2 = shipTank("shiptank2", 2);
+    public static final RegistryObject<Item> SHIPTANK3 = shipTank("shiptank3", 3);
     public static final List<RegistryObject<Item>> SHIPSPAWNEGG_ITEMS = shipSpawnEggItems(
             "smallegg", "largeegg", "shipegg2", "shipegg3", "shipegg4", "shipegg5", "shipegg11", "shipegg12", "shipegg14",
             "shipegg15", "shipegg16", "shipegg17", "shipegg18", "shipegg19", "shipegg20", "shipegg21", "shipegg22", "shipegg23",
