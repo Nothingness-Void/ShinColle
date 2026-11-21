@@ -10,6 +10,8 @@ import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.mixin.LivingDamageAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
@@ -38,6 +40,60 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(ShinColle.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class NeoForgeCompatibilityGameTests {
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void incomingCancellationSharesNeoForgeContainerLifecycle(GameTestHelper helper) {
+        LivingEntity control = EntityType.ZOMBIE.create(helper.getLevel());
+        var controlStack = ((LivingDamageAccess) control).shincolle$damageContainers();
+        helper.assertTrue(control.hurt(control.damageSources().generic(), 4.0F) && controlStack.isEmpty(),
+                "ordinary damage pops the NeoForge container");
+        control.invulnerableTime = 0;
+        IncomingCancelProbe probe = new IncomingCancelProbe(control);
+        NeoForge.EVENT_BUS.register(probe);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        var playerStack = ((LivingDamageAccess) player).shincolle$damageContainers();
+        var mount = ModEntityTypes.LEGACY_SHIP_MOUNT.get().create(helper.getLevel());
+        try {
+            float health = control.getHealth();
+            for (int i = 0; i < 3; i++) {
+                helper.assertTrue(!control.hurt(control.damageSources().generic(), 4.0F)
+                        && control.getHealth() == health, "a plain non-ShinColle cancellation prevents damage");
+            }
+            int upstreamRetained = controlStack.size();
+            helper.assertTrue(probe.count == 3 && upstreamRetained == 3,
+                    "NeoForge 21.1.267 retains one record per generic event cancellation without any ShinColle immunity");
+            ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
+            TeitokuData data = TeitokuHelper.get(player).orElseThrow();
+            data.setHasRing(true);
+            data.setRingActive(true);
+            data.setMarriageNum(12);
+            health = player.getHealth();
+            for (int i = 0; i < 3; i++) {
+                player.igniteForSeconds(20);
+                helper.assertTrue(!player.hurt(player.damageSources().lava(), 4.0F)
+                        && player.getHealth() == health && !player.isOnFire(), "ring immunity cancels and extinguishes real incoming damage");
+            }
+            helper.assertTrue(playerStack.size() == upstreamRetained, "ring cancellation has the same upstream record lifecycle");
+            data.setHasRing(false);
+            helper.assertTrue(player.startRiding(mount, true), "the immunity probe must actually mount a legacy ship");
+            for (var source : java.util.List.of(player.damageSources().fall(), player.damageSources().inWall())) {
+                playerStack.clear();
+                for (int i = 0; i < 3; i++) {
+                    helper.assertTrue(!player.hurt(source, 4.0F) && player.getHealth() == health,
+                            "mounted fall and suffocation immunity cancel the real hurt dispatch");
+                }
+                helper.assertTrue(playerStack.size() == upstreamRetained, "mount cancellations share the same upstream record lifecycle");
+            }
+        } finally {
+            NeoForge.EVENT_BUS.unregister(probe);
+            player.stopRiding();
+            mount.discard();
+            controlStack.clear();
+            playerStack.clear();
+            ShinColleConfig.clearTestOverrides();
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "gameplayparitygametests.empty")
     public static void recoveredDropImportsLegacyEggAndNestedShipInventory(GameTestHelper helper) {
         RecoveredShipItemEntity original = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
@@ -304,6 +360,23 @@ public final class NeoForgeCompatibilityGameTests {
         stack.putByte("Count", (byte) 1);
         stack.put("tag", data);
         return stack;
+    }
+
+    public static final class IncomingCancelProbe {
+        private final LivingEntity target;
+        private int count;
+
+        private IncomingCancelProbe(LivingEntity target) {
+            this.target = target;
+        }
+
+        @SubscribeEvent
+        public void onIncoming(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+            if (event.getEntity() == this.target) {
+                this.count++;
+                event.setCanceled(true);
+            }
+        }
     }
 
     public static final class DamageProbe {
