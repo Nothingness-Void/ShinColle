@@ -1,8 +1,12 @@
 # 迁移变更索引
 
+## Minecraft 1.21.1 / NeoForge 21.1.267
+
+固定 1.20.1 parity 基线上的版本升级，分支 `devin/mc-1.21.1-neoforge`。构建、数据兼容、获批的护甲前 Mixin 钩子、GameTest 夹具 API 适配、最终验收与未验范围均见 [批次结果](migration_batches/neoforge-1.21.1/status.md)；当前快照见 [CURRENT_STATE.md](CURRENT_STATE.md)，后续仅见 [ROADMAP.md](ROADMAP.md)。下方九批记录保留为 1.20.1 历史，不代表新增功能已在本轮补完。
+
 ## 九批 parity 集成收尾
 
-`devin/parity-fix-integration` 的当前快照/最终 merge SHA 见 [CURRENT_STATE.md](CURRENT_STATE.md)，最终结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
+`devin/parity-fix-integration` 的历史最终 merge SHA 与结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
 
 九个批次入口：
 [ship-core](migration_batches/2026-11-22-parity-fix-ship-core/) ·

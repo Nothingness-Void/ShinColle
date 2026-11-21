@@ -5,24 +5,25 @@
 <a id="当前任务"></a>
 ## 当前集成与任务边界
 
-- 分支：`devin/parity-fix-integration`，基于 `origin/codex/mc-1.20.1`。
-- 已集成九个 parity 修复批次：ship-core、combat-projectile、ai-movement、ship-variants、menu-network-command、client、items-blocks、crafting-world-config、teitoku-morph-skill。各批次过程和历史验收从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入，不以专题历史分支/通过数覆盖当前集成状态。
-- 最终 merge：`042a3696bef65c712614ea19ba4ae76ddec3f8af`；前序物品方块 merge 为 `ba0288157aa67cbad12c65b229f1d66106328e82`，crafting/world/config merge 为 `351e3ab5ca02ccf1cc1940cc019e5e99876a2d75`。
-- 当前任务：九批代码合并与验证已完成，完成文档收口后仅推送 integration；不创建 PR，不修改/推送 `codex/mc-1.20.1`，不自动开始后续批次。
-- 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`；本轮其余改动仅迁移文档。`src/main/**` 继续只读，相对 `origin/codex/mc-1.20.1` 无差异。
+- 分支：`devin/mc-1.21.1-neoforge`，基于固定的 1.20.1 parity 分支 `origin/devin/parity-fix-integration`（用户指定 `5b95cfe`）。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
+- Minecraft **1.21.1**、NeoForge **21.1.267**、ModDevGradle **2.0.148**、Gradle **8.8**、JDK **21**；模组版本 **0.2.0-alpha**。
+- 已验证并推送的代码提交：`f9b814a682993d69e08692f69cc98965156f122a`。构建、服务端 GameTest 与兼容性选择见 [1.21.1 批次结果](migration_batches/neoforge-1.21.1/status.md)。
+- 当前任务：版本/API 与旧数据适配完成，独立编译、完整构建及全量服务端 GameTest 通过；文档收口后停止。不创建 PR，不修改/推送其他分支，不自动开始后续批次。
+- 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`，另有构建配置与迁移文档。`src/main/**` 继续只读，相对固定 parity 基线无差异。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
 
-- 最后生产/测试代码修改后：JDK 17 独立编译与全量 GameTest 均通过，`All 340 required tests passed :)`。最终集成 GameTest 首轮全绿，未重跑；详细输出、首轮编译修复与日志校验和见 [最终集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)，命令/覆盖/门禁只见 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)。
+- 最后生产/测试代码修改后：JDK 21 的 `compileJava`、`build` 与 `runGameTestServer` 依次通过，`All 345 required tests passed :)`（原 340 项与新增 5 项兼容测试；0 失败）。准确输出、范围与日志校验和见 [本批次证据](migration_batches/neoforge-1.21.1/status.md#verification)。1.20.1 的 340 项结果保留在 [历史集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)，不替代本轮结果。
 - 重复实现的归并约束与编号变更只见 [D-018 集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)：菜单网络 D-015、客户端 D-016、crafting D-017、Teitoku D-018，不覆盖 D-012～D-014。
 - 既有起重机关联与夹具证据：[物品方块](migration_batches/2026-11-22-parity-fix-items-blocks/results/README.md#integration-merge)、[crafting 集成验证](migration_batches/2026-11-22-parity-fix-crafting-world-config/results/verification.md#integration-merge)。
 - 舰种身份与状态只见 [舰种矩阵](MIGRATION-SHIP-MATRIX.md)；本次不扩大逐舰或客户端验收口径。
 
 ## 未验证与当前遗留
 
-- 客户端画面/GUI 热区、模型/Glow/持物、HUD/粒子视觉未在本次集成渲染验证；无截图证据。
-- 真实 Curios、真实多人网络互通、重启清票据与旧世界迁移未验。运行时票据 GameTest / NBT round-trip 不是实际服务器重启证据。
+- 1.21.1 客户端画面/GUI 热区、模型/Glow/持物、HUD/粒子视觉未渲染验证；无截图证据，不能以编译或服务端通过替代。
+- 真实 Curios、真实多人网络互通、跨重启票据与完整旧世界升级未验。ForgeCaps、嵌套 ItemStack、流体与坐标已有合成旧数据测试；这不是用户实际存档升级证据，实际升级前仍应备份。
+- 本轮未发现必须接受的玩家可见行为差异；这不是所有客户端/第三方模组场景已完全等价的声明。旧基线遗留仍如下。
 - [客户端粒子审计](migration_batches/2026-11-22-parity-fix-client/PARTICLE_PARITY_AUDIT.md) 的 17 类自定义粒子仍未完整移植；部分作业/女神实现不代表整类完成。阵型 `HEALING_SPARKLE` 仍用原版近似。
 - crafting 未接回的配置仍包括 `Attrs_*`、`Consume_*`、`Attack_*`、`Exp_*`、`Slots_*`、`Death_Time`、`Mod_IC2`、`Polymetal_Ore` 等，详见 [crafting 决定](migration_batches/2026-11-22-parity-fix-crafting-world-config/decision.md)。
 - 飞机/坐骑未接入舰船 3D 寻路，见 [AI 审计](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。

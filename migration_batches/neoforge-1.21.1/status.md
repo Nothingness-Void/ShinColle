@@ -1,7 +1,17 @@
-# NeoForge 1.21.1 migration checkpoint
+# NeoForge 1.21.1 migration result
 
-This is an incomplete, non-runnable WIP, not a parity-validated port. Do not open
-an existing world with this checkpoint.
+The version/API port now compiles, builds, and passes the complete server
+GameTest suite. This supersedes the earlier 146-error WIP checkpoint. It does
+not establish client visual parity or validate an actual upgraded user world.
+
+## Target and boundaries
+
+Preserve the fixed 1.20.1 / 1.12.2 gameplay, numbers and timing; add no mechanics.
+Scope: modern code/resources, required build metadata and migration documents.
+Acceptance: JDK 21 `compileJava`, `build`, and the full NeoForge
+`runGameTestServer`, with existing assertions retained and legacy-data tests
+added. Completing historical feature gaps, client visual approval, third-party
+integration and an actual old-world upgrade are not claimed by this batch.
 
 ## Base and environment
 
@@ -9,13 +19,15 @@ an existing world with this checkpoint.
 - Branch: `devin/mc-1.21.1-neoforge`.
 - Minecraft 1.21.1, NeoForge 21.1.267, ModDevGradle 2.0.148, Gradle 8.8.
 - JDK: `/usr/lib/jvm/java-21-openjdk-amd64` (21.0.13.1); JDK 17 retained.
-- No changes to `src/main/**`; no push.
+- Code commit: `f9b814a682993d69e08692f69cc98965156f122a`, pushed to the target
+  branch after all three checks passed. Documentation follows in a second push.
+- No changes to `src/main/**`, including relative to the fixed parity base.
 
 ## Applied adaptations
 
 - Build, metadata and preparation documentation reapplied from the old WIP branch.
 - Datapack directories renamed, common tags moved to `c:`, biome modifiers moved
-  to `neoforge`, and initial recipe/advancement/condition JSON conversion applied.
+  to `neoforge`, and recipe/advancement/condition JSON formats adapted.
 - Modern source imports, deferred holders, registration entry points and tick
   events adapted; screens use `RegisterMenuScreensEvent`.
 - Six packet types use `CustomPacketPayload` and `StreamCodec`, registered with
@@ -23,113 +35,145 @@ an existing world with this checkpoint.
 - `LegacyItemData` wraps `DataComponents.CUSTOM_DATA`; converted writes publish
   the updated tag instead of mutating a copy. Ship tanks use a fluid component.
 - Teitoku attachment serializer and block/item capability registration introduced.
-- Synced entity data uses builders; initial entity, block, block entity, SavedData,
+- Synced entity data uses builders; entity, block, block entity, SavedData,
   model, particle and screen signature adaptations applied.
 - Chunk tickets use a registered `TicketController`.
 
-These describe implemented source changes, not runtime verification.
+- Recipe holders/inputs, enchantment holders, potion components, renderer and
+  screen signatures, spawn/gravity signatures and falling-block codecs adapted.
+- `processResources` lowercase resource copying, `syncGameTestStructures`,
+  `verifyItemModelCoverage` and all four run types remain in place.
 
-## Latest checks
+## Compatibility choices and runtime fixes
 
-`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon compileJava`:
+- **Damage timing:** the user-approved `LegacyHurtMixin` targets both
+  `LivingEntity.actuallyHurt` and `Player.actuallyHurt`, immediately before the
+  active damage-container read feeding armor reduction. It posts the mutable,
+  cancelable `LegacyLivingHurtEvent`, updates the active amount and returns for
+  cancellation/nonpositive damage. The configuration is registered in
+  `META-INF/neoforge.mods.toml`; the source comment explains the missing public
+  post-shield/pre-armor NeoForge event. `LivingIncomingDamageEvent` remains the
+  separate old attack-stage adapter, not a replacement for this hurt stage.
+  Real `hurt` tests cover both vanilla implementations, mutation before armor,
+  cancellation, zero damage, and shield blocking before the restored stage.
+- **Player data:** `LegacyEntityDataMixin` imports outer
+  `ForgeCaps.shincolle:teitoku` after `Entity.load`, retaining the inner
+  `TeitokuExtProps` wrapper through `TeitokuData.loadFromTag`. A serialized modern
+  attachment wins over a stale old copy. An absent capability retains the old
+  default UID of `-1`, not a newly invented zero default. Providers are propagated
+  through Teitoku and MorphProfile equipment reads/writes.
+- **Items:** `LegacyItemData` upgrades nested old `Count`/`tag` ItemStacks through
+  the Minecraft item data fixer (3700 to the running version), preserving slot
+  metadata and unrelated custom data. Entry points include player/ship load,
+  block-entity inventories, MorphProfile equipment and recipe-paper reads.
+  Empty stacks serialize without throwing; unknown items retain vanilla's empty
+  fallback. Custom-data writes must publish the copied tag; OwnerPaper signing
+  was corrected accordingly.
+- **Fluids:** old ship-tank `FluidName`/`Amount`/`Tag` imports into the fluid
+  component once, preserving fluid identity, amount and custom data. Consuming
+  the old field prevents refilling after the tank is drained; an existing modern
+  component wins. `LegacyFluidData` also bridges the old machine tank format for
+  cranes and both shipyard implementations; modern fluid fields take precedence.
+  Keep the legacy machine-interaction target as the tank item itself, rather
+  than silently enabling machine-to-item fluid transfer as a new mechanic.
+- **NBT/positions:** NBT matching includes migrated native enchantment/components
+  while retaining the old independent damage toggle. A successful equipment
+  enchantment roll replaces, rather than merges, previous enchantments.
+  Waypoint/crane coordinates accept old XYZ compounds and new int arrays.
+  Wrench packet validation accepts the new int-array encoding written by 1.21.
+- **Tags:** recipe/task matching excludes newly introduced broad food/animal-food
+  groups, `minecraft:meat`, `minecraft:wolf_food` and `minecraft:enchantable/*` as
+  legacy OreDictionary equivalents. Otherwise raw and cooked beef shared new
+  tags and cooking moved its input as though it were output. Existing ShinColle
+  food tags remain eligible; recipes/resources use the migrated `c:` paths.
+- **Riding:** `LegacyRiding`, ship attachment points and existing custom
+  `positionRider` paths use the old numeric ship/player offsets. Mount, hit-zone,
+  owner and skill-host parity tests pass without changing seat values.
+- **Projectile construction:** the default visual item is available before
+  synced entity data is initialized, as required by 1.21's projectile constructor.
+- **GameTest API/fixtures:** retain the baseline mock-player game modes explicitly.
+  NeoForge FakePlayer now refuses riding and menu opening, so those assertions
+  use a connected server-player fixture with no-op packet delivery instead of
+  bypassing production checks. Resource assertions inspect the new valid paths.
+  The 1.21 GameTest enclosure placed barriers through Nagato's old out-of-template
+  corridor (verified in the saved region); moving the corridor inside the 9x9
+  template retains its four-block distance and all navigation assertions.
+  Auto-pump fixtures use per-test X/Z origins instead of sharing persistent
+  absolute coordinates; isolated-source removal, deep-water retention and XP
+  assertions are unchanged. No production navigation/pumping rules were changed.
+- **Pack metadata:** resource pack format 34 is retained, with supported formats
+  34–48 so the combined mod pack also declares 1.21.1's data-pack format 48.
+
+## Verification
+
+The last source edit was followed, in order, by these commands using
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` and its `bin` first on `PATH`:
+
+`./gradlew --no-daemon compileJava`:
 
 ```text
-146 errors
-28 warnings
+> Task :compileJava
+Note: /home/ubuntu/repos/ShinColle/src/modern/java/com/lulan/shincolle/gametest/NeoForgeCompatibilityGameTests.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
 
-> Task :compileJava FAILED
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':compileJava'.
-> Compilation failed; see the compiler error output for details.
-
-BUILD FAILED in 8s
+BUILD SUCCESSFUL in 5s
 2 actionable tasks: 1 executed, 1 up-to-date
 ```
 
-The first compile had 1,763 errors. Intermediate checkpoints had 1,106, 548 and
-188 errors. The latest complete compiler log is stored outside the repository at
-`/home/ubuntu/shincolle-121-compile.log`.
-
-`./gradlew --no-daemon cleanProcessResources processResources verifyItemModelCoverage`:
+`./gradlew --no-daemon build`:
 
 ```text
-> Task :cleanProcessResources UP-TO-DATE
-> Task :processResources
 > Task :verifyItemModelCoverage
+> Task :check
+> Task :build
 
 BUILD SUCCESSFUL in 4s
-3 actionable tasks: 2 executed, 1 up-to-date
+5 actionable tasks: 2 executed, 3 up-to-date
 ```
 
-JSON syntax validation: `JSON syntax OK: 136 datapack JSON files`.
-This does not validate Mojang/NeoForge codecs or registry references.
-GameTests cannot be run while their source and the mod fail `compileJava`.
-No client/server launch, gameplay, old-save upgrade, packet round-trip or visual
-verification has been performed.
+`./gradlew --no-daemon runGameTestServer`:
 
-## Remaining compiler work
+```text
+[23:40:27] [Server thread/INFO] [minecraft/GameTestServer]: ========= 345 GAME TESTS COMPLETE IN 19.26 s ======================
+[23:40:27] [Server thread/INFO] [minecraft/GameTestServer]: All 345 required tests passed :)
 
-Compiler diagnostics by source package (146 total):
+BUILD SUCCESSFUL in 31s
+8 actionable tasks: 1 executed, 7 up-to-date
+```
 
-| Package | Errors |
-| --- | ---: |
-| gametest | 76 |
-| entity/ship | 19 |
-| menu | 10 |
-| morph | 8 |
-| teitoku | 7 |
-| client/screen | 5 |
-| client/renderer/entity | 5 |
-| entity/mount | 3 |
-| client/model/legacy | 2 |
-| entity/projectile | 2 |
-| registry | 2 |
-| crafting | 2 |
-| item | 2 |
-| client/model/legacy/compat | 1 |
-| world | 1 |
-| command | 1 |
+Result: **0 compile errors; build passed; 345/345 required GameTests passed,
+0 failed** (340 existing plus five new compatibility tests). `build` has no
+separate Java unit-test sources; the runtime assertions are the GameTests.
+No assertion was weakened or required test disabled. Earlier failures were
+fixed; this is not a claim that the first runtime attempt was green.
 
-- `TeitokuEvents`, `MorphDamageHandler`, related GameTests: removed
-  `LivingAttackEvent`, `LivingHurtEvent`, `EntityItemPickupEvent` require careful
-  event-phase/cancellation adaptation. Do not blindly map both damage hooks to
-  `LivingIncomingDamageEvent`: timing relative to shields/armor differs.
-- `LegacyShipEntity`, `MorphDamageHandler`, potion tests: replace removed
-  `PotionUtils` with `PotionContents`, including area-effect cloud contents.
-- `LegacyShipBehaviorCatalog`, `RecipePaperMenu`, recipe tests: `CraftingInput`,
-  `SingleRecipeInput`, recipe holders and new assemble/remaining-item signatures.
-- `LegacyEquipmentBuildHelper`, ship task code and tests: enchantment registry
-  keys/holders and mutable enchantment components; mining tier API replacement.
-- `MorphProfile`, Teitoku serialization, recipe paper and entity inventories:
-  propagate `HolderLookup.Provider` through ItemStack/NBT serialization.
-- Presentations/cache: component JSON serialization now requires registry lookup.
-- Riding offsets/attachments, projectile gravity and final spawn signatures.
-- Remaining model normals/tint signatures, text-field ticking and mouse scrolling.
-- `ModBlocks`: new ore constructor order and abstract falling-block codec.
-- GameTests: block interaction/load/save calls, mock players, command execution
-  return handling, conditions codec, generic holder arrays, arrow constructor.
+Local evidence (outside the repository, latest logs only):
 
-## Semantic and persistence work still required
+| File | SHA-256 |
+| --- | --- |
+| `/home/ubuntu/shincolle-121-compile.log` | `e139f7373aac7f264b9ac6237d2dabcc996d04457ae29078c7cff42802724616` |
+| `/home/ubuntu/shincolle-121-build.log` | `1e27898d872c9f46d75ce3eaf6cc069171be2db2e0987da7741612ae863afccd` |
+| `/home/ubuntu/shincolle-121-gametest.log` | `9d9157383061588aed5dd9dec6de9ad54f678efe639e0c5bcec58b4dbd22c2cb` |
+| `build/libs/shincolle-0.2.0-alpha.jar` | `a6e253030ba12d49c9e389e19987ad8c4a736f8ddec5949925e4f37c179757fa` |
 
-No gameplay or numeric change is intended or approved. No unavoidable
-player-visible change has been established. Behavior parity is not yet proven.
+The unknown-item error for `shincolle:missing_item` is intentional negative-test
+coverage of vanilla's empty fallback, not a missing registered production item.
+The development Mixin log reports a JAVA_21 compatibility-level diagnostic;
+configuration loading and both damage targets were exercised successfully.
 
-- Import old Forge capability data into the Teitoku attachment. The serializer
-  currently writes the same inner keys but does not bridge the old outer
-  `ForgeCaps` storage to NeoForge attachments.
-- Convert old item-handler/fluid NBT and nested ItemStacks, not just new-world
-  serialization. The new ship-tank fluid component does not yet import the old
-  fluid-handler tag. Do not assume existing tank contents survive.
-- Audit legacy ItemStack `hasTag` semantics against split vanilla/custom
-  components, especially named items, damage, enchantments and ring state.
-- Complete riding attachment integration so the retained numeric seat-offset
-  helpers affect the new engine's actual passenger placement.
-- Verify registry missing-value behavior (`getValue` versus defaulted registry
-  `get`) and common tag mappings against the 1.20.1 baseline.
-- Validate all datapack JSON through a real server reload; syntax checks alone
-  cannot establish recipe, loot, advancement or worldgen validity.
-- Run existing parity GameTests, packet normal/empty/error round trips, old-save
-  upgrade cases, and actual client rendering checks once compilation is green.
+## Unavoidable differences and unverified work
+
+No unavoidable player-visible gameplay difference has been established or
+accepted. The port retains the fixed baseline's scope and existing limitations,
+not a claim of complete 1.12.2 feature parity.
+
+- Client startup/rendering, GUI hit zones, models/Glow/held items, HUD and particle
+  visuals are **visually unverified**; no screenshots were captured.
+- An actual 1.20.1 world/player upgrade, full restart and ticket lifecycle, and
+  real client/server multiplayer transport have not been exercised. The new
+  tests use targeted synthetic legacy NBT, not a user's complete world. Back up
+  before attempting an actual upgrade.
+- Real Curios/other third-party interoperability and external datapacks,
+  including their tag/component edge cases, remain unverified.
+- The fixed baseline's particle/config/morph/3D-navigation gaps remain as
+  documented in `CURRENT_STATE.md`; this version upgrade does not complete them.
