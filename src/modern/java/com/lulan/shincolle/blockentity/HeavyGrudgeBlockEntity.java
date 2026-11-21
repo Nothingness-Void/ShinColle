@@ -168,12 +168,13 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (tag.contains(SHIPYARD_ITEMS_TAG)) {
             this.shipyardItems.deserializeNBT(registries, tag.getCompound(SHIPYARD_ITEMS_TAG));
         }
         if (tag.contains(SHIPYARD_TANK_TAG)) {
-            this.lavaTank.readFromNBT(registries, tag.getCompound(SHIPYARD_TANK_TAG));
+            this.lavaTank.readFromNBT(registries, com.lulan.shincolle.item.LegacyFluidData.upgradeTank(registries, tag.getCompound(SHIPYARD_TANK_TAG)));
         }
         this.powerConsumed = getIntCompat(tag, POWER_CONSUMED_TAG, LEGACY_POWER_CONSUMED_TAG);
         this.powerRemained = Mth.clamp(getIntCompat(tag, POWER_REMAINED_TAG, LEGACY_POWER_REMAINED_TAG), 0, powerMax());
@@ -443,7 +444,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
 
     private void finishBuild() {
         RandomSource random = this.level != null ? this.level.getRandom() : RandomSource.create();
-        ItemStack result = LargeShipyardRecipes.createBuildResult(this.buildType, this.matsBuild, random);
+        ItemStack result = LargeShipyardRecipes.createBuildResult(this.buildType, this.matsBuild, random, this.level.registryAccess());
         this.shipyardItems.setStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT, result);
     }
 

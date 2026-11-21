@@ -399,6 +399,9 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
 
     @Override
     protected Item getDefaultItem() {
+        if (this.entityData == null) {
+            return ModItems.AMMO1.get();
+        }
         return switch (this.getProjectileVisual()) {
             case AIRPLANE -> ModItems.TOYAIRPLANE.get();
             case BOMB -> ModItems.AMMO2.get();
@@ -418,7 +421,7 @@ public class LegacyShipProjectileEntity extends ThrowableItemProjectile implemen
     }
 
     @Override
-    protected float getGravity() {
+    protected double getDefaultGravity() {
         if (this.hasLegacyMotionOverride()) {
             return 0.0F;
         }

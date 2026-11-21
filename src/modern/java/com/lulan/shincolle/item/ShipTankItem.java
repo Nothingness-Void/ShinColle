@@ -49,6 +49,7 @@ public class ShipTankItem extends Item {
     }
 
     public IFluidHandlerItem createFluidHandler(ItemStack stack) {
+        LegacyItemData.importFluid(stack);
         return new FluidHandlerItemStack(com.lulan.shincolle.registry.ModDataComponents.FLUID_CONTENTS, stack, ShinColleConfig.shipTankCapacity(this.tier)) {
             @Override
             public int getTankCapacity(int tank) { return ShinColleConfig.shipTankCapacity(ShipTankItem.this.tier); }
@@ -99,7 +100,7 @@ public class ShipTankItem extends Item {
         BlockEntity blockEntity = level.getBlockEntity(clickedPos);
         if (blockEntity != null) {
             boolean hasFluidHandler = ModCapabilities.get(blockEntity, Capabilities.FluidHandler.BLOCK, clickedFace).isPresent();
-            IFluidHandler blockHandler = ModCapabilities.get(blockEntity, Capabilities.FluidHandler.BLOCK, clickedFace)
+            IFluidHandler blockHandler = ModCapabilities.get(stack, Capabilities.FluidHandler.ITEM)
                     .orElse(null);
             if (hasFluidHandler) {
                 return blockHandler != null && transferFluid(player, context.getHand(), stack, blockHandler)

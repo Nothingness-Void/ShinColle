@@ -13,7 +13,6 @@ import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Mirrors legacy 1.12.2 InventoryHelper#matchTargetItem semantics across Forge item tags, damage, and NBT.
@@ -86,7 +85,8 @@ public final class LegacyItemMatchHelper {
         if (!checkOredict) {
             return false;
         }
-        if (target.getTags().anyMatch(tag -> template.getTags().anyMatch(tag::equals))) {
+        if (target.getTags().filter(LegacyItemMatchHelper::isLegacyMatchingTag)
+                .anyMatch(tag -> template.getTags().anyMatch(tag::equals))) {
             return true;
         }
         if (ShinColleConfig.polyAsMn()) {
@@ -99,12 +99,29 @@ public final class LegacyItemMatchHelper {
         return false;
     }
 
+    private static boolean isLegacyMatchingTag(TagKey<Item> tag) {
+        ResourceLocation id = tag.location();
+        if (id.getNamespace().equals("minecraft") && (id.getPath().startsWith("enchantable/")
+                || id.getPath().equals("meat") || id.getPath().equals("wolf_food"))) {
+            return false;
+        }
+        // 1.21's broad food groups were not Forge 1.20.1 OreDictionary equivalents.
+        return !id.getNamespace().equals("c") || !id.getPath().equals("animal_foods")
+                && !id.getPath().startsWith("animal_foods/") && !id.getPath().equals("foods")
+                && (!id.getPath().startsWith("foods/") || id.getPath().equals("foods/combat_ration")
+                || id.getPath().equals("foods/cooked_rice"));
+    }
+
     private static boolean matchesLegacyNbt(ItemStack target, ItemStack template) {
         // In 1.20.1, item damage lives inside ItemStack's "Damage" NBT key instead of metadata;
         // exclude it here so checkNbt stays independent of checkMetadata as in 1.12.2.
-        CompoundTag targetTag = stripDamageTag(LegacyItemData.getTag(target));
-        CompoundTag templateTag = stripDamageTag(LegacyItemData.getTag(template));
-        return Objects.equals(targetTag, templateTag);
+        ItemStack targetCopy = target.copy();
+        ItemStack templateCopy = template.copy();
+        targetCopy.remove(net.minecraft.core.component.DataComponents.DAMAGE);
+        templateCopy.remove(net.minecraft.core.component.DataComponents.DAMAGE);
+        LegacyItemData.setTag(targetCopy, stripDamageTag(LegacyItemData.getTag(target)));
+        LegacyItemData.setTag(templateCopy, stripDamageTag(LegacyItemData.getTag(template)));
+        return ItemStack.isSameItemSameComponents(targetCopy, templateCopy);
     }
 
     private static @Nullable CompoundTag stripDamageTag(@Nullable CompoundTag tag) {

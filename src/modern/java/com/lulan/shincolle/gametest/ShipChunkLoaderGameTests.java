@@ -127,12 +127,12 @@ public final class ShipChunkLoaderGameTests {
 
     private static Set<Long> forcedChunks(LegacyShipEntity ship) {
         ForcedChunksSavedData data = ((ServerLevel) ship.level()).getDataStorage()
-                .computeIfAbsent(ForcedChunksSavedData::load, ForcedChunksSavedData::new, "chunks");
-        ListTag mods = data.save(new CompoundTag()).getList("ForgeForced", Tag.TAG_COMPOUND);
+                .computeIfAbsent(ForcedChunksSavedData.factory(), "chunks");
+        ListTag mods = data.save(new CompoundTag(), ship.registryAccess()).getList("ModForced", Tag.TAG_COMPOUND);
         Set<Long> result = new HashSet<>();
         for (int i = 0; i < mods.size(); i++) {
             CompoundTag mod = mods.getCompound(i);
-            if (!ShinColle.MOD_ID.equals(mod.getString("Mod"))) {
+            if (!(ShinColle.MOD_ID + ":ships").equals(mod.getString("Controller"))) {
                 continue;
             }
             ListTag chunks = mod.getList("ModForced", Tag.TAG_COMPOUND);

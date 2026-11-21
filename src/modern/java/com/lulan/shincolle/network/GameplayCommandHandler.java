@@ -162,7 +162,7 @@ public final class GameplayCommandHandler {
             case WRENCH_PAIR_TARGETS -> {
                 if ((player.getMainHandItem().is(ModItems.TARGETWRENCH.get())
                         || player.getOffhandItem().is(ModItems.TARGETWRENCH.get()))
-                        && payload.contains("First", 10) && payload.contains("Second", 10)) {
+                        && payload.contains("First", 11) && payload.contains("Second", 11)) {
                     TargetWrenchItem.pairTargets(player.level(), player,
                             NbtUtils.readBlockPos(payload, "First").orElse(BlockPos.ZERO),
                             NbtUtils.readBlockPos(payload, "Second").orElse(BlockPos.ZERO));

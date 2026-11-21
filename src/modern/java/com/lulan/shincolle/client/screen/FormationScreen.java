@@ -240,7 +240,6 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
     @Override
     protected void containerTick() {
         super.containerTick();
-        this.textField.tick();
     }
 
     private void setShipName() {

@@ -153,7 +153,7 @@ public final class HostileEncounterSpawner {
         BlockPos spawnPos = anchor.offset(random.nextInt(3), 0, random.nextInt(3));
         LegacyShipEntity ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), level);
         ship.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY() + 0.5D, spawnPos.getZ() + 0.5D, random.nextFloat() * 360.0F, 0.0F);
-        ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null, null);
+        ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null);
         ship.applySpawnSpec(spec, null);
         ship.initializeHostileRuntime(true, profile.elite(), profile.boss());
         ship.setTarget(targetPlayer);

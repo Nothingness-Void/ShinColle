@@ -13,6 +13,12 @@ import net.minecraft.world.effect.MobEffects;
 
 public final class ShipInventoryPresentation {
     private CompoundTag data = new CompoundTag();
+    private net.minecraft.core.HolderLookup.Provider registries = net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.registries.BuiltInRegistries.REGISTRY);
+
+    public ShipInventoryPresentation withRegistries(net.minecraft.core.HolderLookup.Provider registries) {
+        this.registries = registries;
+        return this;
+    }
 
     public void apply(CompoundTag data) { this.data = data.copy(); }
 
@@ -22,7 +28,7 @@ public final class ShipInventoryPresentation {
         tag.putInt("Egg", ship.getSpec().eggMeta());
         tag.putInt("Page", ship.getInventoryPage());
         tag.putInt("PageSize", ship.getInventoryPageSize());
-        tag.putString("Name", Component.Serializer.toJson(ship.getName()));
+        tag.putString("Name", Component.Serializer.toJson(ship.getName(), ship.registryAccess()));
         tag.putFloat("Health", ship.getHealth());
         tag.putFloat("MaxHealth", ship.getMaxHealth());
         tag.putInt("Morale", ship.getMorale());
@@ -123,7 +129,7 @@ public final class ShipInventoryPresentation {
     public boolean getAttackType(String key) { return getStateFlag(key); }
     public String getCustomNameTag() {
         if (!this.data.contains("Name")) return "";
-        Component name = Component.Serializer.fromJson(this.data.getString("Name"));
+        Component name = Component.Serializer.fromJson(this.data.getString("Name"), this.registries);
         return name == null ? "" : name.getString();
     }
     public int getAttrsBonus(int id) {

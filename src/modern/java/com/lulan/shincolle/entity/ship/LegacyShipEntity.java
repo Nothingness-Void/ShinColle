@@ -108,7 +108,7 @@ import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import com.lulan.shincolle.item.LegacyPotionData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.server.level.ServerLevel;
@@ -1257,8 +1257,16 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     @Override
     protected void positionRider(Entity passenger, MoveFunction moveFunction) {
         if (!LegacyShipBehaviorCatalog.positionLegacyRider(this, passenger, moveFunction)) {
-            super.positionRider(passenger, moveFunction);
+            if (this.hasPassenger(passenger)) {
+                moveFunction.accept(passenger, this.getX(), this.getY() + this.getPassengersRidingOffset()
+                        + com.lulan.shincolle.entity.LegacyRiding.offset(passenger), this.getZ());
+            }
         }
+    }
+
+    @Override
+    public Vec3 getVehicleAttachmentPoint(Entity vehicle) {
+        return new Vec3(0.0D, -this.getMyRidingOffset(), 0.0D);
     }
 
     @Override
@@ -1458,11 +1466,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         if (potionDamage) {
             List<MobEffectInstance> effects;
             if (directEntity instanceof ThrownPotion potion) {
-                effects = PotionUtils.getMobEffects(potion.getItem());
+                effects = LegacyPotionData.getMobEffects(potion.getItem());
             } else {
                 CompoundTag cloudTag = new CompoundTag();
                 directEntity.saveWithoutId(cloudTag);
-                effects = PotionUtils.getAllEffects(cloudTag);
+                effects = LegacyPotionData.getAllEffects(directEntity);
             }
             int potionLevel = 0;
             for (MobEffectInstance effect : effects) {
@@ -5930,7 +5938,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         } else if (stack.is(Items.POTION)) {
             moraleGain = -100;
             grudgeGain = 300;
-            for (MobEffectInstance effect : PotionUtils.getMobEffects(stack)) {
+            for (MobEffectInstance effect : LegacyPotionData.getMobEffects(stack)) {
                 this.applySupportEffect(new MobEffectInstance(effect));
             }
             consumed = true;
@@ -6136,7 +6144,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             int slot = stackTag.getByte(SHIP_INVENTORY_SLOT_TAG) & 255;
 
             if (slot >= 0 && slot < this.shipInventory.getContainerSize()) {
-                this.shipInventory.setItem(slot, ItemStack.of(stackTag));
+                this.shipInventory.setItem(slot, com.lulan.shincolle.item.LegacyItemData.parse(this.registryAccess(), stackTag));
             }
         }
 
@@ -6154,7 +6162,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
             CompoundTag stackTag = new CompoundTag();
             stackTag.putByte(SHIP_INVENTORY_SLOT_TAG, (byte) slot);
-            stack.save(stackTag);
+            com.lulan.shincolle.item.LegacyItemData.save(stack, this.registryAccess(), stackTag);
             inventoryEntries.add(stackTag);
         }
 

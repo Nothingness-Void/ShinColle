@@ -31,6 +31,7 @@ public class PolymetalServantBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.masterPos = tag.contains(MASTER_POS_TAG) ? BlockPos.of(tag.getLong(MASTER_POS_TAG)) : null;
     }
 

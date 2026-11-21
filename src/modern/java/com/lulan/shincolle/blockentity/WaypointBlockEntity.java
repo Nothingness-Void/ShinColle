@@ -49,6 +49,7 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (this.owner == null && tag.contains(LEGACY_OWNER_UID_TAG, Tag.TAG_INT)) {
             int legacyUid = Math.max(0, tag.getInt(LEGACY_OWNER_UID_TAG));
@@ -210,11 +211,11 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     }
 
     private static @Nullable BlockPos readOptionalPos(CompoundTag tag, String key) {
-        if (!tag.contains(key, Tag.TAG_COMPOUND)) {
-            return null;
+        if (tag.contains(key, Tag.TAG_COMPOUND)) {
+            CompoundTag pos = tag.getCompound(key);
+            return new BlockPos(pos.getInt("X"), pos.getInt("Y"), pos.getInt("Z"));
         }
-
-        return NbtUtils.readBlockPos(tag, key).orElse(BlockPos.ZERO);
+        return NbtUtils.readBlockPos(tag, key).orElse(null);
     }
 
     private static int readInt(CompoundTag tag, String key, String legacyKey) {

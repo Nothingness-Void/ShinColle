@@ -27,8 +27,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import com.lulan.shincolle.item.LegacyPotionData;
+import com.lulan.shincolle.event.LegacyLivingHurtEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -42,7 +42,7 @@ public final class MorphDamageHandler {
     }
 
     @SubscribeEvent
-    public static void onHurt(LivingHurtEvent event) {
+    public static void onHurt(LegacyLivingHurtEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -63,8 +63,8 @@ public final class MorphDamageHandler {
         Entity direct = source.getDirectEntity();
         if (direct instanceof ThrownPotion || direct instanceof AreaEffectCloud) {
             List<MobEffectInstance> effects = direct instanceof ThrownPotion potion
-                    ? PotionUtils.getMobEffects(potion.getItem())
-                    : PotionUtils.getAllEffects(direct.saveWithoutId(new CompoundTag()));
+                    ? LegacyPotionData.getMobEffects(potion.getItem())
+                    : LegacyPotionData.getAllEffects(direct);
             int level = effects.stream().filter(effect -> effect.getEffect() == MobEffects.HARM)
                     .mapToInt(effect -> effect.getAmplifier() + 1).max().orElse(0);
             float potionDamage = (Math.max(1F, stats.get(LegacyShipStatTables.Attr.HP) * 0.01F) * 2F + 2F) * level

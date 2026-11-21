@@ -169,7 +169,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             int slot = itemTag.getInt(SLOT_KEY);
 
             if (slot >= 0 && slot < CRAFT_SLOT_COUNT) {
-                this.craftMatrix.setItem(slot, ItemStack.of(itemTag));
+                this.craftMatrix.setItem(slot, LegacyItemData.parse(this.player.registryAccess(), itemTag));
             }
         }
     }
@@ -184,7 +184,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             if (!ingredient.isEmpty()) {
                 CompoundTag itemTag = new CompoundTag();
                 itemTag.putInt(SLOT_KEY, i);
-                ingredient.save(itemTag);
+                LegacyItemData.save(ingredient, this.player.registryAccess(), itemTag);
                 recipeEntries.add(itemTag);
             }
         }
@@ -194,7 +194,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
         if (!resultStack.isEmpty()) {
             CompoundTag itemTag = new CompoundTag();
             itemTag.putInt(SLOT_KEY, RESULT_STORAGE_SLOT);
-            resultStack.save(itemTag);
+            LegacyItemData.save(resultStack, this.player.registryAccess(), itemTag);
             recipeEntries.add(itemTag);
         }
 
@@ -204,10 +204,10 @@ public class RecipePaperMenu extends AbstractContainerMenu {
 
     private void updateResult(Level level) {
         ItemStack resultStack = ItemStack.EMPTY;
-        Optional<CraftingRecipe> recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this.craftMatrix, level);
+        Optional<net.minecraft.world.item.crafting.RecipeHolder<CraftingRecipe>> recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this.craftMatrix.asCraftInput(), level);
 
         if (recipe.isPresent()) {
-            resultStack = recipe.get().assemble(this.craftMatrix, level.registryAccess());
+            resultStack = recipe.get().value().assemble(this.craftMatrix.asCraftInput(), level.registryAccess());
         }
 
         this.craftResult.setItem(0, resultStack);

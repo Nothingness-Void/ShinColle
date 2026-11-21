@@ -257,7 +257,7 @@ public class LegacyShipSpawnEggItem extends Item {
 
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setVariantEggMeta(spec.eggMeta());
-        ship.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(pos), MobSpawnType.SPAWN_EGG, null, null);
+        ship.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(pos), MobSpawnType.SPAWN_EGG, null);
         if (recoveredShipData != null) {
             ship.readAdditionalSaveData(recoveredShipData);
             ship.restoreRecoveredDeployment(player);

@@ -53,7 +53,7 @@ public final class LegacyEquipmentBuildHelper {
             new TypeRollEntry("CATAPULT_HI", 5000, 3));
 
     // 1.12.2 EnchantHelper.EnchantTable (legacy numeric enchant ids mapped to 1.20.1 registry objects).
-    private static final List<List<Enchantment>> ENCHANT_TABLE = List.of(
+    private static final List<List<net.minecraft.resources.ResourceKey<Enchantment>>> ENCHANT_TABLE = List.of(
             List.of(Enchantments.RESPIRATION, Enchantments.THORNS, Enchantments.FROST_WALKER, Enchantments.SHARPNESS,
                     Enchantments.SMITE, Enchantments.BANE_OF_ARTHROPODS, Enchantments.KNOCKBACK, Enchantments.FIRE_ASPECT,
                     Enchantments.LOOTING, Enchantments.EFFICIENCY, Enchantments.FORTUNE, Enchantments.POWER,
@@ -66,7 +66,7 @@ public final class LegacyEquipmentBuildHelper {
     private LegacyEquipmentBuildHelper() {
     }
 
-    public static ItemStack buildSmallResult(int[] materialAmounts, RandomSource random) {
+    public static ItemStack buildSmallResult(int[] materialAmounts, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         int totalMaterials = materialAmounts[0] + materialAmounts[1] + materialAmounts[2] + materialAmounts[3];
         float equipRate = Math.min(totalMaterials / 128.0F, 1.0F);
 
@@ -75,7 +75,7 @@ public final class LegacyEquipmentBuildHelper {
             if (rareType == null) {
                 return ItemStack.EMPTY;
             }
-            return rollEquipmentOfType(rareType, totalMaterials, random, true);
+            return rollEquipmentOfType(rareType, totalMaterials, random, true, registries);
         }
 
         if (random.nextInt(2) == 0) {
@@ -86,13 +86,13 @@ public final class LegacyEquipmentBuildHelper {
     }
 
     /** 1.12.2 LargeRecipes.getBuildResultEquip: always rolls equip type then equip instance, no ammo fallback. */
-    public static ItemStack buildLargeResult(int[] materialAmounts, RandomSource random) {
+    public static ItemStack buildLargeResult(int[] materialAmounts, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         int totalMaterials = materialAmounts[0] + materialAmounts[1] + materialAmounts[2] + materialAmounts[3];
         String rareType = rollLargeType(materialAmounts, random);
         if (rareType == null) {
             return ItemStack.EMPTY;
         }
-        return rollEquipmentOfType(rareType, totalMaterials, random, false);
+        return rollEquipmentOfType(rareType, totalMaterials, random, false, registries);
     }
 
     private static @Nullable String rollSmallType(int[] materialAmounts, RandomSource random) {
@@ -149,7 +149,7 @@ public final class LegacyEquipmentBuildHelper {
         return null;
     }
 
-    private static ItemStack rollEquipmentOfType(String rareType, int totalMaterials, RandomSource random, boolean smallBuild) {
+    private static ItemStack rollEquipmentOfType(String rareType, int totalMaterials, RandomSource random, boolean smallBuild, net.minecraft.core.HolderLookup.Provider registries) {
         // 1.12.2 EquipCalc.rollEquipsOfTheType only assigns totalMat for small builds; large builds keep 0.
         int rollMaterials = smallBuild ? (int) (totalMaterials * 15.625F) : 0;
         List<EquipmentCandidate> candidates = new ArrayList<>();
@@ -180,7 +180,7 @@ public final class LegacyEquipmentBuildHelper {
             accumulated += candidate.probability();
             if (accumulated > randomValue) {
                 ItemStack stack = createEquipmentStack(candidate.family(), candidate.variantIndex());
-                applyRandomEnchant(stack, enchantType(candidate.family()), enchantLevel(totalMaterials, smallBuild), random);
+                applyRandomEnchant(stack, enchantType(candidate.family()), enchantLevel(totalMaterials, smallBuild), random, registries);
                 return stack;
             }
         }
@@ -206,7 +206,7 @@ public final class LegacyEquipmentBuildHelper {
     }
 
     /** 1.12.2 EnchantHelper.applyRandomEnchantToEquip. */
-    public static void applyRandomEnchant(ItemStack stack, int enchantType, int enchantLevel, RandomSource random) {
+    public static void applyRandomEnchant(ItemStack stack, int enchantType, int enchantLevel, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         if (stack.isEmpty() || enchantLevel <= 0) {
             return;
         }
@@ -222,14 +222,17 @@ public final class LegacyEquipmentBuildHelper {
             return;
         }
 
-        List<Enchantment> table = ENCHANT_TABLE.get(enchantType);
-        Map<Enchantment, Integer> enchantments = new LinkedHashMap<>();
+        List<net.minecraft.resources.ResourceKey<Enchantment>> table = ENCHANT_TABLE.get(enchantType);
+        Map<net.minecraft.core.Holder<Enchantment>, Integer> enchantments = new LinkedHashMap<>();
         for (int i = 0; i < enchantCount; i++) {
-            Enchantment enchantment = table.get(random.nextInt(table.size()));
+            net.minecraft.core.Holder<Enchantment> enchantment = registries.lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(table.get(random.nextInt(table.size())));
             Integer current = enchantments.get(enchantment);
-            enchantments.put(enchantment, current == null ? 1 : Math.min(current + 1, enchantment.getMaxLevel()));
+            enchantments.put(enchantment, current == null ? 1 : Math.min(current + 1, enchantment.value().getMaxLevel()));
         }
-        EnchantmentHelper.setEnchantments(enchantments, stack);
+        net.minecraft.world.item.enchantment.ItemEnchantments.Mutable updated =
+                new net.minecraft.world.item.enchantment.ItemEnchantments.Mutable(net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+        enchantments.forEach(updated::set);
+        EnchantmentHelper.setEnchantments(stack, updated.toImmutable());
     }
 
     private static ItemStack createEquipmentStack(LegacyEquipmentFamily family, int index) {

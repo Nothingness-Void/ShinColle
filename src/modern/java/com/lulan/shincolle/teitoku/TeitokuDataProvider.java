@@ -11,12 +11,12 @@ public class TeitokuDataProvider implements IAttachmentSerializer<CompoundTag, T
 
     @Override
     public CompoundTag write(TeitokuData data, HolderLookup.Provider registries) {
-        return data.saveToTag(new CompoundTag());
+        return data.withRegistries(registries).saveToTag(new CompoundTag());
     }
 
     @Override
     public TeitokuData read(IAttachmentHolder holder, CompoundTag nbt, HolderLookup.Provider registries) {
-        TeitokuData data = new TeitokuData();
+        TeitokuData data = new TeitokuData().withRegistries(registries);
         data.loadFromTag(nbt);
         return data;
     }

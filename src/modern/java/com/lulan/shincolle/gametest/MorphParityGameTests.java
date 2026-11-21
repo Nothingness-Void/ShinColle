@@ -29,11 +29,11 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import com.lulan.shincolle.item.LegacyPotionData;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
+import com.lulan.shincolle.event.LegacyLivingHurtEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -105,7 +105,7 @@ public final class MorphParityGameTests {
             ShinColleConfig.setTestOverride("friendlyFire", false);
             helper.assertTrue(hurt(player, player.damageSources().playerAttack(player(helper)), 10).getAmount() == 0F, "friendlyFire false blocks player damage");
             ThrownPotion potion = new ThrownPotion(helper.getLevel(), player);
-            potion.setItem(PotionUtils.setPotion(new ItemStack(Items.SPLASH_POTION), Potions.HARMING));
+            potion.setItem(LegacyPotionData.setPotion(new ItemStack(Items.SPLASH_POTION), Potions.HARMING));
             float hp = data.getSelectedMorphProfile().buildStats(player.getActiveEffects()).get(LegacyShipStatTables.Attr.HP);
             float expectedPotion = (Math.max(1F, hp * 0.01F) * 2F + 2F + 6F) * 0.1F;
             helper.assertTrue(Math.abs(hurt(player, player.damageSources().indirectMagic(potion, player), 6).getAmount() - expectedPotion) < 0.001F,
@@ -187,8 +187,8 @@ public final class MorphParityGameTests {
         helper.succeed();
     }
 
-    private static LivingHurtEvent hurt(ServerPlayer player, DamageSource source, float amount) {
-        LivingHurtEvent event = new LivingHurtEvent(player, source, amount);
+    private static LegacyLivingHurtEvent hurt(ServerPlayer player, DamageSource source, float amount) {
+        LegacyLivingHurtEvent event = new LegacyLivingHurtEvent(player, source, amount);
         MorphDamageHandler.onHurt(event);
         return event;
     }

@@ -127,7 +127,6 @@ public class DeskScreen extends DeskScreenSupport {
     @Override protected void containerTick() {
         super.containerTick();
         if ((tickGUI & 63) == 0) requestRadar();
-        textField.tick();
     }
     @Override public boolean mouseClicked(double x, double y, int button) {
         click((int)x, (int)y, button); return true;
@@ -135,7 +134,7 @@ public class DeskScreen extends DeskScreenSupport {
     @Override public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
         mouseClickMove((int)x, (int)y, button, 0); return true;
     }
-    @Override public boolean mouseScrolled(double x, double y, double delta) {
+    @Override public boolean mouseScrolled(double x, double y, double horizontal, double delta) {
         handleWheelMove(delta > 0); return true;
     }
     @Override public boolean keyPressed(int key, int scan, int mods) {

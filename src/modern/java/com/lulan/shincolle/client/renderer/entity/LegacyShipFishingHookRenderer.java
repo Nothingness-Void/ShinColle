@@ -37,19 +37,19 @@ public final class LegacyShipFishingHookRenderer extends EntityRenderer<LegacySh
         quad.addVertex(pose.pose(), -0.5F, -0.5F, 0.0F)
                 .setColor(255, 255, 255, 255).setUv(0.0625F, 0.1875F)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
-                .setNormal(pose.normal(), 0.0F, 1.0F, 0.0F);
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
         quad.addVertex(pose.pose(), 0.5F, -0.5F, 0.0F)
                 .setColor(255, 255, 255, 255).setUv(0.125F, 0.1875F)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
-                .setNormal(pose.normal(), 0.0F, 1.0F, 0.0F);
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
         quad.addVertex(pose.pose(), 0.5F, 0.5F, 0.0F)
                 .setColor(255, 255, 255, 255).setUv(0.125F, 0.125F)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
-                .setNormal(pose.normal(), 0.0F, 1.0F, 0.0F);
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
         quad.addVertex(pose.pose(), -0.5F, 0.5F, 0.0F)
                 .setColor(255, 255, 255, 255).setUv(0.0625F, 0.125F)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
-                .setNormal(pose.normal(), 0.0F, 1.0F, 0.0F);
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
         poseStack.popPose();
 
         LegacyShipEntity host = entity.getHostShip();
@@ -73,7 +73,7 @@ public final class LegacyShipFishingHookRenderer extends EntityRenderer<LegacySh
             float curve = t * t * 0.5F + t * 0.5F;
             line.addVertex(pose.pose(), (float) (dx * t), (float) (dy * curve), (float) (dz * t))
                     .setColor(200, 200, 200, 255)
-                    .setNormal(pose.normal(), 0.0F, 1.0F, 0.0F)
+                    .setNormal(pose, 0.0F, 1.0F, 0.0F)
                     ;
         }
     }

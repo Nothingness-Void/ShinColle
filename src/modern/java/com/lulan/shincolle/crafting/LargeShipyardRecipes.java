@@ -434,13 +434,13 @@ public final class LargeShipyardRecipes {
         }
     }
 
-    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random) {
+    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         if (ShipyardBuildTypes.isShipMode(buildType)) {
             return createShipEgg(materialAmounts);
         }
 
         if (ShipyardBuildTypes.isEquipMode(buildType)) {
-            return LegacyEquipmentBuildHelper.buildLargeResult(materialAmounts, random);
+            return LegacyEquipmentBuildHelper.buildLargeResult(materialAmounts, random, registries);
         }
 
         return ItemStack.EMPTY;

@@ -120,6 +120,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         this.mode = tag.contains(ACTIVE_TAG)
                 ? (tag.getBoolean(ACTIVE_TAG) ? MODE_ACTIVE : MODE_IDLE)

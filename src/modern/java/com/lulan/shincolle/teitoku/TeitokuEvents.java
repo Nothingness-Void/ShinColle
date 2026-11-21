@@ -23,9 +23,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.event.entity.living.LivingHurtEvent;
-import net.neoforged.neoforge.event.entity.living.LivingAttackEvent;
-import net.neoforged.neoforge.event.entity.player.EntityItemPickupEvent;
+import com.lulan.shincolle.event.LegacyLivingHurtEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
@@ -76,16 +76,16 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
-    public static void onRecoveredShipEggPickup(EntityItemPickupEvent event) {
-        ItemEntity itemEntity = event.getItem();
+    public static void onRecoveredShipEggPickup(ItemEntityPickupEvent.Pre event) {
+        ItemEntity itemEntity = event.getItemEntity();
         ItemStack stack = itemEntity.getItem();
-        Player player = event.getEntity();
+        Player player = event.getPlayer();
         if (!LegacyShipSpawnEggItem.isRecoveredShipStack(stack)
                 || LegacyShipSpawnEggItem.canPlayerAccessRecoveredShip(stack, player)) {
             return;
         }
 
-        event.setCanceled(true);
+        event.setCanPickup(net.neoforged.neoforge.common.util.TriState.FALSE);
         itemEntity.setPickUpDelay(20);
         Component ownerName = Component.literal(LegacyShipSpawnEggItem.getRecoveredOwnerName(stack).orElse("?"))
                 .withStyle(ChatFormatting.GOLD);
@@ -115,7 +115,7 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent(receiveCanceled = true)
-    public static void onLivingAttack(LivingAttackEvent event) {
+    public static void onLivingAttack(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide()) {
             return;
         }
@@ -171,7 +171,7 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent event) {
+    public static void onLivingHurt(LegacyLivingHurtEvent event) {
         LivingEntity target = event.getEntity();
         if (target.level().isClientSide()) {
             return;

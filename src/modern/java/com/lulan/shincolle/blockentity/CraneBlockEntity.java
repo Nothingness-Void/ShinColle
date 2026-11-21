@@ -118,7 +118,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        this.tank.readFromNBT(registries, tag);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
+        this.tank.readFromNBT(registries, com.lulan.shincolle.item.LegacyFluidData.upgradeTank(registries, tag));
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         this.lastWaypoint = readOptionalPos(tag, LAST_WAYPOINT_TAG);
         this.nextWaypoint = readOptionalPos(tag, NEXT_WAYPOINT_TAG);
@@ -800,11 +801,11 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     private static @Nullable BlockPos readOptionalPos(CompoundTag tag, String key) {
-        if (!tag.contains(key, Tag.TAG_COMPOUND)) {
-            return null;
+        if (tag.contains(key, Tag.TAG_COMPOUND)) {
+            CompoundTag pos = tag.getCompound(key);
+            return new BlockPos(pos.getInt("X"), pos.getInt("Y"), pos.getInt("Z"));
         }
-
-        return NbtUtils.readBlockPos(tag, key).orElse(BlockPos.ZERO);
+        return NbtUtils.readBlockPos(tag, key).orElse(null);
     }
 
     private static void writeOptionalPos(CompoundTag tag, String key, @Nullable BlockPos pos) {

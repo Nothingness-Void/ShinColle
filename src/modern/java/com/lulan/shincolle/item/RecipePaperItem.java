@@ -67,7 +67,7 @@ public class RecipePaperItem extends Item {
             int slot = itemTag.getInt(RecipePaperMenu.SLOT_KEY);
 
             if (slot >= 0 && slot < recipeStacks.length) {
-                recipeStacks[slot] = ItemStack.of(itemTag);
+                recipeStacks[slot] = context.registries() == null ? ItemStack.EMPTY : LegacyItemData.parse(context.registries(), itemTag);
             }
         }
 

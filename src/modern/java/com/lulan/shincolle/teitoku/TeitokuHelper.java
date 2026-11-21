@@ -75,7 +75,7 @@ public final class TeitokuHelper {
     }
 
     public static Optional<TeitokuData> get(Player player) {
-        return Optional.of(player.getData(TEITOKU_DATA));
+        return Optional.of(player.getData(TEITOKU_DATA).withRegistries(player.registryAccess()));
     }
 
     public static void initializeAndSync(ServerPlayer player) {

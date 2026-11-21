@@ -63,6 +63,7 @@ public class OwnerPaperItem extends Item {
                 sign(tag, SIGN_NAME_B, SIGN_ID_B, serverPlayer, playerUid);
                 tag.putBoolean(SIGN_POS, true);
             }
+            LegacyItemData.setTag(stack, tag);
         }
 
         return InteractionResultHolder.pass(stack);

@@ -32,6 +32,7 @@ public class DeskBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.selectedFunction = clampFunction(tag.getInt(SELECTED_FUNCTION_TAG));
         this.radarZoomIndex = Mth.clamp(tag.getInt(RADAR_ZOOM_TAG), 0, 2);
         this.bookChapter = Mth.clamp(tag.getInt(BOOK_CHAPTER_TAG), 0, 6);

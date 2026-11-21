@@ -126,7 +126,8 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     @Override
     protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        this.lavaTank.readFromNBT(registries, tag);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
+        this.lavaTank.readFromNBT(registries, com.lulan.shincolle.item.LegacyFluidData.upgradeTank(registries, tag));
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (tag.contains(INVENTORY_TAG)) {
             this.items.deserializeNBT(registries, tag.getCompound(INVENTORY_TAG));
@@ -414,7 +415,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         }
 
         RandomSource random = this.level != null ? this.level.getRandom() : RandomSource.create();
-        ItemStack result = SmallShipyardRecipes.createBuildResult(this.buildType, materials, random);
+        ItemStack result = SmallShipyardRecipes.createBuildResult(this.buildType, materials, random, this.level.registryAccess());
         this.items.setStackInSlot(SmallShipyardRecipes.SLOT_OUTPUT, result);
     }
 

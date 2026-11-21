@@ -123,13 +123,13 @@ public final class ModBlocks {
                     .noOcclusion()));
 
     public static final DeferredHolder<Block, Block> BLOCK_POLYMETAL_ORE = register("blockpolymetalore",
-            () -> new DropExperienceBlock(BlockBehaviour.Properties.of()
+            () -> new DropExperienceBlock(UniformInt.of(1, 4), BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F)
-                    .requiresCorrectToolForDrops(), UniformInt.of(1, 4)));
+                    .requiresCorrectToolForDrops()));
 
     public static final DeferredHolder<Block, Block> BLOCK_POLYMETAL_GRAVEL = register("blockpolymetalgravel",
-            () -> new FallingBlock(BlockBehaviour.Properties.of()
+            () -> new com.lulan.shincolle.block.LegacyFallingBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.SAND)
                     .strength(0.8F)
                     .sound(SoundType.SAND)));

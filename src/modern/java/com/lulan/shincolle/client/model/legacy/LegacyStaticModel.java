@@ -77,13 +77,13 @@ public final class LegacyStaticModel {
         for (String rootPart : this.definition.rootParts()) {
             if (!rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
                 this.root.getChild(rootPart).render(
-                        poseStack, vertexConsumer, packedLight, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+                        poseStack, vertexConsumer, packedLight, packedOverlay, -1);
             }
         }
         for (String rootPart : this.definition.rootParts()) {
             if (rootPart.startsWith("Glow") && this.root.hasChild(rootPart)) {
                 this.root.getChild(rootPart).render(
-                        poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, 1.0F, 1.0F, 1.0F, 1.0F);
+                        poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, -1);
             }
         }
     }

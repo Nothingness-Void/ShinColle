@@ -163,13 +163,13 @@ public final class SmallShipyardRecipes {
         return materialAmounts;
     }
 
-    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random) {
+    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         if (ShipyardBuildTypes.isShipMode(buildType)) {
             return createShipEgg(materialAmounts);
         }
 
         if (ShipyardBuildTypes.isEquipMode(buildType)) {
-            return LegacyEquipmentBuildHelper.buildSmallResult(materialAmounts, random);
+            return LegacyEquipmentBuildHelper.buildSmallResult(materialAmounts, random, registries);
         }
 
         return ItemStack.EMPTY;

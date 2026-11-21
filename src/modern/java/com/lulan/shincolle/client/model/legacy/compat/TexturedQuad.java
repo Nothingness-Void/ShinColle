@@ -27,7 +27,7 @@ public class TexturedQuad {
                     .setColor(LegacyRenderContext.red, LegacyRenderContext.green, LegacyRenderContext.blue, LegacyRenderContext.alpha)
                     .setUv(vertex.texturePositionX, vertex.texturePositionY)
                     .setOverlay(LegacyRenderContext.overlay).setLight(LegacyRenderContext.light)
-                    .setNormal(pose.normal(), (float)normal.x, (float)normal.y, (float)normal.z);
+                    .setNormal(pose, (float)normal.x, (float)normal.y, (float)normal.z);
         }
     }
 }

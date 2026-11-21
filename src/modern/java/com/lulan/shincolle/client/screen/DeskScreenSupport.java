@@ -148,7 +148,7 @@ abstract class DeskScreenSupport extends AbstractContainerScreen<DeskMenu> {
         if (entity instanceof LegacyShipEntity) pose.translate(0, 0.7F, 0);
         pose.mulPose(Axis.YP.rotationDegrees(yaw));
         pose.mulPose(Axis.XP.rotationDegrees(pitch));
-        pose.translate(0, entity.getMyRidingOffset() - (entity instanceof LegacyShipEntity ? 0.7F : 0), 0);
+        pose.translate(0, com.lulan.shincolle.entity.LegacyRiding.offset(entity) - (entity instanceof LegacyShipEntity ? 0.7F : 0), 0);
         Quaternionf camera = new Quaternionf(dispatcher.cameraOrientation());
         dispatcher.overrideCameraOrientation(Axis.YP.rotationDegrees(180F));
         dispatcher.setRenderShadow(false);
@@ -156,7 +156,7 @@ abstract class DeskScreenSupport extends AbstractContainerScreen<DeskMenu> {
             if (mount != null) {
                 var profile = LegacyShipBehaviorCatalog.shipMountProfileFor(mount.host.ship.getSpec());
                 pose.pushPose();
-                pose.translate(profile.hostX(), profile.hostY() + entity.getMyRidingOffset(), profile.hostZ());
+                pose.translate(profile.hostX(), profile.hostY() + com.lulan.shincolle.entity.LegacyRiding.offset(entity), profile.hostZ());
                 renderEntity(entity, partialTick);
                 pose.popPose();
                 renderEntity(mount.entity, partialTick);

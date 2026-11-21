@@ -1395,7 +1395,7 @@ public final class LegacyShipBehaviorCatalog {
                 && hostClassId == 54 && riderClassId == 53) {
             moveFunction.accept(rider,
                     host.getX(),
-                    host.getY() + host.getBbHeight() * 0.47D + rider.getMyRidingOffset(),
+                    host.getY() + host.getBbHeight() * 0.47D + com.lulan.shincolle.entity.LegacyRiding.offset(rider),
                     host.getZ());
             syncLegacyRiderRotation(host, rider);
             return true;
@@ -1453,7 +1453,7 @@ public final class LegacyShipBehaviorCatalog {
         double rotatedX = -localZ * sin;
         moveFunction.accept(rider,
                 host.getX() + rotatedX,
-                host.getY() + rider.getMyRidingOffset() + yOffset + yAdjustment,
+                host.getY() + com.lulan.shincolle.entity.LegacyRiding.offset(rider) + yOffset + yAdjustment,
                 host.getZ() + rotatedZ);
     }
 
@@ -2253,7 +2253,7 @@ public final class LegacyShipBehaviorCatalog {
         return grid;
     }
 
-    private static @javax.annotation.Nullable ItemStack[] readLegacyRecipePaper(ItemStack paper) {
+    private static @javax.annotation.Nullable ItemStack[] readLegacyRecipePaper(ItemStack paper, net.minecraft.core.HolderLookup.Provider registries) {
         CompoundTag tag = LegacyItemData.getTag(paper);
         if (tag == null || !tag.contains(RecipePaperMenu.RECIPE_TAG, Tag.TAG_LIST)) {
             return null;
@@ -2269,7 +2269,7 @@ public final class LegacyShipBehaviorCatalog {
             CompoundTag itemTag = entries.getCompound(index);
             int slot = itemTag.getInt(RecipePaperMenu.SLOT_KEY);
             if (slot >= 0 && slot < inputs.length) {
-                inputs[slot] = ItemStack.of(itemTag);
+                inputs[slot] = com.lulan.shincolle.item.LegacyItemData.parse(registries, itemTag);
             }
         }
         return inputs;
@@ -2288,8 +2288,8 @@ public final class LegacyShipBehaviorCatalog {
 
         SimpleContainer input = new SimpleContainer(1);
         input.setItem(0, mainStack.copy());
-        Optional<SmeltingRecipe> recipe = ship.level().getRecipeManager()
-                .getRecipeFor(RecipeType.SMELTING, input, ship.level());
+        Optional<net.minecraft.world.item.crafting.RecipeHolder<SmeltingRecipe>> recipe = ship.level().getRecipeManager()
+                .getRecipeFor(RecipeType.SMELTING, new net.minecraft.world.item.crafting.SingleRecipeInput(input.getItem(0)), ship.level());
         if (recipe.isEmpty()) {
             return;
         }
@@ -2316,7 +2316,7 @@ public final class LegacyShipBehaviorCatalog {
             swing = true;
         }
 
-        ItemStack resultStack = recipe.get().getResultItem(ship.level().registryAccess());
+        ItemStack resultStack = recipe.get().value().getResultItem(ship.level().registryAccess());
         int[] outputSlots = legacyFurnaceSlots(furnace, resultStack, taskSide, 1);
         for (int outputSlot : outputSlots) {
             ItemStack output = furnace.getItem(outputSlot);
@@ -2490,7 +2490,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static void generateLegacyMiningResult(LegacyShipEntity ship, ItemStack pickaxe) {
         int toolLevel = pickaxe.getItem() instanceof TieredItem tiered
-                ? tiered.getTier().getLevel() : 0;
+                ? (pickaxe.isCorrectToolForDrops(Blocks.OBSIDIAN.defaultBlockState()) ? 3 : pickaxe.isCorrectToolForDrops(Blocks.DIAMOND_ORE.defaultBlockState()) ? 2 : pickaxe.isCorrectToolForDrops(Blocks.IRON_ORE.defaultBlockState()) ? 1 : 0) : 0;
         List<LegacyMiningEntry> eligible = new ArrayList<>();
         int shipLevel = ship.getShipLevel();
         int shipY = Mth.floor(ship.getY());
@@ -2522,7 +2522,7 @@ public final class LegacyShipBehaviorCatalog {
         if (selected.max() > selected.min()) {
             count += ship.getRandom().nextInt(selected.max() - selected.min() + 1);
         }
-        int fortune = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FORTUNE, pickaxe);
+        int fortune = EnchantmentHelper.getItemEnchantmentLevel(ship.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE), pickaxe);
         int luck = ship.hasEffect(MobEffects.LUCK)
                 ? ship.getEffect(MobEffects.LUCK).getAmplifier() + 1 : 0;
         if (selected.fortuneMultiplier() > 0.0F) {
@@ -2542,19 +2542,19 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyTaskFacility facility = findLegacyTaskFacility(ship, false);
-        ItemStack[] inputs = readLegacyRecipePaper(paper);
+        ItemStack[] inputs = readLegacyRecipePaper(paper, ship.registryAccess());
         if (facility == null || inputs == null) {
             return;
         }
 
         TransientCraftingContainer recipeGrid = createLegacyCraftingGrid(inputs);
-        Optional<CraftingRecipe> recipe = ship.level().getRecipeManager()
-                .getRecipeFor(RecipeType.CRAFTING, recipeGrid, ship.level());
+        Optional<net.minecraft.world.item.crafting.RecipeHolder<CraftingRecipe>> recipe = ship.level().getRecipeManager()
+                .getRecipeFor(RecipeType.CRAFTING, recipeGrid.asCraftInput(), ship.level());
         if (recipe.isEmpty()) {
             return;
         }
 
-        ItemStack expectedResult = recipe.get().assemble(recipeGrid, ship.level().registryAccess());
+        ItemStack expectedResult = recipe.get().value().assemble(recipeGrid.asCraftInput(), ship.level().registryAccess());
         if (expectedResult.isEmpty()) {
             return;
         }
@@ -2580,7 +2580,7 @@ public final class LegacyShipBehaviorCatalog {
                 temporaryGrid.setItem(slot, material.copy());
             }
 
-            ItemStack result = recipe.get().assemble(temporaryGrid, ship.level().registryAccess());
+            ItemStack result = recipe.get().value().assemble(temporaryGrid.asCraftInput(), ship.level().registryAccess());
             if (result.isEmpty() || !matchesLegacyTaskItem(result, expectedResult,
                     checkMetadata, checkOredict, checkNbt)) {
                 break;
@@ -2597,7 +2597,7 @@ public final class LegacyShipBehaviorCatalog {
                 }
             }
 
-            for (ItemStack remaining : recipe.get().getRemainingItems(temporaryGrid)) {
+            for (ItemStack remaining : recipe.get().value().getRemainingItems(temporaryGrid.asCraftInput())) {
                 if (remaining.isEmpty()) {
                     continue;
                 }
@@ -2680,15 +2680,15 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         float luck = Math.max(
-                EnchantmentHelper.getItemEnchantmentLevel(Enchantments.LUCK_OF_THE_SEA, rod),
+                EnchantmentHelper.getItemEnchantmentLevel(ship.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.LUCK_OF_THE_SEA), rod),
                 EnchantmentHelper.getItemEnchantmentLevel(
-                        Enchantments.LUCK_OF_THE_SEA, ship.getLegacyTaskOffHandItem()));
+                        ship.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.LUCK_OF_THE_SEA), ship.getLegacyTaskOffHandItem()));
         MobEffectInstance luckEffect = ship.getEffect(MobEffects.LUCK);
         if (luckEffect != null) {
             luck += luckEffect.getAmplifier() + 1;
         }
         luck += ship.getShipLevel() / 150.0F * 1.5F;
-        LootTable table = serverLevel.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
+        LootTable table = serverLevel.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);
         LootParams params = new LootParams.Builder(serverLevel)
                 .withParameter(LootContextParams.ORIGIN, ship.position())
                 .withParameter(LootContextParams.THIS_ENTITY, ship)
