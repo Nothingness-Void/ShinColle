@@ -403,6 +403,8 @@ public class LegacyShipEntity extends PathfinderMob {
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_MODEL_STATE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_MODEL_SHIP_UID =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_HP_STATE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_EMOTION =
@@ -501,6 +503,14 @@ public class LegacyShipEntity extends PathfinderMob {
     private int legacyTaskTime;
     private int legacySkillTimer;
     private int legacyHitHeight = -1;
+    private int legacyModelFaceTick;
+    private int legacyModelHeadTiltTick;
+    private int legacyModelAttackTick;
+    private int legacyModelAttackTick2;
+    private int legacyModelCaressTicks;
+    private boolean legacyModelHeadTilt;
+    private final float[] legacyModelRotate = new float[3];
+    private final Integer[] legacyModelEmotionOverrides = new Integer[8];
     private int legacyHitAngle;
     private int legacySkillRemaining;
     private Vec3 legacySkillMotion = Vec3.ZERO;
@@ -644,6 +654,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.entityData.define(DATA_TASK, DEFAULT_TASK);
         this.entityData.define(DATA_TASK_SIDE, DEFAULT_TASK_SIDE);
         this.entityData.define(DATA_MODEL_STATE, DEFAULT_MODEL_STATE);
+        this.entityData.define(DATA_MODEL_SHIP_UID, 0);
         this.entityData.define(DATA_HP_STATE, DEFAULT_HP_STATE);
         this.entityData.define(DATA_EMOTION, DEFAULT_EMOTION);
         this.entityData.define(DATA_EMOTION2, DEFAULT_EMOTION2);
@@ -880,6 +891,7 @@ public class LegacyShipEntity extends PathfinderMob {
         this.setShipKills(getIntWithLegacyMinorFallback(tag, SHIP_KILLS_TAG, null, LEGACY_KILLS_TAG, 0));
         this.shipUid = Math.max(0, getIntWithLegacyMinorFallback(
                 tag, SHIP_UID_TAG, null, LEGACY_SHIP_UID_TAG, 0));
+        this.entityData.set(DATA_MODEL_SHIP_UID, this.shipUid);
         this.commandedPos = tag.contains(COMMAND_POS_TAG, Tag.TAG_LONG)
                 ? BlockPos.of(tag.getLong(COMMAND_POS_TAG))
                 : null;
@@ -1053,6 +1065,13 @@ public class LegacyShipEntity extends PathfinderMob {
         }
         super.tick();
 
+        if (this.level().isClientSide()) {
+            if (this.legacyModelAttackTick > 0) this.legacyModelAttackTick--;
+            if (this.legacyModelCaressTicks > 0 && --this.legacyModelCaressTicks == 0) {
+                this.legacyModelEmotionOverrides[6] = 0;
+            }
+        }
+
         LegacyShipBehaviorCatalog.tickLegacyClientBehavior(this);
 
         if (!this.level().isClientSide() && this.deathTime > 0 && this.getHealth() > 0.0F) {
@@ -1175,6 +1194,14 @@ public class LegacyShipEntity extends PathfinderMob {
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
+
+        if (this.legacyModelEmotionOverrides != null) {
+            if (DATA_MODEL_STATE.equals(key)) this.legacyModelEmotionOverrides[0] = null;
+            if (DATA_EMOTION.equals(key)) this.legacyModelEmotionOverrides[1] = null;
+            if (DATA_EMOTION2.equals(key)) this.legacyModelEmotionOverrides[2] = null;
+            if (DATA_DISPLAY_PHASE.equals(key)) this.legacyModelEmotionOverrides[5] = null;
+            if (DATA_EMOTION4.equals(key)) this.legacyModelEmotionOverrides[7] = null;
+        }
 
         if (DATA_VARIANT_EGG_META.equals(key)
                 || DATA_LEVEL.equals(key)
@@ -1364,6 +1391,8 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.markLegacyCombat();
+
+        this.emitLegacyModelAttack(LegacyShipAttackKind.MELEE);
 
         LegacyShipBehaviorCatalog.CombatHookResult hookResult =
                 LegacyShipBehaviorCatalog.performCombatHook(this, livingTarget, LegacyShipAttackKind.MELEE);
@@ -1915,6 +1944,53 @@ public class LegacyShipEntity extends PathfinderMob {
     public int getLegacyHitHeight() {
         return this.legacyHitHeight;
     }
+
+    public int getLegacyModelEmotion(int id) {
+        Integer local = this.legacyModelEmotionOverrides[id];
+        if (local != null) return local;
+        return switch (id) {
+            case 0 -> this.getModelState();
+            case 1 -> this.getEmotion();
+            case 2 -> this.getEmotion2();
+            case 5 -> this.getDisplayPhase();
+            case 6 -> 0;
+            case 7 -> this.getEmotion4();
+            default -> throw new IllegalArgumentException("Unsupported model emotion " + id);
+        };
+    }
+
+    public void setLegacyModelEmotion(int id, int value, boolean sync) {
+        if (!sync || id == 6) {
+            this.legacyModelEmotionOverrides[id] = value;
+            return;
+        }
+        switch (id) {
+            case 0 -> this.setModelState(value);
+            case 1 -> this.setEmotion(value);
+            case 2 -> this.setEmotion2(value);
+            case 5 -> this.setDisplayPhase(value);
+            case 7 -> this.setEmotion4(value);
+            default -> throw new IllegalArgumentException("Unsupported model emotion " + id);
+        }
+    }
+
+    public void startLegacyModelCaress() {
+        this.legacyModelEmotionOverrides[6] = 1;
+        this.legacyModelCaressTicks = 80;
+    }
+
+    public int getLegacyModelFaceTick() { return this.legacyModelFaceTick; }
+    public void setLegacyModelFaceTick(int value) { this.legacyModelFaceTick = value; }
+    public int getLegacyModelHeadTiltTick() { return this.legacyModelHeadTiltTick; }
+    public void setLegacyModelHeadTiltTick(int value) { this.legacyModelHeadTiltTick = value; }
+    public int getLegacyModelAttackTick() { return this.legacyModelAttackTick; }
+    public void setLegacyModelAttackTick(int value) { this.legacyModelAttackTick = value; }
+    public int getLegacyModelAttackTick2() { return this.legacyModelAttackTick2; }
+    public void setLegacyModelAttackTick2(int value) { this.legacyModelAttackTick2 = value; }
+    public boolean getLegacyModelHeadTilt() { return this.legacyModelHeadTilt; }
+    public void setLegacyModelHeadTilt(boolean value) { this.legacyModelHeadTilt = value; }
+    public float getLegacyModelRotate(int axis) { return this.legacyModelRotate[axis]; }
+    public void setLegacyModelRotate(int axis, float value) { this.legacyModelRotate[axis] = value; }
 
     public int getLegacyHitAngle() {
         return this.legacyHitAngle;
@@ -2473,7 +2549,7 @@ public class LegacyShipEntity extends PathfinderMob {
     }
 
     public int getShipUid() {
-        return this.shipUid;
+        return this.level().isClientSide() ? this.entityData.get(DATA_MODEL_SHIP_UID) : this.shipUid;
     }
 
     public String getOwnerName() {
@@ -3866,6 +3942,7 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.markLegacyCombat();
+        this.emitLegacyModelAttack(attackKind);
 
         LegacyShipBehaviorCatalog.CombatHookResult hookResult =
                 LegacyShipBehaviorCatalog.performCombatHook(
@@ -4359,6 +4436,12 @@ public class LegacyShipEntity extends PathfinderMob {
         return true;
     }
 
+    private void emitLegacyModelAttack(LegacyShipAttackKind attackKind) {
+        int particle = LegacyShipBehaviorCatalog.modelAttackAnimationParticleFor(
+                this.getSpec(), attackKind, this.getDisplayPhase());
+        if (particle >= 0) CombatFxDispatcher.sendLegacyAttackAnimation(this, particle);
+    }
+
     private boolean launchCompatAircraft(LivingEntity target, LegacyShipAttackKind attackKind, LegacyShipProjectileProfile projectileProfile) {
         if (this.level().isClientSide()) {
             return true;
@@ -4389,6 +4472,7 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.shipUid = TeitokuHelper.resolveShipUid(serverLevel, this.getUUID());
+        this.entityData.set(DATA_MODEL_SHIP_UID, this.shipUid);
     }
 
     private void cacheShipState(boolean dead) {

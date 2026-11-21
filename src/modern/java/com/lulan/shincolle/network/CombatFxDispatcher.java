@@ -58,7 +58,7 @@ public final class CombatFxDispatcher {
                 particleType,
                 x, y, z,
                 velocityX, velocityY, velocityZ,
-                variant);
+                variant, reference.getId());
         ModNetwork.sendToTrackingAndSelf(reference, packet);
     }
 
@@ -68,5 +68,9 @@ public final class CombatFxDispatcher {
                 reference.getX(), reference.getY() + reference.getBbHeight() * 0.45D, reference.getZ(),
                 0.0D, 0.0D, 0.0D, legacyEmotionType);
     }
-}
 
+    public static void sendLegacyAttackAnimation(Entity reference, int legacyParticleType) {
+        sendParticle(reference, GameplayParticleType.LEGACY_SHIP_ANIMATION,
+                reference.getX(), reference.getY(), reference.getZ(), 0D, 0D, 0D, legacyParticleType);
+    }
+}

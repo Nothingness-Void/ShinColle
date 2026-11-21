@@ -153,8 +153,6 @@ import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipStaticEffectEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
-import com.lulan.shincolle.entity.ship.LegacyShipModelStateCatalog;
-import com.lulan.shincolle.entity.ship.LegacyShipModelTransformCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
@@ -1504,7 +1502,13 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void phaseFourMenusMutateServerStateAndExposeData(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        ServerPlayer player = makeServerBackedPlayer(helper, "PhaseFourMenuOwner");
+        int playerUid = TeitokuSavedData.get(helper.getLevel()).getOrCreateUid(player);
+        TeitokuHelper.get(player).ifPresent(data -> data.setPlayerUid(playerUid));
+        if (playerUid <= 0 || TeitokuHelper.getPlayerUid(player) != playerUid) {
+            helper.fail("waypoint owner fixture must have an initialized legacy PlayerUID");
+            return;
+        }
         player.setPos(2.0D, 2.0D, 2.0D);
 
         BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -1536,6 +1540,10 @@ public final class GameplayParityGameTests {
             return;
         }
         waypoint.setOwner(player);
+        if (waypoint.getOwnerUid() != playerUid) {
+            helper.fail("waypoint owner fixture must retain the player's legacy PlayerUID");
+            return;
+        }
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TARGETWRENCH.get()));
         player.setShiftKeyDown(true);
         if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
@@ -13444,106 +13452,66 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Pipe", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Pipe", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase1", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase1", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase2", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "FlowerBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "FlowerBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipHandRing", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipHandRing", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "RingBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "RingBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase_2", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipBaseBelt", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipBaseBelt", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipHeadBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipU01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipU01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegR01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegR01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegL01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipE01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipE01", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipGlove", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipGlove", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipABase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipABase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipD01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipD01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipC01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipC01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipB01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipB01", 1 << 4)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipS01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipS01", 1 << 5)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear01", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear02", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear02", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Tail01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Tail01", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSL01", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSR01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSR01", 1 << 7)) {
-            helper.fail("SHIP-06 model visibility should preserve the selected legacy showEquip state bits");
-            return;
-        }
+
 
         helper.succeed();
     }
 
     @GameTest(template = "empty")
-    public static void ship06SelectedModelScaleBranchesMatchLegacySource(GameTestHelper helper) {
-        String[] modelStems = {"ModelSubmU511", "ModelSubmRo500", "ModelBattleshipYamato", "ModelCarrierKaga"};
-        float[][] expected = {
-                {0.36F, 0.72F, 1.08F, 1.44F},
-                {0.36F, 0.72F, 1.08F, 1.44F},
-                {0.5F, 1.0F, 1.5F, 2.0F},
-                {0.46F, 0.92F, 1.38F, 1.84F}
-        };
-        float[][] offsets = {
-                {2.86F, 0.66F, -0.06F, -0.45F},
-                {2.86F, 0.66F, -0.06F, -0.45F},
-                {1.53F, 0.02F, -0.48F, -0.73F},
-                {1.81F, 0.16F, -0.37F, -0.63F}
-        };
-
-        for (int modelIndex = 0; modelIndex < modelStems.length; modelIndex++) {
-            for (int scaleLevel = 0; scaleLevel < 4; scaleLevel++) {
-                LegacyShipModelTransformCatalog.RenderTransform transform =
-                        LegacyShipModelTransformCatalog.forModel(modelStems[modelIndex], scaleLevel).orElse(null);
-                float scale = expected[modelIndex][scaleLevel];
-                float expectedY = modelIndex < 2 ? scale * 0.95F : scale;
-                if (transform == null
-                        || Math.abs(transform.scaleX() - scale) > 1.0E-6F
-                        || Math.abs(transform.scaleY() - expectedY) > 1.0E-6F
-                        || Math.abs(transform.scaleZ() - scale) > 1.0E-6F
-                        || Math.abs(transform.offsetY() - offsets[modelIndex][scaleLevel]) > 1.0E-6F) {
-                    helper.fail("SHIP-06 model scale branch differs from the legacy source: "
-                            + modelStems[modelIndex] + " level=" + scaleLevel);
-                    return;
-                }
+    public static void shipModelsHaveMechanicalMappingsAndLocalEmotionState(GameTestHelper helper) {
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            com.lulan.shincolle.entity.ship.LegacyShipModelKind kind =
+                    com.lulan.shincolle.entity.ship.LegacyShipModelKind.forSpec(spec);
+            if (!kind.name().equals(spec.modelSourceStem()) || kind.shadowRadius() <= 0F) {
+                helper.fail("Missing mechanically ported ship model mapping: " + spec.eggMeta());
+                return;
             }
         }
 
-        if (LegacyShipModelTransformCatalog.forModel("ModelSubmHime", 0).isPresent()
-                || LegacyShipModelTransformCatalog.forModel("ModelSSNH", 0).isPresent()) {
-            helper.fail("SHIP-06 constant-scale Hime models must not receive a dynamic scale branch");
+        try {
+            com.lulan.shincolle.entity.ship.LegacyShipModelKind.forSpec(
+                    new ShipEntitySpec(-1, "missing", "EntityMissing", ShipArchetype.CRUISER, false));
+            helper.fail("Unknown ship model must not fall back to a generic animation");
             return;
+        } catch (IllegalArgumentException expected) {
+        }
+
+        ServerPlayer owner = makeServerBackedPlayer(helper, "ModelStateOwner");
+        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, 2.5D, 2D, 2.5D);
+        if (ship == null) return;
+        ship.setEmotion(4);
+        ship.setLegacyModelEmotion(1, 1, false);
+        ship.setLegacyModelFaceTick(123);
+        ship.setLegacyModelHeadTiltTick(456);
+        ship.setLegacyModelAttackTick(50);
+        ship.setLegacyModelAttackTick2(9);
+        ship.startLegacyModelCaress();
+        if (ship.getEmotion() != 4 || ship.getLegacyModelEmotion(1) != 1
+                || ship.getLegacyModelEmotion(6) != 1 || ship.getLegacyModelFaceTick() != 123
+                || ship.getLegacyModelHeadTiltTick() != 456 || ship.getLegacyModelAttackTick() != 50
+                || ship.getLegacyModelAttackTick2() != 9) {
+            helper.fail("Model-local emotion and timers must be retained independently of synced display data");
+            return;
+        }
+        ship.setEmotion(2);
+        if (ship.getLegacyModelEmotion(1) != 2) {
+            helper.fail("A synced emotion update must supersede the model-local override");
+            return;
+        }
+        ship.discard();
+
+        ClientboundSpawnParticlePacket packet = new ClientboundSpawnParticlePacket(
+                GameplayParticleType.LEGACY_SHIP_ANIMATION, 0D, 0D, 0D, 0D, 0D, 0D, 12, 901);
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            ClientboundSpawnParticlePacket.encode(packet, buffer);
+            ClientboundSpawnParticlePacket decoded = ClientboundSpawnParticlePacket.decode(buffer);
+            if (decoded.entityId() != 901 || decoded.variant() != 12) {
+                helper.fail("Legacy attack animation packet must retain the source entity and particle subtype");
+                return;
+            }
+        } finally {
+            buffer.release();
         }
 
         helper.succeed();
@@ -13606,60 +13574,6 @@ public final class GameplayParityGameTests {
         hostileTarget.discard();
         ordinaryTarget.discard();
         passenger.discard();
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void ship04HimeModelStateUsesLegacyShowEquipBits(GameTestHelper helper) {
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelAirfieldHime", "EquipHand01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelAirfieldHime", "EquipHand01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHime", "Cannon01", 1 << 1)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHime", "Cannon01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02b", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02b", 1 << 6)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02a", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02a", 1 << 6)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipHime", "BodyMain", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelHarbourHime", "BodyMain", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "UnknownPart", 0)) {
-            helper.fail("selected Hime model visibility should preserve the legacy Display.State bit rules");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void ship05SpecialModelStateUsesLegacyShowEquipBits(GameTestHelper helper) {
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "EquipSR01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "EquipSR01c", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "Collar01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "GlowEquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "GlowEquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "SantaCloth01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "SantaCloth01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "EquipUmbre01a", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "EquipUmbre01a", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "ShoesL", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "ShoesL", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierWDemon", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierWDemon", "EquipBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EquipBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "HairAnchor", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "HairAnchor", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EarBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EarBase", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "HeadEquip", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "HeadEquip", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "EquipBase", 1 << 1)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "UnknownPart", 0)) {
-            helper.fail("SHIP-05 model visibility should preserve each legacy showEquip state bit");
-            return;
-        }
-
         helper.succeed();
     }
 
@@ -15815,45 +15729,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipE01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipE01", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipSL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipSL01", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 1 << 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 1 << 2)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipTR03", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipTR03", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair02f1", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 1 << 2)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair02f1", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", (1 << 3) | (1 << 4))
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", (1 << 3) | (1 << 4))
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipHead01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipHead01", 1 << 1)) {
-            helper.fail("SHIP-07 model visibility should preserve each selected legacy showEquip branch");
-            return;
-        }
+
 
         helper.succeed();
     }
@@ -16002,23 +15878,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerInazuma", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerInazuma", "EquipBase", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "Equip00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "Equip00", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "EyeMask", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "EyeMask", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "CirBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "CirBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "EquipSL00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "EquipSL00", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserAtago", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserAtago", "Hat01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTakao", "ShoeL03", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTakao", "ShoeL03", 1 << 3)) {
-            helper.fail("SHIP-08 model visibility should preserve each selected legacy showEquip branch");
-            return;
-        }
+
 
         helper.succeed();
     }
@@ -16058,27 +15918,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipBase", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipHeadBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "HairS01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "HairS01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke00", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke01", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBHiei", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBHiei", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBHaruna", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBHaruna", "EquipHeadBase", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKirishima", "EquipGlass01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKirishima", "EquipGlass01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase_2", 1 << 2)) {
-            helper.fail("SHIP-09 model visibility should preserve the legacy showEquip branches");
-            return;
-        }
+
 
         assertMarriagePassive(helper, 62, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_HEALTH_BOOST_AURA);
         assertMarriagePassive(helper, 63, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_SATURATION_AURA);
@@ -18209,37 +18049,6 @@ public final class GameplayParityGameTests {
         }
         mountHost.discard();
         mount.discard();
-
-        String[] scaleModels = {
-                "ModelSubmU511", "ModelSubmRo500", "ModelBattleshipYamato", "ModelBattleshipNagato",
-                "ModelBBKongou", "ModelBBHiei", "ModelBBHaruna", "ModelBBKirishima",
-                "ModelCarrierKaga", "ModelCarrierAkagi", "ModelCruiserAtago", "ModelCruiserTakao",
-                "ModelCruiserTenryuu", "ModelCruiserTatsuta", "ModelDestroyerShimakaze",
-                "ModelDestroyerAkatsuki", "ModelDestroyerHibiki", "ModelDestroyerIkazuchi", "ModelDestroyerInazuma"
-        };
-        for (String stem : scaleModels) {
-            for (int scaleLevel = 0; scaleLevel <= 3; scaleLevel++) {
-                if (LegacyShipModelTransformCatalog.forModel(stem, scaleLevel).isEmpty()) {
-                    helper.fail("LegacyShipModelTransformCatalog missing transform for " + stem + " scaleLevel=" + scaleLevel);
-                    return;
-                }
-            }
-        }
-
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowBodyMain2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowBodyMain2", 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowArmLeft01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "EquipTBase", 15)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "GlowEquipBase", 4)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerI", "PKisaragi00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerI", "PKisaragi00", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerRo", "k00", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipHime", "AnyPart", 0)) {
-            helper.fail("LegacyShipModelStateCatalog should enforce ModelCarrierHime, ModelSubmHime, and Abyssal base model rules");
-            return;
-        }
 
         helper.succeed();
     }

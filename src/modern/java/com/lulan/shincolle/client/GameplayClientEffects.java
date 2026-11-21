@@ -4,6 +4,7 @@ import com.lulan.shincolle.client.particle.LegacyEmotionParticle;
 import com.lulan.shincolle.client.particle.LegacyTeamMarkerParticle;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.ClientboundCombatReactPacket;
 import com.lulan.shincolle.network.ClientboundSpawnParticlePacket;
 import com.lulan.shincolle.network.CombatReactType;
@@ -59,6 +60,11 @@ public final class GameplayClientEffects {
         }
 
         switch (packet.particleType()) {
+            case LEGACY_SHIP_ANIMATION -> {
+                if (level.getEntity(packet.entityId()) instanceof LegacyShipEntity ship) {
+                    ship.setLegacyModelAttackTick(packet.variant() == 12 ? 100 : 50);
+                }
+            }
             case NONE -> {
             }
             case LAUNCH_SMOKE -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 8, 0.2D);
