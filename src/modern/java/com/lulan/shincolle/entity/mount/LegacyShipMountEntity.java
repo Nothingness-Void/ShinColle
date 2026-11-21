@@ -112,7 +112,7 @@ public final class LegacyShipMountEntity extends Entity {
 
         // BasicEntityMount delegates all ship state to its host.  Keep the host
         // navigator idle while this vehicle owns movement and attack timing.
-        host.getNavigation().stop();
+        host.getShipNavigate().clearPathEntity();
         if (host.hasNoFuel() || host.isOrderedToSit() || LegacyShipEntity.isStopAi()) {
             this.setDeltaMovement(Vec3.ZERO);
             return;

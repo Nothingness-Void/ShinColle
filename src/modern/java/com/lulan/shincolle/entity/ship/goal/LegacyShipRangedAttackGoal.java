@@ -62,7 +62,7 @@ public class LegacyShipRangedAttackGoal extends Goal {
     public void stop() {
         this.onSightTime = 0;
         this.lostSightTime = 0;
-        this.ship.getNavigation().stop();
+        this.ship.getShipNavigate().clearPathEntity();
     }
 
     @Override
@@ -98,13 +98,13 @@ public class LegacyShipRangedAttackGoal extends Goal {
 
         if (!onSight && this.ship.isAiOnSightChase()) {
             this.ship.setTarget(null);
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
             return;
         }
 
         if (!onSight && this.ship.isHostileVariant() && this.lostSightTime >= this.adjustedTickDelay(40)) {
             this.ship.setTarget(null);
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
             return;
         }
 
@@ -112,9 +112,9 @@ public class LegacyShipRangedAttackGoal extends Goal {
             this.timeToRecalcPath = this.adjustedTickDelay(16);
 
             if (distanceSqr <= rangeSqr && onSight) {
-                this.ship.getNavigation().stop();
+                this.ship.getShipNavigate().clearPathEntity();
             } else {
-                this.ship.getNavigation().moveTo(target, this.speedModifier * this.ship.getCombatMovementSpeedModifier());
+                this.ship.getShipNavigate().tryMoveToEntityLiving(target, this.speedModifier);
             }
         }
 

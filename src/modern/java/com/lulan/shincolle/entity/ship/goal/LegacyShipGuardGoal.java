@@ -57,7 +57,7 @@ public final class LegacyShipGuardGoal extends Goal {
             if (this.distanceSqr > this.minDistanceSqr) {
                 return true;
             }
-            return !this.ship.getNavigation().isDone() || this.canUse();
+            return !this.ship.getShipNavigate().noPath() || this.canUse();
         }
         this.stop();
         return false;
@@ -74,7 +74,7 @@ public final class LegacyShipGuardGoal extends Goal {
     public void stop() {
         this.moving = false;
         this.findCooldown = 10;
-        this.ship.getNavigation().stop();
+        this.ship.getShipNavigate().clearPathEntity();
     }
 
     @Override
@@ -98,11 +98,11 @@ public final class LegacyShipGuardGoal extends Goal {
         }
         if (this.distanceSqr <= this.minDistanceSqr) {
             this.moving = false;
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
         }
         if (this.findCooldown <= 0) {
             this.findCooldown = 32;
-            this.moving = this.ship.getNavigation().moveTo(this.position.x, this.position.y, this.position.z, 1.0D);
+            this.moving = this.ship.getShipNavigate().tryMoveToXYZ(this.position.x, this.position.y, this.position.z, 1.0D);
         }
         this.ship.getLookControl().setLookAt(this.position.x, this.position.y, this.position.z,
                 30.0F, this.ship.getMaxHeadXRot());

@@ -5,6 +5,9 @@ import com.lulan.shincolle.network.CombatReactType;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.entity.ship.path.ShipNavigationHost;
+import com.lulan.shincolle.entity.ship.path.ShipPathNavigate;
+import com.lulan.shincolle.entity.ship.path.ShipMoveHelper;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.DamageTypeTags;
@@ -37,7 +40,38 @@ import javax.annotation.Nullable;
  * intentionally remain the only links persisted, matching the old behavior
  * where a summon is retired when its host is no longer available.
  */
-public class LegacyShipRensouhouEntity extends PathfinderMob {
+public class LegacyShipRensouhouEntity extends PathfinderMob implements ShipNavigationHost {
+    private final ShipPathNavigate shipNavigate = new ShipPathNavigate(this);
+    private final ShipMoveHelper shipMoveHelper = new ShipMoveHelper(this, 60F);
+
+    @Override
+    public ShipPathNavigate getShipNavigate() { return this.shipNavigate; }
+
+    @Override
+    public ShipMoveHelper getShipMoveHelper() { return this.shipMoveHelper; }
+
+    @Override
+    public boolean canFly() { return false; }
+
+    @Override
+    public boolean isShipJumping() { return this.jumping; }
+
+    @Override
+    public void aiStep() {
+        if (!this.level().isClientSide()) {
+            ShipNavigationHost.update(this, false);
+        }
+        super.aiStep();
+    }
+
+    @Override
+    public void travel(Vec3 input) {
+        if (this.isEffectiveAi()) {
+            ShipNavigationHost.travel(this, input);
+        } else {
+            super.travel(input);
+        }
+    }
 
     private static final String HOST_ID_TAG = "HostId";
     private static final String TARGET_ID_TAG = "TargetId";
@@ -212,12 +246,12 @@ public class LegacyShipRensouhouEntity extends PathfinderMob {
         if (this.distanceToSqr(target) > strikeRange * strikeRange) {
             // EntityRensouhouMob hard-disables OnSightChase; only the friendly summon inherits it.
             if (!this.isHostileVariant() && host.isAiOnSightChase() && !onSight) {
-                this.getNavigation().stop();
+                this.getShipNavigate().clearPathEntity();
             } else if ((host.tickCount & 31) == 0) {
-                this.getNavigation().moveTo(target, this.getAttributeValue(Attributes.MOVEMENT_SPEED));
+                this.getShipNavigate().tryMoveToEntityLiving(target, 1.0D);
             }
         } else {
-            this.getNavigation().stop();
+            this.getShipNavigate().clearPathEntity();
         }
         this.getLookControl().setLookAt(target, 30.0F, 30.0F);
     }

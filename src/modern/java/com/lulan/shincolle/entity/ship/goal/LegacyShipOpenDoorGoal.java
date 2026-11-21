@@ -10,8 +10,8 @@ import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.world.level.pathfinder.Node;
-import net.minecraft.world.level.pathfinder.Path;
+import com.lulan.shincolle.entity.ship.path.ShipPathPoint;
+import com.lulan.shincolle.entity.ship.path.ShipPath;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,16 +45,16 @@ public class LegacyShipOpenDoorGoal extends Goal {
             return false;
         }
 
-        Path path = this.ship.getNavigation().getPath();
-        if (path == null || path.isDone()) {
+        ShipPath path = this.ship.getShipNavigate().getPath();
+        if (path == null || path.isFinished()) {
             return false;
         }
 
         this.doors.clear();
-        int limit = Math.min(path.getNextNodeIndex() + 2, path.getNodeCount());
+        int limit = Math.min(path.getCurrentPathIndex() + 2, path.getCurrentPathLength());
         for (int i = 0; i < limit; i++) {
-            Node node = path.getNode(i);
-            BlockPos pos = new BlockPos(node.x, node.y, node.z);
+            ShipPathPoint node = path.getPathPointFromIndex(i);
+            BlockPos pos = new BlockPos(node.xCoord, node.yCoord, node.zCoord);
             if (this.ship.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) <= this.checkDistanceSq) {
                 this.collectDoors(pos);
                 this.pathPoint = pos;

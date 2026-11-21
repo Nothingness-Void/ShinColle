@@ -1936,7 +1936,7 @@ public final class LegacyShipBehaviorCatalog {
         double guardX = guard.getX() + 0.5D;
         double guardZ = guard.getZ() + 0.5D;
         if (ship.distanceToSqr(guardX, guard.getY(), guardZ) > 10.0D) {
-            ship.getNavigation().moveTo(guardX, guard.getY(), guardZ, 1.0D);
+            ship.getShipNavigate().tryMoveToXYZ(guardX, guard.getY(), guardZ, 1.0D);
             return;
         }
 
@@ -2020,7 +2020,7 @@ public final class LegacyShipBehaviorCatalog {
                 || ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
             if (paired != null && paired.getY() > 0
                     && ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
-                ship.getNavigation().moveTo(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 1.0D);
+                ship.getShipNavigate().tryMoveToXYZ(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 1.0D);
             }
             return null;
         }
@@ -2353,7 +2353,7 @@ public final class LegacyShipBehaviorCatalog {
             return;
         }
         if ((ship.tickCount & 63) == 0) {
-            ship.getNavigation().moveTo(ship.getX() + ship.getRandom().nextInt(9) - 4,
+            ship.getShipNavigate().tryMoveToXYZ(ship.getX() + ship.getRandom().nextInt(9) - 4,
                     ship.getY() + ship.getRandom().nextInt(5) - 2,
                     ship.getZ() + ship.getRandom().nextInt(9) - 4, 1.0D);
             return;
@@ -2817,7 +2817,7 @@ public final class LegacyShipBehaviorCatalog {
         if (!ship.level().isClientSide() && ship.isOwnedBy(player)) {
             ship.setOrderedToSit(false);
             ship.startRiding(player, true);
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
         }
         return true;
     }
@@ -3934,12 +3934,12 @@ public final class LegacyShipBehaviorCatalog {
 
         double distance = ship.distanceTo(target);
         if (distance > 2.0D && ship.tickCount % 32 == 0) {
-            ship.getNavigation().moveTo(target, 1.0D);
+            ship.getShipNavigate().tryMoveToEntityLiving(target, 1.0D);
         }
         if (distance <= 2.0D && !target.isPassenger() && ship.getPassengers().isEmpty()
                 && target.getPassengers().isEmpty()) {
             ship.startRiding(target, true);
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
             ship.resetLegacyHimeRiding();
         }
     }
@@ -4141,7 +4141,7 @@ public final class LegacyShipBehaviorCatalog {
                 ship.playLegacyRePushSound();
                 ship.resetLegacyRePush();
             } else if (ship.tickCount % 32 == 0) {
-                ship.getNavigation().moveTo(target, 1.0D);
+                ship.getShipNavigate().tryMoveToEntityLiving(target, 1.0D);
             }
             return;
         }
@@ -4190,7 +4190,7 @@ public final class LegacyShipBehaviorCatalog {
             return;
         }
 
-        ship.getNavigation().moveTo(
+        ship.getShipNavigate().tryMoveToEntityLiving(
                 nearby.get(ship.getRandom().nextInt(nearby.size())), 1.0D);
         CombatFxDispatcher.sendLegacyEmotion(ship,
                 nagatoMoraleEmotionTypeFor(ship.getRandom().nextInt(5)));
@@ -4376,7 +4376,7 @@ public final class LegacyShipBehaviorCatalog {
                 ? Vec3.ZERO : direction.normalize().scale(-1.25D);
         ship.setLegacySkillMotion(motion);
         faceLegacyDirection(ship, motion);
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         ship.moveTo(destination.x, destination.y, destination.z, ship.getYRot(), ship.getXRot());
         ship.setLegacySkillRemaining(ship.getLegacySkillRemaining() - 1);
         ship.setLegacySkillTimer(7);
@@ -4390,7 +4390,7 @@ public final class LegacyShipBehaviorCatalog {
                 -Math.abs(destination.y - target.getY()) * 0.25D,
                 0.0D);
         ship.setLegacySkillMotion(motion);
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         ship.moveTo(destination.x, destination.y, destination.z, ship.getYRot(), ship.getXRot());
         ship.setLegacySkillRemaining(ship.getLegacySkillRemaining() - 1);
         ship.setLegacySkillTimer(9);

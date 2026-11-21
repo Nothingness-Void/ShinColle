@@ -21,7 +21,7 @@ public final class LegacyShipTeleportHelper {
             ship.stopRiding();
             ship.ejectPassengers();
         }
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         ship.teleportTo(position.x, position.y, position.z);
         return true;
     }

@@ -53,7 +53,7 @@ public class LegacyShipFollowOwnerGoal extends Goal {
                 if (this.distanceSqr > this.minDistanceSqr) {
                     return true;
                 }
-                return !this.ship.getNavigation().isDone() || this.canUse();
+                return !this.ship.getShipNavigate().noPath() || this.canUse();
             }
             this.stop();
         }
@@ -70,7 +70,7 @@ public class LegacyShipFollowOwnerGoal extends Goal {
     @Override
     public void stop() {
         this.owner = null;
-        this.ship.getNavigation().stop();
+        this.ship.getShipNavigate().clearPathEntity();
     }
 
     @Override
@@ -95,11 +95,11 @@ public class LegacyShipFollowOwnerGoal extends Goal {
             return;
         }
         if (this.distanceSqr <= this.minDistanceSqr) {
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
         }
         if (this.findCooldown <= 0) {
             this.findCooldown = 32;
-            this.ship.getNavigation().moveTo(this.position.x, this.position.y, this.position.z, 1.0D);
+            this.ship.getShipNavigate().tryMoveToXYZ(this.position.x, this.position.y, this.position.z, 1.0D);
         }
         this.ship.getLookControl().setLookAt(this.owner, 20.0F, 40.0F);
         if (this.ship.level() == this.owner.level()) {

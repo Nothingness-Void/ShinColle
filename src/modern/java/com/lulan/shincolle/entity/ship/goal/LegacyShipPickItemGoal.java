@@ -61,7 +61,7 @@ public class LegacyShipPickItemGoal extends Goal {
     public void stop() {
         this.targetItem = null;
         if (this.ship.getTarget() == null) {
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
         }
     }
 
@@ -73,7 +73,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
         if (--this.timeToRecalcPath <= 0) {
             this.timeToRecalcPath = this.adjustedTickDelay(16);
-            this.ship.getNavigation().moveTo(this.targetItem, this.speedModifier);
+            this.ship.getShipNavigate().tryMoveToEntityLiving(this.targetItem, this.speedModifier);
         }
 
         if (this.pickupCooldown > 0) {
@@ -128,7 +128,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
         this.pickupCooldown = this.getPickupCooldown();
         if (this.targetItem.hasPickUpDelay()) {
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
             return;
         }
 

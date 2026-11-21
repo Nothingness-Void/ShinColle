@@ -38,11 +38,11 @@ public class LegacyShipWanderGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return !this.ship.getNavigation().isDone();
+        return !this.ship.getShipNavigate().noPath();
     }
 
     @Override
     public void start() {
-        this.ship.getNavigation().moveTo(this.position.x, this.position.y, this.position.z, 0.8D);
+        this.ship.getShipNavigate().tryMoveToXYZ(this.position.x, this.position.y, this.position.z, 0.8D);
     }
 }

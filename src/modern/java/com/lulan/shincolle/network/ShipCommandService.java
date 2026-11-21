@@ -199,7 +199,7 @@ public final class ShipCommandService {
                 if (ship.isGuardingBlockAt(runtimeState.targetPos(), player.level().dimension().location().toString())) {
                     ship.clearCommandState();
                     ship.setTarget(null);
-                    ship.getNavigation().stop();
+                    ship.getShipNavigate().clearPathEntity();
                 } else {
                     ship.commandGuardBlock(runtimeState.targetPos(), player.level().dimension().location().toString());
                 }
@@ -233,7 +233,7 @@ public final class ShipCommandService {
             if (target.getUUID().equals(ship.getGuardEntityUuid())) {
                 ship.clearCommandState();
                 ship.setTarget(null);
-                ship.getNavigation().stop();
+                ship.getShipNavigate().clearPathEntity();
             } else {
                 ship.commandGuardEntity(target.getUUID());
                 ship.setOrderedToSit(false);
@@ -278,7 +278,7 @@ public final class ShipCommandService {
         for (LegacyShipEntity ship : ships) {
             ship.setTarget(null);
             ship.clearCommandState();
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
             markShipDirty(ship);
         }
         return ShipCommandResult.SUCCESS;

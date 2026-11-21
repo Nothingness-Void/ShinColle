@@ -54,9 +54,9 @@ public final class LegacyShipAttackOnCollideGoal extends Goal {
         if ((this.ship.tickCount & 31) == 0) {
             this.maxAttackDelay = this.ship.getCompatAttackMaxCooldown(LegacyShipAttackKind.MELEE);
             if (distance > reach) {
-                this.ship.getNavigation().moveTo(this.target, this.speed);
+                this.ship.getShipNavigate().tryMoveToEntityLiving(this.target, this.speed);
             } else {
-                this.ship.getNavigation().stop();
+                this.ship.getShipNavigate().clearPathEntity();
             }
         }
         if (distance <= reach && --this.attackDelay == 0) {

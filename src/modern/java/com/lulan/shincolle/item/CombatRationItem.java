@@ -137,7 +137,7 @@ public class CombatRationItem extends Item {
 
             if (player.distanceToSqr(ship) > 4.0D) {
                 ship.setEmotion(3);
-                ship.getNavigation().moveTo(player, 0.75D);
+                ship.getShipNavigate().tryMoveToEntityLiving(player, 0.75D);
 
                 if (player.getRandom().nextInt(5) == 0) {
                     int emotion = switch (player.getRandom().nextInt(3)) {

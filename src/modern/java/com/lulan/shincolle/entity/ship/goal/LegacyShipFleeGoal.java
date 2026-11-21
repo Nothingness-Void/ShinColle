@@ -73,7 +73,7 @@ public class LegacyShipFleeGoal extends Goal {
     @Override
     public void stop() {
         this.escortTarget = null;
-        this.ship.getNavigation().stop();
+        this.ship.getShipNavigate().clearPathEntity();
     }
 
     @Override
@@ -89,7 +89,7 @@ public class LegacyShipFleeGoal extends Goal {
         }
 
         this.findCooldown = 16;
-        boolean canMove = this.ship.getNavigation().moveTo(this.escortTarget, 1.2D);
+        boolean canMove = this.ship.getShipNavigate().tryMoveToEntityLiving(this.escortTarget, 1.2D);
         if (!canMove && ShinColleConfig.canTeleport()) {
             double distSq = this.ship.distanceToSqr(this.escortTarget);
             if (distSq > 100.0D && this.ship.level() == this.escortTarget.level()) {
@@ -120,7 +120,7 @@ public class LegacyShipFleeGoal extends Goal {
                 if (this.canTeleportTo(candidate)) {
                     this.ship.moveTo(candidate.getX() + 0.5D, candidate.getY(), candidate.getZ() + 0.5D,
                             this.ship.getYRot(), this.ship.getXRot());
-                    this.ship.getNavigation().stop();
+                    this.ship.getShipNavigate().clearPathEntity();
                     return;
                 }
             }

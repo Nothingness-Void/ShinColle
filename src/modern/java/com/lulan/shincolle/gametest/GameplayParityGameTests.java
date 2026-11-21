@@ -29,6 +29,9 @@ import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.ship.BossActionType;
 import com.lulan.shincolle.entity.ship.BossPhaseProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
+import com.lulan.shincolle.entity.ship.path.ShipPath;
+import com.lulan.shincolle.entity.ship.path.ShipPathPoint;
+import com.lulan.shincolle.entity.ship.path.ShipPathNavigate;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
@@ -5129,7 +5132,7 @@ public final class GameplayParityGameTests {
         ship.setTarget(target);
         ship.tick();
 
-        if (ship.getGuardEntityUuid() != null || ship.getTarget() != null || !ship.getNavigation().isDone()) {
+        if (ship.getGuardEntityUuid() != null || ship.getTarget() != null || !ship.getShipNavigate().noPath()) {
             helper.fail("dead or missing guard targets should clear guard state, combat target, and navigation");
             return;
         }
@@ -8081,34 +8084,34 @@ public final class GameplayParityGameTests {
 
         boolean movedToNearbyTarget = false;
         for (long seed = 0L; seed < 1024L && !movedToNearbyTarget; seed++) {
-            nagato.getNavigation().stop();
+            nagato.getShipNavigate().clearPathEntity();
             nagato.getRandom().setSeed(seed);
             nagato.tickCount = 256;
             LegacyShipBehaviorCatalog.tickLegacyPerShipBehavior(nagato);
-            movedToNearbyTarget = !nagato.getNavigation().isDone()
-                    && nagato.getNavigation().getTargetPos() != null;
+            movedToNearbyTarget = !nagato.getShipNavigate().noPath()
+                    && nagato.getShipNavigate().getPath().getFinalPathPoint() != null;
         }
         if (!movedToNearbyTarget) {
             helper.fail("Nagato should sometimes navigate toward a nearby destroyer after 128 ticks out of combat");
             return;
         }
 
-        nagato.getNavigation().stop();
+        nagato.getShipNavigate().clearPathEntity();
         nagato.markLegacyCombat();
         nagato.tickCount = 384;
         LegacyShipBehaviorCatalog.tickLegacyPerShipBehavior(nagato);
-        if (!nagato.getNavigation().isDone()) {
+        if (!nagato.getShipNavigate().noPath()) {
             helper.fail("Nagato should not run the morale navigation event while within the legacy combat window");
             return;
         }
 
         nagato.clearCommandState();
-        nagato.getNavigation().stop();
+        nagato.getShipNavigate().clearPathEntity();
         nagato.tickCount = 512;
         nagato.commandMoveTo(origin.offset(8, 0, 0), helper.getLevel().dimension().location().toString());
         nagato.getRandom().setSeed(0L);
         LegacyShipBehaviorCatalog.tickLegacyPerShipBehavior(nagato);
-        if (!nagato.getNavigation().isDone()) {
+        if (!nagato.getShipNavigate().noPath()) {
             helper.fail("explicit movement commands should retain navigation priority over Nagato's ambient morale event");
             return;
         }
@@ -9176,7 +9179,7 @@ public final class GameplayParityGameTests {
         BlockPos wall = helper.absolutePos(new BlockPos(6, 2, 1));
         helper.getLevel().setBlock(wall, Blocks.STONE.defaultBlockState(), 3);
         summon.tick();
-        if (!summon.getNavigation().isDone() || summon.getInternalAmmo() != 6) {
+        if (!summon.getShipNavigate().noPath() || summon.getInternalAmmo() != 6) {
             helper.fail("Rensouhou should stop pursuit and hold fire while OnSightChase loses its target");
             return;
         }
@@ -13095,12 +13098,12 @@ public final class GameplayParityGameTests {
             return;
         }
         creativeBoss.tick();
-        if (creativeBoss.getTarget() == creativePlayer || !creativeBoss.getNavigation().isDone()) {
+        if (creativeBoss.getTarget() == creativePlayer || !creativeBoss.getShipNavigate().noPath()) {
             helper.fail("hostile bosses should clear creative targets and stop navigation before AI movement"
                     + ": hostile=" + creativeBoss.isHostileVariant()
                     + ", canEngage=" + creativeBoss.canEngage(creativePlayer)
                     + ", target=" + creativeBoss.getTarget()
-                    + ", navigationDone=" + creativeBoss.getNavigation().isDone());
+                    + ", navigationDone=" + creativeBoss.getShipNavigate().noPath());
             return;
         }
 
@@ -13117,7 +13120,7 @@ public final class GameplayParityGameTests {
             return;
         }
         distantBoss.tick();
-        if (distantBoss.getTarget() == distantPlayer || !distantBoss.getNavigation().isDone()) {
+        if (distantBoss.getTarget() == distantPlayer || !distantBoss.getShipNavigate().noPath()) {
             helper.fail("hostile bosses should clear out-of-range targets and stop navigation before AI movement");
             return;
         }
@@ -15286,7 +15289,7 @@ public final class GameplayParityGameTests {
         goal.tick();
         ship.tickCount = 57;
         goal.tick();
-        if (goal.canContinueToUse() || !ship.getNavigation().isDone()) {
+        if (goal.canContinueToUse() || !ship.getShipNavigate().noPath()) {
             helper.fail("a guard entering min distance must stop its path and goal");
             return;
         }
@@ -15387,7 +15390,7 @@ public final class GameplayParityGameTests {
         target.setHealth(0.0F);
         ship.tickCount = 8;
         goal.tick();
-        if (ship.hasActiveCommandState() || !ship.canFollow() || !ship.getNavigation().isDone()) {
+        if (ship.hasActiveCommandState() || !ship.canFollow() || !ship.getShipNavigate().noPath()) {
             helper.fail("a guarded entity dying during movement must cancel on the eight-tick refresh");
             return;
         }
@@ -16929,7 +16932,7 @@ public final class GameplayParityGameTests {
         }
         ship.tickCount = 52 + delay;
         goal.tick();
-        if (ship.attacks != 2 || !ship.getNavigation().isDone()) {
+        if (ship.attacks != 2 || !ship.getShipNavigate().noPath()) {
             helper.fail("collision attack must repeat on its exact legacy delay and stop path inside reach");
             return;
         }
@@ -16996,7 +16999,7 @@ public final class GameplayParityGameTests {
             helper.fail("wander must navigate at0.8 and continue while a path exists");
             return;
         }
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         if (goal.canContinueToUse()) {
             helper.fail("wander must finish when its path ends");
             return;
@@ -17100,13 +17103,114 @@ public final class GameplayParityGameTests {
     }
 
     private static boolean setSyntheticGuardPath(LegacyShipEntity ship, BlockPos origin, BlockPos guardPos) {
-        Path path = new Path(List.of(
-                new Node(origin.getX(), origin.getY(), origin.getZ()),
-                new Node(guardPos.getX(), guardPos.getY(), guardPos.getZ())), guardPos, true);
-        return ship.getNavigation().moveTo(path, 1.0D) && !ship.getNavigation().isDone();
+        ShipPath path = new ShipPath(new ShipPathPoint[]{
+                new ShipPathPoint(origin.getX(), origin.getY(), origin.getZ()),
+                new ShipPathPoint(guardPos.getX(), guardPos.getY(), guardPos.getZ())});
+        return ship.getShipNavigate().setPath(path, 1.0D) && !ship.getShipNavigate().noPath();
+    }
+
+    @GameTest(template = "guard", batch = "ship_3d_water_up", timeoutTicks = 500)
+    public static void shipNavigatorMovesUpThroughWater(GameTestHelper helper) {
+        verifyShipWaterNavigation(helper, true);
+    }
+
+    @GameTest(template = "guard", batch = "ship_3d_water_down", timeoutTicks = 500)
+    public static void shipNavigatorMovesDownThroughWater(GameTestHelper helper) {
+        verifyShipWaterNavigation(helper, false);
+    }
+
+    private static void verifyShipWaterNavigation(GameTestHelper helper, boolean upward) {
+        for (int x = 3; x <= 29; x++) {
+            for (int z = 3; z <= 29; z++) {
+                for (int y = 145; y <= 162; y++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.WATER);
+                }
+            }
+        }
+        Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, upward ? 150 : 162, 8)));
+        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(22, upward ? 162 : 150, 8)));
+        NavigationTestShip ship = new NavigationTestShip(helper, start);
+        ShipPath path = ship.getShipNavigate().getPathToXYZ(target.x, target.y, target.z);
+        if (path == null || path.getFinalPathPoint().yCoord != (int) target.y) {
+            helper.fail("water navigator must find the requested vertical destination, not a ground approximation");
+            return;
+        }
+        boolean vertical = false;
+        for (int i = 1; i < path.getCurrentPathLength(); i++) {
+            vertical |= path.getPathPointFromIndex(i).yCoord != path.getPathPointFromIndex(i - 1).yCoord;
+        }
+        if (!vertical || !ship.getShipNavigate().setPath(path, 1.0D)) {
+            helper.fail("water path must include vertical edges");
+            return;
+        }
+        helper.succeedWhen(() -> {
+            helper.assertTrue(ship.distanceToSqr(target) < 12D && Math.abs(ship.getY() - target.y) < 2.5D,
+                    "ship must actually swim toward " + target + "; position=" + ship.position());
+            ship.discard();
+        });
+    }
+
+    @GameTest(template = "guard", batch = "ship_3d_flight", timeoutTicks = 500)
+    public static void shipNavigatorFliesWithoutGravity(GameTestHelper helper) {
+        Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 155, 8)));
+        Vec3 target = start.add(14, 6, 0);
+        NavigationTestShip ship = new NavigationTestShip(helper, start);
+        ship.addEffect(new MobEffectInstance(MobEffects.LEVITATION, 600));
+        helper.runAfterDelay(10, () -> {
+            helper.assertTrue(ship.canFly() && Math.abs(ship.getY() - start.y) < 0.05D,
+                    "legacy canFly travel must suppress gravity and potion lift before moving");
+            helper.assertTrue(ship.getShipNavigate().tryMoveToXYZ(target.x, target.y, target.z, 1.0D),
+                    "canFly ship must generate a 3D air path");
+            helper.succeedWhen(() -> {
+                helper.assertTrue(ship.distanceToSqr(target) < 12D && ship.getY() > start.y + 3D,
+                        "canFly ship must actually approach its airborne target; position=" + ship.position());
+                ship.discard();
+            });
+        });
+    }
+
+    @GameTest(template = "guard", batch = "ship_3d_unavailable")
+    public static void shipNavigatorRejectsUnavailablePathsAndClearsStoppedPaths(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(8, 155, 8);
+        NavigationTestShip ship = new NavigationTestShip(helper,
+                Vec3.atBottomCenterOf(helper.absolutePos(pos)));
+        ShipPath path = new ShipPath(new ShipPathPoint[]{
+                new ShipPathPoint(ship.getBlockX(), ship.getBlockY(), ship.getBlockZ()),
+                new ShipPathPoint(ship.getBlockX() + 4, ship.getBlockY(), ship.getBlockZ())});
+        helper.assertTrue(ship.getShipNavigate().setPath(path, 1D), "nonempty path must be accepted");
+        helper.assertTrue(!ship.getShipNavigate().setPath(null, 1D) && ship.getShipNavigate().noPath(),
+                "null search result must clear the previous coordinate path");
+        helper.assertTrue(!ship.getShipNavigate().setPath(new ShipPath(new ShipPathPoint[0]), 1D),
+                "empty path must be rejected");
+        helper.setBlock(pos, Blocks.STONE);
+        helper.assertTrue(ship.getShipNavigate().getPathToXYZ(ship.getX() + 4, ship.getY(), ship.getZ()) == null,
+                "nonflying ship embedded in a solid block cannot navigate");
+        ship.getShipNavigate().setPath(path, 1D);
+        ship.setOrderedToSit(true);
+        helper.assertTrue(ship.getShipNavigate().noPath(), "sitting must clear the ship path");
+        ship.discard();
+        helper.succeed();
+    }
+
+    private static final class NavigationTestShip extends LegacyShipEntity {
+        private NavigationTestShip(GameTestHelper helper, Vec3 start) {
+            super(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());
+            this.setVariantEggMeta(53);
+            supplyShipForTest(this);
+            this.setCanFollow(false);
+            this.setAiPickItem(false);
+            this.setPos(start);
+            this.tickCount = 41;
+            helper.getLevel().addFreshEntity(this);
+        }
+
+        @Override
+        protected void registerGoals() {
+        }
     }
 
     private static class GuardTestShip extends LegacyShipEntity {
+        private GuardTestNavigation testNavigation;
         private int formationId;
         private int formationSlot;
 
@@ -17123,8 +17227,11 @@ public final class GameplayParityGameTests {
         }
 
         @Override
-        protected PathNavigation createNavigation(Level level) {
-            return new GuardTestNavigation(this, level);
+        public ShipPathNavigate getShipNavigate() {
+            if (this.testNavigation == null) {
+                this.testNavigation = new GuardTestNavigation(this);
+            }
+            return this.testNavigation;
         }
 
         @Override
@@ -17138,7 +17245,7 @@ public final class GameplayParityGameTests {
         }
 
         protected GuardTestNavigation guardNavigation() {
-            return (GuardTestNavigation) this.getNavigation();
+            return (GuardTestNavigation) this.getShipNavigate();
         }
 
         protected boolean hasMeleeGoal() {
@@ -17151,34 +17258,36 @@ public final class GameplayParityGameTests {
         }
     }
 
-    private static final class GuardTestNavigation extends GroundPathNavigation {
+    private static final class GuardTestNavigation extends ShipPathNavigate {
+        private final Mob mob;
         private int requests;
         private Vec3 destination;
         private double requestedSpeed;
         private boolean succeeds = true;
 
-        private GuardTestNavigation(Mob mob, Level level) {
-            super(mob, level);
+        private GuardTestNavigation(Mob mob) {
+            super(mob);
+            this.mob = mob;
         }
 
         @Override
-        public boolean moveTo(Entity entity, double speed) {
-            return this.moveTo(entity.getX(), entity.getY(), entity.getZ(), speed);
+        public boolean tryMoveToEntityLiving(Entity entity, double speed) {
+            return this.tryMoveToXYZ(entity.getX(), entity.getY(), entity.getZ(), speed);
         }
 
         @Override
-        public boolean moveTo(double x, double y, double z, double speed) {
+        public boolean tryMoveToXYZ(double x, double y, double z, double speed) {
             this.requests++;
             this.destination = new Vec3(x, y, z);
             this.requestedSpeed = speed;
             if (!this.succeeds) {
-                this.stop();
+                this.clearPathEntity();
                 return false;
             }
             BlockPos target = BlockPos.containing(x, y, z);
-            this.path = new Path(List.of(new Node(this.mob.getBlockX(), this.mob.getBlockY(), this.mob.getBlockZ()),
-                    new Node(target.getX(), target.getY(), target.getZ())), target, true);
-            return true;
+            return this.setPath(new ShipPath(new ShipPathPoint[]{
+                    new ShipPathPoint(this.mob.getBlockX(), this.mob.getBlockY(), this.mob.getBlockZ()),
+                    new ShipPathPoint(target.getX(), target.getY(), target.getZ())}), speed);
         }
     }
 
