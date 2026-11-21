@@ -1,5 +1,22 @@
 # 迁移变更索引
 
+## 九批 parity 集成收尾
+
+`devin/parity-fix-integration` 的当前快照/最终 merge SHA 见 [CURRENT_STATE.md](CURRENT_STATE.md)，最终结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
+
+九个批次入口：
+[ship-core](migration_batches/2026-11-22-parity-fix-ship-core/) ·
+[combat-projectile](migration_batches/2026-11-22-parity-fix-combat-projectile/) ·
+[ai-movement](migration_batches/2026-11-22-parity-fix-ai-movement/) ·
+[ship-variants](migration_batches/2026-11-22-parity-fix-ship-variants/) ·
+[menu-network-command](migration_batches/2026-11-22-parity-fix-menu-network-command/) ·
+[client](migration_batches/2026-11-22-parity-fix-client/) ·
+[items-blocks](migration_batches/2026-11-22-parity-fix-items-blocks/) ·
+[crafting-world-config](migration_batches/2026-11-22-parity-fix-crafting-world-config/) ·
+[teitoku-morph-skill](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/)。
+
+下方保留各专题历史记录；不替代上述集成验证。
+
 ## 2026-11-22 客户端还原与文档收尾
 
 详见 [批次导航](migration_batches/2026-11-22-parity-fix-client/)、[批次决定](migration_batches/2026-11-22-parity-fix-client/decision.md) 与 [验收证据](migration_batches/2026-11-22-parity-fix-client/results/README.md)。本索引不复制具体结论。
