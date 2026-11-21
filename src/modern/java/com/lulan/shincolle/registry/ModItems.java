@@ -82,7 +82,7 @@ public final class ModItems {
     public static final RegistryObject<Item> MARRIAGERING = ITEMS.register("marriagering",
             () -> new MarriageRingItem(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> MODERNKIT = ITEMS.register("modernkit",
-            () -> new ModernKitItem(new Item.Properties().stacksTo(1)));
+            () -> new ModernKitItem(new Item.Properties()));
     public static final RegistryObject<Item> OWNERPAPER = ITEMS.register("ownerpaper",
             () -> new OwnerPaperItem(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> OPTOOL = ITEMS.register("optool",
@@ -111,7 +111,7 @@ public final class ModItems {
     public static final RegistryObject<Item> TOYAIRPLANE = shipSupportItem("toyairplane",
             "gui.shincolle.ship_support.toyairplane", "gui.shincolle.ship_support.use");
     public static final RegistryObject<Item> TRAININGBOOK = ITEMS.register("trainingbook",
-            () -> new TrainingBookItem(new Item.Properties().stacksTo(1)));
+            () -> new TrainingBookItem(new Item.Properties()));
     public static final List<RegistryObject<Item>> EQUIPAIRPLANE_DISPLAY_ITEMS = orderedEquipmentItems(LegacyEquipmentFamily.AIRPLANE, EQUIPAIRPLANE_ITEMS);
     public static final List<RegistryObject<Item>> EQUIPAMMO_DISPLAY_ITEMS = orderedEquipmentItems(LegacyEquipmentFamily.AMMO, EQUIPAMMO_ITEMS);
     public static final List<RegistryObject<Item>> EQUIPARMOR_DISPLAY_ITEMS = orderedEquipmentItems(LegacyEquipmentFamily.ARMOR, EQUIPARMOR_ITEMS);

@@ -3457,15 +3457,12 @@ public class LegacyShipEntity extends PathfinderMob {
             return false;
         }
 
+        this.hurt(player.damageSources().playerAttack(player), this.getMaxHealth() * 1.1F);
+
         if (!player.getAbilities().instabuild) {
             hammer.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(InteractionHand.MAIN_HAND));
         }
 
-        this.invulnerableTime = 0;
-        super.hurt(player.damageSources().playerAttack(player), Math.max(10000.0F, this.getMaxHealth() * 1.1F));
-        if (this.isAlive()) {
-            this.kill();
-        }
         return true;
     }
 
@@ -3478,12 +3475,13 @@ public class LegacyShipEntity extends PathfinderMob {
             hammer.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(InteractionHand.MAIN_HAND));
         }
 
-        this.dropShipInventoryContents();
-        for (ItemStack drop : LegacyShipBehaviorCatalog.createLegacyKaitaiDrops(
-                this.getSpec(),
-                this.isLegacyRaiden(),
-                this.random)) {
-            this.spawnAtLocation(drop);
+        if (!player.getAbilities().instabuild) {
+            this.dropShipInventoryContents();
+            for (ItemStack drop : LegacyShipBehaviorCatalog.createLegacyKaitaiDrops(
+                    this.getSpec(), this.isLegacyRaiden(), this.random)) {
+                this.spawnAtLocation(drop);
+            }
+            this.playSound(ModSoundEvents.SHIP_KAITAI.get(), 0.8F, this.getVoicePitch());
         }
         CombatFxDispatcher.sendLegacyEmotion(this, 8);
         for (LegacyShipEntity nearby : this.level().getEntitiesOfClass(LegacyShipEntity.class, this.getBoundingBox().inflate(10.0D))) {
@@ -3496,7 +3494,6 @@ public class LegacyShipEntity extends PathfinderMob {
             TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
         }
         this.resetOwnershipBoundState();
-        this.playSound(ModSoundEvents.SHIP_KAITAI.get(), 0.8F, this.getVoicePitch());
         this.discard();
         return true;
     }
@@ -5281,7 +5278,7 @@ public class LegacyShipEntity extends PathfinderMob {
             }
 
             this.addMorale(ration.getMoraleValue());
-            this.addGrudge(ration.rollGrudge(this.random));
+            this.addGrudge((int) (ration.rollGrudge(this.random) * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
             this.addFoodSaturation(4);
             if (ration.clearsDebuffs()) {
                 this.clearNegativeEffects();
@@ -5824,7 +5821,7 @@ public class LegacyShipEntity extends PathfinderMob {
             }
 
             this.setOwner(targetSigner.uuid(), targetSigner.name(), targetSigner.uid());
-            this.consumeHeldItem(player, hand, 1);
+            player.setItemInHand(hand, ItemStack.EMPTY);
             this.setEmotion(2);
             this.playInteractionVoice(player, ShipSoundType.MARRY, 0.6F);
             player.displayClientMessage(Component.translatable("chat.shincolle.ship.ownerpaper_transfer",
@@ -5900,7 +5897,7 @@ public class LegacyShipEntity extends PathfinderMob {
 
     private void feedCombatRation(Player player, InteractionHand hand, ItemStack stack, CombatRationItem ration) {
         this.addMorale(ration.getMoraleValue());
-        this.addGrudge(ration.rollGrudge(this.random));
+        this.addGrudge((int) (ration.rollGrudge(this.random) * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
         this.addFoodSaturation(4);
         if (ration.clearsDebuffs()) {
             this.clearNegativeEffects();
@@ -5958,9 +5955,18 @@ public class LegacyShipEntity extends PathfinderMob {
             consumed = true;
         } else if (stack.is(ModItems.ABYSSMETAL1.get())) {
             moraleGain = 30 + this.random.nextInt(31);
+            if (this.attackProfile.hasAirAttack() && LegacyShipBehaviorCatalog.managesAircraftInventory(this.getSpec())
+                    && this.random.nextInt(10) > 4) {
+                this.setAircraftLight(this.getAircraftLight() + 1);
+                this.setAircraftHeavy(this.getAircraftHeavy() + 1);
+            }
             consumed = true;
         } else if (stack.is(ModItems.TOYAIRPLANE.get())) {
             moraleGain = 150 + this.random.nextInt(151);
+            if (this.attackProfile.hasAirAttack() && LegacyShipBehaviorCatalog.managesAircraftInventory(this.getSpec())) {
+                this.setAircraftLight(this.getAircraftLight() + this.random.nextInt(3) + 1);
+                this.setAircraftHeavy(this.getAircraftHeavy() + this.random.nextInt(3) + 1);
+            }
             consumed = true;
         } else if (stack.is(Items.POTION)) {
             moraleGain = -100;
@@ -5987,9 +5993,9 @@ public class LegacyShipEntity extends PathfinderMob {
         }
 
         this.addMorale(moraleGain);
-        this.addGrudge(grudgeGain);
-        this.addLightAmmo(lightAmmoGain);
-        this.addHeavyAmmo(heavyAmmoGain);
+        this.addGrudge((int) (grudgeGain * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));
+        this.addLightAmmo((int) (lightAmmoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO)));
+        this.addHeavyAmmo((int) (heavyAmmoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO)));
         this.addFoodSaturation(1);
         this.consumeHeldItem(player, hand, 1);
         this.playInteractionVoice(player, ShipSoundType.FEED, 0.65F);

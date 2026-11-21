@@ -2,6 +2,7 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -54,6 +55,8 @@ public class BucketRepairItem extends Item {
                     stack.shrink(1);
                 }
                 player.heal(player.getMaxHealth() * 0.1F + 2.0F);
+                profile.replenishAircraft();
+                TeitokuHelper.syncGameplayState(player);
             }
         }
 

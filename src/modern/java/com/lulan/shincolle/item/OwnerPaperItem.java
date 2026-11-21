@@ -94,10 +94,8 @@ public class OwnerPaperItem extends Item {
         int targetUid;
         if (signerA == currentOwnerUid) {
             targetUid = signerB;
-        } else if (signerB == currentOwnerUid) {
-            targetUid = signerA;
         } else {
-            return Optional.empty();
+            targetUid = signerA;
         }
 
         for (ServerPlayer onlinePlayer : level.getServer().getPlayerList().getPlayers()) {

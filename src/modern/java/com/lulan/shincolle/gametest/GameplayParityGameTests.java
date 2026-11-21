@@ -713,6 +713,192 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+
+    @GameTest(template = "empty")
+    public static void morphSupportItemsKeepLegacyLimitsAndAircraft(GameTestHelper helper) {
+        if (new ItemStack(ModItems.MODERNKIT.get()).getMaxStackSize() != 64
+                || new ItemStack(ModItems.TRAININGBOOK.get()).getMaxStackSize() != 64) {
+            helper.fail("modernization kits and training books must retain the legacy default stack size");
+            return;
+        }
+        ShinColleConfig.setTestOverride("modernLimit", 5);
+        try {
+            MorphProfile modern = new MorphProfile(58);
+            for (int i = 0; i < 30; i++) {
+                if (!modern.addRandomModernization(RandomSource.create(i))) {
+                    helper.fail("morph modernization must honor the configured per-attribute limit");
+                    return;
+                }
+            }
+            if (modern.addRandomModernization(RandomSource.create())
+                    || modern.copy().getModernizationCount() != 30) {
+                helper.fail("full modernization must reject further kits and survive save/load above three steps");
+                return;
+            }
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
+
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyMorphItems");
+        player.getAbilities().instabuild = false;
+        int carrierClass = ShipEntitySpecs.getByEggMeta(14).legacyClassId();
+        if (!configureTeitoku(helper, player, data -> {
+            data.unlockMorph(carrierClass);
+            data.setSelectedMorphProfile(carrierClass);
+            data.setMorphActive(true);
+        })) return;
+        MorphProfile profile = MorphHelper.getActiveProfile(player);
+        if (profile == null) {
+            helper.fail("active morph profile must be available");
+            return;
+        }
+        profile.setLevel(100);
+        ItemStack books = new ItemStack(ModItems.TRAININGBOOK.get(), 2);
+        books.getItem().finishUsingItem(books, helper.getLevel(), player);
+        if (profile.getLevel() < 105 || profile.getLevel() > 110 || books.getCount() != 1
+                || profile.copy().getLevel() != profile.getLevel()) {
+            helper.fail("unmarried morph training must advance beyond 100 and preserve the trained level");
+            return;
+        }
+        profile.setLevel(150);
+        books.getItem().finishUsingItem(books, helper.getLevel(), player);
+        if (books.getCount() != 1) {
+            helper.fail("training at 150 must not consume a book");
+            return;
+        }
+        ItemStack bucket = new ItemStack(ModItems.BUCKETREPAIR.get(), 2);
+        player.setHealth(5F);
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || profile.getAircraftLight() != 1 || profile.getAircraftHeavy() != 1
+                || profile.copy().getAircraftLight() != 1 || player.getHealth() <= 5F) {
+            helper.fail("repairing a carrier morph must restore health and one of each aircraft");
+            return;
+        }
+        player.setHealth(player.getMaxHealth());
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || profile.getAircraftLight() != 1) {
+            helper.fail("full-health morphs must not consume repair buckets or gain aircraft");
+            return;
+        }
+        profile.setGrudge(0);
+        var ration = (com.lulan.shincolle.item.CombatRationItem) ModItems.COMBATRATION.get();
+        int expectedGrudge = (int) (ration.rollGrudge(RandomSource.create(712L))
+                * profile.buildStats(player.getActiveEffects()).get(LegacyShipStatTables.Attr.GRUDGE));
+        player.getRandom().setSeed(712L);
+        ItemStack morphRation = new ItemStack(ration, 2);
+        ration.finishUsingItem(morphRation, helper.getLevel(), player);
+        if (profile.getGrudge() != expectedGrudge || morphRation.getCount() != 1) {
+            helper.fail("morph rations must multiply grudge gains by the buffed resource attribute");
+            return;
+        }
+        TeitokuHelper.get(player).ifPresent(data -> data.setMorphActive(false));
+        player.setHealth(5F);
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || player.getHealth() != 5F) {
+            helper.fail("repair buckets must not work without an active morph");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void feedingUsesBuffedResourcesAndRestoresCarrierAircraft(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyFeeding");
+        player.getAbilities().instabuild = false;
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 14, pos.getX(), pos.getY(), pos.getZ());
+        if (ship == null) return;
+        Item[] supplies = {ModItems.GRUDGE.get(), ModItems.AMMO.get(), ModItems.AMMO2.get(), ModItems.COMBATRATION.get()};
+        for (int i = 0; i < supplies.length; i++) {
+            ship.setFoodSaturation(0);
+            ship.setGrudge(0);
+            ship.setLightAmmo(0);
+            ship.setHeavyAmmo(0);
+            ship.setMorale(1600);
+            long seed = 812L + i;
+            RandomSource expectedRandom = RandomSource.create(seed);
+            int raw;
+            if (i == 3) {
+                raw = ((com.lulan.shincolle.item.CombatRationItem) supplies[i]).rollGrudge(expectedRandom);
+            } else {
+                expectedRandom.nextInt(i == 0 ? 11 : 6);
+                raw = i == 0 ? 300 + expectedRandom.nextInt(500)
+                        : i == 1 ? 30 + expectedRandom.nextInt(10) : 15 + expectedRandom.nextInt(5);
+            }
+            ship.getRandom().setSeed(seed);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(supplies[i]));
+            ship.mobInteract(player, InteractionHand.MAIN_HAND);
+            int expected = (int) (raw * ship.getLegacyStats().get(
+                    i == 0 || i == 3 ? LegacyShipStatTables.Attr.GRUDGE : LegacyShipStatTables.Attr.AMMO));
+            int actual = i == 0 || i == 3 ? ship.getGrudge() : i == 1 ? ship.getLightAmmo() : ship.getHeavyAmmo();
+            if (actual != expected) {
+                helper.fail("manual feeding must multiply resource gains by the buffed resource attribute");
+                return;
+            }
+        }
+        ship.setFoodSaturation(0);
+        ship.setAircraftLight(0);
+        ship.setAircraftHeavy(0);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TOYAIRPLANE.get()));
+        ship.mobInteract(player, InteractionHand.MAIN_HAND);
+        if (ship.getAircraftLight() < 1 || ship.getAircraftLight() > 3
+                || ship.getAircraftHeavy() < 1 || ship.getAircraftHeavy() > 3) {
+            helper.fail("toy airplanes must restore independently rolled carrier aircraft");
+            return;
+        }
+        for (long seed = 0; seed < 10; seed++) {
+            ship.setFoodSaturation(0);
+            ship.setAircraftLight(0);
+            ship.setAircraftHeavy(0);
+            RandomSource expected = RandomSource.create(seed);
+            expected.nextInt(31);
+            int gain = expected.nextInt(10) > 4 ? 1 : 0;
+            ship.getRandom().setSeed(seed);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.ABYSSMETAL1.get()));
+            ship.mobInteract(player, InteractionHand.MAIN_HAND);
+            if (ship.getAircraftLight() != gain || ship.getAircraftHeavy() != gain) {
+                helper.fail("polymetal feeding must retain the legacy aircraft-replenishment chance");
+                return;
+            }
+        }
+        ship.setFoodSaturation(ship.getFoodSaturationMax());
+        ItemStack refused = new ItemStack(ModItems.TOYAIRPLANE.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, refused);
+        ship.mobInteract(player, InteractionHand.MAIN_HAND);
+        if (refused.isEmpty()) {
+            helper.fail("a satiated ship must not consume aircraft food");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void kaitaiRespectsDamageRejectionAndCreativeDismantleDropsNothing(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyKaitai");
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 2, pos.getX(), pos.getY(), pos.getZ());
+        if (ship == null) return;
+        player.getAbilities().instabuild = false;
+        ship.setInvulnerable(true);
+        float health = ship.getHealth();
+        ItemStack hammer = new ItemStack(ModItems.KAITAIHAMMER.get());
+        ship.performKaitaiKill(player, hammer);
+        if (!ship.isAlive() || ship.getHealth() != health || hammer.getDamageValue() != 1) {
+            helper.fail("left-click hammer must honor rejected damage while still consuming durability");
+            return;
+        }
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, new ItemStack(Items.DIAMOND));
+        player.getAbilities().instabuild = true;
+        int dropsBefore = helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(4D)).size();
+        ship.performKaitai(player, hammer);
+        int dropsAfter = helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(4D)).size();
+        if (ship.isAlive() || dropsAfter != dropsBefore || hammer.getDamageValue() != 1) {
+            helper.fail("creative dismantling must remove the ship without materials, inventory drops or tool damage");
+            return;
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty")
     public static void morphProfilesPersistAndCycle(GameTestHelper helper) {
         TeitokuData data = new TeitokuData();
@@ -17010,6 +17196,25 @@ public final class GameplayParityGameTests {
                 return;
             }
 
+            LegacyShipEntity unsignedOwnerShip = createOwnedShip(helper, ownerA, 2,
+                    anchor.getX() + 8.5D, anchor.getY(), anchor.getZ() + 0.5D);
+            if (unsignedOwnerShip == null) return;
+            ItemStack thirdPartyPaper = new ItemStack(ModItems.OWNERPAPER.get());
+            thirdPartyPaper.getOrCreateTag().putInt("SignIDA", ownerBUid);
+            thirdPartyPaper.getOrCreateTag().putInt("SignIDB", ownerAUid + ownerBUid + 10000);
+            ownerA.getAbilities().instabuild = true;
+            ownerA.setShiftKeyDown(true);
+            ownerA.setItemInHand(InteractionHand.MAIN_HAND, thirdPartyPaper);
+            unsignedOwnerShip.mobInteract(ownerA, InteractionHand.MAIN_HAND);
+            ownerA.setShiftKeyDown(false);
+            ownerA.getAbilities().instabuild = false;
+            if (!unsignedOwnerShip.isOwnedBy(ownerB) || !ownerA.getMainHandItem().isEmpty()
+                    || unsignedOwnerShip.getEmotion() != 2) {
+                helper.fail("unsigned owners may transfer to signer A; creative transfer must consume the paper and keep T_T emotion");
+                return;
+            }
+            unsignedOwnerShip.discard();
+
             ShinColleConfig.setTestOverride("kaitaiAmountSmall", 20);
             ShinColleConfig.setTestOverride("kaitaiAmountLarge", 20);
             ShinColleConfig.setTestOverride("easyMode", false);
@@ -17049,6 +17254,7 @@ public final class GameplayParityGameTests {
                 return;
             }
 
+            killShip.setHealth(1F);
             ModItems.KAITAIHAMMER.get().onLeftClickEntity(hammer, ownerB, killShip);
             if (killShip.isAlive()) {
                 helper.fail("KaitaiHammer left-click should perform one-hit kill recovery");
@@ -18381,6 +18587,7 @@ public final class GameplayParityGameTests {
             helper.fail("recovered ship should have spawned");
             return;
         }
+        spawned.setOwner(UUID.randomUUID(), "OtherRationOwner", 91001);
         spawned.setShipFuel(100);
         ItemStack ration = new ItemStack(ModItems.COMBATRATION.get());
         owner.setItemInHand(InteractionHand.MAIN_HAND, ration);
@@ -18390,7 +18597,7 @@ public final class GameplayParityGameTests {
             ration.inventoryTick(level, owner, owner.getInventory().selected, true);
         }
         if (spawned.getEmotion() != 3) {
-            helper.fail("held CombatRation should attract owned ship and set emotion=3 (got "
+            helper.fail("held CombatRation should attract a different owner's ship and set emotion=3 (got "
                     + spawned.getEmotion() + ")");
             spawned.discard();
             return;
