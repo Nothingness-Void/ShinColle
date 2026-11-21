@@ -3,7 +3,6 @@ package com.lulan.shincolle.network;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
@@ -125,7 +124,6 @@ public final class GameplayCommandHandler {
                 MorphProfile profile = data.getSelectedMorphProfile();
                 if (profile != null) profile.applyGuiButton(payload.getInt("Button"), payload.getInt("Value"));
             });
-            case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
             case MORPH_ADD_LIGHT_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_LIGHT_AMMO);
             case MORPH_ADD_HEAVY_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_HEAVY_AMMO);
             case MORPH_ADD_GRUDGE -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_GRUDGE);
@@ -195,29 +193,31 @@ public final class GameplayCommandHandler {
     }
 
     private static void handleAssignShip(ServerPlayer player, CompoundTag payload) {
-        int slot = Mth.clamp(payload.getInt(TAG_SLOT), 0, TeitokuData.TEAM_SIZE - 1);
         boolean hasShipUid = payload.contains(TAG_SHIP_UID);
         int shipUid = hasShipUid ? payload.getInt(TAG_SHIP_UID) : 0;
         if (hasShipUid && shipUid <= 0) {
-            TeitokuHelper.assignShipToCurrentTeam(player, slot, -1);
+            TeitokuHelper.assignShipToCurrentTeam(player, 0, -1);
             return;
         }
 
         LegacyShipEntity ship = null;
-        if (player.level().getEntity(payload.getInt(TAG_SHIP_ID)) instanceof LegacyShipEntity byId
-                && byId.canCommanderEdit(player)) {
+        if (player.level().getEntity(payload.getInt(TAG_SHIP_ID)) instanceof LegacyShipEntity byId) {
             ship = byId;
         }
 
         if (ship == null && shipUid > 0) {
-            ship = TeitokuHelper.findOwnedShipByUid(player, shipUid);
+            ship = TeitokuHelper.findShipByUid(player, shipUid);
         }
 
         if (ship != null) {
             shipUid = ship.getShipUid();
         }
 
-        TeitokuHelper.assignShipToCurrentTeam(player, slot, shipUid);
+        if (ship != null) {
+            TeitokuHelper.assignShipToCurrentTeam(player, 0, shipUid);
+        } else {
+            TeitokuHelper.assignShipToCurrentTeam(player, 0, -1);
+        }
     }
 
     private static void handleSwapTeamSlots(ServerPlayer player, CompoundTag payload) {
@@ -302,12 +302,6 @@ public final class GameplayCommandHandler {
                                 new DeskMenu(containerId, inventory, player.blockPosition(), selectedFunction),
                         Component.translatable("block.shincolle.blockdesk")),
                 buffer -> DeskMenu.writeOpeningData(buffer, player.blockPosition(), selectedFunction));
-    }
-
-    private static void handleMorphToggleMount(ServerPlayer player) {
-        if (MorphHelper.toggleMount(player)) {
-            TeitokuHelper.syncGameplayState(player);
-        }
     }
 
     private static void handleMorphSupply(ServerPlayer player, GameplayCommandType commandType) {
@@ -594,8 +588,6 @@ public final class GameplayCommandHandler {
             if (host != null && !host.isHostileVariant() && host.isOwnedBy(player)) {
                 shipMount.applyLegacyMountMove(keyMask);
             }
-        } else if (player.getVehicle() instanceof LegacyMountEntity mount && mount.isOwnedBy(player)) {
-            mount.applyLegacyMountMove(keyMask);
         }
     }
 

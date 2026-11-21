@@ -51,6 +51,7 @@
 - `ConfigHandler.polyAsMn` 的默认 `false` 静态包契约不变（不改动 `data/forge/tags/items/` 静态 JSON），运行时由 `PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 承担动态切换；`SystemConfig` 随 `TeitokuHelper` 状态包向客户端同步。
 - 1.12.2 外置依赖按 1.20.1 原生能力与零编译期强依赖原则收口：Metamorph 使用原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge`；Curios 仅通过 `ModList` + 反射触发结婚戒指佩戴槽周期效果。
 - **已撤销（2026-11-22 parity-fix-items-blocks）**：原“IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代”决定，见 [方块与物品纠偏批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。此撤销仅针对该替代决定，不撤销上述 Metamorph／Curios 边界。
+- **部分已撤销（D-018）**：原生替代 Metamorph 本身保留；将该替代解释为许可保留 Morph 专属坐骑/Shift+G、扳手自动选中、玩家全额舰娘HP或额外移动/攻击/追踪/击退属性、玩家骑舰娘宿主或 Morph 专属坐骑宿主的范围，现明确撤销。D-011 原文未逐项批准这些行为，不将旧实现误说成已经有逐条语义依据。旧 B6“morph HP公式经核对保持不变”的结论亦已撤销，详见 [本批次决定](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)。
 - 40 个仅存在于 `ID.java` 的历史名称（含 `Raiden` 作为合体形态而非独立注册实体）继续按 D-009 保持 `HISTORICAL_SOURCE_GAP` 记录，不虚构实现。详细证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)。
 
 ## D-012：已撤销现代士气阈值和独立舰娘燃料
@@ -114,3 +115,26 @@ D-011 中 Metamorph 原生承载/空桥若被解释为已提供完整外部选�
 - 已撤销：普通敌舰写死 50/10/1 且每组 1 只、护卫沿用 20% 精英的做法。
 - 已撤销：旧版不存在的 10 个 progression advancements 与 `shincolle:friendly_ship_deployed` 触发器，已删除。
 - 详细证据见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)。
+
+<a id="d-018"></a>
+## D-018：Teitoku / Morph / 玩家技能与编队严格回归旧版
+
+- 状态：有效。D-001 的语义真源约束优先于早期“原生等价/完整闭环/100% parity”等未覆盖本批边界的概括。
+- **保留** D-011 的原生 Metamorph 替代技术方案；**撤销**以此为理由添加或保留无旧版依据的游戏规则。Morph 专属坐骑及入口删除；普通舰娘坐骑、共享资源和原生 Morph 能力仍保留。
+- UID分配从100开始且<100无效；现代 profile 的合法 classId=0 不得兼作空值，无选择统一-1并有明确旧存档迁移边界。不能因“UID数字0无效”推论“舰种classId0无效”。
+- owner UID 相等不等于团队/指挥编辑权限。技能宿主只允许旧三类及旧顺序；原生 Morph 技能配置不应误封普通坐骑/乘客技能。
+- 指挥棒9×6编队允许跨队伍同舰；加入/切换/删除按当前队伍和旧游标语义执行，不增加全队去重或生命周期全队清理。此处不是多人阵营 TeamSavedData，不撤销B3的阵营冷却/同盟规则。
+- 戒指状态、周期任务和 chunk-loader 范围/生命周期按旧版；Forge API不可用时用实际47.4.18提供的票据API最小适配，不创造新配置。
+- 已检索 D-001..D-011 及历史批次 decision 的 UID初值/宿主/编队/Morph/坐骑/HP相关条目：未发现单独批准“UID从1”或“全队去重”的决定。这两者作为错误旧实现撤销，不杜撰旧D编号。B2宿主扩展/专属坐骑、B6 HP不变、B1 Morph完整parity及REAUDIT专属坐骑保留前提已在原记录标记撤销。
+- 删除 MORPH_TOGGLE_MOUNT 枚举项后，不再承诺与旧现代版本的命令序号兼容；旧B2追加枚举保序的概括不能当作本批跨版本互通保证。客户端与服务端须同步更新；不额外承诺旧原生专属坐骑实体迁移。
+- [完整13项结论/旧版依据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)、[精确证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/README.md)、[未验证边界](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md#validation-limits)。不以服务端全绿声称视觉、Curios联机或真实重启已验收。
+
+### 九批集成的重复实现归并
+
+- 决定编号保持唯一：菜单/网络/指令为 D-015，客户端为 D-016，crafting/world/config 为 D-017，Teitoku/Morph/技能为 D-018；各专题原先碰撞的编号不覆盖 D-012～D-014，引用随编号更新。
+- FollowMin/FollowMax 只有一套字段、NBT `FMin/FMax`、同步和运行时路径，默认 3/12，起重机设值 2 可保存/同步；断粮继续使用旧怨念语义，不恢复独立 ShipFuel。
+- 起重机扫描、工作循环、菜单共用同一作业舰；CraneTime 只在工作态递增并于完成清零。船厂/VolCore 同名旧配置只保留一套字段和读取，不恢复 RouteEnergyAccess。
+- 扳手方块选择只保留客户端单例内存与配对包；获取变身须同 owner UID，获取/重复获取均不选择或激活。MorphProfile 的修复桶/喂食舰载机计数保留，但不解释为已接入航空攻击。
+- DeskScreen 是唯一桌面入口；被删除 DeskReferenceScreen 的 incoming 修改只是现代附录的两句行为说明，没有旧 GuiDesk 对应内容，不迁移现代附录。保留旧三页变身背包、旧技能 HUD 与文字粒子；增加女神粒子不回退为简化覆盖层。
+- 删除 Morph-only 实体/注册/渲染器/命令以及残留模型、OpTool 引用；普通舰娘坐骑和共享 LegacyMountControls 保留。不恢复 D-016 已撤销的激活开关/档案切换，外部激活入口仍未接入。
+- 自创进度/trigger 维持删除；此前合法的舰种、战斗、AI、客户端和机器行为不因最后批次而回退。具体集成过程与证据见 [最终批次结果](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)。

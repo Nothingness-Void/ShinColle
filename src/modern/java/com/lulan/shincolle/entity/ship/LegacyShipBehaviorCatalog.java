@@ -4,7 +4,7 @@ import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.client.GameplayClientEffects;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyMountControls;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.other.LegacyShipFishingHookEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
@@ -259,28 +259,28 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static final ShipMountProfile AIRFIELD_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_AIRFIELD, 1.9F, 1.3F,
+            LegacyMountControls.STYLE_AIRFIELD, 1.9F, 1.3F,
             0.59D, -0.25D, 0.0D, -0.85D, 1.0D, -1.12D, true);
     private static final ShipMountProfile BATTLESHIP_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_BATTLESHIP, 1.9F, 3.1F,
+            LegacyMountControls.STYLE_BATTLESHIP, 1.9F, 3.1F,
             1.05D, 2.6D, 0.0D, 1.2D, 0.7D, -1.3D, false);
     private static final ShipMountProfile HARBOUR_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_HARBOUR, 1.9F, 1.6F,
+            LegacyMountControls.STYLE_HARBOUR, 1.9F, 1.6F,
             0.0D, -0.29D, 0.0D, -1.5D, 1.06D, 0.44D, true);
     private static final ShipMountProfile ISOLATED_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_ISOLATED, 1.6F, 2.2F,
+            LegacyMountControls.STYLE_ISOLATED, 1.6F, 2.2F,
             -0.32D, 1.0D, 0.0D, 0.61D, 0.28D, 0.0D, true);
     private static final ShipMountProfile MIDWAY_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_MIDWAY, 2.5F, 2.9F,
+            LegacyMountControls.STYLE_MIDWAY, 2.5F, 2.9F,
             0.0D, 2.0D, 0.0D, -0.3D, 0.5D, 0.0D, true);
     private static final ShipMountProfile CARRIER_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_CARRIER, 1.9F, 2.1F,
+            LegacyMountControls.STYLE_CARRIER, 1.9F, 2.1F,
             0.0D, 1.12D, 0.0D, 0.14D, -0.39D, 0.0D, true);
     private static final ShipMountProfile CARRIER_WD_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_CARRIER_WD, 1.9F, 2.1F,
+            LegacyMountControls.STYLE_CARRIER_WD, 1.9F, 2.1F,
             0.25D, 1.1D, 0.0D, 0.14D, -0.39D, 0.0D, true);
     private static final ShipMountProfile SUBMARINE_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_SUBMARINE, 1.8F, 1.6F,
+            LegacyMountControls.STYLE_SUBMARINE, 1.8F, 1.6F,
             -0.8D, 0.6D, 0.0D, 0.55D, 1.2D, 0.0D, false);
 
     private LegacyShipBehaviorCatalog() {

@@ -80,14 +80,14 @@ public final class LegacyShipMountEntity extends Entity {
     @Override
     protected void defineSynchedData() {
         this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_MOUNT_STYLE, LegacyMountEntity.STYLE_BATTLESHIP);
+        this.entityData.define(DATA_MOUNT_STYLE, LegacyMountControls.STYLE_BATTLESHIP);
     }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.setHostId(tag.getInt(HOST_ID_TAG));
         this.setMountStyle(tag.contains(MOUNT_STYLE_TAG)
-                ? tag.getInt(MOUNT_STYLE_TAG) : LegacyMountEntity.STYLE_BATTLESHIP);
+                ? tag.getInt(MOUNT_STYLE_TAG) : LegacyMountControls.STYLE_BATTLESHIP);
     }
 
     @Override
@@ -138,9 +138,9 @@ public final class LegacyShipMountEntity extends Entity {
             this.yRotO = this.getYRot();
             double speed = Mth.clamp((0.4D + host.getLegacyStats().moveSpeed() * 0.2D)
                     * host.getCombatMovementSpeedModifier(), 0.2D, 0.8D);
-            Vec3 movement = LegacyMountEntity.resolveKeyMovement(steeringPlayer, this.keyPressed, speed, true);
+            Vec3 movement = LegacyMountControls.resolveKeyMovement(steeringPlayer, this.keyPressed, speed, true);
             if (movement.y == 0.0D) {
-                double buoyancy = LegacyMountEntity.resolveWaterSurfaceBuoyancy(this);
+                double buoyancy = LegacyMountControls.resolveWaterSurfaceBuoyancy(this);
                 if (buoyancy > 0.0D) {
                     movement = movement.add(0.0D, buoyancy, 0.0D);
                 }
@@ -183,7 +183,7 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     private void applyIdleWaterBuoyancy() {
-        double buoyancy = LegacyMountEntity.resolveWaterSurfaceBuoyancy(this);
+        double buoyancy = LegacyMountControls.resolveWaterSurfaceBuoyancy(this);
         if (buoyancy > 0.0D) {
             Vec3 floatMotion = new Vec3(0.0D, buoyancy, 0.0D);
             this.setDeltaMovement(floatMotion);
@@ -250,19 +250,19 @@ public final class LegacyShipMountEntity extends Entity {
 
     private void spawnClientParticles() {
         int style = this.getMountStyle();
-        if (style == LegacyMountEntity.STYLE_AIRFIELD && (this.tickCount & 7) == 0) {
+        if (style == LegacyMountControls.STYLE_AIRFIELD && (this.tickCount & 7) == 0) {
             this.spawnSmoke(-0.0D, 0.9D, -1.0D);
             this.spawnSmoke(-0.0D, 0.9D, -1.8D);
-        } else if (style == LegacyMountEntity.STYLE_BATTLESHIP && (this.tickCount & 3) == 0) {
+        } else if (style == LegacyMountControls.STYLE_BATTLESHIP && (this.tickCount & 3) == 0) {
             this.level().addParticle(net.minecraft.core.particles.ParticleTypes.SMOKE,
                     this.getX(), this.getY() + 3.0D, this.getZ(), 0.0D, 0.03D, 0.0D);
-        } else if (style == LegacyMountEntity.STYLE_HARBOUR && (this.tickCount & 15) == 0) {
+        } else if (style == LegacyMountControls.STYLE_HARBOUR && (this.tickCount & 15) == 0) {
             this.level().addParticle(net.minecraft.core.particles.ParticleTypes.CRIT,
                     this.getX(), this.getY() + 0.4D, this.getZ(), 0.0D, 0.05D, 0.0D);
-        } else if (style == LegacyMountEntity.STYLE_ISOLATED && (this.tickCount & 7) == 0) {
+        } else if (style == LegacyMountControls.STYLE_ISOLATED && (this.tickCount & 7) == 0) {
             this.level().addParticle(net.minecraft.core.particles.ParticleTypes.DRIPPING_WATER,
                     this.getX() + 0.4D, this.getY() + 0.7D, this.getZ(), 0.0D, 0.0D, 0.0D);
-        } else if (style == LegacyMountEntity.STYLE_MIDWAY && (this.tickCount & 7) == 0) {
+        } else if (style == LegacyMountControls.STYLE_MIDWAY && (this.tickCount & 7) == 0) {
             this.level().addParticle(net.minecraft.core.particles.ParticleTypes.DRIPPING_LAVA,
                     this.getX() + 0.8D, this.getY() + 0.85D, this.getZ(), 0.0D, 0.0D, 0.0D);
         }

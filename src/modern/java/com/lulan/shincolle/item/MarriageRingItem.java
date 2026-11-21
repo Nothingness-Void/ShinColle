@@ -48,9 +48,9 @@ public class MarriageRingItem extends Item {
                     TeitokuHelper.get(serverPlayer).ifPresent(data -> {
                         if (data.isRingFlying()) {
                             serverPlayer.getAbilities().flying = false;
-                            serverPlayer.getAbilities().mayfly = false;
                             data.setRingFlying(false);
                             serverPlayer.onUpdateAbilities();
+                            TeitokuHelper.sync(serverPlayer);
                         }
                     });
                 }

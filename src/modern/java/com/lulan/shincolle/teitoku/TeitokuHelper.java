@@ -4,6 +4,7 @@ import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.item.LegacyEntityItemMarker;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.team.TeamSavedData;
@@ -114,6 +115,7 @@ public final class TeitokuHelper {
     public static CompoundTag buildGameplayStateTag(ServerLevel level, Player player) {
         CompoundTag payload = new CompoundTag();
         get(player).ifPresent(teitokuData -> payload.put(TEITOKU_PAYLOAD_TAG, teitokuData.saveToTag(new CompoundTag())));
+        get(player).ifPresent(teitokuData -> payload.putBoolean("ShipIdsInitialized", teitokuData.areShipIdsInitialized()));
 
         TeamSavedData teamSavedData = TeamSavedData.get(level);
         ListTag teamList = new ListTag();
@@ -150,6 +152,7 @@ public final class TeitokuHelper {
     public static void applyClientState(Player player, CompoundTag payload) {
         if (payload.contains(TEITOKU_PAYLOAD_TAG, Tag.TAG_COMPOUND)) {
             get(player).ifPresent(data -> data.loadFromTag(payload.getCompound(TEITOKU_PAYLOAD_TAG)));
+            get(player).ifPresent(data -> data.setShipIdsInitialized(payload.getBoolean("ShipIdsInitialized")));
         }
 
         if (payload.contains(TEAM_LIST_PAYLOAD_TAG, Tag.TAG_LIST)) {
@@ -338,18 +341,13 @@ public final class TeitokuHelper {
 
     public static void markRingState(ServerPlayer player, boolean active) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.setHasRing(true);
             teitokuData.setRingActive(active);
-            if (!active) {
-                teitokuData.setRingFlying(false);
-            }
             sync(player);
         });
     }
 
     public static void incrementMarriageCount(ServerPlayer player) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.setHasRing(true);
             teitokuData.incrementMarriageNum();
             sync(player);
         });
@@ -534,7 +532,14 @@ public final class TeitokuHelper {
 
     public static void assignShipToCurrentTeam(ServerPlayer player, int slot, int shipUid) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.assignCurrentTeamSlot(slot, shipUid);
+            LegacyShipEntity ship = shipUid > 0 ? findShipByUid(player, shipUid) : null;
+            if (shipUid > 0 && ship == null) {
+                return;
+            }
+            if (!teitokuData.addShipEntity(slot, ship, false)) {
+                return;
+            }
+            teitokuData.setFormationId(teitokuData.getCurrentTeamId(), TeitokuData.DEFAULT_FORMATION_ID);
             syncGameplayState(player);
         });
     }
@@ -623,20 +628,10 @@ public final class TeitokuHelper {
         if (shipUid <= 0) {
             return;
         }
-        removeShipFromAllOnlineTeams(player.server, shipUid);
-    }
-
-    public static void removeShipFromAllOnlineTeams(MinecraftServer server, int shipUid) {
-        if (server == null || shipUid <= 0) {
-            return;
-        }
-
-        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
-            get(online).ifPresent(teitokuData -> {
-                teitokuData.removeShipUidEverywhere(shipUid);
-                syncGameplayState(online);
-            });
-        }
+        get(player).ifPresent(data -> {
+            data.removeShipUidFromCurrentTeam(shipUid);
+            syncGameplayState(player);
+        });
     }
 
     public static void collectCurrentTeamShips(Player player, boolean selectedOnly, List<LegacyShipEntity> output) {
@@ -651,6 +646,11 @@ public final class TeitokuHelper {
     }
 
     public static LegacyShipEntity findOwnedShipByUid(Player player, int shipUid) {
+        LegacyShipEntity ship = findShipByUid(player, shipUid);
+        return ship != null && ship.canCommanderEdit(player) ? ship : null;
+    }
+
+    public static LegacyShipEntity findShipByUid(Player player, int shipUid) {
         if (shipUid <= 0) {
             return null;
         }
@@ -662,7 +662,7 @@ public final class TeitokuHelper {
                 if (dimensionId != null) {
                     ServerLevel cachedLevel = serverPlayer.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
                     if (cachedLevel != null && cachedLevel.getEntity(cached.entityId()) instanceof LegacyShipEntity ship
-                            && ship.getShipUid() == shipUid && ship.canCommanderEdit(player)) {
+                            && ship.getShipUid() == shipUid) {
                         return ship;
                     }
                 }
@@ -672,8 +672,29 @@ public final class TeitokuHelper {
         List<LegacyShipEntity> nearby = player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
                 player.getBoundingBox().inflate(512.0D),
-                ship -> ship.getShipUid() == shipUid && ship.canCommanderEdit(player));
+                ship -> ship.getShipUid() == shipUid);
         return nearby.isEmpty() ? null : nearby.get(0);
+    }
+
+    public static void refreshPointerTeam(ServerPlayer player, TeitokuData data, boolean initialize) {
+        int firstTeam = initialize ? 0 : data.getCurrentTeamId();
+        int lastTeam = initialize ? TeitokuData.TEAM_COUNT : firstTeam + 1;
+        for (int team = firstTeam; team < lastTeam; team++) {
+            for (int slot = 0; slot < TeitokuData.TEAM_SIZE; slot++) {
+                int uid = data.getShipUid(team, slot);
+                LegacyShipEntity ship = findShipByUid(player, uid);
+                if (ship != null) {
+                    refreshShipCache(ship, !ship.isAlive());
+                    if (!initialize && !PlayerSkillHostResolver.sameOwner(player, ship)) {
+                        data.setShipUid(team, slot, -1);
+                        data.setShipSelected(team, slot, false);
+                    }
+                } else if (!initialize && uid <= 0) {
+                    data.setShipUid(team, slot, -1);
+                    data.setShipSelected(team, slot, false);
+                }
+            }
+        }
     }
 
     public static void refreshShipCache(LegacyShipEntity ship, boolean dead) {

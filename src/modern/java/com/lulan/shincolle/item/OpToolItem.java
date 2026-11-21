@@ -1,6 +1,5 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
@@ -19,7 +18,7 @@ import java.util.List;
 public class OpToolItem extends Item {
 
     public static boolean isExcludedTarget(Entity entity) {
-        return entity instanceof LegacyShipEntity || entity instanceof LegacyMountEntity
+        return entity instanceof LegacyShipEntity
                 || entity instanceof LegacyShipMountEntity || entity instanceof LegacyShipAircraftEntity
                 || entity instanceof LegacyShipRensouhouEntity;
     }

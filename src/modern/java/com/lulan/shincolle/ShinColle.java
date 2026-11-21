@@ -9,7 +9,6 @@ import com.lulan.shincolle.client.renderer.entity.LegacyShipFloatingFortRenderer
 import com.lulan.shincolle.client.renderer.entity.LegacyShipProjectileRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipBeamRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipStaticEffectRenderer;
-import com.lulan.shincolle.client.renderer.entity.LegacyMountRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipMountRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipRenderer;
 import com.lulan.shincolle.client.renderer.entity.LegacyShipRensouhouRenderer;
@@ -40,6 +39,7 @@ import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.teitoku.TeitokuEvents;
+import com.lulan.shincolle.world.ShipChunkLoader;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -96,6 +96,7 @@ public class ShinColle {
     }
 
     private void onCommonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(ShipChunkLoader::register);
         LOGGER.info("Initializing ShinColle 1.20.1 port content batch");
     }
 
@@ -136,7 +137,6 @@ public class ShinColle {
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_FLOATING_FORT.get(), LegacyShipFloatingFortRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_AIRCRAFT.get(), LegacyShipAircraftRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_TAKOYAKI.get(), LegacyShipAircraftRenderer::new);
-                EntityRenderers.register(ModEntityTypes.LEGACY_MOUNT.get(), LegacyMountRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_MOUNT.get(), LegacyShipMountRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_RENSOUHOU.get(), LegacyShipRensouhouRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_FISHING_HOOK.get(), LegacyShipFishingHookRenderer::new);

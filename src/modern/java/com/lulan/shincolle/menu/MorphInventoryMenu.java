@@ -7,6 +7,7 @@ import com.lulan.shincolle.entity.ship.ShipEquipmentBehaviorState;
 import com.lulan.shincolle.entity.ship.ShipEquipmentProfile;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
 import com.lulan.shincolle.morph.MorphProfile;
+import com.lulan.shincolle.morph.MorphRuntimeState;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -291,7 +292,7 @@ public class MorphInventoryMenu extends AbstractContainerMenu {
     private static int resolveSelectedClassId(Player player) {
         return TeitokuHelper.get(player)
                 .map(data -> data.getMorphRuntimeState().getSelectedClassId())
-                .orElse(0);
+                .orElse(MorphRuntimeState.NO_SELECTION);
     }
 
     private static int legacyExpNext(int level) {

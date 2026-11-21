@@ -2,7 +2,7 @@ package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.config.ShinColleConfig;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyMountControls;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.item.OpToolItem;
@@ -84,9 +84,7 @@ public final class MorphClientEvents {
             }
 
             while (OPEN_MORPH.consumeClick()) {
-                sendEmptyCommand(player.isShiftKeyDown()
-                        ? GameplayCommandType.MORPH_TOGGLE_MOUNT
-                        : GameplayCommandType.OPEN_MORPH_SCREEN);
+                sendEmptyCommand(GameplayCommandType.OPEN_MORPH_SCREEN);
             }
 
             PlayerSkillRuntimeState runtimeState = TeitokuHelper.get(player)
@@ -269,7 +267,6 @@ public final class MorphClientEvents {
             }
 
             boolean ridingShipMount = player.getVehicle() instanceof LegacyShipMountEntity;
-            boolean ridingMorphMount = player.getVehicle() instanceof LegacyMountEntity;
             boolean carryingOrRidingShip = ridingShipMount
                     || player.getVehicle() instanceof LegacyShipEntity
                     || player.getFirstPassenger() instanceof LegacyShipEntity;
@@ -280,7 +277,7 @@ public final class MorphClientEvents {
                 }
             }
 
-            if (!(ridingShipMount || ridingMorphMount)) {
+            if (!ridingShipMount) {
                 lastMountKeyMask = 0;
                 return;
             }
@@ -288,19 +285,19 @@ public final class MorphClientEvents {
             int keyMask = 0;
             if (minecraft.screen == null) {
                 if (minecraft.options.keyUp.isDown()) {
-                    keyMask |= LegacyMountEntity.KEY_FORWARD;
+                    keyMask |= LegacyMountControls.KEY_FORWARD;
                 }
                 if (minecraft.options.keyDown.isDown()) {
-                    keyMask |= LegacyMountEntity.KEY_BACK;
+                    keyMask |= LegacyMountControls.KEY_BACK;
                 }
                 if (minecraft.options.keyLeft.isDown()) {
-                    keyMask |= LegacyMountEntity.KEY_LEFT;
+                    keyMask |= LegacyMountControls.KEY_LEFT;
                 }
                 if (minecraft.options.keyRight.isDown()) {
-                    keyMask |= LegacyMountEntity.KEY_RIGHT;
+                    keyMask |= LegacyMountControls.KEY_RIGHT;
                 }
                 if (minecraft.options.keyJump.isDown()) {
-                    keyMask |= LegacyMountEntity.KEY_JUMP;
+                    keyMask |= LegacyMountControls.KEY_JUMP;
                 }
             }
 

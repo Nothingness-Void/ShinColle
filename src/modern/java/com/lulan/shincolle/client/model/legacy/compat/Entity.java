@@ -1,6 +1,5 @@
 package com.lulan.shincolle.client.model.legacy.compat;
 
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -26,7 +25,7 @@ public class Entity {
                 default -> new BasicEntityShip(ship);
             };
         }
-        if (entity instanceof LegacyMountEntity || entity instanceof LegacyShipMountEntity) return new BasicEntityMount(entity);
+        if (entity instanceof LegacyShipMountEntity) return new BasicEntityMount(entity);
         if (entity instanceof net.minecraft.world.entity.player.Player) return new EntityPlayer(entity);
         return new Entity(entity);
     }

@@ -279,7 +279,7 @@ public final class LegacyShipCombatHelper {
         return modDamageByLight(damage, attackerType, defenderType, lightCoefficient);
     }
 
-    private static int legacyDamageTypeForSource(DamageSource source) {
+    public static int legacyDamageTypeForSource(DamageSource source) {
         Entity directEntity = source.getDirectEntity();
         if (directEntity instanceof LegacyShipAircraftEntity) {
             return 7;
@@ -298,7 +298,7 @@ public final class LegacyShipCombatHelper {
         return 0;
     }
 
-    private static boolean hasLegacyNightVision(Entity sourceEntity, Entity directEntity) {
+    public static boolean hasLegacyNightVision(Entity sourceEntity, Entity directEntity) {
         Entity effectEntity = sourceEntity;
         if (effectEntity instanceof LegacyShipRensouhouEntity rensouhou) {
             effectEntity = rensouhou.level().getEntity(rensouhou.getHostId());

@@ -27,8 +27,8 @@ public class TeitokuSavedData extends SavedData {
     private final Map<UUID, Integer> playerUidMap = new HashMap<>();
     private final Map<UUID, String> playerNameMap = new HashMap<>();
     private final Map<UUID, Integer> shipUidMap = new HashMap<>();
-    private int nextPlayerUid = 1;
-    private int nextShipUid = 1;
+    private int nextPlayerUid = 100;
+    private int nextShipUid = 100;
 
     public static TeitokuSavedData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
@@ -39,8 +39,8 @@ public class TeitokuSavedData extends SavedData {
 
     public static TeitokuSavedData load(CompoundTag tag) {
         TeitokuSavedData data = new TeitokuSavedData();
-        data.nextPlayerUid = Math.max(1, tag.getInt(NEXT_PLAYER_UID_TAG));
-        data.nextShipUid = Math.max(1, tag.getInt(NEXT_SHIP_UID_TAG));
+        data.nextPlayerUid = Math.max(100, tag.getInt(NEXT_PLAYER_UID_TAG));
+        data.nextShipUid = Math.max(100, tag.getInt(NEXT_SHIP_UID_TAG));
 
         ListTag players = tag.getList(PLAYERS_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < players.size(); index++) {
@@ -52,13 +52,15 @@ public class TeitokuSavedData extends SavedData {
             UUID uuid = playerTag.getUUID(PLAYER_UUID_TAG);
             int playerUid = playerTag.getInt(PLAYER_UID_TAG);
             String playerName = playerTag.getString(PLAYER_NAME_TAG);
-            if (playerUid <= 0) {
+            if (playerUid < 100) {
                 continue;
             }
 
             data.playerUidMap.put(uuid, playerUid);
             data.playerNameMap.put(uuid, playerName);
-            data.nextPlayerUid = Math.max(data.nextPlayerUid, playerUid + 1);
+            if (data.nextPlayerUid <= playerUid) {
+                data.nextPlayerUid = playerUid + 100000;
+            }
         }
 
         ListTag ships = tag.getList(SHIPS_TAG, Tag.TAG_COMPOUND);
@@ -70,12 +72,14 @@ public class TeitokuSavedData extends SavedData {
 
             UUID shipUuid = shipTag.getUUID(SHIP_UUID_TAG);
             int shipUid = shipTag.getInt(SHIP_UID_TAG);
-            if (shipUid <= 0) {
+            if (shipUid < 100) {
                 continue;
             }
 
             data.shipUidMap.put(shipUuid, shipUid);
-            data.nextShipUid = Math.max(data.nextShipUid, shipUid + 1);
+            if (data.nextShipUid <= shipUid) {
+                data.nextShipUid = shipUid + 100000;
+            }
         }
 
         return data;
@@ -86,6 +90,16 @@ public class TeitokuSavedData extends SavedData {
     }
 
     public int getOrCreateUid(ServerPlayer player) {
+        int savedUid = TeitokuHelper.get(player).map(TeitokuData::getPlayerUid).orElse(-1);
+        if (savedUid >= 100) {
+            this.playerUidMap.put(player.getUUID(), savedUid);
+            this.playerNameMap.put(player.getUUID(), player.getGameProfile().getName());
+            if (this.nextPlayerUid <= savedUid) {
+                this.nextPlayerUid = savedUid + 100000;
+            }
+            this.setDirty();
+            return savedUid;
+        }
         return this.getOrCreateUid(player.getUUID(), player.getGameProfile().getName());
     }
 
@@ -108,6 +122,21 @@ public class TeitokuSavedData extends SavedData {
     }
 
     public int getOrCreateShipUid(UUID shipUuid) {
+        return this.getOrCreateShipUid(shipUuid, 0);
+    }
+
+    public int getOrCreateShipUid(UUID shipUuid, int savedUid) {
+        if (savedUid >= 100) {
+            if (Integer.valueOf(savedUid).equals(this.shipUidMap.get(shipUuid)) && this.nextShipUid > savedUid) {
+                return savedUid;
+            }
+            this.shipUidMap.put(shipUuid, savedUid);
+            if (this.nextShipUid <= savedUid) {
+                this.nextShipUid = savedUid + 100000;
+            }
+            this.setDirty();
+            return savedUid;
+        }
         Integer existing = this.shipUidMap.get(shipUuid);
         if (existing != null) {
             return existing;

@@ -7,6 +7,7 @@ import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -128,16 +129,24 @@ public class TargetWrenchItem extends Item {
         if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
                 || !(entity instanceof LegacyShipEntity ship)
                 || ship.isHostileVariant()
-                || !ship.canCommanderEdit(serverPlayer)) {
+                || !PlayerSkillHostResolver.sameOwner(serverPlayer, ship)) {
             return false;
         }
 
         boolean unlocked = MorphHelper.unlockMorph(serverPlayer, ship.getShipClassId());
-        TeitokuHelper.get(serverPlayer).ifPresent(data -> data.setSelectedMorphProfile(ship.getShipClassId()));
+        if (unlocked) {
+            TeitokuHelper.get(serverPlayer).ifPresent(data -> {
+                var profile = data.findMorphProfile(ship.getShipClassId());
+                profile.setAmmoLight(0);
+                profile.setAmmoHeavy(0);
+                profile.setGrudge(0);
+                profile.setMarried(true);
+            });
+        }
         TeitokuHelper.syncGameplayState(serverPlayer);
-        serverPlayer.displayClientMessage(Component.literal(unlocked
-                ? "Unlocked morph: " + ship.getName().getString()
-                : "Selected morph: " + ship.getName().getString()), true);
+        serverPlayer.displayClientMessage(Component.translatable(unlocked
+                ? "chat.shincolle.morph.unlocked"
+                : "chat.shincolle.morph.already_acquired", ship.getName()), true);
         return true;
     }
 

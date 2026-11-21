@@ -40,7 +40,8 @@ public enum GameplayParticleType {
     LEGACY_RAILGUN,
     LEGACY_SHIP_ANIMATION,
     LEGACY_DRIP_WATER,
-    CRANING_SPARKLE;
+    CRANING_SPARKLE,
+    REPAIR_GODDESS;
 
     public static GameplayParticleType fromOrdinal(int ordinal) {
         GameplayParticleType[] values = values();

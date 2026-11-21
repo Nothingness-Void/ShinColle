@@ -1,7 +1,6 @@
 package com.lulan.shincolle.client.model.legacy.compat;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -53,8 +52,7 @@ public class BasicEntityShip extends EntityLivingBase implements IShipEmotion, I
     public double getShipDepth(int type) {
         if (type == 2) return 0D;
         if (type == 1 && ship.getVehicle() instanceof LegacyShipEntity mount) return mount.getLegacyLiquidDepth();
-        if (type == 1 && (ship.getVehicle() instanceof LegacyMountEntity
-                || ship.getVehicle() instanceof LegacyShipMountEntity)) {
+        if (type == 1 && ship.getVehicle() instanceof LegacyShipMountEntity) {
             var mount = ship.getVehicle();
             BlockPos origin = mount.blockPosition();
             if (mount.level().getFluidState(origin).isEmpty()) return 0D;

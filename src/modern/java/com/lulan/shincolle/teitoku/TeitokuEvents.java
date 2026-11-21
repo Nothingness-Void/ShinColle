@@ -1,6 +1,11 @@
 package com.lulan.shincolle.teitoku;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.level.block.LiquidBlock;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.item.MarriageRingItem;
@@ -19,6 +24,7 @@ import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
@@ -99,6 +105,84 @@ public final class TeitokuEvents {
         player.displayClientMessage(Component.translatable("chat.shincolle.entity.owner_locked", ownerName), true);
     }
 
+    @SubscribeEvent(receiveCanceled = true)
+    public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
+        Player player = event.getEntity();
+        int cap = TeitokuHelper.getEffectiveRingAbility(player.level())[2];
+        if (cap <= 0 || !isInLegacyLiquid(player)) {
+            return;
+        }
+        TeitokuHelper.get(player).ifPresent(data -> {
+            if (data.hasRing() && data.isRingActive()) {
+                event.setNewSpeed(event.getOriginalSpeed() * 5.0F
+                        * (1.0F + Math.min(data.getMarriageNum(), cap) * 0.2F));
+            }
+        });
+    }
+
+    public static boolean isInLegacyLiquid(Entity entity) {
+        BlockPos pos = new BlockPos((int) Math.floor(entity.getX()),
+                (int) entity.getBoundingBox().minY, (int) Math.floor(entity.getZ()));
+        return entity.level().getBlockState(pos).liquid()
+                || entity.level().getBlockState(pos).getBlock() instanceof LiquidBlock;
+    }
+
+    @SubscribeEvent(receiveCanceled = true)
+    public static void onLivingAttack(LivingAttackEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide()) {
+            return;
+        }
+        if ((player.getVehicle() instanceof LegacyShipMountEntity)
+                && (event.getSource().is(DamageTypes.FALL) || event.getSource().is(DamageTypes.IN_WALL))) {
+            event.setCanceled(true);
+            return;
+        }
+        int threshold = TeitokuHelper.getEffectiveRingAbility(player.level())[4];
+        TeitokuHelper.get(player).ifPresent(data -> {
+            if (data.hasRing() && data.isRingActive() && threshold >= 0
+                    && data.getMarriageNum() >= threshold && event.getSource().is(DamageTypeTags.IS_FIRE)) {
+                player.clearFire();
+                event.setCanceled(true);
+            }
+        });
+    }
+
+    @SubscribeEvent
+    public static void onRingScan(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || (event.player.tickCount & 15) != 0) {
+            return;
+        }
+        Player player = event.player;
+        ItemStack ring = findFirstMarriageRing(player);
+        TeitokuHelper.get(player).ifPresent(data -> {
+            boolean hasRing = !ring.isEmpty();
+            boolean active = ring.hasTag() ? MarriageRingItem.isActive(ring) : data.isRingActive();
+            boolean changed = data.hasRing() != hasRing || data.isRingActive() != active;
+            if (data.hasRing() && !hasRing) {
+                player.getAbilities().flying = false;
+                if (player instanceof ServerPlayer serverPlayer) {
+                    serverPlayer.onUpdateAbilities();
+                }
+            }
+            data.setHasRing(hasRing);
+            data.setRingActive(active);
+            if (changed && player instanceof ServerPlayer serverPlayer) {
+                TeitokuHelper.sync(serverPlayer);
+            }
+        });
+    }
+
+    private static ItemStack findFirstMarriageRing(Player player) {
+        Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.getItem() instanceof MarriageRingItem) {
+                return stack;
+            }
+        }
+        return findCuriosMarriageRing(player, false);
+    }
+
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity target = event.getEntity();
@@ -158,6 +242,46 @@ public final class TeitokuEvents {
     }
 
     @SubscribeEvent
+    public static void onPeriodicPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || !(event.player instanceof ServerPlayer player)) {
+            return;
+        }
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        if (data == null) {
+            return;
+        }
+        boolean sync = false;
+        if (player.tickCount > 0 && (player.tickCount & 31) == 0) {
+            if (data.getPlayerUid() < 100) {
+                data.setPlayerUid(TeitokuSavedData.get(player.serverLevel()).getOrCreateUid(player));
+                if (data.getPlayerUid() < 100) {
+                    return;
+                }
+                sync = true;
+            }
+            if (player.tickCount == 64) {
+                TeitokuSavedData.get(player.serverLevel()).getOrCreateUid(player);
+                TeitokuHelper.refreshPointerTeam(player, data, false);
+                sync = true;
+            }
+            if ((player.tickCount & 127) == 0) {
+                sync = true;
+                if ((player.tickCount & 255) == 0) {
+                    TeitokuHelper.refreshPointerTeam(player, data, false);
+                }
+            }
+        }
+        if (!data.areShipIdsInitialized() && (player.tickCount & 15) == 0) {
+            TeitokuHelper.refreshPointerTeam(player, data, true);
+            data.setShipIdsInitialized(true);
+            sync = true;
+        }
+        if (sync) {
+            TeitokuHelper.sync(player);
+        }
+    }
+
+    @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide()) {
             return;
@@ -194,19 +318,29 @@ public final class TeitokuEvents {
     }
 
     private static void tickOptionalCuriosMarriageRing(ServerPlayer serverPlayer) {
-        if (hasActiveVanillaMarriageRing(serverPlayer) || !ModList.get().isLoaded("curios")) {
+        if (hasActiveVanillaMarriageRing(serverPlayer)) {
             return;
+        }
+        ItemStack ring = findCuriosMarriageRing(serverPlayer, true);
+        if (!ring.isEmpty()) {
+            MarriageRingItem.tickActiveRingEffects(serverPlayer, ring);
+        }
+    }
+
+    private static ItemStack findCuriosMarriageRing(Player player, boolean activeOnly) {
+        if (!ModList.get().isLoaded("curios")) {
+            return ItemStack.EMPTY;
         }
         try {
             Class<?> curiosApiClass = Class.forName("top.theillusivec4.curios.api.CuriosApi");
             Method getInventoryMethod = curiosApiClass.getMethod("getCuriosInventory", LivingEntity.class);
-            Object lazyOptional = getInventoryMethod.invoke(null, serverPlayer);
+            Object lazyOptional = getInventoryMethod.invoke(null, player);
             if (lazyOptional == null) {
-                return;
+                return ItemStack.EMPTY;
             }
             Object resolvedObj = lazyOptional.getClass().getMethod("resolve").invoke(lazyOptional);
             if (!(resolvedObj instanceof Optional<?> resolved) || resolved.isEmpty()) {
-                return;
+                return ItemStack.EMPTY;
             }
             Object curiosHandler = resolved.get();
             Object equippedObj = curiosHandler.getClass().getMethod("getEquippedCurios").invoke(curiosHandler);
@@ -214,14 +348,15 @@ public final class TeitokuEvents {
                 int slots = itemHandler.getSlots();
                 for (int i = 0; i < slots; i++) {
                     ItemStack stack = itemHandler.getStackInSlot(i);
-                    if (stack.getItem() instanceof MarriageRingItem && MarriageRingItem.isActive(stack)) {
-                        MarriageRingItem.tickActiveRingEffects(serverPlayer, stack);
-                        break;
+                    if (stack.getItem() instanceof MarriageRingItem
+                            && (!activeOnly || MarriageRingItem.isActive(stack))) {
+                        return stack;
                     }
                 }
             }
         } catch (ReflectiveOperationException | LinkageError ignored) {
         }
+        return ItemStack.EMPTY;
     }
 
     private static boolean hasActiveVanillaMarriageRing(Player player) {

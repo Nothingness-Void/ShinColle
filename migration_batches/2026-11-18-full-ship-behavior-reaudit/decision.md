@@ -1,5 +1,7 @@
 # Batch Decision: FULL-SHIP-BEHAVIOR-REAUDIT
 
+> **修订：部分已撤销（[D-018](../../MIGRATION-DECISIONS.md#d-018)）**。LegacyMountEntity 几何/浮力修复是历史事实，不构成继续保留 Morph 专属坐骑的决定；其存续前提现已撤销并删除，普通舰娘坐骑及共享控制/资源保留。旧全绿结论不覆盖本批新纠正的玩家/变身/编队边界。
+
 ## Result
 
 通过两轮多 Worker 并发逐行审计（Round 1：7 路全舰种审计 + 4 路修复；Round 2：6 路跨子系统深查 + 5 路修复 + 独立服务端安全复审），将现代实现中全部 64 个注册舰船变体与共享子系统的隐藏偏差逐一对标 1.12.2 源码收口，新增 9 项综合 `@GameTest` 回归断言，全量 **`298/298`** GameTests 全绿通过。

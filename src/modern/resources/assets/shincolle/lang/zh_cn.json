@@ -951,5 +951,8 @@
   "gui.shincolle:morph.sit": "Sitting",
   "gui.shincolle:morph.emo2": "Emotion Flag2",
   "gui.shincolle:morph.emo1": "Emotion Flag1",
-  "gui.shincolle:morph.nofuel": "No Fuel"
+  "gui.shincolle:morph.nofuel": "No Fuel",
+  "chat.shincolle.morph.unlocked": "已获取变身：%s",
+  "chat.shincolle.morph.already_acquired": "已拥有该变身：%s",
+  "chat.shincolle.morph.unlocked_hostile": "已获取敌舰变身：%s"
 }

@@ -984,5 +984,8 @@
   "gui.shincolle:morph.emo1": "表情flag1",
   "gui.shincolle:morph.emo2": "表情flag2",
   "gui.shincolle:morph.nofuel": "燃料不足",
-  "gui.shincolle:morph.sit": "坐下"
+  "gui.shincolle:morph.sit": "坐下",
+  "chat.shincolle.morph.unlocked": "已獲取變身：%s",
+  "chat.shincolle.morph.already_acquired": "已擁有該變身：%s",
+  "chat.shincolle.morph.unlocked_hostile": "已獲取敵艦變身：%s"
 }

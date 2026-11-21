@@ -38,6 +38,8 @@
 5. **已撤销（见 D-016）**：GuiMorphInventory/ContainerMorphInventory → MorphInventoryScreen/Menu 的“完全功能等价”声明。
 6. **已撤销（见 D-016）**：GuiDesk → DeskTerminalScreen/DeskReferenceScreen/WaypointTerminalScreen 的“完全功能等价”声明；尤其航点不是自创终端。
 
+获取/选择与空值语义同时受 [D-018](../../MIGRATION-DECISIONS.md#d-018) 约束；不恢复 D-016 已删除的简化界面。
+
 ## 3. 历史证据
 当时 compileJava 和 runGameTestServer 通过，276/276，未有阻止构建的错误。
 这只是当时运行记录，不证明上述撤销项的完整视觉/行为一致性；不改写当时通过数。
