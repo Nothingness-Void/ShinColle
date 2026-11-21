@@ -2,6 +2,7 @@ package com.lulan.shincolle.network;
 
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -64,9 +65,11 @@ public final class CombatFxDispatcher {
 
     /** Mirrors BasicEntityShip.applyParticleEmotion through the modern particle bus. */
     public static void sendLegacyEmotion(Entity reference, int legacyEmotionType) {
+        float height = reference.getBbHeight() * (reference instanceof LegacyShipEntity ship
+                && ship.isOrderedToSit() ? 0.4F : 0.45F);
         sendParticle(reference, GameplayParticleType.LEGACY_EMOTION,
-                reference.getX(), reference.getY() + reference.getBbHeight() * 0.45D, reference.getZ(),
-                0.0D, 0.0D, 0.0D, legacyEmotionType);
+                reference.getX(), reference.getY(), reference.getZ(),
+                height, 0.0D, 0.0D, legacyEmotionType);
     }
 
     public static void sendLegacyAttackAnimation(Entity reference, int legacyParticleType) {

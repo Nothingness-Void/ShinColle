@@ -27,6 +27,37 @@ public final class LegacyShipModelMappingGameTests {
     private LegacyShipModelMappingGameTests() {}
 
     @GameTest(template = "gameplayparitygametests.empty")
+    public static void hudPositionUsesLegacyConfig(GameTestHelper helper) {
+        try {
+            double[] defaults = {0.5D, 0.6D};
+            for (Object invalid : List.of(List.of(), List.of(1D), List.of(1D, 2D, 3D),
+                    List.of("x", "y"), "invalid")) {
+                ShinColleConfig.setTestOverride("Position_HUD", invalid);
+                if (!Arrays.equals(ShinColleConfig.posHUD(), defaults)) {
+                    helper.fail("Invalid or empty HUD positions must retain the legacy defaults");
+                    return;
+                }
+            }
+            ShinColleConfig.setTestOverride("Position_HUD", List.of(0.25D, 0.75D));
+            if (!Arrays.equals(ShinColleConfig.posHUD(), new double[] {0.25D, 0.75D})) {
+                helper.fail("HUD position must use both configured screen fractions");
+                return;
+            }
+            double[] custom = {-0.1D, 1.2D};
+            ShinColleConfig.setTestOverride("Position_HUD", custom);
+            double[] result = ShinColleConfig.posHUD();
+            result[0] = 0D;
+            if (!Arrays.equals(ShinColleConfig.posHUD(), custom)) {
+                helper.fail("HUD position must not clamp the legacy values or expose its backing array");
+                return;
+            }
+        } finally {
+            ShinColleConfig.clearTestOverride("Position_HUD");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void heldItemPropertiesAndSettingsMatchLegacy(GameTestHelper helper) {
         for (Item item : List.of(Items.DIAMOND_SWORD, Items.IRON_PICKAXE, Items.IRON_AXE, Items.IRON_SHOVEL,
                 Items.IRON_HOE, Items.FISHING_ROD, Items.CARROT_ON_A_STICK, Items.STICK, Items.BONE, Items.BLAZE_ROD,

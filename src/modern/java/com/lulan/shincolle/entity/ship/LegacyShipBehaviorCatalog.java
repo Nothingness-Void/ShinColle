@@ -3807,7 +3807,7 @@ public final class LegacyShipBehaviorCatalog {
         if (normalizedClassId == 31) {
             if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.getShipFuel() <= 0,
                     ship.tickCount)) {
-                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_EMOTION,
+                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_DRIP_WATER,
                         ship.getX(),
                         ship.getY() + northernHimeMouthYOffsetFor(
                                 ship.isOrderedToSit(), ship.isPassenger()),

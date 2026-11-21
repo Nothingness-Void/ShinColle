@@ -245,6 +245,27 @@ public final class ShinColleConfig {
         return new double[] {2.5D, 0D, 0D, 0D};
     }
 
+    public static double[] posHUD() {
+        Object configured = TEST_OVERRIDES.get("Position_HUD");
+        if (configured == null && CLIENT_SPEC.isLoaded()) {
+            try {
+                configured = CLIENT.posHUD.get();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+        if (configured instanceof double[] values && values.length == 2) {
+            return Arrays.copyOf(values, 2);
+        }
+        if (configured instanceof List<?> list && isHudPosition(list)) {
+            return new double[] {((Number)list.get(0)).doubleValue(), ((Number)list.get(1)).doubleValue()};
+        }
+        return new double[] {0.5D, 0.6D};
+    }
+
+    private static boolean isHudPosition(Object value) {
+        return value instanceof List<?> list && list.size() == 2 && list.stream().allMatch(Number.class::isInstance);
+    }
+
     private static boolean isHeldItemSettings(Object value) {
         return value instanceof List<?> list && list.size() == 4 && list.stream().allMatch(Number.class::isInstance);
     }
@@ -428,6 +449,7 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.DoubleValue volumeShip;
         public final ForgeConfigSpec.DoubleValue volumeFire;
         public final ForgeConfigSpec.ConfigValue<List<? extends Double>> scaleHeldItem;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Double>> posHUD;
 
         private Client(ForgeConfigSpec.Builder builder) {
             builder.push("client");
@@ -444,6 +466,7 @@ public final class ShinColleConfig {
             this.volumeFire = builder.defineInRange("volumeFire", 0.7D, 0.0D, 10.0D);
             this.scaleHeldItem = builder.define("scaleHeldItem", List.of(2.5D, 0D, 0D, 0D),
                     ShinColleConfig::isHeldItemSettings);
+            this.posHUD = builder.define("Position_HUD", List.of(0.5D, 0.6D), ShinColleConfig::isHudPosition);
             builder.pop();
         }
     }

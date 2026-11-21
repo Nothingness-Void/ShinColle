@@ -178,33 +178,6 @@ public final class MorphHelper {
                 .orElseGet(PlayerSkillRuntimeState::new);
     }
 
-    public static Component getPlayerSkillTitle(Player player) {
-        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
-        if (host.ship() != null) {
-            return host.ship().getName().copy();
-        }
-        if (host.profile() != null) {
-            return host.profile().getSpec().displayName().copy().append(Component.literal(" Lv" + host.profile().getLevel()));
-        }
-        return Component.empty();
-    }
-
-    public static Component getPlayerSkillResourceLine(Player player) {
-        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
-        if (host.ship() != null) {
-            LegacyShipEntity ship = host.ship();
-            return Component.literal("HP " + Mth.ceil(ship.getHealth()) + "/" + Mth.ceil(ship.getMaxHealth())
-                    + "  Morale " + ship.getMorale());
-        }
-        if (host.profile() != null) {
-            MorphProfile profile = host.profile();
-            return Component.literal("L " + profile.getAmmoLight()
-                    + "  H " + profile.getAmmoHeavy()
-                    + "  G " + profile.getGrudge());
-        }
-        return Component.empty();
-    }
-
     public static boolean performPlayerSkill(ServerPlayer player, int skillSlot, int targetId, @Nullable BlockPos blockPos) {
         if (!ShinColleConfig.enableMetamorphSkill()) {
             sendSkillFailure(player, "chat.shincolle.skill.reason.skill_unavailable");
