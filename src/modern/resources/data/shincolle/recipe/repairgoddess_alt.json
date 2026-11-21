@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "d": {
+      "tag": "c:storage_blocks/diamond"
+    },
+    "g": {
+      "item": "shincolle:blockgrudge"
+    },
+    "h": {
+      "item": "shincolle:blockgrudgeheavy"
+    }
+  },
+  "pattern": [
+    "ghg",
+    "hdh",
+    "ghg"
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:repairgoddess"
+  }
+}

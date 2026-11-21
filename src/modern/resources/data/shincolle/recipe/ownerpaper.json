@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "shincolle_growth_entry",
+  "ingredients": [
+    {
+      "item": "shincolle:grudge"
+    },
+    {
+      "tag": "c:paper"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:ownerpaper"
+  }
+}

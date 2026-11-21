@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_shiptank",
+  "key": {
+    "m": {
+      "tag": "c:obsidians"
+    },
+    "t": {
+      "item": "shincolle:shiptank"
+    }
+  },
+  "pattern": [
+    "mtm",
+    "mtm",
+    "mtm"
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:shiptank1"
+  }
+}

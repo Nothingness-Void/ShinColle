@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "food",
+  "group": "shincolle_rations",
+  "key": {
+    "b": [
+      {
+        "item": "minecraft:bread"
+      },
+      {
+        "tag": "c:flours"
+      },
+      {
+        "tag": "c:foods/cooked_rice"
+      }
+    ],
+    "c": {
+      "item": "minecraft:golden_carrot"
+    },
+    "g": {
+      "item": "shincolle:grudge"
+    },
+    "w": {
+      "tag": "c:crops/wheat"
+    }
+  },
+  "pattern": [
+    "bcg",
+    "www"
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:combatration"
+  }
+}
