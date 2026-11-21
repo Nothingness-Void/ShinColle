@@ -3,6 +3,9 @@
 The version/API port now compiles, builds, and passes the complete server
 GameTest suite. This supersedes the earlier 146-error WIP checkpoint. It does
 not establish client visual parity or validate an actual upgraded user world.
+The PR #11 follow-up below records two fixes, an upstream cancellation defect,
+and the latest 348-test result; original build evidence remains separately dated
+by its code commit.
 
 ## Target and boundaries
 
@@ -105,7 +108,8 @@ integration and an actual old-world upgrade are not claimed by this batch.
 
 ## Verification
 
-The last source edit was followed, in order, by these commands using
+For original port commit `f9b814a`, the last source edit was followed, in order,
+by these commands using
 `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` and its `bin` first on `PATH`:
 
 `./gradlew --no-daemon compileJava`:
@@ -176,3 +180,80 @@ not a claim of complete 1.12.2 feature parity.
   including their tag/component edge cases, remain unverified.
 - The fixed baseline's particle/config/morph/3D-navigation gaps remain as
   documented in `CURRENT_STATE.md`; this version upgrade does not complete them.
+
+## PR #11 review follow-up
+
+Reviewed against the actual NeoForge 21.1.267 source artifact, not a newer
+release. No changes to legacy sources, gameplay values, or existing assertions.
+
+1. **Fixed — `f6db0ec`: custom recovery-drop item migration.**
+   `ModEntityTypes.RECOVERED_SHIP_ITEM` creates `RecoveredShipItemEntity`, an
+   `ItemEntity` subclass rather than a player/ship. The prior `Entity.load` HEAD
+   gate excluded it. Vanilla schema `V1460.java:90` describes the `Item` field for
+   `minecraft:item`, not this mod entity; inherited
+   `ItemEntity.readAdditionalSaveData` (`ItemEntity.java:332–353`) parses current
+   components directly. The hook now also accepts this specific custom drop.
+   The regression runs old entity-chunk NBT through vanilla DFU (3465 to current)
+   and `EntityType.loadEntityRecursive`, then checks egg ownership, ship level,
+   nested equipment/slot/damage, already-modern round trips, and empty/unknown
+   item fallback. This covers the upgrade path synthetically, not a real world.
+
+2. **Not a ShinColle-specific bug — upstream NeoForge record retention remains.**
+   `Player.hurt` delegates to `LivingEntity.hurt` (`Player.java:919`).
+   `LivingEntity.java:1124` pushes a damage container; line 1125 returns false
+   immediately when `CommonHooks.onEntityIncomingDamage` reports cancellation.
+   The ordinary final pop is at line 1265, with no pop on that cancellation
+   branch. `CommonHooks.java:295–296` simply posts the cancelable event and
+   returns `isCanceled()`. The event's own documentation explicitly places
+   cancellation before mitigation, so moving these attack-stage immunities to
+   the later hurt/damage event would not preserve the old behavior.
+   Diagnostic test commit **`c3c7611`** first proves ordinary zombie damage pops
+   the record, then adds only a bare canceling listener: three real canceled
+   generic hits leave three records. Three actual ring-fire, mounted-fall and
+   mounted-suffocation cancellations each retain exactly the same three records.
+   The fixtures clear their own retained records afterward. No production
+   engine-stack workaround was added; a listener-side pop could also conflict
+   with later listeners changing cancellation. Fixing global NeoForge lifecycle
+   ownership is outside these mod review fixes. The leak is real, not dismissed
+   as nonexistent, and is not claimed fixed.
+
+3. **Fixed — `3a06c51`: enchanting classifications are not ore names.**
+   NeoForge `Tags.Items.ENCHANTABLES` explicitly aggregates enchantable groups;
+   `data/c/tags/item/enchantables.json` includes vanilla armor and sword groups.
+   `CraneBlockEntity.matches` forwards the ore toggle to the affected helper.
+   Exclude `c:enchantables` and its subgroups, alongside the existing vanilla
+   enchanting and food exclusions. Other baseline tag matching is unchanged;
+   this is not a replacement OreDictionary implementation. Tests assert that
+   the helmet and sword really share the loaded NeoForge tag but do not match
+   in either direction, while identical items, plankWood-style matching, the
+   disabled ore toggle and empty templates retain their prior semantics.
+
+After the final Java edit, using the same JDK 21 environment:
+
+`./gradlew --no-daemon compileJava`:
+
+```text
+1 warning
+
+BUILD SUCCESSFUL in 6s
+2 actionable tasks: 1 executed, 1 up-to-date
+```
+
+The warning is the unchanged crane call to deprecated `FluidStack.isFluidEqual`;
+no compiler errors. `./gradlew --no-daemon runGameTestServer`:
+
+```text
+[23:53:48] [Server thread/INFO] [minecraft/GameTestServer]: ========= 348 GAME TESTS COMPLETE IN 18.62 s ======================
+[23:53:48] [Server thread/INFO] [minecraft/GameTestServer]: All 348 required tests passed :)
+
+BUILD SUCCESSFUL in 33s
+8 actionable tasks: 1 executed, 7 up-to-date
+```
+
+**348 passed, 0 failed** (previous 345 plus three review regressions/diagnostics).
+No new `build` or client/visual/real-world validation is claimed for this review.
+
+| Latest review log | SHA-256 |
+| --- | --- |
+| `/home/ubuntu/shincolle-pr11-review-compile.log` | `79a61874ca296c80370fcf33395eb1dbc430656004618e2eb15399c19f036cf1` |
+| `/home/ubuntu/shincolle-pr11-review-gametest.log` | `7c4bab6fdd7e0c780b51db1d46da325ccc8e54adf31b26863c7568918f748c44` |
