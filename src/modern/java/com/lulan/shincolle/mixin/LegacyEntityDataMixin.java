@@ -1,6 +1,7 @@
 package com.lulan.shincolle.mixin;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.other.RecoveredShipItemEntity;
 import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -16,7 +17,7 @@ public abstract class LegacyEntityDataMixin {
     @Inject(method = "load", at = @At("HEAD"))
     private void shincolle$upgradeNestedItems(CompoundTag tag, CallbackInfo ci) {
         Entity entity = (Entity) (Object) this;
-        if (entity instanceof Player || entity instanceof LegacyShipEntity) {
+        if (entity instanceof Player || entity instanceof LegacyShipEntity || entity instanceof RecoveredShipItemEntity) {
             LegacyItemData.upgradeNested(entity.registryAccess(), tag);
         }
     }

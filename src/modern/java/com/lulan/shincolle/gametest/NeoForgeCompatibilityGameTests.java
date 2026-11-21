@@ -2,9 +2,12 @@ package com.lulan.shincolle.gametest;
 
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.event.LegacyLivingHurtEvent;
+import com.lulan.shincolle.entity.other.RecoveredShipItemEntity;
 import com.lulan.shincolle.item.LegacyItemData;
+import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
 import com.lulan.shincolle.menu.RecipePaperMenu;
 import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -35,6 +38,56 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(ShinColle.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class NeoForgeCompatibilityGameTests {
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void recoveredDropImportsLegacyEggAndNestedShipInventory(GameTestHelper helper) {
+        RecoveredShipItemEntity original = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
+        CompoundTag saved = original.saveWithoutId(new CompoundTag());
+        saved.putString("id", "shincolle:recovered_ship_item");
+        CompoundTag ship = new CompoundTag();
+        ship.putInt("ShipLevel", 42);
+        var owner = java.util.UUID.randomUUID();
+        ship.putUUID("OwnerUuid", owner);
+        CompoundTag swordData = new CompoundTag();
+        swordData.putInt("Damage", 7);
+        CompoundTag sword = oldStack("minecraft:diamond_sword", swordData);
+        sword.putInt("Slot", 4);
+        ListTag inventory = new ListTag();
+        inventory.add(sword);
+        ship.put("ShipInventory", inventory);
+        CompoundTag eggData = new CompoundTag();
+        eggData.put("RecoveredShip", ship);
+        saved.put("Item", oldStack("shincolle:shipegg60", eggData));
+        ListTag entities = new ListTag();
+        entities.add(saved);
+        CompoundTag chunk = new CompoundTag();
+        chunk.put("Entities", entities);
+        CompoundTag upgraded = net.minecraft.util.datafix.DataFixTypes.ENTITY_CHUNK.updateToCurrentVersion(
+                net.minecraft.util.datafix.DataFixers.getDataFixer(), chunk, 3465);
+        var loaded = EntityType.loadEntityRecursive(upgraded.getList("Entities", Tag.TAG_COMPOUND).getCompound(0),
+                helper.getLevel(), entity -> entity);
+        helper.assertTrue(loaded instanceof RecoveredShipItemEntity, "the world-upgrade path retains the custom drop type");
+        ItemStack egg = ((RecoveredShipItemEntity) loaded).getItem();
+        helper.assertTrue(egg.getCount() == 1 && LegacyShipSpawnEggItem.isRecoveredShipStack(egg)
+                && LegacyShipSpawnEggItem.getRecoveredOwnerUuid(egg).orElseThrow().equals(owner),
+                "old recovery eggs keep their stack and ship ownership after entity-chunk DFU and Entity.load");
+        CompoundTag recovered = LegacyShipSpawnEggItem.getRecoveredShipData(egg);
+        CompoundTag nested = recovered.getList("ShipInventory", Tag.TAG_COMPOUND).getCompound(0);
+        helper.assertTrue(recovered.getInt("ShipLevel") == 42 && nested.getInt("Slot") == 4
+                && ItemStack.parseOptional(helper.getLevel().registryAccess(), nested).getDamageValue() == 7,
+                "nested ship equipment is converted before the custom item entity parses its egg");
+        RecoveredShipItemEntity modern = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
+        modern.load(loaded.saveWithoutId(new CompoundTag()));
+        helper.assertTrue(ItemStack.isSameItemSameComponents(egg, modern.getItem()), "already-modern drop data is unchanged");
+        for (CompoundTag invalid : java.util.List.of(new CompoundTag(), oldStack("shincolle:missing_item", new CompoundTag()))) {
+            RecoveredShipItemEntity empty = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
+            CompoundTag invalidSave = saved.copy();
+            invalidSave.put("Item", invalid);
+            empty.load(invalidSave);
+            helper.assertTrue(empty.getItem().isEmpty(), "empty and unknown drop items retain vanilla's empty fallback");
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "gameplayparitygametests.empty")
     public static void legacyNestedItemsAndFluidUpgradeWithoutRefilling(GameTestHelper helper) {
         var registries = helper.getLevel().registryAccess();
