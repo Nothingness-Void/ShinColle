@@ -2576,6 +2576,10 @@ public class LegacyShipEntity extends PathfinderMob {
         return this.legacyStats;
     }
 
+    public int getLegacyFormationSlot() {
+        return this.cachedFormationSlot;
+    }
+
     public LegacyShipAttackProfile getAttackProfile() {
         return this.attackProfile;
     }

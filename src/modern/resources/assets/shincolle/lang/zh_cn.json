@@ -566,17 +566,6 @@
   "chat.shincolle.legacy_core.inserted_fuel": "%s 装入了 %s 个燃料物品。库存：%s",
   "chat.shincolle.legacy_core.readonly": "正在以只读模式查看 %s。",
   "gui.shincolle.formation.title": "舰队阵型",
-  "gui.shincolle.formation.team_name": "队伍名称",
-  "gui.shincolle.formation.cycle": "切换",
-  "gui.shincolle.formation.clear": "清空",
-  "gui.shincolle.formation.swap_up": "上移",
-  "gui.shincolle.formation.swap_down": "下移",
-  "gui.shincolle.formation.rename": "重命名",
-  "gui.shincolle.formation.open_ship": "打开",
-  "gui.shincolle.formation.slot.empty": "槽位 %s：空",
-  "gui.shincolle.formation.slot.filled": "槽位 %s：%s",
-  "gui.shincolle.formation.slot.uid": "槽位 %s：UID %s",
-  "gui.shincolle.formation.ship_count": "舰船：%s / %s",
   "chat.shincolle.team.created": "队伍已创建。",
   "chat.shincolle.team.disbanded": "队伍已解散。",
   "chat.shincolle.team.action_denied": "命令被拒绝或仍在冷却。",
@@ -630,5 +619,8 @@
   "gui.shincolle.auraeffect": "开启特殊能力",
   "gui.shincolle.showhelditem": "显示手持物品",
   "chat.shincolle.optool.no_permission": "需要 OP 权限等级 2+ 才可修改全局不可攻击目标规则。",
-  "chat.shincolle.levelfail": "等级太低！"
+  "chat.shincolle.levelfail": "等级太低！",
+  "gui.shincolle.formation.nosignal": "没有信号",
+  "gui.shincolle.formation.notenough": "阵型需要5或6艘船！",
+  "gui.shincolle.formation.totalfirepower": "舰队火力"
 }

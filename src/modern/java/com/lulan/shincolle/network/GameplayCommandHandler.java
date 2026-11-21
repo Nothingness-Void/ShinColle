@@ -279,7 +279,8 @@ public final class GameplayCommandHandler {
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new FormationMenu(containerId, inventory),
-                        Component.translatable("gui.shincolle.formation.title")));
+                        Component.translatable("gui.shincolle.formation.title")),
+                buffer -> buffer.writeNbt(FormationMenu.captureVisualData(player)));
     }
 
     private static void handleOpenDeskScreen(ServerPlayer player, CompoundTag payload) {

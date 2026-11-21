@@ -450,4 +450,11 @@ public final class LegacyShipStats {
     public float[] copyEquip() {
         return Arrays.copyOf(this.equip, this.equip.length);
     }
+
+    public float[] copyWithoutFormation() {
+        float[] result = calcBuffed(this.raw, this.equip, this.marriage, this.morale, this.potion,
+                LegacyShipStatTables.copyResetFormation());
+        LegacyShipStatTables.clamp(result);
+        return result;
+    }
 }

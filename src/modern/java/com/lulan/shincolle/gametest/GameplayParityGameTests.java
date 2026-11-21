@@ -1645,23 +1645,15 @@ public final class GameplayParityGameTests {
         CompoundTag offlinePayload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
         TeitokuHelper.applyClientState(player, offlinePayload);
         FormationMenu formationMenu = new FormationMenu(6, player.getInventory());
-        FormationMenu.SlotSnapshot snapshot = formationMenu.getSlotSnapshot(0);
-        if (snapshot.empty()
-                || snapshot.shipUid() != ship.getShipUid()
-                || snapshot.shipLevel() != 77
-                || !"4321 / 16000".equals(snapshot.moraleText())
-                || !"1234 / 16000".equals(snapshot.fuelText())
-                || !"987 / 5400".equals(snapshot.lightAmmoText())
-                || !"654 / 2700".equals(snapshot.heavyAmmoText())
-                || !"321 / 16000".equals(snapshot.grudgeText())
-                || snapshot.online()
-                || snapshot.dead()
-                || !snapshot.marriageLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.marriage.yes").getString())
-                || !snapshot.modeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())) {
-            helper.fail("formation menu should project legacy ship summary fields from offline ship-cache data");
+        formationMenu.applyVisualData(FormationMenu.captureVisualData(player));
+        if (formationMenu.getShipEntityAll(0)[0] != null
+                || formationMenu.getSID(0, 0) != ship.getShipUid()) {
+            helper.fail("formation menu should show no signal with the retained UID, not an offline ship summary");
             return;
         }
 
+        FormationParityGameTests.formationClicksUseLegacyHotspotsAndGuiWaits(helper);
+        FormationParityGameTests.formationMenuSyncsServerAttributesAndPreviewMatrix(helper);
         helper.succeed();
     }
 
@@ -11275,9 +11267,7 @@ public final class GameplayParityGameTests {
             return;
         }
         LegacyShipProjectileEntity projectile = projectiles.get(0);
-        // The legacy depth selector starts at ARC, then the constructor falls
-        // back to DIRECT when this launch's computed acceleration exceeds 0.15.
-        LegacyShipProjectileMoveType expectedMoveType = LegacyShipProjectileMoveType.DIRECT;
+        LegacyShipProjectileMoveType expectedMoveType = expectedLegacyArcMissileMove(ship, projectile);
         if (projectile.getProjectileVisual() != LegacyShipProjectileVisual.MISSILE
                 || projectile.getMoveType() != expectedMoveType
                 || projectile.getIntendedTargetId() != target.getId()
