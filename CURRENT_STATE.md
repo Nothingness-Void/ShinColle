@@ -2,8 +2,8 @@
 
 ## 当前集成
 
-- 分支：`devin/parity-fix-integration`（基于 `origin/codex/mc-1.20.1`）；合并舰种行为链、客户端/菜单网络指令链及物品方块修复，保留以下批次快照。
-- 本步冲突整合：JDK 17 `compileJava runGameTestServer --no-daemon` 通过，`All 327 required tests passed :)`；起重机夹具对照与关联修复见 [集成验证](migration_batches/2026-11-22-parity-fix-items-blocks/results/README.md#integration-merge)。客户端视觉仍未验证，不扩大视觉验收口径。`src/main/**` 只读，唯一后续入口仍为 [ROADMAP.md](ROADMAP.md)。
+- 分支：`devin/parity-fix-integration`（基于 `origin/codex/mc-1.20.1`）；合并舰种行为链、客户端/菜单网络指令链、物品方块及 crafting/world/config 修复，保留以下批次快照。
+- 本步 crafting/world/config 冲突整合：JDK 17 `compileJava runGameTestServer --no-daemon` 通过，`All 328 required tests passed :)`；配置去重、进度删除、旧版边界与夹具证据见 [集成验证](migration_batches/2026-11-22-parity-fix-crafting-world-config/results/verification.md#integration-merge)。此前起重机关联修复见 [物品方块集成验证](migration_batches/2026-11-22-parity-fix-items-blocks/results/README.md#integration-merge)。客户端视觉仍未验证，不扩大视觉验收口径。`src/main/**` 只读，唯一后续入口仍为 [ROADMAP.md](ROADMAP.md)。
 
 <a id="当前任务"></a>
 
@@ -47,6 +47,7 @@
 
 - 当前任务：按 [本批次状态](migration_batches/2026-11-22-parity-fix-items-blocks/STATUS.md) 完成文档与指定分支推送后停止；不创建合并请求。以下既有模块与批次链接保留为历史入口，不代表本次重新验收。
 - 已完成 backlog 批次：`WORLDGEN-AUDIT`（[WORLDGEN-AUDIT](migration_batches/2026-09-16-worldgen-audit/)）、`GAMETEST-REPAIR-B4`（[GAMETEST-REPAIR-B4](migration_batches/2026-11-16-gametest-repair/)）、`B5-ORE-TAGS`（[B5-ORE-TAGS](migration_batches/2026-11-16-b5-ore-tags/)）、`GAMETEST-BACKFILL`（[GAMETEST-BACKFILL](migration_batches/2026-11-16-gametest-backfill/)）、`B1-GUI-PARITY`（[B1-GUI-PARITY](migration_batches/2026-11-16-b1-gui-parity/)）、`B2-PACKET-PARITY`（[B2-PACKET-PARITY](migration_batches/2026-11-16-b2-packet-parity/)）、`B3-MULTIPLAYER-TEAM`（[B3-MULTIPLAYER-TEAM](migration_batches/2026-11-17-b3-multiplayer-team/)）与 `B6-INTERMOD-DETAILS`（[B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)）。
+- 2026-11-22 `PARITY-FIX-CRAFTING-WORLD-CONFIG`（分支 `devin/parity-fix-crafting-world-config`）：crafting/world/config 12 项审计偏离已按 1.12.2 还原，GameTest 总数 `297`，`passiveAiStopsAutomaticRangeTargeting` 在基线与本分支均失败（未修复）；`Attrs_*`/`Consume_*`/`Exp_*`/`Slots_*` 等其余 1.12.2 配置项仍缺失，见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)。
 - 唯一下一步入口见 [ROADMAP.md](ROADMAP.md)：`NONE`（队列已清零）。
 - [MIGRATION-SHIP-MATRIX.md](MIGRATION-SHIP-MATRIX.md) 全 45 行主线域均为 `LOCKED`，不再存在待处理 `NEXT` 舰种行；V0 收口批次证据见 [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/)。
 

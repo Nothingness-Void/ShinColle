@@ -1786,6 +1786,25 @@ public final class LegacyShipBehaviorCatalog {
         return isLegacyFriendlyFireAllowed(host, candidate);
     }
 
+    private static final java.util.Set<Integer> LEGACY_KAITAI_CLASS_IDS = java.util.Set.of(
+            0, 1, 2, 3, 9, 10, 16, 17, 18, 19,
+            12, 13, 14, 15, 20, 21, 26, 27, 28, 29, 30, 31, 33, 44, 49, 72,
+            36, 38, 39, 51, 52, 53, 54, 55,
+            56, 57, 58, 59,
+            37, 46, 47, 48, 60, 61, 62, 63);
+
+    /** 1.12.2 ShipCalc.getKaitaiItems(shipID) as used by LargeRecipes; null when the legacy switch has no case. */
+    public static @javax.annotation.Nullable List<ItemStack> createLegacyShipyardKaitaiDrops(int legacyClassId, RandomSource random) {
+        if (!LEGACY_KAITAI_CLASS_IDS.contains(legacyClassId)) {
+            return null;
+        }
+        ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(legacyClassId);
+        if (spec == null) {
+            return null;
+        }
+        return createLegacyKaitaiDrops(spec, legacyClassId == 55, random);
+    }
+
     /** Mirrors 1.12.2 ShipCalc.getKaitaiItems per-class recycle drops. */
     public static List<ItemStack> createLegacyKaitaiDrops(ShipEntitySpec spec, boolean legacyRaiden, RandomSource random) {
         int classId = normalizeLegacyClassId(spec.legacyClassId());

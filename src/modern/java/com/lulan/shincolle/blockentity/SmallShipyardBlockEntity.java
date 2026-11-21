@@ -381,7 +381,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         }
 
         int fuelValue = (int) (fuelUse.get().power() * fuelMagnification());
-        if (fuelValue <= 0 || fuelValue + this.powerRemained > powerMax()) {
+        if (fuelValue <= 0 || fuelValue + this.powerRemained >= powerMax()) {
             return false;
         }
 

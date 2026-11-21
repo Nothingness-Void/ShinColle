@@ -358,7 +358,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     private boolean absorbGenericMaterials() {
         for (int slot = LargeShipyardRecipes.SLOT_FUEL; slot < this.shipyardItems.getSlots(); slot++) {
             ItemStack stack = this.shipyardItems.getStackInSlot(slot);
-            if (!LargeShipyardRecipes.addMaterialStock(this.matsStock, stack)) {
+            if (!LargeShipyardRecipes.addMaterialStock(this.matsStock, stack, this.level.random)) {
                 continue;
             }
 
@@ -372,16 +372,17 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
 
     private boolean releaseGenericMaterials() {
         int material = Mth.clamp(this.selectMat, 0, 3);
-        int multiplier = ShinColleConfig.easyMode() ? 10 : 1;
-        if (this.matsStock[material] >= (LargeShipyardRecipes.COMPRESSED_OUTPUT_AMOUNT * multiplier)
+        int compressedAmount = LargeShipyardRecipes.compressedOutputAmount();
+        int singleAmount = LargeShipyardRecipes.singleOutputAmount();
+        if (this.matsStock[material] >= compressedAmount
                 && LargeShipyardRecipes.outputMaterialToSlot(this.shipyardItems, material, true)) {
-            this.matsStock[material] -= (LargeShipyardRecipes.COMPRESSED_OUTPUT_AMOUNT * multiplier);
+            this.matsStock[material] -= compressedAmount;
             return true;
         }
 
-        if (this.matsStock[material] >= (LargeShipyardRecipes.SINGLE_OUTPUT_AMOUNT * multiplier)
+        if (this.matsStock[material] >= singleAmount
                 && LargeShipyardRecipes.outputMaterialToSlot(this.shipyardItems, material, false)) {
-            this.matsStock[material] -= (LargeShipyardRecipes.SINGLE_OUTPUT_AMOUNT * multiplier);
+            this.matsStock[material] -= singleAmount;
             return true;
         }
 

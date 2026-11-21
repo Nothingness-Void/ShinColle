@@ -4574,7 +4574,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             default -> true;
         };
         if (dropEgg) {
-            this.spawnAtLocation(this.resolveHostileEggDrop());
+            ItemEntity eggEntity = this.spawnAtLocation(this.resolveHostileEggDrop());
+            if (eggEntity != null) {
+                int despawnEgg = ShinColleConfig.despawnEgg();
+                eggEntity.lifespan = despawnEgg + 1;
+            }
         }
     }
 

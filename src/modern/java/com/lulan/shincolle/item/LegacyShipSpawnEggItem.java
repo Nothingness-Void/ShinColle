@@ -1,6 +1,5 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -44,7 +43,7 @@ import java.util.UUID;
 
 public class LegacyShipSpawnEggItem extends Item {
 
-    private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
+    public static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String LEGACY_CLASS_ID_TAG = "ShipClassId";
     private static final String RECOVERED_SHIP_TAG = "RecoveredShip";
     private static final String OWNER_UUID_TAG = "OwnerUuid";
@@ -276,7 +275,6 @@ public class LegacyShipSpawnEggItem extends Item {
 
         if (!spec.hostile() && player instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.addCollectedShip(serverPlayer, spec.legacyClassId());
-            ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.trigger(serverPlayer);
         }
 
         if (!player.getAbilities().instabuild) {

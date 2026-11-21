@@ -5,11 +5,16 @@ import com.lulan.shincolle.item.equipment.LegacyEquipmentStatsRepository;
 import com.lulan.shincolle.registry.ModItems;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraftforge.registries.RegistryObject;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class LegacyEquipmentBuildHelper {
 
@@ -47,6 +52,17 @@ public final class LegacyEquipmentBuildHelper {
             new TypeRollEntry("CANNON_TR", 4400, 2),
             new TypeRollEntry("CATAPULT_HI", 5000, 3));
 
+    // 1.12.2 EnchantHelper.EnchantTable (legacy numeric enchant ids mapped to 1.20.1 registry objects).
+    private static final List<List<Enchantment>> ENCHANT_TABLE = List.of(
+            List.of(Enchantments.RESPIRATION, Enchantments.THORNS, Enchantments.FROST_WALKER, Enchantments.SHARPNESS,
+                    Enchantments.SMITE, Enchantments.BANE_OF_ARTHROPODS, Enchantments.KNOCKBACK, Enchantments.FIRE_ASPECT,
+                    Enchantments.MOB_LOOTING, Enchantments.BLOCK_EFFICIENCY, Enchantments.BLOCK_FORTUNE, Enchantments.POWER_ARROWS,
+                    Enchantments.PUNCH_ARROWS, Enchantments.FLAMING_ARROWS, Enchantments.INFINITY_ARROWS, Enchantments.FISHING_LUCK),
+            List.of(Enchantments.ALL_DAMAGE_PROTECTION, Enchantments.FIRE_PROTECTION, Enchantments.BLAST_PROTECTION,
+                    Enchantments.PROJECTILE_PROTECTION, Enchantments.SILK_TOUCH, Enchantments.UNBREAKING, Enchantments.MENDING),
+            List.of(Enchantments.FALL_PROTECTION, Enchantments.AQUA_AFFINITY, Enchantments.DEPTH_STRIDER,
+                    Enchantments.SILK_TOUCH, Enchantments.FISHING_SPEED, Enchantments.MENDING));
+
     private LegacyEquipmentBuildHelper() {
     }
 
@@ -56,40 +72,27 @@ public final class LegacyEquipmentBuildHelper {
 
         if (random.nextFloat() < equipRate) {
             String rareType = rollSmallType(materialAmounts, random);
-            if (rareType != null) {
-                ItemStack equipment = rollEquipmentOfType(rareType, totalMaterials, random, true);
-                if (!equipment.isEmpty()) {
-                    return equipment;
-                }
+            if (rareType == null) {
+                return ItemStack.EMPTY;
             }
+            return rollEquipmentOfType(rareType, totalMaterials, random, true);
         }
 
-        if (random.nextBoolean()) {
+        if (random.nextInt(2) == 0) {
             return new ItemStack(ModItems.AMMO1.get(), 11 + random.nextInt(11));
         }
 
         return new ItemStack(ModItems.AMMO3.get(), 2 + random.nextInt(2));
     }
 
+    /** 1.12.2 LargeRecipes.getBuildResultEquip: always rolls equip type then equip instance, no ammo fallback. */
     public static ItemStack buildLargeResult(int[] materialAmounts, RandomSource random) {
         int totalMaterials = materialAmounts[0] + materialAmounts[1] + materialAmounts[2] + materialAmounts[3];
-        float equipRate = Math.min(totalMaterials / 2000.0F, 1.0F);
-
-        if (random.nextFloat() < equipRate) {
-            String rareType = rollLargeType(materialAmounts, random);
-            if (rareType != null) {
-                ItemStack equipment = rollEquipmentOfType(rareType, totalMaterials, random, false);
-                if (!equipment.isEmpty()) {
-                    return equipment;
-                }
-            }
+        String rareType = rollLargeType(materialAmounts, random);
+        if (rareType == null) {
+            return ItemStack.EMPTY;
         }
-
-        if (random.nextBoolean()) {
-            return new ItemStack(ModItems.AMMO2.get(), 8 + random.nextInt(9));
-        }
-
-        return new ItemStack(ModItems.AMMO3.get(), 3 + random.nextInt(3));
+        return rollEquipmentOfType(rareType, totalMaterials, random, false);
     }
 
     private static @Nullable String rollSmallType(int[] materialAmounts, RandomSource random) {
@@ -147,7 +150,8 @@ public final class LegacyEquipmentBuildHelper {
     }
 
     private static ItemStack rollEquipmentOfType(String rareType, int totalMaterials, RandomSource random, boolean smallBuild) {
-        int rollMaterials = smallBuild ? (int) (totalMaterials * 15.625F) : totalMaterials;
+        // 1.12.2 EquipCalc.rollEquipsOfTheType only assigns totalMat for small builds; large builds keep 0.
+        int rollMaterials = smallBuild ? (int) (totalMaterials * 15.625F) : 0;
         List<EquipmentCandidate> candidates = new ArrayList<>();
         float totalProbability = 0.0F;
 
@@ -175,11 +179,57 @@ public final class LegacyEquipmentBuildHelper {
         for (EquipmentCandidate candidate : candidates) {
             accumulated += candidate.probability();
             if (accumulated > randomValue) {
-                return createEquipmentStack(candidate.family(), candidate.variantIndex());
+                ItemStack stack = createEquipmentStack(candidate.family(), candidate.variantIndex());
+                applyRandomEnchant(stack, enchantType(candidate.family()), enchantLevel(totalMaterials, smallBuild), random);
+                return stack;
             }
         }
 
         throw new IllegalStateException("Legacy equipment roll did not select from a non-empty 1.12 probability table: " + rareType);
+    }
+
+    /** 1.12.2 EquipCalc.rollEquipsOfTheType enchant level thresholds. */
+    public static int enchantLevel(int totalMaterials, boolean smallBuild) {
+        if (smallBuild) {
+            return totalMaterials > 220 ? 3 : totalMaterials > 200 ? 2 : totalMaterials > 180 ? 1 : 0;
+        }
+        return totalMaterials > 3500 ? 3 : totalMaterials > 3000 ? 2 : totalMaterials > 2000 ? 1 : 0;
+    }
+
+    /** 1.12.2 EquipCalc.getItemStackFromId enchType: 0 weapon, 1 armor, 2 misc. */
+    public static int enchantType(LegacyEquipmentFamily family) {
+        return switch (family) {
+            case CANNON, MACHINEGUN, TORPEDO, AIRPLANE, AMMO -> 0;
+            case ARMOR -> 1;
+            case RADAR, TURBINE, CATAPULT, DRUM, COMPASS, FLARE, SEARCHLIGHT -> 2;
+        };
+    }
+
+    /** 1.12.2 EnchantHelper.applyRandomEnchantToEquip. */
+    public static void applyRandomEnchant(ItemStack stack, int enchantType, int enchantLevel, RandomSource random) {
+        if (stack.isEmpty() || enchantLevel <= 0) {
+            return;
+        }
+
+        int roll = random.nextInt(10);
+        int enchantCount = switch (enchantLevel) {
+            case 1 -> roll > 5 ? 1 : 0;
+            case 2 -> roll > 6 ? 2 : roll > 3 ? 1 : 0;
+            case 3 -> roll > 7 ? 3 : roll > 4 ? 2 : roll > 1 ? 1 : 0;
+            default -> 0;
+        };
+        if (enchantCount <= 0) {
+            return;
+        }
+
+        List<Enchantment> table = ENCHANT_TABLE.get(enchantType);
+        Map<Enchantment, Integer> enchantments = new LinkedHashMap<>();
+        for (int i = 0; i < enchantCount; i++) {
+            Enchantment enchantment = table.get(random.nextInt(table.size()));
+            Integer current = enchantments.get(enchantment);
+            enchantments.put(enchantment, current == null ? 1 : Math.min(current + 1, enchantment.getMaxLevel()));
+        }
+        EnchantmentHelper.setEnchantments(enchantments, stack);
     }
 
     private static ItemStack createEquipmentStack(LegacyEquipmentFamily family, int index) {

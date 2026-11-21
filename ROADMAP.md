@@ -13,6 +13,9 @@
 | 4 | PENDING | 历史源码缺口 | 获得旧实体源码和注册依据 | 按 D-009 重审；未获得前维持历史源码缺口，不按名称造实体 |
 
 ## 晋级与更新顺序
+
+已合并的 crafting/world/config 纠偏批次见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)，决定编号 D-017；不覆盖上方现有客户端队列。
+
 1. 任一时刻仅一个 NEXT；按用户授权冻结批次协议。
 2. 完成代码后按 [测试矩阵](MIGRATION-TEST-MATRIX.md) 验收，失败不跳过。
 3. 先写批次结果和决定，再更新矩阵、当前状态及变更索引，最后推进本队列。

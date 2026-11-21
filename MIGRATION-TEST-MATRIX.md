@@ -258,3 +258,10 @@ git diff origin/devin/parity-fix-menu-network-command --stat -- src/main
 - `python3 src/modern/scripts/port_ship_inventory.py /home/ubuntu/legacy0aad --check`：背包目录、控件、展示、画面方法。
 - `python3 src/modern/scripts/port_morph_inventory.py /home/ubuntu/legacy0aad --check`：变身方法/控件和贴图。
 - `python3 src/modern/scripts/check_particle_parity.py LEGACY_ROOT OUTPUT_DIRECTORY`：表情/文字状态方法的 API 桩及纹理；不是客户端渲染。
+
+## PARITY-FIX-CRAFTING-WORLD-CONFIG（2026-11-22）
+
+- 命令：`bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`（JDK 17）。
+- 专题分支历史结果：`compileJava` 通过；GameTest `297` 项中 `296` 通过，`passiveAiStopsAutomaticRangeTargeting` 失败（基线 `8f1d2fd` 同样失败）。删除 `progressionAdvancementsLoadAndFriendlyShipTriggerAwards`；`chestLootInjectorUsesLegacyConfigLootDefaults` 改为断言跳过 `shincolle:Torpedo` 与整数 rolls；`worldgenResourcesKeepLegacyPolymetalPlacement` 改为断言 `shincolle:polymetal_gravel` feature 与 `Polymetal_Gravel*` 默认值。证据见 [verification](migration_batches/2026-11-22-parity-fix-crafting-world-config/results/verification.md)。
+
+- integration 合并验证：`All 328 required tests passed :)`；新增 `machineConfigListsKeepLegacyKeysAndFallbacks`（键名/配置值/空与无效列表）、`hostileEggUsesLegacyConfiguredLifetime`（默认、0、-1），补充燃料恰满边界；敌舰掉落保留全局怨念事件，起重机与雷电夹具清理/隔离。当前完整证据见同一 verification 的 integration-merge 段。

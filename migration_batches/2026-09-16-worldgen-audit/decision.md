@@ -1,5 +1,7 @@
 # Worldgen Audit Decision
 
+> 已撤销（2026-11-22）：本批对 `polymetal_gravel` disk 近似与 `ChestLootInjector` 无需变更的结论已被 [PARITY-FIX-CRAFTING-WORLD-CONFIG](../2026-11-22-parity-fix-crafting-world-config/decision.md) 推翻，见 MIGRATION-DECISIONS D-017。
+
 - 结论：`DONE`（资源已于 2026-09-16 对齐；B4 配套 GameTest 断言已于 `GAMETEST-REPAIR-B4` 同步修正并通过 `91/91`）
 - 影响模块：M9 世界内容
 - 代码变更：仅修正 `polymetal_gravel.json` 的目标方块列表；配套测试 `worldgenResourcesKeepLegacyPolymetalPlacement` 已在 [GAMETEST-REPAIR-B4](../2026-11-16-gametest-repair/decision.md) 同步更新并通过。

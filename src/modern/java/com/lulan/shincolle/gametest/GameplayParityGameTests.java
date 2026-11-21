@@ -5,10 +5,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.lulan.shincolle.ShinColle;
-import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
+import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
 import com.lulan.shincolle.blockentity.LargeShipyardStructureHelper;
@@ -87,10 +87,6 @@ import com.lulan.shincolle.world.ChestLootInjector;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
 import io.netty.buffer.Unpooled;
-import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.CriteriaTriggers;
-import net.minecraft.advancements.critereon.EntityPredicate;
-import net.minecraft.advancements.critereon.PlayerHurtEntityTrigger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
@@ -172,6 +168,7 @@ import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipGuardGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangeTargetGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipRangedAttackGoal;
@@ -1366,6 +1363,8 @@ public final class GameplayParityGameTests {
         crane.toggleLoadEnabled();
         crane.toggleUnloadEnabled();
 
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, new AABB(cranePos).inflate(8, 12, 8))
+                .forEach(LegacyShipEntity::discard);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
             helper.fail("legacy ship entity should be creatable in tests");
@@ -1424,6 +1423,8 @@ public final class GameplayParityGameTests {
         crane.cycleRedstoneMode();
         crane.cycleEnergyMode();
 
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, new AABB(cranePos).inflate(8, 12, 8))
+                .forEach(LegacyShipEntity::discard);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
             helper.fail("ship must be available for crane completion test");
@@ -1495,6 +1496,8 @@ public final class GameplayParityGameTests {
         chest.setItem(0, new ItemStack(Items.APPLE, 6));
         chest.setItem(1, new ItemStack(Items.BREAD, 6));
 
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, new AABB(cranePos).inflate(8, 12, 8))
+                .forEach(LegacyShipEntity::discard);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
             helper.fail("legacy ship entity should be creatable in item route tests");
@@ -1563,6 +1566,8 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
         crane.setPairedChest(chestPos);
         crane.cycleWaitMode();
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, new AABB(pos).inflate(8, 12, 8))
+                .forEach(LegacyShipEntity::discard);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity waiting = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null || waiting == null) {
@@ -2446,6 +2451,41 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void machineConfigListsKeepLegacyKeysAndFallbacks(GameTestHelper helper) {
+        if (!ShinColleConfig.COMMON.tileShipyardSmall.getPath().equals(List.of("general", "Tile_SmallShipyard"))
+                || !ShinColleConfig.COMMON.tileShipyardLarge.getPath().equals(List.of("general", "Tile_LargeShipyard"))
+                || !ShinColleConfig.COMMON.tileVolCore.getPath().equals(List.of("general", "Tile_VolCore"))) {
+            helper.fail("machine settings must have one legacy config key each");
+            return;
+        }
+        try {
+            ShinColleConfig.setTestOverride("tileShipyardSmall", new double[]{10000, 24, 2.5});
+            ShinColleConfig.setTestOverride("tileShipyardLarge", new int[]{20000, 12, 3});
+            ShinColleConfig.setTestOverride("tileVolCore", List.of(30000, 8, 480));
+            if (SmallShipyardBlockEntity.powerMax() != 10000 || SmallShipyardBlockEntity.buildSpeed() != 24
+                    || SmallShipyardBlockEntity.fuelMagnification() != 2.5F
+                    || HeavyGrudgeBlockEntity.powerMax() != 20000 || HeavyGrudgeBlockEntity.buildSpeed() != 12
+                    || HeavyGrudgeBlockEntity.fuelMagnification() != 3
+                    || !java.util.Arrays.equals(ShinColleConfig.tileVolCore(), new double[]{30000, 8, 480})) {
+                helper.fail("machine runtimes must read the same configured lists");
+                return;
+            }
+            ShinColleConfig.setTestOverride("tileShipyardSmall", List.of());
+            ShinColleConfig.setTestOverride("tileShipyardLarge", new double[]{1});
+            ShinColleConfig.setTestOverride("tileVolCore", "invalid");
+            if (!java.util.Arrays.equals(ShinColleConfig.tileShipyardSmall(), new double[]{460800, 48, 1})
+                    || !java.util.Arrays.equals(ShinColleConfig.tileShipyardLarge(), new double[]{1382400, 48, 1})
+                    || !java.util.Arrays.equals(ShinColleConfig.tileVolCore(), new double[]{9600, 16, 240})) {
+                helper.fail("empty or invalid machine lists must retain legacy defaults");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void shipyardLiquidFuelAndRuntimeConfig(GameTestHelper helper) {
         ShinColleConfig.setTestOverride("tileShipyardSmall", new double[]{460800, 48, 2});
         ShinColleConfig.setTestOverride("itemShipTank", new int[]{1000, 2000, 3000, 4000});
@@ -2477,6 +2517,15 @@ public final class GameplayParityGameTests {
             var drum = new ItemStack(ModItems.SHIPTANK3.get()).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).orElseThrow(IllegalStateException::new);
             if (drum.getTankCapacity(0) != 4000) {
                 helper.fail("fluid drum must use configured tier capacity");
+                return;
+            }
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            tile.getContainerData().set(2, 460800 - 3200);
+            tile.getItems().setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, new ItemStack(Items.COAL));
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            if (tile.getContainerData().get(2) != 460800 - 3200
+                    || !tile.getItems().getStackInSlot(SmallShipyardRecipes.SLOT_FUEL).is(Items.COAL)) {
+                helper.fail("legacy item fuel must not be consumed when it would exactly fill storage");
                 return;
             }
             helper.succeed();
@@ -2616,8 +2665,7 @@ public final class GameplayParityGameTests {
                 "item.shincolle.abyssmetal",
                 "item.shincolle.shipegg58",
                 "gui.shincolle.ship_inventory.owner",
-                "chat.shincolle.spawn_egg.deployed",
-                "advancement.shincolle.progression.root.title"
+                "chat.shincolle.spawn_egg.deployed"
         };
         for (String key : representativeLocalizedKeys) {
             if (english.get(key).getAsString().equals(simplifiedChinese.get(key).getAsString())) {
@@ -2745,24 +2793,29 @@ public final class GameplayParityGameTests {
         }
 
         ResourceLocation mineshaft = ResourceLocation.fromNamespaceAndPath("minecraft", "chests/abandoned_mineshaft");
+        // 1.12 "shincolle:Torpedo" resolves to null (registry name is EquipTorpedo) and is skipped by ChestLootTable.
         List<String> legacyRandomMetaSource = List.of(
                 "shincolle:TrainingBook:0",
                 "shincolle:MarriageRing:0",
                 "shincolle:ShipSpawnEgg:0",
                 "shincolle:ShipSpawnEgg:1",
                 "shincolle:EquipCannon:-1",
-                "shincolle:EquipAirplane:-1",
-                "shincolle:Torpedo:-1");
+                "shincolle:EquipAirplane:-1");
         if (!ChestLootInjector.legacySourceKeysForTesting(mineshaft).equals(legacyRandomMetaSource)) {
-            helper.fail("mineshaft loot should keep the 1.12 random-meta equipment source entries");
+            helper.fail("mineshaft loot should keep the resolvable 1.12 ConfigLoot entries and skip shincolle:Torpedo");
             return;
         }
         int expectedConcreteEntries = 4
-                + ModItems.EQUIPCANNON_DISPLAY_ITEMS.size()
-                + ModItems.EQUIPAIRPLANE_DISPLAY_ITEMS.size()
-                + ModItems.EQUIPTORPEDO_DISPLAY_ITEMS.size();
+                + ModItems.EQUIPCANNON_ITEMS.size()
+                + ModItems.EQUIPAIRPLANE_ITEMS.size();
         if (ChestLootInjector.concreteEntryCountForTesting(mineshaft) != expectedConcreteEntries) {
             helper.fail("1.12 random metadata equipment should fan out to all modern 1.20 item variants");
+            return;
+        }
+        if (ChestLootInjector.maxRollsForTesting(mineshaft) != 4
+                || ChestLootInjector.maxRollsForTesting(ResourceLocation.fromNamespaceAndPath("minecraft", "chests/igloo_chest")) != 3
+                || ChestLootInjector.maxRollsForTesting(ResourceLocation.fromNamespaceAndPath("minecraft", "chests/spawn_bonus_chest")) != 2) {
+            helper.fail("loot rolls should use the 1.12 integer N/2+1 upper bound over legacy entries");
             return;
         }
 
@@ -2803,26 +2856,26 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        JsonObject config = gravelConfigured.getAsJsonObject("config");
-        JsonObject radius = config.getAsJsonObject("radius").getAsJsonObject("value");
-        if (config.get("half_height").getAsInt() != 1
-                || radius.get("min_inclusive").getAsInt() != 1
-                || radius.get("max_inclusive").getAsInt() != 2) {
-            helper.fail("polymetal gravel disk should keep the 1.12 WorldGenPolyGravel radius and thickness");
+        if (!"shincolle:polymetal_gravel".equals(gravelConfigured.get("type").getAsString())) {
+            helper.fail("polymetal gravel should use the ported 1.12 WorldGenPolyGravel feature");
             return;
         }
-
-        String targetBlocks = config.getAsJsonObject("target").getAsJsonArray("blocks").toString();
-        for (String required : List.of("minecraft:stone", "minecraft:gravel")) {
-            if (!targetBlocks.contains(required)) {
-                helper.fail("polymetal gravel target block list is missing 1.12 base block: " + required);
-                return;
-            }
+        JsonObject gravelPlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_gravel.json");
+        if (gravelPlaced == null || gravelPlaced.getAsJsonArray("placement").size() != 1
+                || placementByType(gravelPlaced, "minecraft:biome") == null) {
+            helper.fail("polymetal gravel should run once per ocean chunk like 1.12 generateSea");
+            return;
         }
-        if (targetBlocks.contains("minecraft:sand")
-                || targetBlocks.contains("minecraft:dirt")
-                || targetBlocks.contains("minecraft:clay")) {
-            helper.fail("polymetal gravel target block list must only match 1.12 ConfigHandler.polyGravelBaseBlock defaults {true, true, false, false}");
+        boolean[] replace = ShinColleConfig.polyGravelBaseBlock();
+        if (!replace[0] || !replace[1] || replace[2] || replace[3] || ShinColleConfig.polyGravelBaseRate() != 4) {
+            helper.fail("polymetal gravel config defaults must match 1.12 Polymetal_Gravel / Polymetal_Gravel_Replace");
+            return;
+        }
+        if (!com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), replace)
+                || !com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.GRAVEL.defaultBlockState(), replace)
+                || com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.SAND.defaultBlockState(), replace)
+                || com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState(), replace)) {
+            helper.fail("polymetal gravel replace targets should follow Polymetal_Gravel_Replace");
             return;
         }
 
@@ -3625,16 +3678,25 @@ public final class GameplayParityGameTests {
         var lootArea = ship.getBoundingBox().inflate(1.0D);
         var existingDrops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea);
         helper.getLevel().addFreshEntity(ship);
-        boolean killed = ship.hurt(ship.damageSources().generic(), 10000.0F) && ship.isDeadOrDying();
+        boolean killed;
+        ShinColleConfig.setTestOverride("dropGrudge", 1.0D);
+        try {
+            killed = ship.hurt(ship.damageSources().generic(), 10000.0F) && ship.isDeadOrDying();
+        } finally {
+            ShinColleConfig.clearTestOverride("dropGrudge");
+        }
         var drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea,
                 item -> !existingDrops.contains(item));
-        boolean onlyEgg = drops.size() == 1 && drops.get(0).getItem().getCount() == 1
-                && drops.get(0).getItem().is(ForgeRegistries.ITEMS.getValue(
-                        ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "shipegg38")));
+        boolean onlyLegacyDrops = drops.size() == 2
+                && drops.stream().allMatch(item -> item.getItem().getCount() == 1)
+                && drops.stream().anyMatch(item -> item.getItem().is(ModItems.GRUDGE.get()))
+                && drops.stream().anyMatch(item -> item.getItem().is(ForgeRegistries.ITEMS.getValue(
+                        ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "shipegg38"))));
+        String dropSummary = drops.stream().map(item -> item.getItem().toString()).toList().toString();
         drops.forEach(ItemEntity::discard);
         ship.discard();
-        if (!killed || !onlyEgg) {
-            helper.fail("规模 3 的敌舰应只掉落一枚对应的基础舰娘蛋");
+        if (!killed || !onlyLegacyDrops) {
+            helper.fail("规模 3 的敌舰应仅掉落基础舰娘蛋与 EventHandler.onDrop 配置的怨念：killed=" + killed + " drops=" + dropSummary);
             return;
         }
         helper.succeed();
@@ -4605,49 +4667,6 @@ public final class GameplayParityGameTests {
         if (!packet.involvesEntity(10) || !packet.involvesEntity(20) || packet.involvesEntity(30)) {
             helper.fail("combat reaction actionbar eligibility should be limited to attacker and target entity ids");
             return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void progressionAdvancementsLoadAndFriendlyShipTriggerAwards(GameTestHelper helper) {
-        Advancement deployAdvancement = helper.getLevel().getServer().getAdvancements()
-                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/deploy_first_ship"));
-        Advancement bossAdvancement = helper.getLevel().getServer().getAdvancements()
-                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/ocean_boss_encounter"));
-        if (deployAdvancement == null || bossAdvancement == null) {
-            helper.fail("expected progression advancements to load into the server advancement manager");
-            return;
-        }
-
-        var trigger = CriteriaTriggers.getCriterion(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId());
-        if (trigger == null || !trigger.getId().equals(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId())) {
-            helper.fail("friendly ship deployment trigger should be registered in the vanilla criterion registry");
-            return;
-        }
-
-        var bossCriterion = bossAdvancement.getCriteria().get("hurt_boss");
-        if (bossCriterion == null
-                || !(bossCriterion.getTrigger() instanceof PlayerHurtEntityTrigger.TriggerInstance bossTrigger)) {
-            helper.fail("海上 Boss 进度应保留原有伤害条件");
-            return;
-        }
-        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        if (ship == null) {
-            helper.fail("应可创建用于验证进度条件的敌舰");
-            return;
-        }
-        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2038), null);
-        ServerPlayer player = makeServerBackedPlayer(helper, "BossCriterion");
-        for (int scale = 0; scale < 4; scale++) {
-            ship.initializeHostileRuntime(false, scale);
-            boolean matches = bossTrigger.matches(player, EntityPredicate.createContext(player, ship),
-                    ship.damageSources().playerAttack(player), 1.0F, 1.0F, false);
-            if (matches != (scale > 1)) {
-                helper.fail("海上 Boss 进度条件与敌舰规模不符：" + scale);
-                return;
-            }
         }
 
         helper.succeed();
@@ -5749,6 +5768,37 @@ public final class GameplayParityGameTests {
         }
 
         helper.succeed();
+    }
+
+    @GameTest(template = "guard", batch = "guard_hostile_egg_lifetime")
+    public static void hostileEggUsesLegacyConfiguredLifetime(GameTestHelper helper) {
+        try {
+            for (int lifetime : new int[]{12000, 0, -1}) {
+                ShinColleConfig.setTestOverride("despawnEgg", lifetime);
+                LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+                if (ship == null) {
+                    helper.fail("hostile ship must be creatable for egg lifetime coverage");
+                    return;
+                }
+                ship.moveTo(Vec3.atCenterOf(helper.absolutePos(new BlockPos(16, 160, 16))));
+                ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2038), null);
+                ship.initializeHostileRuntime(false, 3);
+                ship.setCanDropItem(true);
+                helper.getLevel().addFreshEntity(ship);
+                ship.die(ship.damageSources().genericKill());
+                List<ItemEntity> eggs = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                        ship.getBoundingBox().inflate(1), entity -> entity.getItem().getItem() instanceof LegacyShipSpawnEggItem);
+                if (eggs.size() != 1 || eggs.get(0).lifespan != lifetime + 1 || ship.canDropItem()) {
+                    helper.fail("untagged hostile eggs must expire when age exceeds Despawn_Egg, including 0 and -1");
+                    return;
+                }
+                eggs.get(0).discard();
+                ship.discard();
+            }
+            helper.succeed();
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
     }
 
     @GameTest(template = "empty")
@@ -7479,7 +7529,7 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "guard", batch = "guard_hostile_raiden")
     public static void eighthFiveShipHooksKeepLegacyHostileDestroyerParity(GameTestHelper helper) {
         int[] friendlyEggMetas = {53, 54, 55, 56};
         int[] hostileEggMetas = {2053, 2054, 2055, 2056};
@@ -7551,10 +7601,12 @@ public final class GameplayParityGameTests {
         inazuma.setNoAi(true);
         ikazuchi.setNoGravity(true);
         inazuma.setNoGravity(true);
-        BlockPos ikazuchiPos = helper.absolutePos(new BlockPos(8, 4, 8));
-        BlockPos inazumaPos = helper.absolutePos(new BlockPos(9, 4, 8));
+        BlockPos ikazuchiPos = helper.absolutePos(new BlockPos(16, 160, 16));
+        BlockPos inazumaPos = helper.absolutePos(new BlockPos(17, 160, 16));
         ikazuchi.setPos(ikazuchiPos.getX() + 0.5D, ikazuchiPos.getY(), ikazuchiPos.getZ() + 0.5D);
         inazuma.setPos(inazumaPos.getX() + 0.5D, inazumaPos.getY(), inazumaPos.getZ() + 0.5D);
+        helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, new AABB(ikazuchiPos).inflate(18, 10, 18))
+                .forEach(LegacyShipEntity::discard);
         helper.getLevel().addFreshEntity(ikazuchi);
         helper.getLevel().addFreshEntity(inazuma);
 
@@ -7575,12 +7627,15 @@ public final class GameplayParityGameTests {
                     + ", ikazuchiScale=" + ikazuchi.getLegacyHostileScaleLevel()
                     + ", inazumaScale=" + inazuma.getLegacyHostileScaleLevel()
                     + ", ikazuchiVehicle=" + (ikazuchi.getVehicle() == null ? "null" : ikazuchi.getVehicle().getClass().getSimpleName())
+                    + ", expectedPartner=" + inazuma.getId() + "/" + inazuma.getUUID()
+                    + ", actualPartner=" + (ikazuchi.getVehicle() == null ? "null"
+                    : ikazuchi.getVehicle().getId() + "/" + ikazuchi.getVehicle().getUUID())
                     + ", inazumaPassengers=" + inazuma.getPassengers().size()
                     + ", ikazuchiPassengers=" + ikazuchi.getPassengers().size());
             return;
         }
 
-        BlockPos liftedInazumaPos = helper.absolutePos(new BlockPos(12, 5, 12));
+        BlockPos liftedInazumaPos = helper.absolutePos(new BlockPos(20, 164, 20));
         inazuma.setPos(liftedInazumaPos.getX() + 0.5D, liftedInazumaPos.getY(), liftedInazumaPos.getZ() + 0.5D);
         ikazuchi.rideTick();
         double expectedRiderY = inazuma.getY() + inazuma.getBbHeight() * 0.47D
