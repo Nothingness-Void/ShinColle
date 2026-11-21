@@ -11,6 +11,7 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
 import com.lulan.shincolle.mixin.LivingDamageAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.fluids.FluidUtil;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -40,6 +42,28 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(ShinColle.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class NeoForgeCompatibilityGameTests {
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void enchantabilityIsNotAnOreDictionaryMatch(GameTestHelper helper) {
+        ItemStack helmet = new ItemStack(Items.IRON_HELMET);
+        ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
+        helper.assertTrue(helmet.is(Tags.Items.ENCHANTABLES) && sword.is(Tags.Items.ENCHANTABLES),
+                "the regression fixture must share the real NeoForge enchanting classification");
+        helper.assertTrue(!LegacyItemMatchHelper.matchesTargetItem(helmet, sword, false, true, false)
+                && !LegacyItemMatchHelper.matchesTargetItem(sword, helmet, false, true, false),
+                "ore matching must not move armor as matching a sword just because both are enchantable");
+        helper.assertTrue(LegacyItemMatchHelper.matchesTargetItem(helmet, helmet.copy(), true, true, true),
+                "ordinary identical-item matching remains available for enchantable items");
+        ItemStack oak = new ItemStack(Items.OAK_PLANKS);
+        ItemStack spruce = new ItemStack(Items.SPRUCE_PLANKS);
+        helper.assertTrue(LegacyItemMatchHelper.matchesTargetItem(oak, spruce, false, true, false)
+                && !LegacyItemMatchHelper.matchesTargetItem(oak, spruce, false, false, false),
+                "legacy plankWood-style matching still requires and obeys the ore toggle");
+        helper.assertTrue(LegacyItemMatchHelper.matchesTargetItem(ItemStack.EMPTY, ItemStack.EMPTY, false, true, false)
+                && !LegacyItemMatchHelper.matchesTargetItem(helmet, ItemStack.EMPTY, false, true, false),
+                "empty templates retain their original semantics");
+        helper.succeed();
+    }
+
     @GameTest(template = "gameplayparitygametests.empty")
     public static void incomingCancellationSharesNeoForgeContainerLifecycle(GameTestHelper helper) {
         LivingEntity control = EntityType.ZOMBIE.create(helper.getLevel());

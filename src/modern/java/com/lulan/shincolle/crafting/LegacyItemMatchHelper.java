@@ -105,8 +105,9 @@ public final class LegacyItemMatchHelper {
                 || id.getPath().equals("meat") || id.getPath().equals("wolf_food"))) {
             return false;
         }
-        // 1.21's broad food groups were not Forge 1.20.1 OreDictionary equivalents.
-        return !id.getNamespace().equals("c") || !id.getPath().equals("animal_foods")
+        // Broad 1.21 classifications are not legacy OreDictionary names.
+        return !id.getNamespace().equals("c") || !id.getPath().equals("enchantables")
+                && !id.getPath().startsWith("enchantables/") && !id.getPath().equals("animal_foods")
                 && !id.getPath().startsWith("animal_foods/") && !id.getPath().equals("foods")
                 && (!id.getPath().startsWith("foods/") || id.getPath().equals("foods/combat_ration")
                 || id.getPath().equals("foods/cooked_rice"));
