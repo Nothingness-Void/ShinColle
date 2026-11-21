@@ -1,6 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
-import com.lulan.shincolle.menu.DeskReferenceMenu;
+import com.lulan.shincolle.menu.LegacyDeskBookData;
 import com.lulan.shincolle.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -20,7 +20,7 @@ public class DeskBlockEntity extends BlockEntity {
     private static final String BOOK_CHAPTER_TAG = "BookChapter";
     private static final String BOOK_PAGE_TAG = "BookPage";
 
-    private int selectedFunction = DeskReferenceMenu.RADAR_VARIANT;
+    private int selectedFunction;
     private int radarZoomIndex;
     private int bookChapter;
     private int bookPage;
@@ -34,8 +34,8 @@ public class DeskBlockEntity extends BlockEntity {
         super.load(tag);
         this.selectedFunction = clampFunction(tag.getInt(SELECTED_FUNCTION_TAG));
         this.radarZoomIndex = Mth.clamp(tag.getInt(RADAR_ZOOM_TAG), 0, 2);
-        this.bookChapter = Mth.clamp(tag.getInt(BOOK_CHAPTER_TAG), 0, 4);
-        this.bookPage = Mth.clamp(tag.getInt(BOOK_PAGE_TAG), 0, 15);
+        this.bookChapter = Mth.clamp(tag.getInt(BOOK_CHAPTER_TAG), 0, 6);
+        this.bookPage = Mth.clamp(tag.getInt(BOOK_PAGE_TAG), 0, LegacyDeskBookData.PAGE_LIMIT[this.bookChapter]);
     }
 
     @Override
@@ -60,13 +60,6 @@ public class DeskBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    public void cycleFunction() {
-        this.selectedFunction = this.selectedFunction == DeskReferenceMenu.RADAR_VARIANT
-                ? DeskReferenceMenu.BOOK_VARIANT
-                : DeskReferenceMenu.RADAR_VARIANT;
-        this.markUpdated();
-    }
-
     public int getSelectedFunction() {
         return this.selectedFunction;
     }
@@ -86,13 +79,13 @@ public class DeskBlockEntity extends BlockEntity {
     public void syncFunc(int selectedFunction, int radarZoomIndex, int bookChapter, int bookPage) {
         this.selectedFunction = clampFunction(selectedFunction);
         this.radarZoomIndex = Mth.clamp(radarZoomIndex, 0, 2);
-        this.bookChapter = Mth.clamp(bookChapter, 0, 4);
-        this.bookPage = Mth.clamp(bookPage, 0, 15);
+        this.bookChapter = Mth.clamp(bookChapter, 0, 6);
+        this.bookPage = Mth.clamp(bookPage, 0, LegacyDeskBookData.PAGE_LIMIT[this.bookChapter]);
         this.markUpdated();
     }
 
     public Component getSelectedFunctionName() {
-        return Component.translatable(this.selectedFunction == DeskReferenceMenu.BOOK_VARIANT
+        return Component.translatable(this.selectedFunction == 2
                 ? "item.shincolle.deskitembook"
                 : "item.shincolle.deskitemradar");
     }
@@ -106,8 +99,6 @@ public class DeskBlockEntity extends BlockEntity {
     }
 
     private static int clampFunction(int function) {
-        return function == DeskReferenceMenu.BOOK_VARIANT
-                ? DeskReferenceMenu.BOOK_VARIANT
-                : DeskReferenceMenu.RADAR_VARIANT;
+        return Mth.clamp(function, 0, 4);
     }
 }

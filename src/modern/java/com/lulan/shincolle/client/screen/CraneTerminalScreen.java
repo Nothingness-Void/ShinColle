@@ -1,43 +1,31 @@
 package com.lulan.shincolle.client.screen;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMenu> {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "textures/gui/gui_crane.png");
-    private static final int MODE_X = 22;
-    private static final int MODE_Y = 5;
-    private static final int MODE_W = 69;
-    private static final int MODE_H = 15;
-    private static final int LOAD_X = 7;
-    private static final int LOAD_Y = 52;
-    private static final int TOGGLE_W = 11;
-    private static final int TOGGLE_H = 11;
-    private static final int UNLOAD_Y = 83;
-    private static final int META_X = 23;
-    private static final int META_Y = 22;
-    private static final int OREDICT_X = 37;
-    private static final int OREDICT_Y = 22;
-    private static final int NBT_X = 51;
-    private static final int NBT_Y = 22;
-    private static final int REDSTONE_X = 65;
-    private static final int REDSTONE_Y = 22;
-    private static final int LIQUID_X = 23;
-    private static final int LIQUID_Y = 36;
-    private static final int ENERGY_X = 39;
-    private static final int ENERGY_Y = 36;
+    private static final int[][] BUTTONS = {
+            {7, 6, 20, 19, CraneTerminalMenu.BUTTON_POWER},
+            {23, 6, 90, 19, CraneTerminalMenu.BUTTON_WAIT_MODE},
+            {22, 21, 35, 34, CraneTerminalMenu.BUTTON_TOGGLE_META},
+            {36, 21, 49, 34, CraneTerminalMenu.BUTTON_TOGGLE_OREDICT},
+            {7, 52, 80, 63, CraneTerminalMenu.BUTTON_TOGGLE_LOAD},
+            {7, 83, 80, 94, CraneTerminalMenu.BUTTON_TOGGLE_UNLOAD},
+            {50, 21, 63, 34, CraneTerminalMenu.BUTTON_TOGGLE_NBT},
+            {64, 21, 77, 34, CraneTerminalMenu.BUTTON_REDSTONE_MODE},
+            {23, 36, 36, 49, CraneTerminalMenu.BUTTON_LIQUID_MODE},
+            {39, 36, 52, 49, CraneTerminalMenu.BUTTON_ENERGY_MODE}
+    };
 
     public CraneTerminalScreen(CraneTerminalMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -47,265 +35,129 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
     }
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        guiGraphics.drawCenteredString(this.font, this.menu.getWaitModeLabel(), 57, 9, 0xFFF0A8);
-        guiGraphics.drawString(this.font, Component.translatable("gui.shincolle.crane.filter.load"), 21, 54, 0xFF827D);
-        guiGraphics.drawString(this.font, Component.translatable("gui.shincolle.crane.filter.unload"), 21, 85, 0x404040);
-
-        guiGraphics.drawString(this.font, this.menu.getOwnerLabel(), 80, 24, 0xF2F2F2, false);
-        guiGraphics.drawString(this.font, shortPos("F", this.menu.getLastWaypoint(), ChatFormatting.LIGHT_PURPLE), 80, 36, 0xD0C8D8, false);
-        guiGraphics.drawString(this.font, shortPos("T", this.menu.getNextWaypoint(), ChatFormatting.AQUA), 80, 48, 0xC8DFE1, false);
-        guiGraphics.drawString(this.font, shortPos("C", this.menu.getPairedChest(), ChatFormatting.GOLD), 80, 60, 0xE1D1B4, false);
-        guiGraphics.drawString(this.font, this.menu.getEnergyStatusLabel(), 80, 72, 0xDDE6A5, false);
+    protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
+        graphics.drawCenteredString(this.font, this.menu.getWaitModeLabel(), 57, 9, 0xFFFF00);
+        graphics.drawString(this.font, Component.translatable("gui.shincolle.crane.filter.load"), 21, 54, 0xFF3333, false);
+        graphics.drawString(this.font, Component.translatable("gui.shincolle.crane.filter.unload"), 21, 85, 0x000000, false);
+        var ship = this.menu.getShip();
+        if (ship != null) {
+            String time = CraneTerminalMenu.formatCraneTime(this.menu.getCraneTime());
+            graphics.drawString(this.font, time, 133 - this.font.width(time) / 2, 10, 0x303030, false);
+            Component name = ship.getCustomName();
+            if (name == null || name.getString().isEmpty()) {
+                name = ship.getSpec().displayName();
+            }
+            graphics.drawString(this.font, name, 80, 24, 0xFFFFFF, true);
+        }
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-        this.renderHoverTooltip(guiGraphics, mouseX, mouseY);
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(graphics);
+        super.render(graphics, mouseX, mouseY, partialTick);
+        this.renderHoverTooltip(graphics, mouseX, mouseY);
+        this.renderTooltip(graphics, mouseX, mouseY);
     }
 
     @Override
-    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
-
+    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        RenderSystem.enableBlend();
+        graphics.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
         if (this.menu.isActive()) {
-            guiGraphics.blit(TEXTURE, this.leftPos + 7, this.topPos + 6, 176, 0, 13, 13);
+            this.blitButton(graphics, 7, 6, 176, 0, 13, 13);
         }
-
-        if (!this.menu.isLoadEnabled()) {
-            guiGraphics.fill(this.leftPos + 8, this.topPos + 65, this.leftPos + 168, this.topPos + 81, 0x66300000);
-        }
-
-        if (!this.menu.isUnloadEnabled()) {
-            guiGraphics.fill(this.leftPos + 8, this.topPos + 96, this.leftPos + 168, this.topPos + 112, 0x66000030);
-        }
-
         if (this.menu.isCheckMetadata()) {
-            guiGraphics.blit(TEXTURE, this.leftPos + META_X, this.topPos + META_Y, 176, 13, TOGGLE_W, TOGGLE_H);
+            this.blitButton(graphics, 23, 22, 176, 13, 11, 11);
         }
         if (this.menu.isCheckOredict()) {
-            guiGraphics.blit(TEXTURE, this.leftPos + OREDICT_X, this.topPos + OREDICT_Y, 176, 24, TOGGLE_W, TOGGLE_H);
+            this.blitButton(graphics, 37, 22, 176, 24, 11, 11);
         }
         if (this.menu.isCheckNbt()) {
-            guiGraphics.blit(TEXTURE, this.leftPos + NBT_X, this.topPos + NBT_Y, 176, 46, TOGGLE_W, TOGGLE_H);
+            this.blitButton(graphics, 51, 22, 176, 46, 11, 11);
         }
-
-        drawToggleLamp(guiGraphics, REDSTONE_X, REDSTONE_Y, colorForMode(this.menu.getRedstoneModeLabel()));
-        drawToggleLamp(guiGraphics, LIQUID_X, LIQUID_Y, colorForMode(this.menu.getLiquidModeLabel()));
-        drawToggleLamp(guiGraphics, ENERGY_X, ENERGY_Y, colorForMode(this.menu.getEnergyModeLabel()));
-
+        if (!this.menu.isLoadEnabled()) {
+            this.blitButton(graphics, 7, 52, 176, 35, 11, 11);
+            this.blitButton(graphics, 8, 65, 0, 201, 160, 16);
+        }
+        if (!this.menu.isUnloadEnabled()) {
+            this.blitButton(graphics, 7, 83, 176, 35, 11, 11);
+            this.blitButton(graphics, 8, 96, 0, 201, 160, 16);
+        }
+        int redstone = this.menu.getCrane() == null ? 0 : this.menu.getCrane().getRedstoneMode();
+        if (redstone == 1 || redstone == 2) {
+            this.blitButton(graphics, 65, 22, 176, redstone == 1 ? 57 : 68, 11, 11);
+        }
+        int liquid = this.menu.getCrane() == null ? 0 : this.menu.getCrane().getLiquidMode();
+        this.blitButton(graphics, 23, 36, liquid == 1 ? 176 : liquid == 2 ? 189 : 202, 101, 13, 13);
         for (int slot = 0; slot < 18; slot++) {
-            if (!this.menu.isFilterInverted(slot)) {
-                continue;
+            if (this.menu.isFilterInverted(slot)) {
+                this.blitButton(graphics, 7 + (slot % 9) * 18, slot < 9 ? 64 : 95, 0, 217, 18, 18);
             }
-
-            int x = slot < 9 ? 8 + slot * 18 : 8 + (slot - 9) * 18;
-            int y = slot < 9 ? 65 : 96;
-            guiGraphics.fill(this.leftPos + x, this.topPos + y, this.leftPos + x + 16, this.topPos + y + 16, 0x44AA2200);
-            guiGraphics.drawString(this.font, "!", x + 5, y + 4, 0xFFE38C7A, false);
         }
+        RenderSystem.disableBlend();
     }
 
-    @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int leftPos, int topPos, int mouseButton) {
-        return super.hasClickedOutside(mouseX, mouseY, leftPos, topPos, mouseButton);
+    private void blitButton(GuiGraphics graphics, int x, int y, int u, int v, int width, int height) {
+        graphics.blit(TEXTURE, this.leftPos + x, this.topPos + y, u, v, width, height);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.handleRegionClick(mouseX, mouseY, 7, 6, 13, 13, CraneTerminalMenu.BUTTON_POWER)) {
-            return true;
-        }
-
-        if (inside((int) (mouseX - this.leftPos), (int) (mouseY - this.topPos), MODE_X, MODE_Y, MODE_W, MODE_H)) {
-            int buttonId = (button == 1) ? CraneTerminalMenu.BUTTON_WAIT_MODE_DECR : CraneTerminalMenu.BUTTON_WAIT_MODE;
-            if (this.handleRegionClick(mouseX, mouseY, MODE_X, MODE_Y, MODE_W, MODE_H, buttonId)) {
-                return true;
+        int x = (int) (mouseX - this.leftPos);
+        int y = (int) (mouseY - this.topPos);
+        for (int[] region : BUTTONS) {
+            if (x >= region[0] && x <= region[2] && y >= region[1] && y <= region[3]) {
+                if (this.menu.canEdit() && this.minecraft != null && this.minecraft.gameMode != null) {
+                    int id = region[4];
+                    if (id == CraneTerminalMenu.BUTTON_WAIT_MODE && button != 0) {
+                        id = CraneTerminalMenu.BUTTON_WAIT_MODE_DECR;
+                    }
+                    this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, id);
+                    return true;
+                }
+                break;
             }
         }
-
-        if (this.handleRegionClick(mouseX, mouseY, LOAD_X, LOAD_Y, TOGGLE_W, TOGGLE_H, CraneTerminalMenu.BUTTON_TOGGLE_LOAD)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, LOAD_X, UNLOAD_Y, TOGGLE_W, TOGGLE_H, CraneTerminalMenu.BUTTON_TOGGLE_UNLOAD)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, META_X - 1, META_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_META)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, OREDICT_X - 1, OREDICT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_OREDICT)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, NBT_X - 1, NBT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2, CraneTerminalMenu.BUTTON_TOGGLE_NBT)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, REDSTONE_X, REDSTONE_Y, TOGGLE_W, TOGGLE_H, CraneTerminalMenu.BUTTON_REDSTONE_MODE)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, LIQUID_X, LIQUID_Y, 13, 13, CraneTerminalMenu.BUTTON_LIQUID_MODE)) {
-            return true;
-        }
-
-        if (this.handleRegionClick(mouseX, mouseY, ENERGY_X, ENERGY_Y, 13, 13, CraneTerminalMenu.BUTTON_ENERGY_MODE)) {
-            return true;
-        }
-
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private boolean handleRegionClick(double mouseX, double mouseY, int relX, int relY, int width, int height, int buttonId) {
-        if (!this.menu.canEdit()) {
-            return false;
-        }
-
-        double localX = mouseX - this.leftPos;
-        double localY = mouseY - this.topPos;
-        if (localX < relX || localX > relX + width || localY < relY || localY > relY + height) {
-            return false;
-        }
-
-        if (this.minecraft != null && this.minecraft.gameMode != null) {
-            this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, buttonId);
-            return true;
-        }
-
-        return false;
-    }
-
-    private void renderHoverTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        int localX = mouseX - this.leftPos;
-        int localY = mouseY - this.topPos;
-
-        if (inside(localX, localY, 7, 6, 13, 13)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.literal("Power: ").append(Component.translatable(this.menu.isActive() ? "gui.shincolle.crane.state.enabled" : "gui.shincolle.crane.state.disabled"))), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, MODE_X, MODE_Y, MODE_W, MODE_H)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    this.menu.getWaitModeLabel(),
-                    Component.translatable("gui.shincolle.crane.note.wait")), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, LOAD_X, LOAD_Y, TOGGLE_W, TOGGLE_H)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.translatable("gui.shincolle.crane.button.load", this.menu.getLoadStateLabel()),
-                    Component.translatable("gui.shincolle.crane.note.filter")), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, LOAD_X, UNLOAD_Y, TOGGLE_W, TOGGLE_H)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.translatable("gui.shincolle.crane.button.unload", this.menu.getUnloadStateLabel()),
-                    Component.translatable("gui.shincolle.crane.note.filter")), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, META_X - 1, META_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.translatable("gui.shincolle.crane.usemeta"),
-                    this.menu.getCheckMetadataStateLabel()), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, OREDICT_X - 1, OREDICT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.translatable("gui.shincolle.crane.useoredict"),
-                    this.menu.getCheckOredictStateLabel()), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, NBT_X - 1, NBT_Y - 1, TOGGLE_W + 2, TOGGLE_H + 2)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    Component.translatable("gui.shincolle.crane.usenbt"),
-                    this.menu.getCheckNbtStateLabel()), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, REDSTONE_X, REDSTONE_Y, TOGGLE_W, TOGGLE_H)) {
-            guiGraphics.renderTooltip(this.font, this.menu.getRedstoneModeLabel(), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, LIQUID_X, LIQUID_Y, 13, 13)) {
-            guiGraphics.renderTooltip(this.font, this.menu.getLiquidModeLabel(), mouseX, mouseY);
-            return;
-        }
-
-        if (inside(localX, localY, ENERGY_X, ENERGY_Y, 13, 13)) {
-            renderComponentTooltip(guiGraphics, List.of(
-                    this.menu.getEnergyModeLabel(),
-                    this.menu.getEnergyStatusLabel()), mouseX, mouseY);
-            return;
-        }
-
-        for (int slot = 0; slot < 18; slot++) {
-            int x = slot < 9 ? 8 + slot * 18 : 8 + (slot - 9) * 18;
-            int y = slot < 9 ? 65 : 96;
-            if (!inside(localX, localY, x, y, 16, 16)) {
-                continue;
+    private void renderHoverTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+        int x = mouseX - this.leftPos;
+        int y = mouseY - this.topPos;
+        Component label = null;
+        if (y > 21 && y < 34) {
+            if (x > 22 && x < 35) {
+                label = Component.translatable("gui.shincolle.crane.usemeta");
+            } else if (x > 36 && x < 49) {
+                label = Component.translatable("gui.shincolle.crane.useoredict");
+            } else if (x > 50 && x < 63) {
+                label = Component.translatable("gui.shincolle.crane.usenbt");
+            } else if (x > 64 && x < 77) {
+                label = this.menu.getRedstoneModeLabel();
             }
-
-            ItemStack stack = this.menu.getFilterStack(slot);
-            if (stack.isEmpty()) {
-                renderComponentTooltip(guiGraphics, List.of(
-                        Component.translatable("gui.shincolle.crane.note.filter"),
-                        Component.translatable("gui.shincolle.crane.note.filter_inverse")), mouseX, mouseY);
-            } else if (this.menu.isFilterInverted(slot)) {
-                renderComponentTooltip(guiGraphics, List.of(
-                        stack.getHoverName(),
-                        Component.translatable("gui.shincolle.crane.note.filter_inverse")), mouseX, mouseY);
+        } else if (y > 35 && y < 50 && x > 22 && x < 37) {
+            label = this.menu.getLiquidModeLabel();
+        }
+        if (label != null) {
+            graphics.renderTooltip(this.font, label, mouseX, mouseY + 10);
+        }
+        if (x > 22 && x < 91 && y > 5 && y < 20) {
+            int mode = this.menu.getCrane() == null ? 0 : this.menu.getCrane().getWaitMode();
+            String key = switch (mode) {
+                case 0 -> "nowait";
+                case 1 -> "untilfull";
+                case 2 -> "untilempty";
+                case 3 -> "excess";
+                case 4 -> "remain";
+                default -> null;
+            };
+            if (key != null) {
+                List<Component> lines = mode == 0
+                        ? List.of(Component.translatable("gui.shincolle.crane." + key + "1"))
+                        : List.of(Component.translatable("gui.shincolle.crane." + key + "1"),
+                                Component.translatable("gui.shincolle.crane." + key + "2"));
+                graphics.renderTooltip(this.font, lines.stream().map(Component::getVisualOrderText).toList(), this.leftPos - 50, this.topPos + 37);
             }
-
-            return;
         }
-    }
-
-    private void renderComponentTooltip(GuiGraphics guiGraphics, List<Component> lines, int mouseX, int mouseY) {
-        List<FormattedCharSequence> formatted = lines.stream()
-                .map(Component::getVisualOrderText)
-                .toList();
-        guiGraphics.renderTooltip(this.font, formatted, mouseX, mouseY);
-    }
-
-    private static boolean inside(int mouseX, int mouseY, int x, int y, int width, int height) {
-        return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
-    }
-
-    private void drawToggleLamp(GuiGraphics guiGraphics, int x, int y, int color) {
-        guiGraphics.fill(this.leftPos + x, this.topPos + y, this.leftPos + x + 11, this.topPos + y + 11, 0xAA111111);
-        guiGraphics.fill(this.leftPos + x + 2, this.topPos + y + 2, this.leftPos + x + 9, this.topPos + y + 9, color);
-    }
-
-    private static int colorForMode(Component label) {
-        String text = label.getString().toLowerCase();
-        if (text.contains("disabled") || text.contains("no ")) {
-            return 0xFF555555;
-        }
-
-        if (text.contains("pulse") || text.contains("unload")) {
-            return 0xFFE58B3C;
-        }
-
-        return 0xFF7FDB77;
-    }
-
-    private static Component shortPos(String prefix, @Nullable net.minecraft.core.BlockPos pos, ChatFormatting color) {
-        if (pos == null) {
-            return Component.literal(prefix + ": -").withStyle(ChatFormatting.DARK_GRAY);
-        }
-
-        return Component.literal(prefix + ": " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ()).withStyle(color);
     }
 }

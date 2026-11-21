@@ -1,0 +1,8 @@
+
+> Configure project :
+Java: 17.0.20.1, JVM: 17.0.20.1+1-1-22.04-Ubuntu (Ubuntu), Arch: amd64
+
+> Task :compileJava UP-TO-DATE
+
+BUILD SUCCESSFUL in 6s
+1 actionable task: 1 up-to-date

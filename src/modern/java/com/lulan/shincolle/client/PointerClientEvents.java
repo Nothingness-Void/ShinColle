@@ -86,6 +86,24 @@ public final class PointerClientEvents {
     }
 
     @SubscribeEvent
+    public static void onCaressInteraction(PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getEntity() instanceof LocalPlayer player)
+                || !(event.getTarget() instanceof LegacyShipEntity ship)
+                || ship.isHostileVariant() || player.isShiftKeyDown()) {
+            return;
+        }
+        ItemStack pointer = player.getItemInHand(event.getHand());
+        if (!(pointer.getItem() instanceof PointerItem) || !PointerItem.isCaressMode(PointerItem.getMode(pointer))) {
+            return;
+        }
+        if (Minecraft.getInstance().hitResult instanceof EntityHitResult hit && hit.getEntity() == ship) {
+            double relY = Mth.clamp((hit.getLocation().y - ship.getY()) / Math.max(0.1D, ship.getBbHeight()), 0D, 1D);
+            int hitHeight = Mth.clamp((int)Math.round(relY * 100D), 0, 100);
+            if (hitHeight > (ship.isOrderedToSit() ? 29 : 58)) ship.startLegacyModelCaress();
+        }
+    }
+
+    @SubscribeEvent
     public static void onLeftClickEmpty(PlayerInteractEvent.LeftClickEmpty event) {
         if (event.getEntity() instanceof LocalPlayer player) {
             handlePointerLeftClick(player);

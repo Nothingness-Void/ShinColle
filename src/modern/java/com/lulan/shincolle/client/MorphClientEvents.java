@@ -1,26 +1,27 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.ShinColle;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
-import com.lulan.shincolle.morph.MorphHelper;
-import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.BlockHitResult;
@@ -29,12 +30,11 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
-
-import java.util.Locale;
 
 @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class MorphClientEvents {
@@ -64,8 +64,8 @@ public final class MorphClientEvents {
     @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
     public static final class ForgeEvents {
 
-        private static final int SLOT_SIZE = 20;
-        private static final int SLOT_GAP = 2;
+        private static final ResourceLocation HUD = ResourceLocation.fromNamespaceAndPath(
+                ShinColle.MOD_ID, "textures/gui/guihud.png");
 
         private ForgeEvents() {
         }
@@ -120,11 +120,12 @@ public final class MorphClientEvents {
             }
         }
 
-        @SubscribeEvent
-        public static void onRenderOverlay(RenderGuiOverlayEvent.Post event) {
+        @SubscribeEvent(receiveCanceled = true)
+        public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
+            if (!event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())) return;
             Minecraft minecraft = Minecraft.getInstance();
             LocalPlayer player = minecraft.player;
-            if (player == null || minecraft.screen != null) {
+            if (player == null) {
                 return;
             }
 
@@ -136,54 +137,49 @@ public final class MorphClientEvents {
             }
 
             GuiGraphics guiGraphics = event.getGuiGraphics();
-            int centerX = event.getWindow().getGuiScaledWidth() / 2;
-            int baseY = event.getWindow().getGuiScaledHeight() - 78;
-            int totalWidth = PlayerSkillRuntimeState.SLOT_COUNT * SLOT_SIZE + (PlayerSkillRuntimeState.SLOT_COUNT - 1) * SLOT_GAP;
-            int left = centerX - totalWidth / 2;
-
-            Component title = MorphHelper.getPlayerSkillTitle(player);
-            Component resources = MorphHelper.getPlayerSkillResourceLine(player);
-            Component mode = Component.literal(runtimeState.getHostMode().name());
-            int titleWidth = minecraft.font.width(title);
-            int resourceWidth = minecraft.font.width(resources);
-            guiGraphics.drawString(minecraft.font, title, centerX - titleWidth / 2, baseY - 22, 0xF3E7BF, false);
-            guiGraphics.drawString(minecraft.font, resources, centerX - resourceWidth / 2, baseY - 12, 0xCDD7DF, false);
-            guiGraphics.drawString(minecraft.font, mode, left - 42, baseY + 6, hostModeColor(runtimeState.getHostMode()), false);
-
-            for (int slot = 0; slot < PlayerSkillRuntimeState.SLOT_COUNT; slot++) {
-                int slotX = left + slot * (SLOT_SIZE + SLOT_GAP);
-                boolean enabled = runtimeState.isSlotEnabled(slot);
-                int cooldown = runtimeState.getSlotCooldown(slot);
-                int maxCooldown = runtimeState.getSlotMaxCooldown(slot);
-
-                guiGraphics.fill(slotX, baseY, slotX + SLOT_SIZE, baseY + SLOT_SIZE, 0xCC11161A);
-                guiGraphics.fill(slotX + 1, baseY + 1, slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1,
-                        enabled ? 0xCC294048 : 0xAA22262B);
-                guiGraphics.fill(slotX, baseY, slotX + SLOT_SIZE, baseY + 1, enabled ? 0xFFE4D4A2 : 0xFF555C60);
-                guiGraphics.fill(slotX, baseY + SLOT_SIZE - 1, slotX + SLOT_SIZE, baseY + SLOT_SIZE, enabled ? 0xFF6B7B82 : 0xFF44484C);
-
-                if (maxCooldown > 0 && cooldown > 0) {
-                    int overlayHeight = Math.max(1, Math.round((cooldown / (float) maxCooldown) * (SLOT_SIZE - 2)));
-                    guiGraphics.fill(slotX + 1, baseY + SLOT_SIZE - 1 - overlayHeight,
-                            slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1, 0x99232A2F);
-                }
-
-                if (minecraft.options.keyHotbarSlots[slot].isDown() || (slot == 4 && SPECIAL_ATTACK.isDown())) {
-                    guiGraphics.fill(slotX + 1, baseY + 1, slotX + SLOT_SIZE - 1, baseY + SLOT_SIZE - 1, 0x55FFF3C2);
-                }
-
-                guiGraphics.drawString(minecraft.font, String.valueOf(slot + 1), slotX + 2, baseY + 2, 0xFFF7E6AD, false);
-                drawCentered(guiGraphics, getSlotLabel(player, runtimeState, slot), slotX + SLOT_SIZE / 2, baseY + 7,
-                        enabled ? 0xFFF0F4F7 : 0xFF7B858D);
-                if (cooldown > 0) {
-                    String seconds = String.format(Locale.ROOT, "%.1f", cooldown / 20.0F);
-                    drawCentered(guiGraphics, seconds, slotX + SLOT_SIZE / 2, baseY + 13, 0xFFECD990);
+            int width = event.getWindow().getGuiScaledWidth();
+            int height = event.getWindow().getGuiScaledHeight();
+            double[] position = ShinColleConfig.posHUD();
+            int px = (int)(width * position[0]);
+            int py = (int)(height * position[1]);
+            var host = PlayerSkillHostResolver.resolve(player);
+            int[] drawAirNum = new int[2];
+            if (host.ship() != null) {
+                switch (host.ship().getSpec().textureStem()) {
+                    case "EntityBattleshipRe", "EntityCarrierWo", "EntityCarrierAkagi", "EntityCarrierKaga",
+                            "EntityAirfieldHime", "EntityCarrierHime", "EntityHarbourHime", "EntityIsolatedHime",
+                            "EntityMidwayHime", "EntityNorthernHime", "EntityCarrierWDemon" -> {
+                        drawAirNum[0] = host.ship().getAircraftLight();
+                        drawAirNum[1] = host.ship().getAircraftHeavy();
+                    }
+                    default -> {
+                    }
                 }
             }
-
-            guiGraphics.drawString(minecraft.font,
-                    Component.literal("[1-5] Skills  [G] Morph  [Shift+G] Mount  [Z/X/C] Quick"),
-                    centerX - 108, baseY + 24, 0x8FD7DDEA, false);
+            for (int slot = 0; slot < PlayerSkillRuntimeState.SLOT_COUNT; slot++) {
+                if (!(slot == 4 ? host.profile() != null : runtimeState.isSlotEnabled(slot))) continue;
+                int slotX = px - 40 + slot * 21;
+                int cooldown = runtimeState.getSlotCooldown(slot);
+                int maxCooldown = runtimeState.getSlotMaxCooldown(slot);
+                int len = (int)((float)cooldown / (float)maxCooldown * 18F);
+                RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                guiGraphics.blit(HUD, slotX, py, slot * 18, 0, 18, 18);
+                guiGraphics.blit(HUD, slotX, py + 18 - len, 0, 36 - len, 18, len);
+                if (len > 0) guiGraphics.drawString(minecraft.font,
+                        String.format("%.1f", cooldown * 0.05F), slotX + 5, py + 18, 16776960, true);
+                if (minecraft.options.keyHotbarSlots[slot].isDown())
+                    guiGraphics.fill(slotX, py, slotX + 18, py + 18, 1073741823);
+                if (slot == 2) guiGraphics.drawString(minecraft.font,
+                        String.valueOf(drawAirNum[0]), slotX + 7, py - 8, 65344, true);
+                else if (slot == 3) guiGraphics.drawString(minecraft.font,
+                        String.valueOf(drawAirNum[1]), slotX + 7, py - 8, 65535, true);
+            }
+            RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+            guiGraphics.blit(HUD, width / 2, height / 2 - 4, 0, 7, 1, 9);
+            guiGraphics.blit(HUD, width / 2 - 4, height / 2, 7, 0, 9, 1);
+            RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
         }
 
         private static void handleHotbarSkillInput(LocalPlayer player, Minecraft minecraft, PlayerSkillRuntimeState runtimeState) {
@@ -200,33 +196,6 @@ public final class MorphClientEvents {
             if (usedSkillKey) {
                 player.getInventory().selected = selectedSlot;
             }
-        }
-
-        private static void drawCentered(GuiGraphics guiGraphics, String text, int centerX, int y, int color) {
-            Minecraft minecraft = Minecraft.getInstance();
-            guiGraphics.drawString(minecraft.font, text, centerX - minecraft.font.width(text) / 2, y, color, false);
-        }
-
-        private static int hostModeColor(MorphHostMode mode) {
-            return switch (mode) {
-                case MORPH -> 0x8FE3FF;
-                case MOUNT -> 0xA6F2C1;
-                case RIDER -> 0xF3C88B;
-                default -> 0x90979C;
-            };
-        }
-
-        private static String getSlotLabel(LocalPlayer player, PlayerSkillRuntimeState runtimeState, int slot) {
-            return switch (slot) {
-                case 0 -> "L";
-                case 1 -> "H";
-                case 2 -> "AL";
-                case 3 -> "AH";
-                case 4 -> runtimeState.getHostMode() == MorphHostMode.RIDER
-                        ? "--"
-                        : (MorphHelper.hasSpecialSkill(player) ? "SP" : "M");
-                default -> "-";
-            };
         }
 
         private static LivingEntity resolveCrosshairTarget() {

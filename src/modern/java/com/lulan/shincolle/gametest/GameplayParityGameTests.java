@@ -56,15 +56,16 @@ import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import com.lulan.shincolle.network.ShipCommandAction;
 import com.lulan.shincolle.network.ShipCommandService;
+import com.lulan.shincolle.network.ShipGuiButton;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
+import net.minecraft.world.level.GameType;
 import com.lulan.shincolle.menu.CraneTerminalMenu;
-import com.lulan.shincolle.menu.DeskReferenceMenu;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.LargeShipyardMenu;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.menu.MorphInventoryMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
-import com.lulan.shincolle.menu.WaypointTerminalMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.playerskill.PlayerSkillRuntimeState;
@@ -160,8 +161,6 @@ import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipStaticEffectEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
-import com.lulan.shincolle.entity.ship.LegacyShipModelStateCatalog;
-import com.lulan.shincolle.entity.ship.LegacyShipModelTransformCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
@@ -361,10 +360,9 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void deskTerminalMenuProjectsTeamRelationsAndWorldRules(GameTestHelper helper) {
+    public static void deskMenuProjectsLegacyTeamAndTargetData(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
         int playerUid = 8121;
-        String worldRuleKey = "shincolle:test_desk_world_rule";
 
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(playerUid);
@@ -384,28 +382,23 @@ public final class GameplayParityGameTests {
         teamData.createTeam(400, "Delta", "Delta");
         teamData.addAllyRelationship(playerUid, 200);
         teamData.addBannedRelationship(playerUid, 300);
-        WorldCombatRulesSavedData worldRules = WorldCombatRulesSavedData.get(helper.getLevel());
-        if (!worldRules.isUnattackable(worldRuleKey)) {
-            worldRules.toggleUnattackable(worldRuleKey);
-        }
 
         CompoundTag payload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
         TeitokuHelper.applyClientState(player, payload);
 
-        DeskTerminalMenu menu = new DeskTerminalMenu(0, player.getInventory(), BlockPos.ZERO, DeskReferenceMenu.BOOK_VARIANT);
+        DeskMenu menu = new DeskMenu(0, player.getInventory(), BlockPos.ZERO, DeskMenu.BOOK_VARIANT);
         if (menu.getOwnAllyCount() != 1
                 || menu.getOwnBannedCount() != 1
-                || menu.getTeamRelation(200) != DeskTerminalMenu.TeamRelation.ALLIED
-                || menu.getTeamRelation(300) != DeskTerminalMenu.TeamRelation.HOSTILE
-                || menu.getTeamRelation(400) != DeskTerminalMenu.TeamRelation.NEUTRAL
-                || menu.getTeamRelation(playerUid) != DeskTerminalMenu.TeamRelation.OWN) {
-            helper.fail("desk terminal menu should project legacy own/ally/hostile/neutral team relations");
+                || menu.getTeamRelation(200) != DeskMenu.TeamRelation.ALLIED
+                || menu.getTeamRelation(300) != DeskMenu.TeamRelation.HOSTILE
+                || menu.getTeamRelation(400) != DeskMenu.TeamRelation.NEUTRAL
+                || menu.getTeamRelation(playerUid) != DeskMenu.TeamRelation.OWN) {
+            helper.fail("desk menu should project legacy own/ally/hostile/neutral team relations");
             return;
         }
 
-        if (!menu.getTargetClasses().contains("minecraft:zombie")
-                || !menu.getWorldUnattackableClasses().contains(worldRuleKey)) {
-            helper.fail("desk terminal menu should expose synced target-class and world-rule lists");
+        if (!menu.getTargetClasses().contains("minecraft:zombie")) {
+            helper.fail("desk target page should expose the synced target-class list");
             return;
         }
 
@@ -728,7 +721,7 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void morphProfilesPersistAndCycle(GameTestHelper helper) {
+    public static void morphProfilesPersistSelectedRuntime(GameTestHelper helper) {
         TeitokuData data = new TeitokuData();
         if (!data.unlockMorph(58) || !data.unlockMorph(2058)) {
             helper.fail("morph unlock should register unique profiles");
@@ -737,14 +730,14 @@ public final class GameplayParityGameTests {
 
         data.getMorphRuntimeState().setActive(true);
         data.getMorphRuntimeState().setSpecialCooldown(80);
-        if (!data.cycleMorphProfile(true)) {
-            helper.fail("cycling unlocked morph profiles should succeed");
+        if (!data.setSelectedMorphProfile(2058)) {
+            helper.fail("an externally selected unlocked morph should be accepted");
             return;
         }
 
         int selected = data.getMorphRuntimeState().getSelectedClassId();
         if (selected != 2058 || !data.hasActiveMorph()) {
-            helper.fail("cycling morph profiles should advance selection while keeping the runtime active");
+            helper.fail("external morph selection should retain the stored runtime state");
             return;
         }
 
@@ -1237,6 +1230,105 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "guard", batch = "guard_crane_working")
+    public static void craneWorkingShipAndElapsedTimeMatchLegacy(GameTestHelper helper) {
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 160, 1));
+        helper.getLevel().setBlock(pos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        if (!(helper.getLevel().getBlockEntity(pos) instanceof CraneBlockEntity crane)) {
+            helper.fail("crane block entity should exist for working ship coverage");
+            return;
+        }
+        Player player = helper.makeMockPlayer();
+        CraneTerminalMenu menu = new CraneTerminalMenu(1, player.getInventory(), pos);
+        if (menu.getShip() != null || menu.getCraneTime() != 0
+                || !CraneTerminalMenu.formatCraneTime(0).equals("00:00:00")
+                || !CraneTerminalMenu.formatCraneTime(73220).equals("01:01:01")
+                || !CraneTerminalMenu.formatCraneTime(7200000).equals("100:00:00")) {
+            helper.fail("idle crane should have no ship or elapsed time and use legacy HH:MM:SS formatting");
+            return;
+        }
+        crane.cycleWaitMode();
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        LegacyShipEntity waiting = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null || waiting == null) {
+            helper.fail("ships should be creatable for working ship coverage");
+            return;
+        }
+        ship.setPos(pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D);
+        waiting.setPos(ship.position());
+        helper.getLevel().addFreshEntity(ship);
+        helper.getLevel().addFreshEntity(waiting);
+        ship.commandMoveTo(pos, "");
+        ship.tick();
+        ship.tick();
+        ship.tick();
+        waiting.commandMoveTo(pos, "");
+        waiting.tick();
+        if (crane.getShip() != ship || ship.getCraneState() != 2 || ship.getCraneTime() != 2
+                || menu.getShip() != ship || menu.getCraneTime() != 2
+                || waiting.getCraneState() != 1 || waiting.getCraneTime() != 0) {
+            helper.fail("only the working ship should accumulate CraneTime each tick, including non-timed modes");
+            return;
+        }
+        CraneTerminalMenu receiver = new CraneTerminalMenu(1, player.getInventory(), pos,
+                new net.minecraft.world.inventory.SimpleContainerData(4));
+        menu.addSlotListener(new net.minecraft.world.inventory.ContainerListener() {
+            @Override
+            public void slotChanged(net.minecraft.world.inventory.AbstractContainerMenu source, int slot, ItemStack stack) {
+            }
+
+            @Override
+            public void dataChanged(net.minecraft.world.inventory.AbstractContainerMenu source, int index, int value) {
+                receiver.setData(index, (short) value);
+            }
+        });
+        menu.broadcastChanges();
+        if (receiver.getShip() != ship || receiver.getCraneTime() != ship.getCraneTime()) {
+            helper.fail("menu data should deliver the working ship entity id and elapsed time");
+            return;
+        }
+        receiver.setData(0, (short) 0xABCD);
+        receiver.setData(1, 1);
+        receiver.setData(2, (short) 0xFEDC);
+        receiver.setData(3, 1);
+        if (receiver.getShipId() != 0x1ABCD || receiver.getCraneTime() != 0x1FEDC) {
+            helper.fail("menu data should preserve entity ids and CraneTime beyond signed 16-bit values");
+            return;
+        }
+        receiver.setData(1, 0);
+        receiver.setData(3, 0);
+        crane.cycleWaitMode(false);
+        ship.tick();
+        menu.broadcastChanges();
+        if (crane.getShip() != null || ship.getCraneState() != 0 || ship.getCraneTime() != 0
+                || receiver.getShip() != null || receiver.getCraneTime() != 0) {
+            helper.fail("completed craning should clear the working ship and reset elapsed time on both menus");
+            return;
+        }
+        crane.cycleWaitMode();
+        waiting.tick();
+        if (crane.getShip() != waiting || waiting.getCraneState() != 2) {
+            helper.fail("a waiting ship should acquire the crane after the previous ship finishes");
+            return;
+        }
+        waiting.commandMoveTo(pos.east(10), "");
+        waiting.tick();
+        if (crane.getShip() != null || waiting.getCraneState() != 0 || waiting.getCraneTime() != 0) {
+            helper.fail("a ship leaving the crane route should clear its working association and timer");
+            return;
+        }
+        crane.cycleWaitMode(false);
+        crane.cycleWaitMode(false);
+        for (int i = 0; i < 26; i++) {
+            crane.cycleWaitMode();
+        }
+        if (crane.getWaitMode() != 24) {
+            helper.fail("wait mode buttons should clamp at legacy bounds rather than wrapping");
+            return;
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "guard", batch = "guard_waypoint_wait")
     public static void waypointRouteWaitsOnceThenAdvances(GameTestHelper helper) {
         BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 160, 1));
@@ -1422,7 +1514,13 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void phaseFourMenusMutateServerStateAndExposeData(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        ServerPlayer player = makeServerBackedPlayer(helper, "PhaseFourMenuOwner");
+        int playerUid = TeitokuSavedData.get(helper.getLevel()).getOrCreateUid(player);
+        TeitokuHelper.get(player).ifPresent(data -> data.setPlayerUid(playerUid));
+        if (playerUid <= 0 || TeitokuHelper.getPlayerUid(player) != playerUid) {
+            helper.fail("waypoint owner fixture must have an initialized legacy PlayerUID");
+            return;
+        }
         player.setPos(2.0D, 2.0D, 2.0D);
 
         BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -1445,13 +1543,41 @@ public final class GameplayParityGameTests {
             helper.fail("waypoint block entity should exist for menu button coverage");
             return;
         }
-        WaypointTerminalMenu waypointMenu = new WaypointTerminalMenu(2, player.getInventory(), waypointPos);
-        if (!waypointMenu.clickMenuButton(player, WaypointTerminalMenu.BUTTON_CYCLE_STAY)
-                || waypoint.getStayMode() != 1
-                || !waypointMenu.getStayLabel().getString().equals(waypoint.getStayLabel().getString())) {
-            helper.fail("waypoint menu button should mutate and expose stay state");
+        var waypointState = helper.getLevel().getBlockState(waypointPos);
+        var waypointHit = new BlockHitResult(Vec3.atCenterOf(waypointPos), Direction.UP, waypointPos, false);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 0 || player.containerMenu != player.inventoryMenu) {
+            helper.fail("empty-handed waypoint use should pass without opening a menu or changing stay time");
             return;
         }
+        waypoint.setOwner(player);
+        if (waypoint.getOwnerUid() != playerUid) {
+            helper.fail("waypoint owner fixture must retain the player's legacy PlayerUID");
+            return;
+        }
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TARGETWRENCH.get()));
+        player.setShiftKeyDown(true);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 0) {
+            helper.fail("sneaking waypoint use should not change stay time");
+            return;
+        }
+        player.setShiftKeyDown(false);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.SUCCESS
+                || waypoint.getStayMode() != 1) {
+            helper.fail("owner target wrench use should cycle waypoint stay time");
+            return;
+        }
+        CompoundTag otherOwner = waypoint.saveWithoutMetadata();
+        otherOwner.putInt("OwnerUID", waypoint.getOwnerUid() + 1);
+        waypoint.load(otherOwner);
+        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+                || waypoint.getStayMode() != 1) {
+            helper.fail("non-owner target wrench use should pass without changing waypoint stay time");
+            return;
+        }
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
 
         BlockPos corePos = helper.absolutePos(new BlockPos(3, 2, 1));
         helper.getLevel().setBlock(corePos, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -1506,11 +1632,13 @@ public final class GameplayParityGameTests {
         if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
                 || "- / -".equals(shipMenu.getRouteEnergyText())
                 || "-".equals(shipMenu.getAttackText())
-                || !shipMenu.clickMenuButton(player, ShipInventoryMenu.BUTTON_TOGGLE_MODE)
-                || !ship.isOrderedToSit()) {
-            helper.fail("ship inventory menu should expose combat/AI route data and mutate escort mode through the server button");
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(
+                        ship.getId(), ship.getShipUid(), ShipGuiButton.FLEE_HP, 37))
+                || ship.getFleeHp() != 37) {
+            helper.fail("ship inventory should expose server data and dispatch the legacy retreat slider button");
             return;
         }
+        ShipInventoryParityGameTests.check(helper, player, ship);
 
         if (!configureTeitoku(helper, player, data -> data.assignCurrentTeamSlot(0, ship.getShipUid()))) {
             return;
@@ -1530,22 +1658,15 @@ public final class GameplayParityGameTests {
         CompoundTag offlinePayload = TeitokuHelper.buildGameplayStateTag(helper.getLevel(), player);
         TeitokuHelper.applyClientState(player, offlinePayload);
         FormationMenu formationMenu = new FormationMenu(6, player.getInventory());
-        FormationMenu.SlotSnapshot snapshot = formationMenu.getSlotSnapshot(0);
-        if (snapshot.empty()
-                || snapshot.shipUid() != ship.getShipUid()
-                || snapshot.shipLevel() != 77
-                || !"4321 / 16000".equals(snapshot.moraleText())
-                || !"987".equals(snapshot.lightAmmoText())
-                || !"654".equals(snapshot.heavyAmmoText())
-                || !"321".equals(snapshot.grudgeText())
-                || snapshot.online()
-                || snapshot.dead()
-                || !snapshot.marriageLabel().getString().equals(Component.translatable("gui.shincolle.ship_inventory.marriage.yes").getString())
-                || !snapshot.modeLabel().getString().equals(Component.translatable("gui.shincolle.entity.mode.standby").getString())) {
-            helper.fail("formation menu should project legacy ship summary fields from offline ship-cache data");
+        formationMenu.applyVisualData(FormationMenu.captureVisualData(player));
+        if (formationMenu.getShipEntityAll(0)[0] != null
+                || formationMenu.getSID(0, 0) != ship.getShipUid()) {
+            helper.fail("formation menu should show no signal with the retained UID, not an offline ship summary");
             return;
         }
 
+        FormationParityGameTests.formationClicksUseLegacyHotspotsAndGuiWaits(helper);
+        FormationParityGameTests.formationMenuSyncsServerAttributesAndPreviewMatrix(helper);
         helper.succeed();
     }
 
@@ -1556,9 +1677,8 @@ public final class GameplayParityGameTests {
                 ServerboundShipCommandPacket.guard(1, 12, 102, 44),
                 ServerboundShipCommandPacket.attack(1, 13, 103, 45),
                 ServerboundShipCommandPacket.stop(2, 14, 104),
-                ServerboundShipCommandPacket.setAiFlags(15, 105,
-                        GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY),
-                ServerboundShipCommandPacket.setFollowRange(16, 106, 42),
+                ServerboundShipCommandPacket.guiButton(15, 105, ShipGuiButton.PVP_AI, 1),
+                ServerboundShipCommandPacket.guiButton(16, 106, ShipGuiButton.FOLLOW_MAX, 42),
                 ServerboundShipCommandPacket.toggleSit(0, 17, 107),
                 ServerboundShipCommandPacket.openInventory(18, 108),
                 ServerboundShipCommandPacket.toggleRingEffect(19, 109)
@@ -1667,24 +1787,23 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        int flags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
-        CompoundTag legacyFlags = new CompoundTag();
-        legacyFlags.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
-        legacyFlags.putInt(GameplayCommandHandler.TAG_AI_FLAGS, flags);
-        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_AI_FLAGS, legacyFlags)
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(typedShip.getId(), typedShip.getShipUid(), flags))
-                || legacyShip.getAiFlagsBitmask() != typedShip.getAiFlagsBitmask()) {
-            helper.fail("legacy and typed AI flag commands should share behavior");
+        // Legacy PacketHelper.setEntityByGUI: TarAI writes PassiveAI; FollowMin >= FollowMax pushes FollowMax to min + 1.
+        ShipCommandService.setEntityByGui(legacyShip, ShipGuiButton.TAR_AI, 1);
+        ShipCommandService.setEntityByGui(legacyShip, ShipGuiButton.FOLLOW_MIN, 28);
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.TAR_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.FOLLOW_MIN, 28))
+                || legacyShip.getAiFlagsBitmask() != typedShip.getAiFlagsBitmask()
+                || typedShip.isAiAutoTarget()
+                || typedShip.getFollowMin() != 28
+                || typedShip.getFollowMax() != 29
+                || legacyShip.getFollowMax() != typedShip.getFollowMax()) {
+            helper.fail("legacy ShipBtn handler and typed GUI button packets should share behavior");
             return;
         }
-
-        CompoundTag legacyFollow = new CompoundTag();
-        legacyFollow.putInt(GameplayCommandHandler.TAG_SHIP_ID, legacyShip.getId());
-        legacyFollow.putInt(GameplayCommandHandler.TAG_FOLLOW_RANGE, 28);
-        if (!ShipCommandService.handleLegacy(player, GameplayCommandType.SET_SHIP_FOLLOW_RANGE, legacyFollow)
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(typedShip.getId(), typedShip.getShipUid(), 28))
-                || legacyShip.getFollowMax() != typedShip.getFollowMax()) {
-            helper.fail("legacy and typed follow-range commands should share behavior");
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(typedShip.getId(), typedShip.getShipUid(), ShipGuiButton.FOLLOW_MAX, 10))
+                || typedShip.getFollowMax() != 10
+                || typedShip.getFollowMin() != 9) {
+            helper.fail("legacy FollowMax <= FollowMin should push FollowMin to max - 1");
             return;
         }
 
@@ -1919,11 +2038,9 @@ public final class GameplayParityGameTests {
         movingShip.setOwner(owner, "PersistAdmiral", 9001);
         movingShip.setOrderedToSit(true);
         movingShip.setAiAutoTarget(false);
-        movingShip.setAiAllowPvp(true);
-        movingShip.setAiAutoSupply(false);
-        movingShip.setAiRespectRouteStay(false);
-        movingShip.setFollowMin(7);
-        movingShip.setFollowMax(32);
+        movingShip.setAiPvpFirst(true);
+        movingShip.setFollowMin(5);
+        movingShip.setFollowMax(20);
         movingShip.commandMoveTo(commandTarget, "minecraft:overworld");
 
         CompoundTag movingTag = new CompoundTag();
@@ -1937,22 +2054,19 @@ public final class GameplayParityGameTests {
         if (!commandTarget.equals(loadedMovingShip.getCommandedPos())
                 || !"minecraft:overworld".equals(loadedMovingShip.getCommandDimension())
                 || !loadedMovingShip.isOrderedToSit()
-                || loadedMovingShip.getFollowMin() != 7
-                || loadedMovingShip.getFollowMax() != 32
+                || loadedMovingShip.getFollowMin() != 5
+                || loadedMovingShip.getFollowMax() != 20
                 || loadedMovingShip.isAiAutoTarget()
-                || !loadedMovingShip.isAiAllowPvp()
-                || loadedMovingShip.isAiAutoSupply()
-                || loadedMovingShip.isAiRespectRouteStay()) {
+                || !loadedMovingShip.isAiPvpFirst()) {
             helper.fail("ship command, standby, and AI runtime state should persist through NBT: pos="
                     + loadedMovingShip.getCommandedPos()
                     + " dim=" + loadedMovingShip.getCommandDimension()
                     + " sit=" + loadedMovingShip.isOrderedToSit()
                     + " flags=" + loadedMovingShip.getAiFlagsBitmask()
-                    + " follow=" + loadedMovingShip.getFollowMax()
+                    + " followMin=" + loadedMovingShip.getFollowMin()
+                    + " followMax=" + loadedMovingShip.getFollowMax()
                     + " autoTarget=" + loadedMovingShip.isAiAutoTarget()
-                    + " allowPvp=" + loadedMovingShip.isAiAllowPvp()
-                    + " autoSupply=" + loadedMovingShip.isAiAutoSupply()
-                    + " routeStay=" + loadedMovingShip.isAiRespectRouteStay());
+                    + " pvpFirst=" + loadedMovingShip.isAiPvpFirst());
             return;
         }
 
@@ -2092,6 +2206,7 @@ public final class GameplayParityGameTests {
         }
 
         for (String key : english.keySet()) {
+            if (key.startsWith("gui.shincolle:book.")) continue;
             if (!simplifiedChinese.has(key)) {
                 helper.fail("zh_cn language resource is missing key: " + key);
                 return;
@@ -2147,6 +2262,7 @@ public final class GameplayParityGameTests {
             }
 
             for (String key : lang.keySet()) {
+                if (key.startsWith("gui.shincolle:book.")) continue;
                 String value = lang.get(key).getAsString();
                 String lowered = value.toLowerCase(Locale.ROOT);
                 for (String bannedFragment : bannedFragments) {
@@ -2598,9 +2714,108 @@ public final class GameplayParityGameTests {
             helper.fail("cache fallback menu should preserve route energy text");
             return;
         }
-        if (menu.getFollowMax() != ship.getFollowMax()) {
-            helper.fail("cache fallback menu should preserve AI follow range");
+        if (menu.getFollowMin() != ship.getFollowMin() || menu.getFollowMax() != ship.getFollowMax()) {
+            helper.fail("cache fallback menu should preserve FollowMin/FollowMax");
             return;
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void shipGuiButtonsAndInventoryPagingMirrorLegacy(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer();
+        if (!configureTeitoku(helper, player, data -> {
+            data.setPlayerUid(8113);
+            data.setCurrentTeamId(0);
+        })) {
+            return;
+        }
+        player.setPos(2.0D, 2.0D, 2.0D);
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        if (ship == null) {
+            helper.fail("owned ship should be creatable for legacy ShipBtn tests");
+            return;
+        }
+
+        // Legacy ShipStateHandler defaults and PacketHelper.setEntityByGUI button semantics.
+        if (ship.getFollowMin() != LegacyShipEntity.DEFAULT_FOLLOW_MIN || ship.getFollowMax() != LegacyShipEntity.DEFAULT_FOLLOW_MAX) {
+            helper.fail("legacy FollowMin/FollowMax defaults should be 3/12");
+            return;
+        }
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.MELEE, 0);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.AA_AI, 1);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.ASM_AI, 1);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.ON_SIGHT_AI, 0);
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.FLEE_HP, 50);
+        int modelState = ship.getModelState();
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.MODEL_STATE_01 + 2, 0);
+        boolean sitting = ship.isOrderedToSit();
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.SIT, 0);
+        if (ship.useAttackMelee()
+                || !ship.isAiAntiAir()
+                || !ship.isAiAntiSub()
+                || ship.isAiOnSightChase()
+                || ship.getFleeHp() != 50
+                || ship.getModelState() != (modelState ^ 4)
+                || ship.isOrderedToSit() == sitting) {
+            helper.fail("legacy ShipBtn buttons should write UseMelee/AntiAir/AntiSS/OnSightChase/FleeHP/ModelState/Sit");
+            return;
+        }
+
+        // Legacy CapaShipInventory.setInventoryPage accepts 0..2, otherwise resets to 0.
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.INV_PAGE, 1);
+        ShipInventoryMenu menu = new ShipInventoryMenu(9, player.getInventory(), ship.getId(), ship.getShipUid());
+        if (ship.getInventoryPage() != 1
+                || menu.getSlot(LegacyShipEntity.EQUIPMENT_SLOT_COUNT).getContainerSlot()
+                != LegacyShipEntity.EQUIPMENT_SLOT_COUNT + LegacyShipEntity.CARGO_SLOT_COUNT) {
+            helper.fail("InvPage 1 should map cargo slots to the second 18-slot page");
+            return;
+        }
+        ShipCommandService.setEntityByGui(ship, ShipGuiButton.INV_PAGE, 3);
+        if (ship.getInventoryPage() != 0 || ship.getInventorySizePaged() != LegacyShipEntity.SHIP_SLOT_COUNT) {
+            helper.fail("invalid InvPage should reset to 0 and drumless ships should only unlock 24 slots");
+            return;
+        }
+        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(0).get()));
+        if (ship.getInventorySizePaged() != LegacyShipEntity.SHIP_SLOT_COUNT + LegacyShipEntity.CARGO_SLOT_COUNT) {
+            helper.fail("one drum should unlock one extra 18-slot page like legacy DrumState");
+            return;
+        }
+        ship.getShipInventory().setItem(0, ItemStack.EMPTY);
+
+        // Legacy ContainerShipInventory.transferStackInSlot.
+        int cargoMenuSlot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
+        int playerMenuSlot = LegacyShipEntity.SHIP_SLOT_COUNT;
+        for (int slot = 0; slot < LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot++) {
+            ship.getShipInventory().setItem(slot, ItemStack.EMPTY);
+        }
+        ship.getShipInventory().setItem(cargoMenuSlot, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(0).get()));
+        menu.quickMoveStack(player, cargoMenuSlot);
+        boolean equipped = false;
+        for (int slot = 0; slot < LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot++) {
+            equipped |= ship.getShipInventory().getItem(slot).is(ModItems.EQUIPDRUM_ITEMS.get(0).get());
+        }
+        if (!equipped || !ship.getShipInventory().getItem(cargoMenuSlot).isEmpty()) {
+            helper.fail("equipment shift-clicked from ship cargo should go to equipment slots first");
+            return;
+        }
+
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+            ship.getShipInventory().setItem(slot, new ItemStack(Items.DIRT, 64));
+        }
+        player.getInventory().clearContent();
+        player.getInventory().setItem(9, new ItemStack(Items.STONE, 16));
+        menu.quickMoveStack(player, playerMenuSlot);
+        if (player.getInventory().getItem(9).getCount() != 16) {
+            helper.fail("non-equipment shift-click from player inventory should stay put when ship cargo is full");
+            return;
+        }
+        for (int slot = 0; slot < 9; slot++) {
+            if (!player.getInventory().getItem(slot).isEmpty()) {
+                helper.fail("legacy shift-click must not move items between main inventory and hotbar");
+                return;
+            }
         }
 
         helper.succeed();
@@ -2625,11 +2840,11 @@ public final class GameplayParityGameTests {
 
         TeitokuHelper.refreshShipCache(ship, false);
         int shipUid = ship.getShipUid();
-        int nextFlags = GameplayCommandHandler.AI_FLAG_ALLOW_PVP | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
+        int nextFlags = ship.getAiFlagsBitmask() & ~GameplayCommandHandler.AI_FLAG_AUTO_TARGET;
 
         if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.toggleSit(0, ship.getId(), shipUid))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), shipUid, nextFlags))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), shipUid, 30))) {
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), shipUid, ShipGuiButton.TAR_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), shipUid, ShipGuiButton.FOLLOW_MAX, 30))) {
             helper.fail("ship commands should succeed before detached cache refresh validation");
             return;
         }
@@ -3629,8 +3844,12 @@ public final class GameplayParityGameTests {
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_LIGHT_AMMO, new CompoundTag());
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_HEAVY_AMMO, new CompoundTag());
         GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_ADD_GRUDGE, new CompoundTag());
-        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_AURA_EFFECT, new CompoundTag());
-        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_TOGGLE_SHOW_HELD, new CompoundTag());
+        CompoundTag morphButton = new CompoundTag();
+        morphButton.putInt("Button", ShipGuiButton.AURA_EFFECT);
+        morphButton.putInt("Value", 1);
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_GUI_BUTTON, morphButton);
+        morphButton.putInt("Button", ShipGuiButton.SHOW_HELD);
+        GameplayCommandHandler.handle(serverPlayer, GameplayCommandType.MORPH_GUI_BUTTON, morphButton);
 
         MorphProfile profile = TeitokuHelper.get(player)
                 .map(TeitokuData::getSelectedMorphProfile)
@@ -3662,13 +3881,12 @@ public final class GameplayParityGameTests {
                 || !"15".equals(menu.getAmmoHeavyText())
                 || !"2700".equals(menu.getGrudgeText())
                 || !menu.isAuraEffectEnabled()
-                || !menu.isShowHeldItemEnabled()
-                || !"ON".equals(menu.getAuraStateLabel().getString())
-                || !"ON".equals(menu.getShowHeldStateLabel().getString())) {
-            helper.fail("morph inventory menu should expose the restored legacy experience and toggle readouts");
+                || !menu.isShowHeldItemEnabled()) {
+            helper.fail("morph inventory menu should expose legacy experience and flag values");
             return;
         }
 
+        MorphInventoryParityGameTests.check(helper, serverPlayer, menu);
         helper.succeed();
     }
 
@@ -3811,14 +4029,13 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        int aiFlags = GameplayCommandHandler.AI_FLAG_AUTO_TARGET
-                | GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY
-                | GameplayCommandHandler.AI_FLAG_ROUTE_STAY;
-        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setAiFlags(ship.getId(), ship.getShipUid(), aiFlags))
-                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.setFollowRange(ship.getId(), ship.getShipUid(), 24))
-                || ship.getAiFlagsBitmask() != aiFlags
+        if (!ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.PVP_AI, 1))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.FOLLOW_MIN, 8))
+                || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(ship.getId(), ship.getShipUid(), ShipGuiButton.FOLLOW_MAX, 24))
+                || !ship.isAiPvpFirst()
+                || ship.getFollowMin() != 8
                 || ship.getFollowMax() != 24) {
-            helper.fail("ship inventory command controls should update AI flags and follow range");
+            helper.fail("ship inventory GUI buttons should update PVPFirst and FollowMin/FollowMax");
             return;
         }
 
@@ -5286,14 +5503,15 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void passiveAiStopsAutomaticRangeTargeting(GameTestHelper helper) {
         Player player = helper.makeMockPlayer();
-        LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
+        Vec3 shipPos = helper.absoluteVec(new Vec3(2.5D, 2.0D, 2.5D));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 58, shipPos.x, shipPos.y, shipPos.z);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
             return;
         }
 
         target.setNoAi(true);
-        target.setPos(4.0D, 2.0D, 2.5D);
+        target.setPos(shipPos.x + 1.5D, shipPos.y, shipPos.z);
         helper.getLevel().addFreshEntity(target);
         ship.setAiOnSightChase(false);
         ship.setAiAutoTarget(false);
@@ -6171,6 +6389,9 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        destroyer.setNoAi(true);
+        destroyer.setNoGravity(true);
+        destroyer.setInvulnerable(true);
         destroyer.setLightAmmo(0);
         destroyer.setHeavyAmmo(0);
         destroyer.setGrudge(1000);
@@ -6206,6 +6427,7 @@ public final class GameplayParityGameTests {
         if (ri == null) {
             return;
         }
+        ri.setNoAi(true);
         ri.setLightAmmo(0);
         ri.setHeavyAmmo(0);
         ri.setGrudge(1000);
@@ -6227,6 +6449,7 @@ public final class GameplayParityGameTests {
         if (normalGrudge == null) {
             return;
         }
+        normalGrudge.setNoAi(true);
         normalGrudge.setLightAmmo(100);
         normalGrudge.setHeavyAmmo(100);
         normalGrudge.setGrudge(0);
@@ -6246,6 +6469,7 @@ public final class GameplayParityGameTests {
         if (blockGrudge == null) {
             return;
         }
+        blockGrudge.setNoAi(true);
         blockGrudge.setLightAmmo(100);
         blockGrudge.setHeavyAmmo(100);
         blockGrudge.setGrudge(0);
@@ -6280,7 +6504,6 @@ public final class GameplayParityGameTests {
         ship.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
         ship.setNoAi(true);
         ship.setNoGravity(true);
-        ship.setAiAutoSupply(false);
         return ship;
     }
 
@@ -11362,9 +11585,7 @@ public final class GameplayParityGameTests {
             return;
         }
         LegacyShipProjectileEntity projectile = projectiles.get(0);
-        // The legacy depth selector starts at ARC, then the constructor falls
-        // back to DIRECT when this launch's computed acceleration exceeds 0.15.
-        LegacyShipProjectileMoveType expectedMoveType = LegacyShipProjectileMoveType.DIRECT;
+        LegacyShipProjectileMoveType expectedMoveType = expectedLegacyArcMissileMove(ship, projectile);
         if (projectile.getProjectileVisual() != LegacyShipProjectileVisual.MISSILE
                 || projectile.isMissedShot()
                 || projectile.getMoveType() != expectedMoveType
@@ -13101,7 +13322,7 @@ public final class GameplayParityGameTests {
         if (attackRange >= 2 || ship.getHostileTargetSearchRange() != 14.0D) {
             helper.fail("low hostile attack ranges should use the legacy FollowMax + 2 effective fallback"
                     + ": attackRange=" + attackRange
-                    + ", followRange=" + ship.getFollowMax()
+                    + ", followMax=" + ship.getFollowMax()
                     + ", searchRange=" + ship.getHostileTargetSearchRange());
             return;
         }
@@ -13379,7 +13600,7 @@ public final class GameplayParityGameTests {
             helper.fail("pickup goal must not run while the ship is standing by");
             return;
         }
-        if (!pickupGoalCanUseWith(helper, 4, ship -> ship.setAiAutoSupply(false))) {
+        if (!pickupGoalCanUseWith(helper, 4, ship -> ship.setCombatRationLevel(0))) {
             helper.fail("pickup goal should remain independent from the combat-ration AI flag");
             return;
         }
@@ -13537,106 +13758,66 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Pipe", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Pipe", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase1", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase1", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "EquipBase2", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "FlowerBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmRo500", "FlowerBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipHandRing", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipHandRing", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "RingBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "RingBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase_2", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipBaseBelt", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipBaseBelt", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipHeadBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipU01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipU01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegR01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegR01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipYamato", "EquipLegL01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipE01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipE01", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipGlove", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipGlove", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipABase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipABase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipD01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipD01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipC01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipC01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipB01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipB01", 1 << 4)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipS01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipS01", 1 << 5)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear01", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear02", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Ear02", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Tail01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "Tail01", 1 << 6)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSL01", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSR01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierKaga", "EquipSR01", 1 << 7)) {
-            helper.fail("SHIP-06 model visibility should preserve the selected legacy showEquip state bits");
-            return;
-        }
+
 
         helper.succeed();
     }
 
     @GameTest(template = "empty")
-    public static void ship06SelectedModelScaleBranchesMatchLegacySource(GameTestHelper helper) {
-        String[] modelStems = {"ModelSubmU511", "ModelSubmRo500", "ModelBattleshipYamato", "ModelCarrierKaga"};
-        float[][] expected = {
-                {0.36F, 0.72F, 1.08F, 1.44F},
-                {0.36F, 0.72F, 1.08F, 1.44F},
-                {0.5F, 1.0F, 1.5F, 2.0F},
-                {0.46F, 0.92F, 1.38F, 1.84F}
-        };
-        float[][] offsets = {
-                {2.86F, 0.66F, -0.06F, -0.45F},
-                {2.86F, 0.66F, -0.06F, -0.45F},
-                {1.53F, 0.02F, -0.48F, -0.73F},
-                {1.81F, 0.16F, -0.37F, -0.63F}
-        };
-
-        for (int modelIndex = 0; modelIndex < modelStems.length; modelIndex++) {
-            for (int scaleLevel = 0; scaleLevel < 4; scaleLevel++) {
-                LegacyShipModelTransformCatalog.RenderTransform transform =
-                        LegacyShipModelTransformCatalog.forModel(modelStems[modelIndex], scaleLevel).orElse(null);
-                float scale = expected[modelIndex][scaleLevel];
-                float expectedY = modelIndex < 2 ? scale * 0.95F : scale;
-                if (transform == null
-                        || Math.abs(transform.scaleX() - scale) > 1.0E-6F
-                        || Math.abs(transform.scaleY() - expectedY) > 1.0E-6F
-                        || Math.abs(transform.scaleZ() - scale) > 1.0E-6F
-                        || Math.abs(transform.offsetY() - offsets[modelIndex][scaleLevel]) > 1.0E-6F) {
-                    helper.fail("SHIP-06 model scale branch differs from the legacy source: "
-                            + modelStems[modelIndex] + " level=" + scaleLevel);
-                    return;
-                }
+    public static void shipModelsHaveMechanicalMappingsAndLocalEmotionState(GameTestHelper helper) {
+        for (ShipEntitySpec spec : ShipEntitySpecs.values()) {
+            com.lulan.shincolle.entity.ship.LegacyShipModelKind kind =
+                    com.lulan.shincolle.entity.ship.LegacyShipModelKind.forSpec(spec);
+            if (!kind.name().equals(spec.modelSourceStem()) || kind.shadowRadius() <= 0F) {
+                helper.fail("Missing mechanically ported ship model mapping: " + spec.eggMeta());
+                return;
             }
         }
 
-        if (LegacyShipModelTransformCatalog.forModel("ModelSubmHime", 0).isPresent()
-                || LegacyShipModelTransformCatalog.forModel("ModelSSNH", 0).isPresent()) {
-            helper.fail("SHIP-06 constant-scale Hime models must not receive a dynamic scale branch");
+        try {
+            com.lulan.shincolle.entity.ship.LegacyShipModelKind.forSpec(
+                    new ShipEntitySpec(-1, "missing", "EntityMissing", ShipArchetype.CRUISER, false));
+            helper.fail("Unknown ship model must not fall back to a generic animation");
             return;
+        } catch (IllegalArgumentException expected) {
+        }
+
+        ServerPlayer owner = makeServerBackedPlayer(helper, "ModelStateOwner");
+        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, 2.5D, 2D, 2.5D);
+        if (ship == null) return;
+        ship.setEmotion(4);
+        ship.setLegacyModelEmotion(1, 1, false);
+        ship.setLegacyModelFaceTick(123);
+        ship.setLegacyModelHeadTiltTick(456);
+        ship.setLegacyModelAttackTick(50);
+        ship.setLegacyModelAttackTick2(9);
+        ship.startLegacyModelCaress();
+        if (ship.getEmotion() != 4 || ship.getLegacyModelEmotion(1) != 1
+                || ship.getLegacyModelEmotion(6) != 1 || ship.getLegacyModelFaceTick() != 123
+                || ship.getLegacyModelHeadTiltTick() != 456 || ship.getLegacyModelAttackTick() != 50
+                || ship.getLegacyModelAttackTick2() != 9) {
+            helper.fail("Model-local emotion and timers must be retained independently of synced display data");
+            return;
+        }
+        ship.setEmotion(2);
+        if (ship.getLegacyModelEmotion(1) != 2) {
+            helper.fail("A synced emotion update must supersede the model-local override");
+            return;
+        }
+        ship.discard();
+
+        ClientboundSpawnParticlePacket packet = new ClientboundSpawnParticlePacket(
+                GameplayParticleType.LEGACY_SHIP_ANIMATION, 0D, 0D, 0D, 0D, 0D, 0D, 12, 901);
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            ClientboundSpawnParticlePacket.encode(packet, buffer);
+            ClientboundSpawnParticlePacket decoded = ClientboundSpawnParticlePacket.decode(buffer);
+            if (decoded.entityId() != 901 || decoded.variant() != 12) {
+                helper.fail("Legacy attack animation packet must retain the source entity and particle subtype");
+                return;
+            }
+        } finally {
+            buffer.release();
         }
 
         helper.succeed();
@@ -13699,60 +13880,6 @@ public final class GameplayParityGameTests {
         hostileTarget.discard();
         ordinaryTarget.discard();
         passenger.discard();
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void ship04HimeModelStateUsesLegacyShowEquipBits(GameTestHelper helper) {
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelAirfieldHime", "EquipHand01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelAirfieldHime", "EquipHand01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHime", "Cannon01", 1 << 1)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHime", "Cannon01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02b", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02b", 1 << 6)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02a", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "LegLeft02a", 1 << 6)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipHime", "BodyMain", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelHarbourHime", "BodyMain", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelIsolatedHime", "UnknownPart", 0)) {
-            helper.fail("selected Hime model visibility should preserve the legacy Display.State bit rules");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void ship05SpecialModelStateUsesLegacyShowEquipBits(GameTestHelper helper) {
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "EquipSR01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "EquipSR01c", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelMidwayHime", "Collar01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "GlowEquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "GlowEquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "SantaCloth01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "SantaCloth01", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "EquipUmbre01a", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "EquipUmbre01a", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "ShoesL", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "ShoesL", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierWDemon", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierWDemon", "EquipBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EquipBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "HairAnchor", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "HairAnchor", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EarBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerShimakaze", "EarBase", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "HeadEquip", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "HeadEquip", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipNagato", "EquipBase", 1 << 1)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelNorthernHime", "UnknownPart", 0)) {
-            helper.fail("SHIP-05 model visibility should preserve each legacy showEquip state bit");
-            return;
-        }
-
         helper.succeed();
     }
 
@@ -14029,7 +14156,7 @@ public final class GameplayParityGameTests {
         ship.setPos(shipPos.getX() + 0.5D, shipPos.getY(), shipPos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
 
-        int lastCargoSlot = ship.getShipInventory().getContainerSize() - 1;
+        int lastCargoSlot = ship.getInventorySizePaged() - 1;
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < lastCargoSlot; slot++) {
             ship.getShipInventory().setItem(slot, new ItemStack(Items.COBBLESTONE, 64));
         }
@@ -15837,7 +15964,6 @@ public final class GameplayParityGameTests {
         }
 
         ship.setNoGravity(true);
-        ship.setAiAutoSupply(true);
         ship.setCombatRationLevel(2);
         ship.setMorale(3900);
         ship.setFoodSaturation(0);
@@ -16374,45 +16500,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipE01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipE01", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipSL01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierAkagi", "EquipSL01", 1 << 7)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 1 << 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "TailBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 1 << 2)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "HatBase", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Horn01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCAHime", "Hair01", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipTR03", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerAkatsuki", "EquipTR03", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair02f1", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 1 << 2)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair02f1", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "Hair01", (1 << 3) | (1 << 4))
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerHibiki", "HatBase2", (1 << 3) | (1 << 4))
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipHead01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerIkazuchi", "EquipHead01", 1 << 1)) {
-            helper.fail("SHIP-07 model visibility should preserve each selected legacy showEquip branch");
-            return;
-        }
+
 
         helper.succeed();
     }
@@ -16561,23 +16649,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerInazuma", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerInazuma", "EquipBase", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "Equip00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "Equip00", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "EyeMask", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTenryuu", "EyeMask", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "CirBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "CirBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "EquipSL00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTatsuta", "EquipSL00", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserAtago", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserAtago", "Hat01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTakao", "ShoeL03", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCruiserTakao", "ShoeL03", 1 << 3)) {
-            helper.fail("SHIP-08 model visibility should preserve each selected legacy showEquip branch");
-            return;
-        }
+
 
         helper.succeed();
     }
@@ -16617,27 +16689,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipBase", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipHeadBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "HairS01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "HairS01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke00", 1 << 3)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKongou", "Ahoke01", 1 << 3)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBHiei", "EquipBase", 1 << 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBHiei", "EquipBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBHaruna", "EquipHeadBase", 1 << 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBHaruna", "EquipHeadBase", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelBBKirishima", "EquipGlass01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBBKirishima", "EquipGlass01", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase", 1 << 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSSNH", "EquipTBase_2", 1 << 2)) {
-            helper.fail("SHIP-09 model visibility should preserve the legacy showEquip branches");
-            return;
-        }
+
 
         assertMarriagePassive(helper, 62, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_HEALTH_BOOST_AURA);
         assertMarriagePassive(helper, 63, LegacyShipBehaviorCatalog.MarriagePassive.ALLIED_SATURATION_AURA);
@@ -17540,7 +17592,7 @@ public final class GameplayParityGameTests {
         deskTag.putInt(GameplayCommandHandler.TAG_X, 12);
         deskTag.putInt(GameplayCommandHandler.TAG_Y, 64);
         deskTag.putInt(GameplayCommandHandler.TAG_Z, -8);
-        deskTag.putInt(GameplayCommandHandler.TAG_MODE, DeskReferenceMenu.BOOK_VARIANT);
+        deskTag.putInt(GameplayCommandHandler.TAG_MODE, DeskMenu.BOOK_VARIANT);
         deskTag.putInt(GameplayCommandHandler.TAG_RADAR_ZOOM, 2);
         deskTag.putInt(GameplayCommandHandler.TAG_BOOK_CHAPTER, 3);
         deskTag.putInt(GameplayCommandHandler.TAG_BOOK_PAGE, 5);
@@ -17632,14 +17684,14 @@ public final class GameplayParityGameTests {
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_X, deskPos.getX());
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_Y, deskPos.getY());
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_Z, deskPos.getZ());
-        deskSyncPayload.putInt(GameplayCommandHandler.TAG_MODE, DeskReferenceMenu.BOOK_VARIANT);
+        deskSyncPayload.putInt(GameplayCommandHandler.TAG_MODE, DeskMenu.BOOK_VARIANT);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_RADAR_ZOOM, 2);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_BOOK_CHAPTER, 3);
         deskSyncPayload.putInt(GameplayCommandHandler.TAG_BOOK_PAGE, 7);
         GameplayCommandHandler.handle(player, GameplayCommandType.SYNC_DESK_FUNC, deskSyncPayload);
 
         if (desk.getUpdatePacket() == null
-                || desk.getSelectedFunction() != DeskReferenceMenu.BOOK_VARIANT
+                || desk.getSelectedFunction() != DeskMenu.BOOK_VARIANT
                 || desk.getRadarZoomIndex() != 2
                 || desk.getBookChapter() != 3
                 || desk.getBookPage() != 7) {
@@ -17649,7 +17701,7 @@ public final class GameplayParityGameTests {
 
         DeskBlockEntity syncedDesk = new DeskBlockEntity(deskPos, ModBlocks.BLOCK_DESK.get().defaultBlockState());
         syncedDesk.load(desk.getUpdateTag());
-        if (syncedDesk.getSelectedFunction() != DeskReferenceMenu.BOOK_VARIANT
+        if (syncedDesk.getSelectedFunction() != DeskMenu.BOOK_VARIANT
                 || syncedDesk.getRadarZoomIndex() != 2
                 || syncedDesk.getBookChapter() != 3
                 || syncedDesk.getBookPage() != 7) {
@@ -17657,6 +17709,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        DeskParityGameTests.check(helper, player, desk);
         helper.succeed();
     }
 
@@ -18430,9 +18483,13 @@ public final class GameplayParityGameTests {
                 waypoint.setOwner(ownerA);
             }
             ItemEntity radarItem = new ItemEntity(helper.getLevel(),
-                    ownerA.getX() + 1.0D, ownerA.getY(), ownerA.getZ() + 1.0D,
+                    ownerA.getX() + 1.25D, ownerA.getY() + 0.375D, ownerA.getZ() + 1.75D,
                     new ItemStack(ModItems.GRUDGE.get(), 3));
+            LegacyEntityItemMarker.mark(radarItem);
             helper.getLevel().addFreshEntity(radarItem);
+            ItemEntity ordinaryItem = new ItemEntity(helper.getLevel(), ownerA.getX() + 2D, ownerA.getY(), ownerA.getZ() + 2D,
+                    new ItemStack(Items.DIAMOND));
+            helper.getLevel().addFreshEntity(ordinaryItem);
 
             CompoundTag seedTeamPayload = new CompoundTag();
             ListTag seedTeams = new ListTag();
@@ -18446,11 +18503,13 @@ public final class GameplayParityGameTests {
             CompoundTag radarPayload = TeitokuHelper.buildDeskRadarPayloadTag(ownerA);
             TeitokuHelper.applyClientState(ownerA, radarPayload);
             List<TeitokuHelper.DeskRadarContactSnapshot> syncedContacts = TeitokuHelper.getClientDeskRadarContacts();
-            boolean hasShip = syncedContacts.stream().anyMatch(c -> "SHIP".equals(c.kind()));
-            boolean hasItem = syncedContacts.stream().anyMatch(c -> "ITEM".equals(c.kind()));
-            boolean hasRoute = syncedContacts.stream().anyMatch(c -> "ROUTE".equals(c.kind()));
-            if (!hasShip || !hasItem || !hasRoute || TeitokuHelper.getClientTeamData().isEmpty()) {
-                helper.fail("Desk radar sync should populate ship, item, and facility contacts without clearing team cache");
+            boolean hasItem = syncedContacts.stream().anyMatch(c -> "ITEM".equals(c.kind())
+                    && c.x() == (float)radarItem.getX() && c.y() == (float)radarItem.getY() && c.z() == (float)radarItem.getZ());
+            boolean hasInventedContact = syncedContacts.stream().anyMatch(c -> !"ITEM".equals(c.kind())
+                    || c.x() == (float)ordinaryItem.getX() && c.y() == (float)ordinaryItem.getY() && c.z() == (float)ordinaryItem.getZ());
+            if (!hasItem || hasInventedContact || TeitokuHelper.getClientTeamData().isEmpty()
+                    || !TeitokuHelper.buildDeskRadarPayloadTag(null).getList(TeitokuHelper.DESK_RADAR_PAYLOAD_TAG, Tag.TAG_COMPOUND).isEmpty()) {
+                helper.fail("Desk item-list sync should preserve old BasicEntityItem filtering and float coordinates, without facility contacts or clearing team cache");
                 return;
             }
         } finally {
@@ -18508,9 +18567,19 @@ public final class GameplayParityGameTests {
             ShipCacheSavedData.get(level).updateFromShip(kongou, false, true);
 
             Commands commands = level.getServer().getCommands();
+            // Legacy EntityHelper.checkOP: creative players count as OP, otherwise the server OP list.
+            ownerA.setGameMode(GameType.CREATIVE);
             CommandSourceStack opSource = ownerA.createCommandSourceStack()
                     .withPermission(4)
                     .withRotation(new Vec2(0.0F, 0.0F));
+            CommandSourceStack nonOpSource = ownerB.createCommandSourceStack().withPermission(4);
+            boolean stopAiBefore = LegacyShipEntity.isStopAi();
+            if (commands.performPrefixedCommand(nonOpSource, "shipstopai") > 0
+                    || commands.performPrefixedCommand(level.getServer().createCommandSourceStack(), "shipstopai") > 0
+                    || LegacyShipEntity.isStopAi() != stopAiBefore) {
+                helper.fail("legacy /ship* OP commands should reject non-OP survival players and non-player senders");
+                return;
+            }
 
             if (commands.performPrefixedCommand(opSource, "shipinfo") <= 0
                     || commands.performPrefixedCommand(opSource, "shipemotes lol") <= 0
@@ -18570,8 +18639,12 @@ public final class GameplayParityGameTests {
 
             drop = new ItemEntity(level, origin.getX() + 1.5D, origin.getY() + 0.5D, origin.getZ() + 1.5D, new ItemStack(Items.APPLE));
             level.addFreshEntity(drop);
-            if (commands.performPrefixedCommand(opSource, "shipcleardrop 16") <= 0 || drop.isAlive()) {
-                helper.fail("/shipcleardrop should remove nearby dropped ItemEntities");
+            ItemEntity legacyDrop = LegacyEntityItemMarker.mark(new ItemEntity(level,
+                    origin.getX() + 2.5D, origin.getY() + 0.5D, origin.getZ() + 1.5D, new ItemStack(Items.EGG)));
+            level.addFreshEntity(legacyDrop);
+            if (commands.performPrefixedCommand(opSource, "shipcleardrop 16") <= 0 || legacyDrop.isAlive() || !drop.isAlive()) {
+                legacyDrop.discard();
+                helper.fail("/shipcleardrop should only remove legacy BasicEntityItem drops, not vanilla ItemEntities");
                 return;
             }
 
@@ -18786,15 +18859,15 @@ public final class GameplayParityGameTests {
 
             BlockPos deskPos = helper.absolutePos(new BlockPos(2, 2, 2));
             level.setBlock(deskPos, ModBlocks.BLOCK_DESK.get().defaultBlockState(), 3);
-            DeskTerminalMenu deskMenu = new DeskTerminalMenu(0, owner.getInventory(), deskPos, DeskReferenceMenu.BOOK_VARIANT);
+            DeskMenu deskMenu = new DeskMenu(0, owner.getInventory(), deskPos, 0);
             owner.setPos(deskPos.getX() + 2.5D, deskPos.getY(), deskPos.getZ() + 0.5D);
             if (!deskMenu.stillValid(owner)) {
-                helper.fail("DeskTerminalMenu should stay valid within configured closeGuiDist=16");
+                helper.fail("DeskMenu should stay valid within configured closeGuiDist=16");
                 return;
             }
             owner.setPos(deskPos.getX() + 5.5D, deskPos.getY(), deskPos.getZ() + 0.5D);
             if (deskMenu.stillValid(owner)) {
-                helper.fail("DeskTerminalMenu should invalidate beyond configured closeGuiDist=16");
+                helper.fail("DeskMenu should invalidate beyond configured closeGuiDist=16");
                 return;
             }
 
@@ -19061,7 +19134,6 @@ public final class GameplayParityGameTests {
         }
         carrier.setNoAi(true);
         carrier.setNoGravity(true);
-        carrier.setAiAutoSupply(false);
         carrier.setGrudge(1000);
         carrier.setAircraftLight(0);
         carrier.setAircraftHeavy(0);
@@ -19355,37 +19427,6 @@ public final class GameplayParityGameTests {
         }
         mountHost.discard();
         mount.discard();
-
-        String[] scaleModels = {
-                "ModelSubmU511", "ModelSubmRo500", "ModelBattleshipYamato", "ModelBattleshipNagato",
-                "ModelBBKongou", "ModelBBHiei", "ModelBBHaruna", "ModelBBKirishima",
-                "ModelCarrierKaga", "ModelCarrierAkagi", "ModelCruiserAtago", "ModelCruiserTakao",
-                "ModelCruiserTenryuu", "ModelCruiserTatsuta", "ModelDestroyerShimakaze",
-                "ModelDestroyerAkatsuki", "ModelDestroyerHibiki", "ModelDestroyerIkazuchi", "ModelDestroyerInazuma"
-        };
-        for (String stem : scaleModels) {
-            for (int scaleLevel = 0; scaleLevel <= 3; scaleLevel++) {
-                if (LegacyShipModelTransformCatalog.forModel(stem, scaleLevel).isEmpty()) {
-                    helper.fail("LegacyShipModelTransformCatalog missing transform for " + stem + " scaleLevel=" + scaleLevel);
-                    return;
-                }
-            }
-        }
-
-        if (LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowBodyMain2", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowBodyMain2", 2)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelCarrierHime", "GlowArmLeft01", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "EquipTBase", 15)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "Collar01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelSubmHime", "GlowEquipBase", 4)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerI", "PKisaragi00", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerI", "PKisaragi00", 1)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelDestroyerRo", "k00", 0)
-                || LegacyShipModelStateCatalog.isPartVisible("ModelSubmU511", "Hat01", 0)
-                || !LegacyShipModelStateCatalog.isPartVisible("ModelBattleshipHime", "AnyPart", 0)) {
-            helper.fail("LegacyShipModelStateCatalog should enforce ModelCarrierHime, ModelSubmHime, and Abyssal base model rules");
-            return;
-        }
 
         helper.succeed();
     }

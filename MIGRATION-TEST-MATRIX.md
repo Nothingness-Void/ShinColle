@@ -184,6 +184,12 @@
 - `b6SystemConfigPolyAsMnShipKillsAndRaidenLabel`：验证 `TeitokuHelper.buildGameplayStateTag` → `applyClientState` `SystemConfig` 同步与 `DeskTerminalMenu.stillValid` 使用 `closeGuiDist`、`PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 开关、舰娘及 `LegacyShipRensouhouEntity` 的 `ShipKills` 累加和 `Ikazuchi` `Raiden` 角色标签（`gui.shincolle.ship_inventory.role.raiden`）。
 - 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 289 required tests passed :)`**（`289 passed / 0 failed / 0 skipped`），证据见 [B6-INTERMOD-DETAILS results](migration_batches/2026-11-17-b6-intermod-details/results/b6-closeout.json)。
 
+## PARITY-FIX-MENU-NETWORK-COMMAND focused coverage
+
+- `shipGuiButtonsAndInventoryPagingMirrorLegacy`：验证旧版 `PID.ShipBtn` 按钮写入（攻击开关、PassiveAI/PVPFirst/OnSight/AntiAir/AntiSS、FollowMin/FollowMax 默认 3/12 与联动、FleeHP、ModelState 异或、InvPage 0..2 与非法值归零、DrumState 解锁）、分页货仓映射与 `0aad501` Shift 点击顺序。
+- `b6SlashShipCommandsParity` 改为断言旧版 `checkOP`（创造即 OP、非 OP 生存玩家与控制台被拒）与 `/shipcleardrop` 只清除 `BasicEntityItem` 语义掉落。
+- 证据见 [PARITY-FIX-MENU-NETWORK-COMMAND results](migration_batches/2026-11-22-parity-fix-menu-network-command/results/README.md)。
+
 ## FULL-SHIP-BEHAVIOR-REAUDIT focused coverage
 
 - Round 1（4 项综合 `@GameTest`）：`abyssalHimeBaseSpecsAreFriendlyTamedPickupAndAuraEnabled`、`submarineHimeStealthAndShooterDistanceDodgeMatchLegacy`、`baseShipLifecycleRepairMoraleRegenAndFleeGoalMatchLegacy`、`shipSpecificHooksMountOrientationAndModelCatalogsMatchLegacy`。
@@ -204,3 +210,37 @@ git diff --check
 ```
 
 不要在每个小改动后重复启动游戏；一个批次完成后统一执行所需门，并在 `results/` 记录命令、JDK、退出状态、测试计数和日志路径。
+
+## 客户端还原收尾门禁
+
+本次验收套件规模为 **301** 项；具体通过数、失败及退出码只记于
+[客户端还原结果](migration_batches/2026-11-22-parity-fix-client/results/README.md)。
+旧章节中的解析模型/简版界面测试属于历史覆盖，不能证明 D-016 所要求的完整视觉一致性。
+
+| 入口/辅助断言 | 覆盖 |
+| --- | --- |
+| `phaseFourMenusMutateServerStateAndExposeData` | 航点正数 PlayerUID/严格 owner、非主人/潜行分支及菜单基本状态；不放宽生产权限 |
+| `craneWorkingShipAndElapsedTimeMatchLegacy` | 唯一作业舰/等待舰、累计/完成清零、实体 ID 与 CraneTime 高低位菜单同步及格式边界 |
+| `LegacyShipModelMappingGameTests` | 每个 spec 模型映射、攻击粒子计时、本地情绪、持物分类及配置正常/空/无效值、Position_HUD；不是顶点画面验收 |
+| `FormationParityGameTests` | 六阵型/九分队热区、60/40 GUI 等待、重复行语义、属性/阵位/预览同步；以实际注册入口为准 |
+| `ro500LightAttackLaunchesLegacyMissile` | 实际 launch/target 的总距离/水平距离条件期望，导弹算法不变 |
+| `ShipInventoryParityGameTests.check`（并入既有菜单测试） | 三页容量门槛、十二页热区/空预留、独立滑块、旧按钮服务端语义、快照与编队悬停格式 |
+| `DeskParityGameTests.check`（并入既有菜单测试） | 四页开关/便携模式、七章边界、同行再点、地图无点击、空/无效选择、class 0、冷却和图文资源 |
+| `morphInventoryLegacySupportButtonsMutateSelectedProfile → MorphInventoryParityGameTests.check` | 三页、NoFuel/Sit/表情0..8与0/4/模型位/供应旧包、存档/同步、旧/空档案、无效按钮、敌对元数据；不保留自创激活/循环断言 |
+
+最终必须执行：
+```bash
+git diff --check
+bash ./gradlew compileJava --no-daemon
+bash ./gradlew runGameTestServer --no-daemon
+git diff origin/devin/parity-fix-menu-network-command --stat -- src/main
+```
+
+通过条件：两个 Gradle 命令退出 0，全部 301 必需测试通过、无失败名；最后一条无输出。
+本次收尾仅文档，不重复启动客户端。任何后续 UI/模型变更按 T3 针对旧画面验证，不能用编译或模型映射代替。
+
+专用静态/无头检查（相关输入变化时执行）：
+- `python3 src/modern/scripts/port_desk.py /home/ubuntu/legacy0aad --check` 与 `port_desk_screen.py` 同参：数据、方法、翻译和原图字节。
+- `python3 src/modern/scripts/port_ship_inventory.py /home/ubuntu/legacy0aad --check`：背包目录、控件、展示、画面方法。
+- `python3 src/modern/scripts/port_morph_inventory.py /home/ubuntu/legacy0aad --check`：变身方法/控件和贴图。
+- `python3 src/modern/scripts/check_particle_parity.py LEGACY_ROOT OUTPUT_DIRECTORY`：表情/文字状态方法的 API 桩及纹理；不是客户端渲染。

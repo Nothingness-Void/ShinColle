@@ -87,35 +87,6 @@ public final class MorphHelper {
                 buffer -> buffer.writeVarInt(resolveSelectedClassId(player)));
     }
 
-    public static boolean cycleProfile(ServerPlayer player, boolean forward) {
-        boolean changed = TeitokuHelper.get(player)
-                .map(data -> data.cycleMorphProfile(forward))
-                .orElse(false);
-        if (changed) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-        return changed;
-    }
-
-    public static boolean toggleActive(ServerPlayer player) {
-        return TeitokuHelper.get(player)
-                .map(data -> {
-                    boolean next = !data.hasActiveMorph();
-                if (!data.setMorphActive(next)) {
-                    return false;
-                }
-                applyOrResetPlayerMorphState(player, data.hasActiveMorph() ? data.getSelectedMorphProfile() : null);
-                if (data.hasActiveMorph()) {
-                    COMPAT_BRIDGE.syncActiveMorph(player, data.getSelectedMorphProfile(), true);
-                } else {
-                    COMPAT_BRIDGE.reset(player);
-                }
-                TeitokuHelper.syncGameplayState(player);
-                return true;
-            })
-                .orElse(false);
-    }
-
     public static boolean canUseMountHost(ServerPlayer player) {
         TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
         return data != null && data.hasActiveMorph();
@@ -176,33 +147,6 @@ public final class MorphHelper {
         return TeitokuHelper.get(player)
                 .map(TeitokuData::getPlayerSkillRuntimeState)
                 .orElseGet(PlayerSkillRuntimeState::new);
-    }
-
-    public static Component getPlayerSkillTitle(Player player) {
-        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
-        if (host.ship() != null) {
-            return host.ship().getName().copy();
-        }
-        if (host.profile() != null) {
-            return host.profile().getSpec().displayName().copy().append(Component.literal(" Lv" + host.profile().getLevel()));
-        }
-        return Component.empty();
-    }
-
-    public static Component getPlayerSkillResourceLine(Player player) {
-        PlayerSkillHostContext host = PlayerSkillHostResolver.resolve(player);
-        if (host.ship() != null) {
-            LegacyShipEntity ship = host.ship();
-            return Component.literal("HP " + Mth.ceil(ship.getHealth()) + "/" + Mth.ceil(ship.getMaxHealth())
-                    + "  Morale " + ship.getMorale());
-        }
-        if (host.profile() != null) {
-            MorphProfile profile = host.profile();
-            return Component.literal("L " + profile.getAmmoLight()
-                    + "  H " + profile.getAmmoHeavy()
-                    + "  G " + profile.getGrudge());
-        }
-        return Component.empty();
     }
 
     public static boolean performPlayerSkill(ServerPlayer player, int skillSlot, int targetId, @Nullable BlockPos blockPos) {

@@ -33,7 +33,7 @@
 
 ## D-008：单人主线不等于完整 parity
 
-多人 UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 历史矩阵和非主线边角行为单独进入 backlog，不伪装成主线完成。
+**GUI 延期/简化作为等价收口依据的部分已撤销（见 D-016）**：多人 UI、完整旧版 GUI packet pages 不得以简版替代后标为完整一致。原条目的全 inter-mod、完整 worldgen 历史矩阵和非主线边角行为仍需独立证据，不伪装成主线完成。
 
 ## D-009：活动舰种全集以旧版注册为准
 
@@ -81,3 +81,24 @@
 - **已撤销**：Boss 专用阶段与动作循环、额外物品掉落、舰种推导精英或 Boss 以及敌舰等级和士气注入。历史认可见 [SHIP-03](migration_batches/2026-09-03-ship-03-combat-behavior/decision.md) 与 [SHIP-06](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/decision.md) 的对应部分。
 - **已撤销**：特殊攻击钩子的独有倍率与冷却下限，以及为爱宕、高雄及金刚四舰保留专属变身技能的现代做法。历史记录见 [SHIP-06](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/decision.md)、[SHIP-09](migration_batches/2026-09-04-ship-09-kongou-hiei-haruna-kirishima-submarine-hime-new/decision.md) 与 [GameTest 修复批次](migration_batches/2026-11-16-gametest-repair/decision.md) 的对应部分。
 - 旧版依据和处理结论见 [舰种个体行为批次决定](migration_batches/2026-11-22-parity-fix-ship-variants/decision.md)。
+
+D-011 中 Metamorph 原生承载/空桥若被解释为已提供完整外部选择与激活，**该等价解释已撤销（见 D-016）**；不撤销零编译期强依赖原则，也不扩大到 IC2/Curios。
+
+## D-015：舰船 GUI 按钮、AI 标志、跟随距离与 `/ship*` 权限回到 1.12.2（撤销此前偏离）
+
+以下此前现代实现中的偏离 **已撤销**，以 [PARITY-FIX-MENU-NETWORK-COMMAND](migration_batches/2026-11-22-parity-fix-menu-network-command/decision.md) 为准：
+
+- ~~舰船 AI 用 `AUTO_TARGET/ALLOW_PVP/AUTO_SUPPLY/ROUTE_STAY/PICK_ITEM` 位掩码（`SET_AI_FLAGS`）~~ → **已撤销**：改为旧版 `PID.ShipBtn` 43 个按钮（`ShipCommandAction.SHIP_GUI_BUTTON`），标志为 PassiveAI/PVPFirst/OnSightChase/AntiAir/AntiSS/PickItem 等。
+- ~~单值跟随距离 4..64、默认 14（`SET_FOLLOW_RANGE`）~~ → **已撤销**：FollowMin/FollowMax 两值，默认 3/12，旧版联动规则。
+- ~~舰船背包固定 24 槽、无翻页；Shift 点击货仓一律进玩家背包并在热栏/主背包间互转，装备按舰种 `canEquip`~~ → **已撤销**：60 槽 3 页（DrumState 解锁）与 `0aad501` `transferStackInSlot` 顺序。
+- ~~`/ship*` 使用 `hasPermission(2)`；`/shipcleardrop` 清除全部 `ItemEntity`；`/ship get` 生成时满血并清除坐守/跟随/守卫~~ → **已撤销**：旧版 `checkOP`（玩家发送者，创造即 OP）、只清 `BasicEntityItem` 语义掉落（整列世界高度，旧版 Y 0..256 即 1.12 全高）、`createShipEntity` 血量与 `CanDrop` 语义。
+
+## D-016：客户端行为严格还原，撤销历史简化等价声明
+
+- 客户端坐标、贴图、热区、数值和条件以 1.12.2 为准，只做必要 API 适配；旧版注释掉的显示不能借现代界面恢复，自创快捷键、双击窗口和开关不能冒充旧交互。
+- D-008 的 GUI 延期/简化口径已撤销；其它非 GUI 范围不受影响。
+- [B1 决定](migration_batches/2026-11-16-b1-gui-parity/decision.md) §2.5 第 3/4/5/6 项的“完全等价”声明已撤销；§2.3 电源绘制/提示和 §2.4 被替代桌面入口也加限定。航点终端、现代简化 GUI、250ms 重复行窗口、配置档切换/激活开关均不得保留为旧版替代。
+- 旧 `LegacyShipModel` 解析几何加通用动画，以及舰船专用 Transform/State 目录作为完整模型/死亡/情绪/Glow 等价路径的结论已撤销；[全舰复审原条目](migration_batches/2026-11-18-full-ship-behavior-reaudit/decision.md) 和相关模型决定保留原数值审计、标明实现路径已被替代。其它渲染器仍用的源解析器不因此删除。
+- 原版粒子近似不得作为旧自定义粒子的完整一致性依据；尚未移植的类别保持未完成，不用“已收口”覆盖缺口。
+- 删除自创激活开关后不得自动激活或复建其它自创入口。D-011 背景中的外部 Metamorph 选择/激活必须由实际可达适配链证明，空桥和存档恢复不等价于玩家新激活入口。
+- 本批次具体 19 项、真源用法、激活证据与限制只见 [客户端还原决定](migration_batches/2026-11-22-parity-fix-client/decision.md)，方法只见 [测试矩阵](MIGRATION-TEST-MATRIX.md#客户端还原收尾门禁)，不改写历史日志与历史通过数。

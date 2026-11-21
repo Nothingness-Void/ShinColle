@@ -1,9 +1,7 @@
 package com.lulan.shincolle.block;
 
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
-import com.lulan.shincolle.registry.ModSoundEvents;
-import com.lulan.shincolle.sound.ShinColleSoundHelper;
+import com.lulan.shincolle.menu.DeskMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -63,30 +61,19 @@ public class DeskBlock extends BaseEntityBlock {
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        if (level.isClientSide()) return InteractionResult.SUCCESS;
+        if (player.isShiftKeyDown()) return InteractionResult.PASS;
         if (!(level.getBlockEntity(pos) instanceof DeskBlockEntity desk)) {
             return InteractionResult.PASS;
         }
 
         if (!level.isClientSide()) {
-            if (player.isShiftKeyDown()) {
-                desk.cycleFunction();
-                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-                player.displayClientMessage(Component.empty()
-                        .append(Component.translatable("block.shincolle.blockdesk"))
-                        .append(Component.literal(": "))
-                        .append(desk.getSelectedFunctionName()), true);
-            } else if (player instanceof ServerPlayer serverPlayer) {
-                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
+            if (player instanceof ServerPlayer serverPlayer) {
                 NetworkHooks.openScreen(serverPlayer,
                         new SimpleMenuProvider(
-                                (containerId, inventory, ignoredPlayer) -> new DeskTerminalMenu(containerId, inventory, pos, desk.getSelectedFunction()),
+                                (containerId, inventory, ignoredPlayer) -> new DeskMenu(containerId, inventory, pos, 0),
                                 Component.translatable("block.shincolle.blockdesk")),
-                        buffer -> {
-                            buffer.writeBlockPos(pos);
-                            buffer.writeVarInt(desk.getSelectedFunction());
-                        });
+                        buffer -> DeskMenu.writeOpeningData(buffer, pos, 0));
             }
         }
 

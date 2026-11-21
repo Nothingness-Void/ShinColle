@@ -1,9 +1,11 @@
 package com.lulan.shincolle.client;
 
 import com.lulan.shincolle.client.particle.LegacyEmotionParticle;
+import com.lulan.shincolle.client.particle.LegacyTextParticle;
 import com.lulan.shincolle.client.particle.LegacyTeamMarkerParticle;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.ClientboundCombatReactPacket;
 import com.lulan.shincolle.network.ClientboundSpawnParticlePacket;
 import com.lulan.shincolle.network.CombatReactType;
@@ -59,6 +61,11 @@ public final class GameplayClientEffects {
         }
 
         switch (packet.particleType()) {
+            case LEGACY_SHIP_ANIMATION -> {
+                if (level.getEntity(packet.entityId()) instanceof LegacyShipEntity ship) {
+                    ship.setLegacyModelAttackTick(packet.variant() == 12 ? 100 : 50);
+                }
+            }
             case NONE -> {
             }
             case LAUNCH_SMOKE -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 8, 0.2D);
@@ -141,37 +148,30 @@ public final class GameplayClientEffects {
             case HEALING_SPARKLE -> spawnBurst(level, ParticleTypes.HAPPY_VILLAGER,
                     packet.x(), packet.y(), packet.z(), 8, 0.24D);
             case LEGACY_EMOTION -> spawnLegacyEmotion(level, packet);
-            case TEXT_MISS -> spawnBurst(level, ParticleTypes.SMOKE, packet.x(), packet.y(), packet.z(), 4, 0.09D);
-            case TEXT_CRIT -> spawnBurst(level, ParticleTypes.CRIT, packet.x(), packet.y(), packet.z(), 5, 0.1D);
-            case TEXT_DOUBLE -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, packet.x(), packet.y(), packet.z(), 4, 0.08D);
-            case TEXT_TRIPLE -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, packet.x(), packet.y(), packet.z(), 6, 0.12D);
-            case TEXT_DODGE -> spawnBurst(level, ParticleTypes.CLOUD, packet.x(), packet.y(), packet.z(), 4, 0.08D);
+            case LEGACY_DRIP_WATER -> level.addParticle(ParticleTypes.DRIPPING_WATER,
+                    packet.x() + level.random.nextFloat() * 0.7D - 0.35D, packet.y(),
+                    packet.z() + level.random.nextFloat() * 0.7D - 0.35D,
+                    packet.velocityX(), packet.velocityY(), packet.velocityZ());
+            case TEXT_MISS -> spawnLegacyText(level, packet, 0);
+            case TEXT_CRIT -> spawnLegacyText(level, packet, 1);
+            case TEXT_DOUBLE -> spawnLegacyText(level, packet, 2);
+            case TEXT_TRIPLE -> spawnLegacyText(level, packet, 3);
+            case TEXT_DODGE -> spawnLegacyText(level, packet, 4);
         }
     }
 
     private static void spawnLegacyEmotion(ClientLevel level, ClientboundSpawnParticlePacket packet) {
-        if (packet.variant() == 28) {
-            Minecraft.getInstance().particleEngine.add(new LegacyEmotionParticle(
-                    level,
-                    packet.x(), packet.y(), packet.z(),
-                    packet.velocityX(), packet.velocityY(), packet.velocityZ()));
-            return;
-        }
+        Minecraft.getInstance().particleEngine.add(new LegacyEmotionParticle(level,
+                level.getEntity(packet.entityId()), packet.x(), packet.y(), packet.z(),
+                (float)packet.velocityX(), (int)packet.velocityY(), packet.variant()));
+    }
 
-        switch (packet.variant()) {
-            case 1 -> spawnBurst(level, ParticleTypes.HEART,
-                    packet.x(), packet.y(), packet.z(), 3, 0.14D);
-            case 7 -> spawnBurst(level, ParticleTypes.NOTE,
-                    packet.x(), packet.y(), packet.z(), 2, 0.12D);
-            case 16 -> spawnBurst(level, ParticleTypes.HAPPY_VILLAGER,
-                    packet.x(), packet.y(), packet.z(), 4, 0.16D);
-            case 31 -> spawnBurst(level, ParticleTypes.DAMAGE_INDICATOR,
-                    packet.x(), packet.y(), packet.z(), 2, 0.12D);
-            case 29 -> spawnBurst(level, ParticleTypes.SMOKE,
-                    packet.x(), packet.y(), packet.z(), 2, 0.10D);
-            default -> spawnBurst(level, ParticleTypes.SMOKE,
-                    packet.x(), packet.y(), packet.z(), 2, 0.10D);
-        }
+    private static void spawnLegacyText(ClientLevel level, ClientboundSpawnParticlePacket packet, int type) {
+        Entity host = level.getEntity(packet.entityId());
+        Minecraft.getInstance().particleEngine.add(new LegacyTextParticle(level,
+                host == null ? packet.x() : host.getX(),
+                host == null ? packet.y() + packet.velocityY() : host.getY() + host.getBbHeight() * 1.3D,
+                host == null ? packet.z() : host.getZ(), 1F, type));
     }
 
     /** Recreates the legacy type-5 six-stream large-smoke cannon burst. */
@@ -333,17 +333,8 @@ public final class GameplayClientEffects {
         double z = anchor.getZ();
 
         switch (packet.reactType()) {
-            case MISS -> {
-                spawnBurst(level, ParticleTypes.SMOKE, x, y, z, 6, 0.14D);
-                if (packet.projectileVisual() == LegacyShipProjectileVisual.MISSILE
-                        || packet.projectileVisual() == LegacyShipProjectileVisual.BOMB) {
-                    spawnBurst(level, ParticleTypes.POOF, x, y, z, 3, 0.1D);
-                }
+            case MISS, CRIT, DOUBLE_HIT, TRIPLE_HIT, DODGE -> {
             }
-            case CRIT -> spawnBurst(level, ParticleTypes.CRIT, x, y, z, 10, 0.21D);
-            case DOUBLE_HIT -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, x, y, z, 8, 0.16D);
-            case TRIPLE_HIT -> spawnBurst(level, ParticleTypes.SWEEP_ATTACK, x, y, z, 12, 0.21D);
-            case DODGE -> spawnBurst(level, ParticleTypes.CLOUD, x, y, z, 8, 0.18D);
             case LAUNCH -> spawnLaunchReact(level, x, y, z, packet.projectileVisual());
             case HIT -> spawnImpactReact(level, x, y, z, packet.projectileVisual());
         }

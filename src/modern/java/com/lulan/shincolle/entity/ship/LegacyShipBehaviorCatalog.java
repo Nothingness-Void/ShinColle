@@ -1718,6 +1718,14 @@ public final class LegacyShipBehaviorCatalog {
         return hitCount;
     }
 
+    public static int modelAttackAnimationParticleFor(ShipEntitySpec spec, LegacyShipAttackKind kind, int phase) {
+        return switch (spec.textureStem()) {
+            case "EntityCruiserTenryuu" -> kind == LegacyShipAttackKind.HEAVY ? (phase == 0 ? 12 : -1) : 15;
+            case "EntityCruiserTatsuta" -> kind == LegacyShipAttackKind.HEAVY ? (phase == 0 ? 12 : -1) : 16;
+            default -> 0;
+        };
+    }
+
     /** Mirrors TeamHelper.checkSameOwner without widening it to the modern ally relation. */
     public static boolean hasLegacySameOwner(LegacyShipEntity ship, LivingEntity candidate) {
         if (ship.getOwnerUid() <= 0) {
@@ -2066,7 +2074,7 @@ public final class LegacyShipBehaviorCatalog {
                                                boolean checkNbt) {
         Container inventory = ship.getShipInventory();
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
-             slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+             slot < ship.getInventorySizePaged(); slot++) {
             if (slot == LegacyShipEntity.LEGACY_MAIN_HAND_SLOT
                     || slot == LegacyShipEntity.LEGACY_OFF_HAND_SLOT) {
                 continue;
@@ -2190,7 +2198,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static int moveLegacyTaskStackToShip(LegacyShipEntity ship, ItemStack source) {
         return insertLegacyTaskStack(ship.getShipInventory(), source,
-                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, LegacyShipEntity.SHIP_SLOT_COUNT);
+                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, ship.getInventorySizePaged());
     }
 
     private static void dropLegacyTaskRemainder(LegacyShipEntity ship, ItemStack stack) {
@@ -3741,7 +3749,7 @@ public final class LegacyShipBehaviorCatalog {
         if (normalizedClassId == 31) {
             if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.hasNoFuel(),
                     ship.tickCount)) {
-                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_EMOTION,
+                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_DRIP_WATER,
                         ship.getX(),
                         ship.getY() + northernHimeMouthYOffsetFor(
                                 ship.isOrderedToSit(), ship.isPassenger()),
@@ -4298,6 +4306,7 @@ public final class LegacyShipBehaviorCatalog {
         int timer = ship.getLegacySkillTimer();
         if (timer == 6) {
             ship.clearLegacySkillDamagedTargets();
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             sendLaunchSmoke(ship);
         } else if (timer == 3) {
             Vec3 motion = ship.getLegacySkillMotion();
@@ -4494,6 +4503,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaCharge(LegacyShipEntity ship, LivingEntity target) {
         int timer = ship.getLegacySkillTimer();
         if (timer == 8) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             Vec3 direction = target.position().subtract(ship.position());
             Vec3 motion = direction.scale(0.14D);
             ship.setLegacySkillMotion(motion);
@@ -4518,6 +4528,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaWave(LegacyShipEntity ship) {
         int timer = ship.getLegacySkillTimer();
         if (timer <= 0) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             ship.setLegacySkillMotion(new Vec3(0.0D,
                     0.3D + (ship.isHostileVariant() ? ship.getLegacyHostileScaleLevel() * 0.1D : 0.0D),
                     0.0D));
@@ -4587,6 +4598,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaFinalAttack(LegacyShipEntity ship, LivingEntity target) {
         int timer = ship.getLegacySkillTimer();
         if (timer <= 0) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             Vec3 direction = target.position().subtract(
                     ship.position().add(0.0D, 1.0D, 0.0D));
             ship.setLegacySkillMotion(direction.lengthSqr() <= 1.0E-4D

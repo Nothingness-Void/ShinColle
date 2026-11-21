@@ -34,6 +34,9 @@ An exact match must still be recorded so a later batch does not reread the same 
 ## Batch conclusion
 
 - The five selected rows now have explicit model source, projectile family, feedback boundary, and focused regression coverage.
+
+> **已撤销（见 D-016）**：本条旧解析模型/目录作为完整动画、死亡、情绪和发光等价实现的口径已撤销；原数值/部件审计仅留作历史证据。替代实现与边界见 [客户端还原决定](../2026-11-22-parity-fix-client/decision.md)。
+
 - `LegacyShipModelStateCatalog` reproduces the audited 1.12 `showEquip` visibility bits; unknown parts remain visible, matching the old model default.
 - `LEGACY_RAILGUN` is appended to the particle enum so existing ordinal values remain stable. It is the minimum modern visual adaptation for the old type-2 railgun-head particle call.
 - The client evidence proves startup and resource reload. In-world manual interaction was not available through the current desktop automation surface and is recorded as a V0 follow-up, not as an unobserved pass.

@@ -56,9 +56,9 @@ public final class ModItems {
     public static final RegistryObject<Item> COMBATRATION4 = combatRation("combatration4", "gui.shincolle.combatration4", 3000, 100, 200, true);
     public static final RegistryObject<Item> COMBATRATION5 = combatRation("combatration5", "gui.shincolle.combatration5", 4000, 900, 1800, true);
     public static final RegistryObject<Item> DESKITEMBOOK = ITEMS.register("deskitembook",
-            () -> new DeskReferenceItem(new Item.Properties().stacksTo(1), 1, "item.shincolle.deskitembook"));
+            () -> new DeskReferenceItem(new Item.Properties().stacksTo(1), 2, "item.shincolle.deskitembook"));
     public static final RegistryObject<Item> DESKITEMRADAR = ITEMS.register("deskitemradar",
-            () -> new DeskReferenceItem(new Item.Properties().stacksTo(1), 0, "item.shincolle.deskitemradar"));
+            () -> new DeskReferenceItem(new Item.Properties().stacksTo(1), 1, "item.shincolle.deskitemradar"));
     public static final List<RegistryObject<Item>> EQUIPAIRPLANE_ITEMS = equipmentVariants(LegacyEquipmentFamily.AIRPLANE);
     public static final List<RegistryObject<Item>> EQUIPAMMO_ITEMS = equipmentVariants(LegacyEquipmentFamily.AMMO);
     public static final List<RegistryObject<Item>> EQUIPARMOR_ITEMS = equipmentVariants(LegacyEquipmentFamily.ARMOR);

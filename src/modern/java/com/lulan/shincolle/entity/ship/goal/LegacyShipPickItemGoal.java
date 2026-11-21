@@ -98,7 +98,7 @@ public class LegacyShipPickItemGoal extends Goal {
     }
 
     private boolean hasAnyCargoSpace() {
-        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getShipInventory().getContainerSize(); slot++) {
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getInventorySizePaged(); slot++) {
             ItemStack stack = this.ship.getShipInventory().getItem(slot);
             if (stack.isEmpty()) {
                 return true;

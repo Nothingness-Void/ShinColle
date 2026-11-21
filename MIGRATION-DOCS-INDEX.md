@@ -35,3 +35,7 @@
 `CURRENT_STATE → ROADMAP → 当前批次`。只有执行代码时，才按批次协议补读 `AGENTS`、`TRACKS`、`ARCHITECTURE`、`NAMING` 和适配文档。
 
 已完成批次只读其 `decision.md` 和 `results/`；只有相关代码发生变化或出现新证据时，才重新打开旧版入口。
+
+## 客户端还原批次入口
+
+[2026-11-22 客户端还原](migration_batches/2026-11-22-parity-fix-client/)：只链接批次问题、协议、决定与证据，不在本文件复制结论。

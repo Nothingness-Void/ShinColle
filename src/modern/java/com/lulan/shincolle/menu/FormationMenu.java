@@ -1,62 +1,33 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
-import com.lulan.shincolle.entity.ship.ShipEntitySpec;
-import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
-import com.lulan.shincolle.teitoku.ShipWorldCacheEntry;
+import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
+import com.lulan.shincolle.entity.ship.LegacyShipStats;
+import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.teitoku.TeitokuData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
-import javax.annotation.Nullable;
 import java.util.Optional;
-import java.util.Locale;
 
 public class FormationMenu extends AbstractContainerMenu {
 
-    public record SlotSnapshot(
-            int slot,
-            int shipUid,
-            boolean empty,
-            boolean dead,
-            boolean online,
-            Component displayName,
-            Component roleLabel,
-            int shipLevel,
-            String moraleText,
-            String lightAmmoText,
-            String heavyAmmoText,
-            String grudgeText,
-            Component modeLabel,
-            Component marriageLabel
-    ) {
-        private static SlotSnapshot empty(int slot) {
-            return new SlotSnapshot(
-                    slot,
-                    -1,
-                    true,
-                    false,
-                    false,
-                    Component.translatable("gui.shincolle.formation.slot.empty", slot + 1),
-                    Component.translatable("gui.shincolle.ship_inventory.role.unknown"),
-                    0,
-                    "-",
-                    "-",
-                    "-",
-                    "-",
-                    Component.literal("-"),
-                    Component.translatable("gui.shincolle.ship_inventory.marriage.no"));
-        }
-    }
-
     private final Inventory inventory;
+    private CompoundTag visualData = new CompoundTag();
+    private CompoundTag lastSentVisualData;
+    private int visualRevision;
 
     public FormationMenu(int containerId, Inventory inventory) {
         super(ModMenus.FORMATION.get(), containerId);
@@ -64,7 +35,172 @@ public class FormationMenu extends AbstractContainerMenu {
     }
 
     public static FormationMenu fromNetwork(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
-        return new FormationMenu(containerId, inventory);
+        FormationMenu menu = new FormationMenu(containerId, inventory);
+        CompoundTag tag = buffer.readNbt();
+        if (tag != null) menu.applyVisualData(tag);
+        return menu;
+    }
+
+    public void applyVisualData(CompoundTag tag) {
+        this.visualData = tag.copy();
+        this.visualRevision++;
+    }
+
+    public int getVisualRevision() { return this.visualRevision; }
+
+    @Override
+    public void broadcastChanges() {
+        super.broadcastChanges();
+        if (this.inventory.player instanceof ServerPlayer player) {
+            CompoundTag next = captureVisualData(player);
+            if (!next.equals(this.lastSentVisualData)) {
+                this.lastSentVisualData = next.copy();
+                CompoundTag payload = new CompoundTag();
+                payload.putInt("FormationContainerId", this.containerId);
+                payload.put("FormationVisualData", next);
+                ModNetwork.syncGameplayState(player, payload);
+            }
+        }
+    }
+
+    public static CompoundTag captureVisualData(Player player) {
+        CompoundTag result = new CompoundTag();
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
+        if (data == null) return result;
+        result.putInt("Team", data.getCurrentTeamId());
+        ListTag teams = new ListTag();
+        for (int team = 0; team < TeitokuData.TEAM_COUNT; team++) {
+            LegacyShipEntity[] ships = new LegacyShipEntity[6];
+            float minMov = 10F;
+            boolean found = false;
+            for (int slot = 0; slot < 6; slot++) {
+                ships[slot] = findShipByUid(player, data.getShipUid(team, slot));
+                if (ships[slot] != null) {
+                    found = true;
+                    minMov = Math.min(minMov, ships[slot].getLegacyStats().moveSpeed());
+                }
+            }
+            if (!found) minMov = 0F;
+            ListTag list = new ListTag();
+            for (int slot = 0; slot < 6; slot++) {
+                LegacyShipEntity ship = ships[slot];
+                if (ship == null) continue;
+                LegacyShipStats stats = ship.getLegacyStats();
+                CompoundTag entry = new CompoundTag();
+                entry.putInt("Slot", slot);
+                entry.putInt("Uid", ship.getShipUid());
+                entry.putInt("EntityId", ship.getId());
+                entry.putString("Name", Component.Serializer.toJson(ship.getName()));
+                entry.putInt("Level", ship.getShipLevel());
+                entry.putInt("Morale", ship.getMorale());
+                entry.putFloat("Health", ship.getHealth());
+                entry.putFloat("MaxHealth", ship.getMaxHealth());
+                entry.putInt("FormatType", ship.getLegacyFormationId());
+                entry.putInt("FormatPos", ship.getLegacyFormationSlot());
+                entry.putFloat("MinMOV", minMov);
+                putFloats(entry, "Buffed", stats.copyBuffed());
+                putFloats(entry, "WithoutFormation", stats.copyWithoutFormation());
+                float[] formation = new float[LegacyShipStatTables.ATTR_COUNT];
+                for (int i = 0; i < formation.length; i++) formation[i] = stats.formationStat(i);
+                putFloats(entry, "Formation", formation);
+                list.add(entry);
+            }
+            CompoundTag teamData = new CompoundTag();
+            teamData.put("Ships", list);
+            teams.add(teamData);
+        }
+        result.put("Teams", teams);
+        ListTag previews = new ListTag();
+        for (int formation = 0; formation < 6; formation++) {
+            for (int slot = 0; slot < 6; slot++) {
+                CompoundTag entry = new CompoundTag();
+                putFloats(entry, "Values", LegacyShipStatTables.copyFormationStats(formation, slot));
+                previews.add(entry);
+            }
+        }
+        result.put("Previews", previews);
+        return result;
+    }
+
+    private static void putFloats(CompoundTag tag, String key, float[] values) {
+        int[] bits = new int[values.length];
+        for (int i = 0; i < bits.length; i++) bits[i] = Float.floatToIntBits(values[i]);
+        tag.putIntArray(key, bits);
+    }
+
+    private static float[] readFloats(CompoundTag tag, String key) {
+        int[] bits = tag.getIntArray(key);
+        float[] values = new float[LegacyShipStatTables.ATTR_COUNT];
+        if (bits.length == values.length) {
+            for (int i = 0; i < values.length; i++) values[i] = Float.intBitsToFloat(bits[i]);
+        }
+        return values;
+    }
+
+    public float[] getFormationBuffValue(int formation, int slot) {
+        ListTag previews = this.visualData.getList("Previews", Tag.TAG_COMPOUND);
+        int index = formation * 6 + slot;
+        return formation >= 0 && formation < 6 && slot >= 0 && slot < 6 && index < previews.size()
+                ? readFloats(previews.getCompound(index), "Values") : LegacyShipStatTables.copyResetFormation();
+    }
+
+    public int getFormationId(int team) {
+        return this.withData(data -> data.getFormationId(team)).orElse(0);
+    }
+
+    public String getUnitName(int team) {
+        return this.withData(data -> data.getTeamName(team)).orElse("");
+    }
+
+    public int getSID(int team, int slot) {
+        return this.withData(data -> data.getShipUid(team, slot)).orElse(-1);
+    }
+
+    public ShipView[] getShipEntityAll(int team) {
+        ShipView[] ships = new ShipView[6];
+        ListTag teams = this.visualData.getList("Teams", Tag.TAG_COMPOUND);
+        if (team < 0 || team >= teams.size()) return ships;
+        ListTag list = teams.getCompound(team).getList("Ships", Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag entry = list.getCompound(i);
+            int slot = entry.getInt("Slot");
+            if (slot < 0 || slot >= 6 || entry.getIntArray("Buffed").length != LegacyShipStatTables.ATTR_COUNT) continue;
+            if (this.inventory.player.level().getEntity(entry.getInt("EntityId")) instanceof LegacyShipEntity entity
+                    && entity.getShipUid() == entry.getInt("Uid") && !entity.isRemoved()) {
+                ships[slot] = new ShipView(entry);
+            }
+        }
+        return ships;
+    }
+
+    public static final class ShipView {
+        private final CompoundTag data;
+        private final float[] formation;
+        private final float[] buffed;
+
+        private ShipView(CompoundTag data) {
+            this.data = data.copy();
+            this.formation = readFloats(data, "Formation");
+            this.buffed = readFloats(data, "Buffed");
+        }
+
+        public String getName() {
+            Component name = Component.Serializer.fromJson(this.data.getString("Name"));
+            return name == null ? "" : name.getString();
+        }
+        public int getUid() { return this.data.getInt("Uid"); }
+        public int getEntityId() { return this.data.getInt("EntityId"); }
+        public int getLevel() { return this.data.getInt("Level"); }
+        public int getMorale() { return this.data.getInt("Morale"); }
+        public float getHealth() { return this.data.getFloat("Health"); }
+        public float getMaxHealth() { return this.data.getFloat("MaxHealth"); }
+        public int getFormatType() { return this.data.getInt("FormatType"); }
+        public int getFormatPos() { return this.data.getInt("FormatPos"); }
+        public ShipView getAttrs() { return this; }
+        public float getAttrsFormation(int id) { return this.formation[id]; }
+        public float getAttrsBuffed(int id) { return this.buffed[id]; }
+        public float getMinMOV() { return this.data.getFloat("MinMOV"); }
+        public float[] copyWithoutFormation() { return readFloats(this.data, "WithoutFormation"); }
     }
 
     public int getCurrentTeamId() {
@@ -73,121 +209,6 @@ public class FormationMenu extends AbstractContainerMenu {
 
     public int getCurrentFormationId() {
         return this.withData(TeitokuData::getCurrentFormationId).orElse(TeitokuData.DEFAULT_FORMATION_ID);
-    }
-
-    public String getCurrentTeamName() {
-        return this.withData(data -> data.getTeamName(data.getCurrentTeamId())).orElse("");
-    }
-
-    public int getShipUid(int slot) {
-        return this.withData(data -> data.getShipUid(data.getCurrentTeamId(), slot)).orElse(-1);
-    }
-
-    public boolean isSlotSelected(int slot) {
-        return this.withData(data -> data.isShipSelected(data.getCurrentTeamId(), slot)).orElse(false);
-    }
-
-    public Component getSlotLabel(int slot) {
-        int shipUid = this.getShipUid(slot);
-        if (shipUid <= 0) {
-            return Component.translatable("gui.shincolle.formation.slot.empty", slot + 1);
-        }
-
-        LegacyShipEntity ship = this.findShipByUid(shipUid);
-        if (ship != null) {
-            return Component.translatable("gui.shincolle.formation.slot.filled", slot + 1, ship.getName());
-        }
-
-        ShipWorldCacheEntry cached = TeitokuHelper.getClientShipCacheEntry(shipUid);
-        if (cached != null) {
-            Component name = cached.resolveDisplayName();
-            if (cached.dead()) {
-                name = name.copy().withStyle(ChatFormatting.DARK_GRAY);
-            }
-            return Component.translatable("gui.shincolle.formation.slot.filled", slot + 1, name);
-        }
-
-        return Component.translatable("gui.shincolle.formation.slot.uid", slot + 1, shipUid);
-    }
-
-    public int countCurrentTeamShips() {
-        return this.withData(data -> data.countShipsInTeam(data.getCurrentTeamId())).orElse(0);
-    }
-
-    public SlotSnapshot getSlotSnapshot(int slot) {
-        int shipUid = this.getShipUid(slot);
-        if (shipUid <= 0) {
-            return SlotSnapshot.empty(slot);
-        }
-
-        LegacyShipEntity ship = this.findShipByUid(shipUid);
-        if (ship != null) {
-            return new SlotSnapshot(
-                    slot,
-                    shipUid,
-                    false,
-                    false,
-                    true,
-                    ship.getName(),
-                    Component.translatable("gui.shincolle.ship_inventory.role."
-                            + ship.getSpec().archetype().name().toLowerCase(Locale.ROOT)),
-                    ship.getShipLevel(),
-                    ship.getMorale() + " / 16000",
-                    ship.getLightAmmoText(),
-                    ship.getHeavyAmmoText(),
-                    ship.getGrudgeText(),
-                    ship.getEscortModeLabel(),
-                    Component.translatable(ship.isMarried()
-                            ? "gui.shincolle.ship_inventory.marriage.yes"
-                            : "gui.shincolle.ship_inventory.marriage.no"));
-        }
-
-        ShipWorldCacheEntry cached = TeitokuHelper.getClientShipCacheEntry(shipUid);
-        if (cached == null) {
-            return new SlotSnapshot(
-                    slot,
-                    shipUid,
-                    false,
-                    false,
-                    false,
-                    Component.translatable("gui.shincolle.formation.slot.uid", slot + 1, shipUid),
-                    Component.translatable("gui.shincolle.ship_inventory.role.unknown"),
-                    0,
-                    "-",
-                    "-",
-                    "-",
-                    "-",
-                    Component.literal("-"),
-                    Component.translatable("gui.shincolle.ship_inventory.marriage.no"));
-        }
-
-        ShipEntitySpec spec = this.resolveCachedSpec(cached);
-        Component roleLabel = spec == null
-                ? Component.translatable("gui.shincolle.ship_inventory.role.unknown")
-                : Component.translatable("gui.shincolle.ship_inventory.role."
-                + spec.archetype().name().toLowerCase(Locale.ROOT));
-        Component modeLabel = Component.translatable(cached.isOrderedToSit()
-                ? "gui.shincolle.entity.mode.standby"
-                : "gui.shincolle.entity.mode.follow");
-        Component marriageLabel = Component.translatable(cached.isMarried()
-                ? "gui.shincolle.ship_inventory.marriage.yes"
-                : "gui.shincolle.ship_inventory.marriage.no");
-
-        return new SlotSnapshot(
-                slot,
-                shipUid,
-                false,
-                cached.dead(),
-                cached.online(),
-                cached.resolveDisplayName(),
-                roleLabel,
-                cached.getShipLevel(),
-                cached.getMorale() + " / 16000",
-                Integer.toString(cached.getLightAmmo()),
-                Integer.toString(cached.getHeavyAmmo()),
-                Integer.toString(cached.getGrudge()),
-                modeLabel,
-                marriageLabel);
     }
 
     @Override
@@ -200,12 +221,20 @@ public class FormationMenu extends AbstractContainerMenu {
         return ItemStack.EMPTY;
     }
 
-    private LegacyShipEntity findShipByUid(int shipUid) {
-        for (LegacyShipEntity ship : this.inventory.player.level().getEntitiesOfClass(
+    private static LegacyShipEntity findShipByUid(Player player, int shipUid) {
+        if (shipUid <= 0) return null;
+        if (player.level() instanceof ServerLevel level) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof LegacyShipEntity ship && ship.getShipUid() == shipUid
+                        && !ship.isRemoved() && ship.canCommanderEdit(player)) return ship;
+            }
+            return null;
+        }
+        for (LegacyShipEntity ship : player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
-                this.inventory.player.getBoundingBox().inflate(256.0D),
+                player.getBoundingBox().inflate(256.0D),
                 candidate -> candidate.getShipUid() == shipUid && !candidate.isRemoved())) {
-            if (ship.canCommanderEdit(this.inventory.player)) {
+            if (ship.canCommanderEdit(player)) {
                 return ship;
             }
         }
@@ -220,15 +249,4 @@ public class FormationMenu extends AbstractContainerMenu {
         return Optional.ofNullable(mapper.apply(data));
     }
 
-    private @Nullable ShipEntitySpec resolveCachedSpec(@Nullable ShipWorldCacheEntry entry) {
-        if (entry == null) {
-            return null;
-        }
-
-        ShipEntitySpec spec = ShipEntitySpecs.findByEggMeta(entry.variantEggMeta());
-        if (spec == null) {
-            spec = ShipEntitySpecs.findByLegacyClassId(entry.legacyClassId());
-        }
-        return spec;
-    }
 }

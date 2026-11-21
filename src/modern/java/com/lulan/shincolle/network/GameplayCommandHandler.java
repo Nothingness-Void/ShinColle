@@ -8,8 +8,7 @@ import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
-import com.lulan.shincolle.menu.DeskReferenceMenu;
-import com.lulan.shincolle.menu.DeskTerminalMenu;
+import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.morph.MorphHelper;
@@ -65,8 +64,6 @@ public final class GameplayCommandHandler {
     public static final String TAG_TARGET_CLASS = "TargetClass";
     public static final String TAG_RELATION_TEAM_ID = "RelationTeamId";
     public static final String TAG_TEAM_NAME = "TeamName";
-    public static final String TAG_AI_FLAGS = "AiFlags";
-    public static final String TAG_FOLLOW_RANGE = "FollowRange";
     public static final String TAG_ATTACK_KIND = "AttackKind";
     public static final String TAG_SKILL_SLOT = "SkillSlot";
     public static final String TAG_FORMATION_ID = "FormationId";
@@ -76,10 +73,8 @@ public final class GameplayCommandHandler {
     public static final String TAG_HIT_HEIGHT = "HitHeight";
     public static final String TAG_HIT_ANGLE = "HitAngle";
 
+    // Entity-data packing of legacy !PassiveAI and PickItem; not a network payload.
     public static final int AI_FLAG_AUTO_TARGET = 1;
-    public static final int AI_FLAG_ALLOW_PVP = 1 << 1;
-    public static final int AI_FLAG_AUTO_SUPPLY = 1 << 2;
-    public static final int AI_FLAG_ROUTE_STAY = 1 << 3;
     public static final int AI_FLAG_PICK_ITEM = 1 << 4;
 
     private GameplayCommandHandler() {
@@ -124,16 +119,14 @@ public final class GameplayCommandHandler {
             case OPEN_FORMATION_SCREEN -> handleOpenFormationScreen(player);
             case OPEN_DESK_SCREEN -> handleOpenDeskScreen(player, payload);
             case OPEN_MORPH_SCREEN -> MorphHelper.openMorphScreen(player);
-            case SET_SHIP_AI_FLAGS, SET_SHIP_FOLLOW_RANGE -> ShipCommandService.handleLegacy(player, type, payload);
-            case MORPH_CYCLE_PROFILE_PREV -> handleMorphCycle(player, false);
-            case MORPH_CYCLE_PROFILE_NEXT -> handleMorphCycle(player, true);
-            case MORPH_TOGGLE_ACTIVE -> handleMorphToggle(player);
+            case MORPH_GUI_BUTTON -> TeitokuHelper.get(player).ifPresent(data -> {
+                MorphProfile profile = data.getSelectedMorphProfile();
+                if (profile != null) profile.applyGuiButton(payload.getInt("Button"), payload.getInt("Value"));
+            });
             case MORPH_TOGGLE_MOUNT -> handleMorphToggleMount(player);
             case MORPH_ADD_LIGHT_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_LIGHT_AMMO);
             case MORPH_ADD_HEAVY_AMMO -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_HEAVY_AMMO);
             case MORPH_ADD_GRUDGE -> handleMorphSupply(player, GameplayCommandType.MORPH_ADD_GRUDGE);
-            case MORPH_TOGGLE_SHOW_HELD -> handleMorphToggleShowHeld(player);
-            case MORPH_TOGGLE_AURA_EFFECT -> handleMorphToggleAuraEffect(player);
             case PLAYER_CAST_SKILL -> handlePlayerCastSkill(player, payload);
             case MORPH_CAST_ATTACK -> handleMorphAttack(player, payload);
             case MORPH_CAST_SPECIAL -> handleMorphSpecial(player, payload);
@@ -284,56 +277,24 @@ public final class GameplayCommandHandler {
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new FormationMenu(containerId, inventory),
-                        Component.translatable("gui.shincolle.formation.title")));
+                        Component.translatable("gui.shincolle.formation.title")),
+                buffer -> buffer.writeNbt(FormationMenu.captureVisualData(player)));
     }
 
     private static void handleOpenDeskScreen(ServerPlayer player, CompoundTag payload) {
         int selectedFunction = Mth.clamp(payload.getInt(TAG_MODE),
-                DeskReferenceMenu.RADAR_VARIANT,
-                DeskReferenceMenu.BOOK_VARIANT);
+                DeskMenu.RADAR_VARIANT,
+                4);
         NetworkHooks.openScreen(player,
                 new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) ->
-                                new DeskTerminalMenu(containerId, inventory, player.blockPosition(), selectedFunction),
+                                new DeskMenu(containerId, inventory, player.blockPosition(), selectedFunction),
                         Component.translatable("block.shincolle.blockdesk")),
-                buffer -> {
-                    buffer.writeBlockPos(player.blockPosition());
-                    buffer.writeVarInt(selectedFunction);
-                });
-    }
-
-    private static void handleMorphCycle(ServerPlayer player, boolean forward) {
-        if (MorphHelper.cycleProfile(player, forward)) {
-            MorphHelper.openMorphScreen(player);
-        }
-    }
-
-    private static void handleMorphToggle(ServerPlayer player) {
-        if (MorphHelper.toggleActive(player) && player.containerMenu instanceof com.lulan.shincolle.menu.MorphInventoryMenu) {
-            MorphHelper.openMorphScreen(player);
-        }
+                buffer -> DeskMenu.writeOpeningData(buffer, player.blockPosition(), selectedFunction));
     }
 
     private static void handleMorphToggleMount(ServerPlayer player) {
         if (MorphHelper.toggleMount(player)) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-    }
-
-    private static void handleMorphToggleShowHeld(ServerPlayer player) {
-        if (mutateSelectedMorphProfile(player, profile -> {
-            profile.setShowHeldItem(!profile.isShowHeldItem());
-            return true;
-        })) {
-            TeitokuHelper.syncGameplayState(player);
-        }
-    }
-
-    private static void handleMorphToggleAuraEffect(ServerPlayer player) {
-        if (mutateSelectedMorphProfile(player, profile -> {
-            profile.setAuraEffect(!profile.hasAuraEffect());
-            return true;
-        })) {
             TeitokuHelper.syncGameplayState(player);
         }
     }

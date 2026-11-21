@@ -1,4 +1,8 @@
-# Migration Changelog
+# 迁移变更索引
+
+## 2026-11-22 客户端还原与文档收尾
+
+详见 [批次导航](migration_batches/2026-11-22-parity-fix-client/)、[批次决定](migration_batches/2026-11-22-parity-fix-client/decision.md) 与 [验收证据](migration_batches/2026-11-22-parity-fix-client/results/README.md)。本索引不复制具体结论。
 
 ## 2026-11-22
 

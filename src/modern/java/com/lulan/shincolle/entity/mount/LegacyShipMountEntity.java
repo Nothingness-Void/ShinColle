@@ -18,6 +18,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.WalkAnimationState;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -36,6 +37,12 @@ public final class LegacyShipMountEntity extends Entity {
 
     private static final double TARGET_STOP_DISTANCE = 1.5D;
     private static final double COMMAND_STOP_DISTANCE = 0.75D;
+    private final WalkAnimationState legacyModelWalk = new WalkAnimationState();
+    private double legacyModelLastX;
+    private double legacyModelLastZ;
+    private boolean legacyModelHasPosition;
+
+    public WalkAnimationState getLegacyModelWalk() { return this.legacyModelWalk; }
 
     private int keyPressed;
     private int keyTick;
@@ -95,6 +102,12 @@ public final class LegacyShipMountEntity extends Entity {
 
         LegacyShipEntity host = this.getHostShip();
         if (this.level().isClientSide()) {
+            double dx = this.legacyModelHasPosition ? this.getX() - this.legacyModelLastX : 0D;
+            double dz = this.legacyModelHasPosition ? this.getZ() - this.legacyModelLastZ : 0D;
+            this.legacyModelWalk.update(Math.min(1F, (float)Math.sqrt(dx * dx + dz * dz) * 4F), 0.4F);
+            this.legacyModelLastX = this.getX();
+            this.legacyModelLastZ = this.getZ();
+            this.legacyModelHasPosition = true;
             this.spawnClientParticles();
             return;
         }
