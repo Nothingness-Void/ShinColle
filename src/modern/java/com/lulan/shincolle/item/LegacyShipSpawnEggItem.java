@@ -160,6 +160,11 @@ public class LegacyShipSpawnEggItem extends Item {
 
         BlockPos clickedPos = hitResult.getBlockPos();
 
+        if (!level.mayInteract(player, clickedPos)
+                || !player.mayUseItemAt(clickedPos, hitResult.getDirection(), stack)) {
+            return InteractionResultHolder.pass(stack);
+        }
+
         if (level.getFluidState(clickedPos).isEmpty()) {
             return InteractionResultHolder.pass(stack);
         }
@@ -266,10 +271,6 @@ public class LegacyShipSpawnEggItem extends Item {
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setYHeadRot(player.getYRot());
         ship.yBodyRot = player.getYRot();
-
-        if (!serverLevel.noCollision(ship, ship.getBoundingBox())) {
-            return InteractionResult.FAIL;
-        }
 
         serverLevel.addFreshEntity(ship);
 

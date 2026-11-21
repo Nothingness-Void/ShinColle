@@ -720,6 +720,330 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
+
+    @GameTest(template = "empty")
+    public static void finalItemProtectionRingAndOpToolMatchLegacy(GameTestHelper helper) {
+        ItemEntity egg = ModEntityTypes.RECOVERED_SHIP_ITEM.get().create(helper.getLevel());
+        if (egg == null) {
+            helper.fail("recovered item must instantiate");
+            return;
+        }
+        egg.setItem(new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(2).get()));
+        if (!egg.fireImmune() || egg.isAttackable()
+                || egg.hurt(helper.getLevel().damageSources().generic(), 100F)
+                || egg.hurt(helper.getLevel().damageSources().lava(), 100F)
+                || egg.hurt(helper.getLevel().damageSources().fellOutOfWorld(), 100F)) {
+            helper.fail("recovered eggs must reject all damage and be fire immune");
+            return;
+        }
+        CompoundTag saved = new CompoundTag();
+        egg.save(saved);
+        Entity restored = net.minecraft.world.entity.EntityType.loadEntityRecursive(saved, helper.getLevel(), entity -> entity);
+        if (!(restored instanceof ItemEntity item) || !item.fireImmune()
+                || item.hurt(helper.getLevel().damageSources().generic(), 100F)) {
+            helper.fail("recovered egg protection must survive entity reload");
+            return;
+        }
+        ItemStack ring = new ItemStack(ModItems.MARRIAGERING.get());
+        if (com.lulan.shincolle.item.MarriageRingItem.isActive(ring)) {
+            helper.fail("untagged rings must be inactive");
+            return;
+        }
+        ring.getOrCreateTag().putBoolean("isActive", true);
+        if (!com.lulan.shincolle.item.MarriageRingItem.isActive(ring)) {
+            helper.fail("legacy isActive ring NBT must be recognized");
+            return;
+        }
+        ServerPlayer player = makeServerBackedPlayer(helper, "FinalOpTool");
+        LegacyShipEntity ship = createOwnedShip(helper, player, 2, egg.getX(), egg.getY(), egg.getZ());
+        if (ship == null) return;
+        ItemStack tool = new ItemStack(ModItems.OPTOOL.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, tool);
+        String targetClass = TeitokuHelper.resolveTargetClass(ship);
+        boolean before = WorldCombatRulesSavedData.get(helper.getLevel()).isUnattackable(targetClass);
+        tool.getItem().interactLivingEntity(tool, player, ship, InteractionHand.MAIN_HAND);
+        if (before != WorldCombatRulesSavedData.get(helper.getLevel()).isUnattackable(targetClass)
+                || tool.getItem().use(helper.getLevel(), player, InteractionHand.MAIN_HAND).getResult().consumesAction()
+                || !com.lulan.shincolle.item.OpToolItem.isExcludedTarget(ship)) {
+            helper.fail("OPTool must not add right-click behavior or allow ship targets");
+            return;
+        }
+        ship.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void finalShipTankMachineTargetAndWrenchMemoryMatchLegacy(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "FinalTankWrench");
+        BlockPos machinePos = helper.absolutePos(new BlockPos(2, 2, 2));
+        helper.getLevel().setBlock(machinePos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), 3);
+        var machine = helper.getLevel().getBlockEntity(machinePos)
+                .getCapability(ForgeCapabilities.FLUID_HANDLER, Direction.UP).orElseThrow(IllegalStateException::new);
+        ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
+        var tankHandler = FluidUtil.getFluidHandler(tank).orElseThrow(IllegalStateException::new);
+        tankHandler.fill(new FluidStack(Fluids.LAVA, 1000), IFluidHandler.FluidAction.EXECUTE);
+        player.setItemInHand(InteractionHand.MAIN_HAND, tank);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(machinePos), Direction.UP, machinePos, false);
+        tank.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        if (machine.getFluidInTank(0).getAmount() != 0
+                || FluidUtil.getFluidContained(player.getMainHandItem()).map(FluidStack::getAmount).orElse(0) != 1000) {
+            helper.fail("legacy machine transfer must address the tank item itself, not fill the machine");
+            return;
+        }
+        machine.fill(new FluidStack(Fluids.LAVA, 1000), IFluidHandler.FluidAction.EXECUTE);
+        player.setShiftKeyDown(true);
+        tank.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        if (machine.getFluidInTank(0).getAmount() != 1000) {
+            helper.fail("sneaking must not drain the machine through the legacy item-targeted branch");
+            return;
+        }
+        var wrench = (com.lulan.shincolle.item.TargetWrenchItem) ModItems.TARGETWRENCH.get();
+        ItemStack first = new ItemStack(wrench);
+        ItemStack second = new ItemStack(wrench);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        wrench.selectTarget(helper.getLevel(), player, machinePos.above());
+        BlockPos cranePos = machinePos.offset(2, 0, 0);
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, first);
+        wrench.selectTarget(helper.getLevel(), player, cranePos);
+        if (first.hasTag()) {
+            helper.fail("wrench selection must not be persisted in stack NBT");
+            return;
+        }
+        BlockPos chestPos = cranePos.offset(2, 0, 0);
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, second);
+        BlockPos selected = ((com.lulan.shincolle.item.TargetWrenchItem) second.getItem())
+                .selectTarget(helper.getLevel(), player, chestPos);
+        if (!cranePos.equals(selected)) {
+            helper.fail("wrench stacks must share client item selection without stack NBT");
+            return;
+        }
+        CompoundTag pair = new CompoundTag();
+        pair.put("First", net.minecraft.nbt.NbtUtils.writeBlockPos(selected));
+        pair.put("Second", net.minecraft.nbt.NbtUtils.writeBlockPos(chestPos));
+        GameplayCommandHandler.handle(player, GameplayCommandType.WRENCH_PAIR_TARGETS, pair);
+        if (!chestPos.equals(((CraneBlockEntity) helper.getLevel().getBlockEntity(cranePos)).getPairedChest())) {
+            helper.fail("wrench stacks must share the registered item's in-memory selection");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void finalShipEggPermissionsAndCollisionMatchLegacy(GameTestHelper helper) {
+        ServerPlayer denied = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "FinalEggDenied")) {
+            @Override
+            public boolean mayUseItemAt(BlockPos pos, Direction direction, ItemStack stack) { return false; }
+        };
+        BlockPos water = helper.absolutePos(new BlockPos(2, 2, 2));
+        helper.getLevel().setBlock(water, Blocks.WATER.defaultBlockState(), 3);
+        denied.moveTo(water.getX() + 0.5D, water.getY() + 1D, water.getZ() + 0.5D, 0F, 90F);
+        ItemStack egg = new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(2).get());
+        denied.setItemInHand(InteractionHand.MAIN_HAND, egg);
+        if (egg.getItem().use(helper.getLevel(), denied, InteractionHand.MAIN_HAND).getResult().consumesAction()
+                || egg.getCount() != 1) {
+            helper.fail("water deployment must obey explicit edit permission without consuming the egg");
+            return;
+        }
+        ServerPlayer owner = makeServerBackedPlayer(helper, "FinalEggCollision");
+        BlockPos ground = water.offset(3, 0, 0);
+        helper.getLevel().setBlock(ground, Blocks.STONE.defaultBlockState(), 3);
+        helper.getLevel().setBlock(ground.above(), Blocks.STONE.defaultBlockState(), 3);
+        owner.setItemInHand(InteractionHand.MAIN_HAND, egg);
+        if (!egg.useOn(new UseOnContext(owner, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(ground), Direction.UP, ground, false))).consumesAction()) {
+            helper.fail("legacy deployment must not add a collision rejection condition");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void morphSupportItemsKeepLegacyLimitsAndAircraft(GameTestHelper helper) {
+        if (new ItemStack(ModItems.MODERNKIT.get()).getMaxStackSize() != 64
+                || new ItemStack(ModItems.TRAININGBOOK.get()).getMaxStackSize() != 64) {
+            helper.fail("modernization kits and training books must retain the legacy default stack size");
+            return;
+        }
+        ShinColleConfig.setTestOverride("modernLimit", 5);
+        try {
+            MorphProfile modern = new MorphProfile(58);
+            for (int i = 0; i < 30; i++) {
+                if (!modern.addRandomModernization(RandomSource.create(i))) {
+                    helper.fail("morph modernization must honor the configured per-attribute limit");
+                    return;
+                }
+            }
+            if (modern.addRandomModernization(RandomSource.create())
+                    || modern.copy().getModernizationCount() != 30) {
+                helper.fail("full modernization must reject further kits and survive save/load above three steps");
+                return;
+            }
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
+
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyMorphItems");
+        player.getAbilities().instabuild = false;
+        int carrierClass = ShipEntitySpecs.getByEggMeta(14).legacyClassId();
+        if (!configureTeitoku(helper, player, data -> {
+            data.unlockMorph(carrierClass);
+            data.setSelectedMorphProfile(carrierClass);
+            data.setMorphActive(true);
+        })) return;
+        MorphProfile profile = MorphHelper.getActiveProfile(player);
+        if (profile == null) {
+            helper.fail("active morph profile must be available");
+            return;
+        }
+        profile.setLevel(100);
+        ItemStack books = new ItemStack(ModItems.TRAININGBOOK.get(), 2);
+        books.getItem().finishUsingItem(books, helper.getLevel(), player);
+        if (profile.getLevel() < 105 || profile.getLevel() > 110 || books.getCount() != 1
+                || profile.copy().getLevel() != profile.getLevel()) {
+            helper.fail("unmarried morph training must advance beyond 100 and preserve the trained level");
+            return;
+        }
+        profile.setLevel(150);
+        books.getItem().finishUsingItem(books, helper.getLevel(), player);
+        if (books.getCount() != 1) {
+            helper.fail("training at 150 must not consume a book");
+            return;
+        }
+        ItemStack bucket = new ItemStack(ModItems.BUCKETREPAIR.get(), 2);
+        player.setHealth(5F);
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || profile.getAircraftLight() != 1 || profile.getAircraftHeavy() != 1
+                || profile.copy().getAircraftLight() != 1 || player.getHealth() <= 5F) {
+            helper.fail("repairing a carrier morph must restore health and one of each aircraft");
+            return;
+        }
+        player.setHealth(player.getMaxHealth());
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || profile.getAircraftLight() != 1) {
+            helper.fail("full-health morphs must not consume repair buckets or gain aircraft");
+            return;
+        }
+        profile.setGrudge(0);
+        var ration = (com.lulan.shincolle.item.CombatRationItem) ModItems.COMBATRATION.get();
+        int expectedGrudge = (int) (ration.rollGrudge(RandomSource.create(712L))
+                * profile.buildStats(player.getActiveEffects()).get(LegacyShipStatTables.Attr.GRUDGE));
+        player.getRandom().setSeed(712L);
+        ItemStack morphRation = new ItemStack(ration, 2);
+        ration.finishUsingItem(morphRation, helper.getLevel(), player);
+        if (profile.getGrudge() != expectedGrudge || morphRation.getCount() != 1) {
+            helper.fail("morph rations must multiply grudge gains by the buffed resource attribute");
+            return;
+        }
+        TeitokuHelper.get(player).ifPresent(data -> data.setMorphActive(false));
+        player.setHealth(5F);
+        bucket.getItem().finishUsingItem(bucket, helper.getLevel(), player);
+        if (bucket.getCount() != 1 || player.getHealth() != 5F) {
+            helper.fail("repair buckets must not work without an active morph");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void feedingUsesBuffedResourcesAndRestoresCarrierAircraft(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyFeeding");
+        player.getAbilities().instabuild = false;
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 14, pos.getX(), pos.getY(), pos.getZ());
+        if (ship == null) return;
+        Item[] supplies = {ModItems.GRUDGE.get(), ModItems.AMMO.get(), ModItems.AMMO2.get(), ModItems.COMBATRATION.get()};
+        for (int i = 0; i < supplies.length; i++) {
+            ship.setFoodSaturation(0);
+            ship.setGrudge(0);
+            ship.setLightAmmo(0);
+            ship.setHeavyAmmo(0);
+            ship.setMorale(1600);
+            long seed = 812L + i;
+            RandomSource expectedRandom = RandomSource.create(seed);
+            int raw;
+            if (i == 3) {
+                raw = ((com.lulan.shincolle.item.CombatRationItem) supplies[i]).rollGrudge(expectedRandom);
+            } else {
+                expectedRandom.nextInt(i == 0 ? 11 : 6);
+                raw = i == 0 ? 300 + expectedRandom.nextInt(500)
+                        : i == 1 ? 30 + expectedRandom.nextInt(10) : 15 + expectedRandom.nextInt(5);
+            }
+            ship.getRandom().setSeed(seed);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(supplies[i]));
+            ship.mobInteract(player, InteractionHand.MAIN_HAND);
+            int expected = (int) (raw * ship.getLegacyStats().get(
+                    i == 0 || i == 3 ? LegacyShipStatTables.Attr.GRUDGE : LegacyShipStatTables.Attr.AMMO));
+            int actual = i == 0 || i == 3 ? ship.getGrudge() : i == 1 ? ship.getLightAmmo() : ship.getHeavyAmmo();
+            if (actual != expected) {
+                helper.fail("manual feeding must multiply resource gains by the buffed resource attribute");
+                return;
+            }
+        }
+        ship.setFoodSaturation(0);
+        ship.setAircraftLight(0);
+        ship.setAircraftHeavy(0);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TOYAIRPLANE.get()));
+        ship.mobInteract(player, InteractionHand.MAIN_HAND);
+        if (ship.getAircraftLight() < 1 || ship.getAircraftLight() > 3
+                || ship.getAircraftHeavy() < 1 || ship.getAircraftHeavy() > 3) {
+            helper.fail("toy airplanes must restore independently rolled carrier aircraft");
+            return;
+        }
+        for (long seed = 0; seed < 10; seed++) {
+            ship.setFoodSaturation(0);
+            ship.setAircraftLight(0);
+            ship.setAircraftHeavy(0);
+            RandomSource expected = RandomSource.create(seed);
+            expected.nextInt(31);
+            int gain = expected.nextInt(10) > 4 ? 1 : 0;
+            ship.getRandom().setSeed(seed);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.ABYSSMETAL1.get()));
+            ship.mobInteract(player, InteractionHand.MAIN_HAND);
+            if (ship.getAircraftLight() != gain || ship.getAircraftHeavy() != gain) {
+                helper.fail("polymetal feeding must retain the legacy aircraft-replenishment chance");
+                return;
+            }
+        }
+        ship.setFoodSaturation(ship.getFoodSaturationMax());
+        ItemStack refused = new ItemStack(ModItems.TOYAIRPLANE.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, refused);
+        ship.mobInteract(player, InteractionHand.MAIN_HAND);
+        if (refused.isEmpty()) {
+            helper.fail("a satiated ship must not consume aircraft food");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void kaitaiRespectsDamageRejectionAndCreativeDismantleDropsNothing(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "LegacyKaitai");
+        BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
+        LegacyShipEntity ship = createOwnedShip(helper, player, 2, pos.getX(), pos.getY(), pos.getZ());
+        if (ship == null) return;
+        player.getAbilities().instabuild = false;
+        ship.setInvulnerable(true);
+        float health = ship.getHealth();
+        ItemStack hammer = new ItemStack(ModItems.KAITAIHAMMER.get());
+        ship.performKaitaiKill(player, hammer);
+        if (!ship.isAlive() || ship.getHealth() != health || hammer.getDamageValue() != 1) {
+            helper.fail("left-click hammer must honor rejected damage while still consuming durability");
+            return;
+        }
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, new ItemStack(Items.DIAMOND));
+        player.getAbilities().instabuild = true;
+        int dropsBefore = helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(4D)).size();
+        ship.performKaitai(player, hammer);
+        int dropsAfter = helper.getLevel().getEntitiesOfClass(ItemEntity.class, ship.getBoundingBox().inflate(4D)).size();
+        if (ship.isAlive() || dropsAfter != dropsBefore || hammer.getDamageValue() != 1) {
+            helper.fail("creative dismantling must remove the ship without materials, inventory drops or tool damage");
+            return;
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty")
     public static void morphProfilesPersistSelectedRuntime(GameTestHelper helper) {
         TeitokuData data = new TeitokuData();
@@ -935,61 +1259,6 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void routeEnergyCapacityTracksTransportTier(GameTestHelper helper) {
-        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        if (ship == null) {
-            helper.fail("legacy ship entity should be creatable in tests");
-            return;
-        }
-
-        int baseCapacity = ship.getRouteEnergyCapacity();
-        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(2).get()));
-        if (ship.getRouteEnergyCapacity() <= baseCapacity) {
-            helper.fail("transport equipment should increase route energy capacity alongside logistics throughput");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void legacyCoreRouteEnergyAccessHonorsMode(GameTestHelper helper) {
-        LegacyCoreBlockEntity core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
-        if (core.receiveRouteEnergy(1200, false) != 1200 || core.getRouteEnergyStored() != 1200) {
-            helper.fail("volcore route energy receive should fill the legacy power pool");
-            return;
-        }
-        if (core.extractRouteEnergy(400, true) != 400 || core.getRouteEnergyStored() != 1200) {
-            helper.fail("volcore route energy simulation should read from the legacy power pool without spending it");
-            return;
-        }
-        if (core.extractRouteEnergy(400, false) != 400 || core.getRouteEnergyStored() != 800) {
-            helper.fail("volcore route energy extraction should spend legacy stored power without a player discharge mode");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void shipyardRouteEnergyAccessUsesPowerPool(GameTestHelper helper) {
-        HeavyGrudgeBlockEntity shipyard = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
-        shipyard.getContainerData().set(4, 1);
-        shipyard.getContainerData().set(2, 2000);
-
-        if (shipyard.extractRouteEnergy(500, false) != 500 || shipyard.getRouteEnergyStored() != 1500) {
-            helper.fail("legacy large shipyard should export route energy from its power pool");
-            return;
-        }
-        if (shipyard.receiveRouteEnergy(250, false) != 250 || shipyard.getRouteEnergyStored() != 1750) {
-            helper.fail("legacy large shipyard should accept route energy back into its power pool");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
     public static void shipyardFuelConsumesShipTankLavaByBucket(GameTestHelper helper) {
         ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
         var handler = FluidUtil.getFluidHandler(tank).resolve();
@@ -1061,55 +1330,10 @@ public final class GameplayParityGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = "guard", batch = "guard_crane_energy")
-    public static void craneRouteTransfersEnergyWithoutItemContainer(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
-        BlockPos shipyardPos = helper.absolutePos(new BlockPos(3, 162, 1));
-        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
-        helper.getLevel().setBlock(shipyardPos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState(), Block.UPDATE_ALL);
-        for (BlockPos servantPos : LargeShipyardStructureHelper.getServantPositions(shipyardPos)) {
-            helper.getLevel().setBlock(servantPos, ModBlocks.BLOCK_POLYMETAL.get().defaultBlockState(), Block.UPDATE_ALL);
-        }
-
-        if (!(helper.getLevel().getBlockEntity(cranePos) instanceof CraneBlockEntity crane)) {
-            helper.fail("crane block entity should exist for route transfer");
-            return;
-        }
-        if (!(helper.getLevel().getBlockEntity(shipyardPos) instanceof HeavyGrudgeBlockEntity shipyard) || !shipyard.tryAssembleStructure()) {
-            helper.fail("formed heavy grudge multiblock should expose route energy for crane transfer");
-            return;
-        }
-
-        crane.setPairedChest(shipyardPos);
-        crane.cycleEnergyMode();
-        shipyard.getContainerData().set(2, 1600);
-
-        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        if (ship == null) {
-            helper.fail("legacy ship entity should be creatable in tests");
-            return;
-        }
-
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
-        helper.getLevel().addFreshEntity(ship);
-        ship.commandMoveTo(cranePos, "");
-
-        for (int i = 0; i < 3; i++) {
-            ship.tick();
-        }
-
-        if (ship.getRouteEnergyBuffer() <= 0 || shipyard.getRouteEnergyStored() >= 1600) {
-            helper.fail("crane route should transfer energy from a route-energy block even when no paired item container exists");
-            return;
-        }
-
-        helper.succeed();
-    }
-
     @GameTest(template = "guard", batch = "guard_crane_fluid")
-    public static void craneRouteTransfersShipTankLavaFromChestToShip(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
-        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 160, 1));
+    public static void craneCycleTransfersShipTankLavaThroughInternalBuffer(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(16, 160, 16));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(18, 160, 16));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
 
@@ -1122,6 +1346,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        crane.onLoad();
         ItemStack sourceTank = new ItemStack(ModItems.SHIPTANK.get());
         var sourceHandler = FluidUtil.getFluidHandler(sourceTank).resolve();
         if (sourceHandler.isEmpty()) {
@@ -1138,6 +1363,8 @@ public final class GameplayParityGameTests {
         chest.setItem(0, sourceHandler.get().getContainer());
         crane.setPairedChest(chestPos);
         crane.cycleLiquidMode();
+        crane.toggleLoadEnabled();
+        crane.toggleUnloadEnabled();
 
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
@@ -1145,15 +1372,26 @@ public final class GameplayParityGameTests {
             return;
         }
 
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.getShipInventory().setItem(0, new ItemStack(ModItems.EQUIPDRUM_ITEMS.get(1).get()));
         int shipTankSlot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
         ship.getShipInventory().setItem(shipTankSlot, new ItemStack(ModItems.SHIPTANK.get()));
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(cranePos, "");
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 79; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
+        if (FluidUtil.getFluidContained(chest.getItem(0)).map(FluidStack::getAmount).orElse(0) != 2000) {
+            helper.fail("crane must not transfer during the initial 64-tick warmup or before its 16-tick work boundary");
+            return;
+        }
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        int buffered = crane.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new)
+                .getFluidInTank(0).getAmount();
 
         int shipTankAmount = FluidUtil.getFluidContained(ship.getShipInventory().getItem(shipTankSlot))
                 .map(FluidStack::getAmount)
@@ -1161,18 +1399,84 @@ public final class GameplayParityGameTests {
         int chestTankAmount = FluidUtil.getFluidContained(chest.getItem(0))
                 .map(FluidStack::getAmount)
                 .orElse(0);
-        if (shipTankAmount <= 0 || chestTankAmount >= 2000) {
-            helper.fail("crane route should move lava from a paired chest tank into a ship cargo tank");
+        if (shipTankAmount != 640 || chestTankAmount != 0 || buffered != 1360) {
+            helper.fail("crane route should move lava from a paired chest tank into a ship cargo tank: ship=" + shipTankAmount
+                    + " chest=" + chestTankAmount + " buffer=" + buffered + " state=" + ship.getCraneState()
+                    + " timer=" + ship.getCraneTime() + " pos=" + ship.position() + " level=" + ship.getShipLevel()
+                    + " expected=" + ship.getId() + "/" + ship.getUUID()
+                    + " actual=" + (crane.getShip() == null ? "null" : crane.getShip().getId() + "/" + crane.getShip().getUUID() + " at=" + crane.getShip().position()));
             return;
         }
 
         helper.succeed();
     }
 
+    @GameTest(template = "guard", batch = "guard_crane_completion")
+    public static void craneCycleWaitsForInventoryThenCompletesEmptyWork(GameTestHelper helper) {
+        BlockPos cranePos = helper.absolutePos(new BlockPos(16, 160, 16));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(18, 160, 16));
+        BlockPos nextPos = helper.absolutePos(new BlockPos(24, 160, 16));
+        helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
+        CraneBlockEntity crane = (CraneBlockEntity) helper.getLevel().getBlockEntity(cranePos);
+        crane.setPairedChest(chestPos);
+        crane.setNextWaypoint(nextPos);
+        crane.cycleRedstoneMode();
+        crane.cycleRedstoneMode();
+        crane.cycleEnergyMode();
+
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("ship must be available for crane completion test");
+            return;
+        }
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
+        helper.getLevel().addFreshEntity(ship);
+        ship.commandMoveTo(cranePos, "");
+        ship.tick();
+        for (int i = 0; i < 80; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        }
+        if (ship.getCraneState() != 2 || !cranePos.equals(ship.getCommandedPos())) {
+            helper.fail("a missing paired inventory must prevent completion and route advancement");
+            return;
+        }
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+        for (int i = 0; i < 16; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        }
+        if (ship.getCraneState() != 0 || ship.getCraneTime() != 0
+                || !nextPos.equals(ship.getCommandedPos()) || ship.getFollowMin() != 2 || crane.getRedstoneTicks() <= 0) {
+            helper.fail("empty work must finish, reset crane timers, signal redstone and advance the route; EU without IC2 must not work: state="
+                    + ship.getCraneState() + " time=" + ship.getCraneTime() + " command=" + ship.getCommandedPos()
+                    + " next=" + nextPos + " follow=" + ship.getFollowMin() + " redstone=" + crane.getRedstoneTicks());
+            return;
+        }
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
+        if (crane.getRedstoneTicks() > 0) {
+            helper.fail("completion redstone must expire after two ticks");
+            return;
+        }
+        CompoundTag saved = ship.saveWithoutId(new CompoundTag());
+        LegacyShipEntity restored = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (restored == null) {
+            helper.fail("ship should be creatable for completed-crane persistence");
+            return;
+        }
+        restored.readAdditionalSaveData(saved);
+        if (restored.getFollowMin() != 2 || saved.getInt("FMin") != 2) {
+            helper.fail("crane follow minimum 2 must survive entity sync and NBT reload without clamping");
+            return;
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "guard", batch = "guard_crane_items")
     public static void craneRouteTransfersFilteredItemsBetweenChestAndShip(GameTestHelper helper) {
-        BlockPos cranePos = helper.absolutePos(new BlockPos(1, 160, 1));
-        BlockPos chestPos = helper.absolutePos(new BlockPos(3, 160, 1));
+        BlockPos cranePos = helper.absolutePos(new BlockPos(16, 160, 16));
+        BlockPos chestPos = helper.absolutePos(new BlockPos(18, 160, 16));
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
 
@@ -1186,6 +1490,7 @@ public final class GameplayParityGameTests {
         }
 
         crane.setPairedChest(chestPos);
+        crane.toggleUnloadEnabled();
         crane.setFilter(0, new ItemStack(Items.APPLE), false);
         chest.setItem(0, new ItemStack(Items.APPLE, 6));
         chest.setItem(1, new ItemStack(Items.BREAD, 6));
@@ -1196,28 +1501,35 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.1D, cranePos.getZ() + 0.5D);
+        ship.setNoAi(true);
+        ship.setNoGravity(true);
+        ship.setPos(cranePos.getX() + 0.5D, cranePos.getY() - 2D, cranePos.getZ() + 0.5D);
         helper.getLevel().addFreshEntity(ship);
         ship.commandMoveTo(cranePos, "");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 80; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
 
         if (countItems(ship.getShipInventory(), Items.APPLE) <= 0
                 || countItems(chest, Items.APPLE) >= 6
                 || countItems(chest, Items.BREAD) != 6) {
-            helper.fail("crane load row should move only matching chest items into ship cargo");
+            helper.fail("crane load row should move only matching chest items into ship cargo; expected="
+                    + ship.getId() + "/" + ship.getUUID() + " actual="
+                    + (crane.getShip() == null ? "null" : crane.getShip().getId() + "/" + crane.getShip().getUUID() + " at=" + crane.getShip().position()));
             return;
         }
 
         clearContainer(chest);
         crane.toggleLoadEnabled();
+        crane.toggleUnloadEnabled();
         crane.setFilter(9, new ItemStack(Items.COBBLESTONE), false);
         ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 1, new ItemStack(Items.COBBLESTONE, 5));
         ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT + 2, new ItemStack(Items.DIRT, 5));
         ship.commandMoveTo(cranePos, "");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 16; i++) {
             ship.tick();
+            CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
         }
 
         if (countItems(chest, Items.COBBLESTONE) <= 0
@@ -1232,7 +1544,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "guard", batch = "guard_crane_working")
     public static void craneWorkingShipAndElapsedTimeMatchLegacy(GameTestHelper helper) {
-        BlockPos pos = helper.absolutePos(new BlockPos(1, 160, 1));
+        BlockPos pos = helper.absolutePos(new BlockPos(16, 160, 16));
         helper.getLevel().setBlock(pos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
         if (!(helper.getLevel().getBlockEntity(pos) instanceof CraneBlockEntity crane)) {
             helper.fail("crane block entity should exist for working ship coverage");
@@ -1247,6 +1559,9 @@ public final class GameplayParityGameTests {
             helper.fail("idle crane should have no ship or elapsed time and use legacy HH:MM:SS formatting");
             return;
         }
+        BlockPos chestPos = pos.east(2);
+        helper.getLevel().setBlock(chestPos, Blocks.CHEST.defaultBlockState(), Block.UPDATE_ALL);
+        crane.setPairedChest(chestPos);
         crane.cycleWaitMode();
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity waiting = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
@@ -1254,20 +1569,32 @@ public final class GameplayParityGameTests {
             helper.fail("ships should be creatable for working ship coverage");
             return;
         }
-        ship.setPos(pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D);
+        ship.setNoAi(true);
+        waiting.setNoAi(true);
+        ship.setNoGravity(true);
+        waiting.setNoGravity(true);
+        ship.setPos(pos.getX() + 0.5D, pos.getY() - 2D, pos.getZ() + 0.5D);
         waiting.setPos(ship.position());
         helper.getLevel().addFreshEntity(ship);
         helper.getLevel().addFreshEntity(waiting);
         ship.commandMoveTo(pos, "");
         ship.tick();
+        for (int i = 0; i < 80; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), crane);
+        }
         ship.tick();
         ship.tick();
         waiting.commandMoveTo(pos, "");
         waiting.tick();
-        if (crane.getShip() != ship || ship.getCraneState() != 2 || ship.getCraneTime() != 2
-                || menu.getShip() != ship || menu.getCraneTime() != 2
-                || waiting.getCraneState() != 1 || waiting.getCraneTime() != 0) {
-            helper.fail("only the working ship should accumulate CraneTime each tick, including non-timed modes");
+        if (crane.getShip() != ship || ship.getCraneState() != 2 || ship.getCraneTime() != 22
+                || menu.getShip() != ship || menu.getCraneTime() != 22
+                || waiting.getCraneState() != 1 || waiting.getCraneTime() != 20) {
+            helper.fail("only the working ship should accumulate CraneTime each tick, including non-timed modes: state="
+                    + ship.getCraneState() + " timer=" + ship.getCraneTime() + " waiting=" + waiting.getCraneState()
+                    + "/" + waiting.getCraneTime() + " associated=" + (crane.getShip() == ship) + " menu="
+                    + (menu.getShip() == ship) + "/" + menu.getCraneTime() + " pos=" + ship.position()
+                    + " expected=" + ship.getId() + "/" + ship.getUUID()
+                    + " actual=" + (crane.getShip() == null ? "null" : crane.getShip().getId() + "/" + crane.getShip().getUUID() + " at=" + crane.getShip().position()));
             return;
         }
         CraneTerminalMenu receiver = new CraneTerminalMenu(1, player.getInventory(), pos,
@@ -1298,7 +1625,9 @@ public final class GameplayParityGameTests {
         receiver.setData(1, 0);
         receiver.setData(3, 0);
         crane.cycleWaitMode(false);
-        ship.tick();
+        for (int i = 0; i < 16; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), crane);
+        }
         menu.broadcastChanges();
         if (crane.getShip() != null || ship.getCraneState() != 0 || ship.getCraneTime() != 0
                 || receiver.getShip() != null || receiver.getCraneTime() != 0) {
@@ -1306,7 +1635,9 @@ public final class GameplayParityGameTests {
             return;
         }
         crane.cycleWaitMode();
-        waiting.tick();
+        for (int i = 0; i < 16; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), crane);
+        }
         if (crane.getShip() != waiting || waiting.getCraneState() != 2) {
             helper.fail("a waiting ship should acquire the crane after the previous ship finishes");
             return;
@@ -1315,6 +1646,24 @@ public final class GameplayParityGameTests {
         waiting.tick();
         if (crane.getShip() != null || waiting.getCraneState() != 0 || waiting.getCraneTime() != 0) {
             helper.fail("a ship leaving the crane route should clear its working association and timer");
+            return;
+        }
+        ship.commandMoveTo(pos, "");
+        ship.tick();
+        crane.setShipData(ship);
+        ship.commandMoveTo(pos, "");
+        ship.tick();
+        waiting.setPos(pos.getX() + 0.5D, pos.getY() - 2D, pos.getZ() + 0.5D);
+        waiting.commandMoveTo(pos, "");
+        waiting.setCraneState(2);
+        for (int i = 0; i < 16; i++) {
+            CraneBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), crane);
+        }
+        if (crane.getShip() != waiting || waiting.getCraneState() != 2 || ship.getCraneState() != 1
+                || menu.getShip() != waiting) {
+            helper.fail("legacy state-2 selection must replace a stale waiting association and drive the same menu ship; expected="
+                    + waiting.getId() + "/" + waiting.getUUID() + " actual="
+                    + (crane.getShip() == null ? "null" : crane.getShip().getId() + "/" + crane.getShip().getUUID()));
             return;
         }
         crane.cycleWaitMode(false);
@@ -1491,7 +1840,15 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.receiveRouteEnergy(HeavyGrudgeBlockEntity.POWER_MAX, false);
+        shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
+        shipyard.getContainerData().set(1, 1234);
+        shipyard.getContainerData().set(2, 0);
+        HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
+        if (shipyard.getContainerData().get(1) != 1234) {
+            helper.fail("fuel starvation must pause rather than reset legacy build progress");
+            return;
+        }
+        shipyard.getContainerData().set(2, HeavyGrudgeBlockEntity.powerMax());
         shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         if (shipyard.getPowerGoal() <= 0) {
@@ -1499,7 +1856,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.BUILD_SPEED);
+        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.buildSpeed());
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         ItemStack output = shipyard.getItems().getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT);
         if (!output.is(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get())
@@ -1630,7 +1987,6 @@ public final class GameplayParityGameTests {
 
         ShipInventoryMenu shipMenu = new ShipInventoryMenu(5, player.getInventory(), ship.getId());
         if (shipMenu.getAiFlags() != ship.getAiFlagsBitmask()
-                || "- / -".equals(shipMenu.getRouteEnergyText())
                 || "-".equals(shipMenu.getAttackText())
                 || !ShipCommandService.handleForTesting(player, ServerboundShipCommandPacket.guiButton(
                         ship.getId(), ship.getShipUid(), ShipGuiButton.FLEE_HP, 37))
@@ -2090,6 +2446,46 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void shipyardLiquidFuelAndRuntimeConfig(GameTestHelper helper) {
+        ShinColleConfig.setTestOverride("tileShipyardSmall", new double[]{460800, 48, 2});
+        ShinColleConfig.setTestOverride("itemShipTank", new int[]{1000, 2000, 3000, 4000});
+        try {
+            BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
+            helper.getLevel().setBlock(pos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
+            var tile = (com.lulan.shincolle.blockentity.SmallShipyardBlockEntity) helper.getLevel().getBlockEntity(pos);
+            tile.onLoad();
+            var tank = tile.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new);
+            if (tank.getTankCapacity(0) != 2000
+                    || tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 40),
+                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE) != 0) {
+                helper.fail("small shipyard must reject water and hold 2000 mB");
+                return;
+            }
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            if (tile.getContainerData().get(2) != 0) {
+                helper.fail("empty tank must not generate fuel");
+                return;
+            }
+            tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.LAVA, 80),
+                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+            com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
+            if (tile.getContainerData().get(2) != 1600 || tank.getFluidInTank(0).getAmount() != 40
+                    || !tank.drain(40, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE).isEmpty()) {
+                helper.fail("one tick must burn 40 mB for 800 times fuel multiplier, with no external drain");
+                return;
+            }
+            var drum = new ItemStack(ModItems.SHIPTANK3.get()).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).orElseThrow(IllegalStateException::new);
+            if (drum.getTankCapacity(0) != 4000) {
+                helper.fail("fluid drum must use configured tier capacity");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+        }
+    }
+
+    @GameTest(template = "empty")
     public static void heavyGrudgeSwitchesFromCoreToShipyard(GameTestHelper helper) {
         HeavyGrudgeBlockEntity dropSource = new HeavyGrudgeBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
         dropSource.setMaterialStockForTest(0, 12);
@@ -2123,9 +2519,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        if (heavy.receiveRouteEnergy(1000, false) != 0
-                || heavy.extractRouteEnergy(1000, false) != 0
-                || heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
+        if (heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
             helper.fail("unformed heavy grudge must not act as an independent energy core or expose machine inventory");
             return;
         }
@@ -2708,10 +3102,6 @@ public final class GameplayParityGameTests {
         }
         if ("-".equals(menu.getAttackText())) {
             helper.fail("cache fallback menu should preserve cached combat stats");
-            return;
-        }
-        if ("- / -".equals(menu.getRouteEnergyText())) {
-            helper.fail("cache fallback menu should preserve route energy text");
             return;
         }
         if (menu.getFollowMin() != ship.getFollowMin() || menu.getFollowMax() != ship.getFollowMax()) {
@@ -18424,6 +18814,25 @@ public final class GameplayParityGameTests {
                 return;
             }
 
+            LegacyShipEntity unsignedOwnerShip = createOwnedShip(helper, ownerA, 2,
+                    anchor.getX() + 8.5D, anchor.getY(), anchor.getZ() + 0.5D);
+            if (unsignedOwnerShip == null) return;
+            ItemStack thirdPartyPaper = new ItemStack(ModItems.OWNERPAPER.get());
+            thirdPartyPaper.getOrCreateTag().putInt("SignIDA", ownerBUid);
+            thirdPartyPaper.getOrCreateTag().putInt("SignIDB", ownerAUid + ownerBUid + 10000);
+            ownerA.getAbilities().instabuild = true;
+            ownerA.setShiftKeyDown(true);
+            ownerA.setItemInHand(InteractionHand.MAIN_HAND, thirdPartyPaper);
+            unsignedOwnerShip.mobInteract(ownerA, InteractionHand.MAIN_HAND);
+            ownerA.setShiftKeyDown(false);
+            ownerA.getAbilities().instabuild = false;
+            if (!unsignedOwnerShip.isOwnedBy(ownerB) || !ownerA.getMainHandItem().isEmpty()
+                    || unsignedOwnerShip.getEmotion() != 2) {
+                helper.fail("unsigned owners may transfer to signer A; creative transfer must consume the paper and keep T_T emotion");
+                return;
+            }
+            unsignedOwnerShip.discard();
+
             ShinColleConfig.setTestOverride("kaitaiAmountSmall", 20);
             ShinColleConfig.setTestOverride("kaitaiAmountLarge", 20);
             ShinColleConfig.setTestOverride("easyMode", false);
@@ -18463,6 +18872,7 @@ public final class GameplayParityGameTests {
                 return;
             }
 
+            killShip.setHealth(1F);
             ModItems.KAITAIHAMMER.get().onLeftClickEntity(hammer, ownerB, killShip);
             if (killShip.isAlive()) {
                 helper.fail("KaitaiHammer left-click should perform one-hit kill recovery");
@@ -19797,6 +20207,7 @@ public final class GameplayParityGameTests {
             helper.fail("recovered ship should have spawned");
             return;
         }
+        spawned.setOwner(UUID.randomUUID(), "OtherRationOwner", 91001);
         spawned.setGrudge(100);
         ItemStack ration = new ItemStack(ModItems.COMBATRATION.get());
         owner.setItemInHand(InteractionHand.MAIN_HAND, ration);
@@ -19806,7 +20217,7 @@ public final class GameplayParityGameTests {
             ration.inventoryTick(level, owner, owner.getInventory().selected, true);
         }
         if (spawned.getEmotion() != 3) {
-            helper.fail("held CombatRation should attract owned ship and set emotion=3 (got "
+            helper.fail("held CombatRation should attract a different owner's ship and set emotion=3 (got "
                     + spawned.getEmotion() + ")");
             spawned.discard();
             return;

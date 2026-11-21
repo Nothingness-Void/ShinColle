@@ -1,5 +1,9 @@
 package com.lulan.shincolle.morph;
 
+import com.lulan.shincolle.config.ShinColleConfig;
+import com.lulan.shincolle.item.equipment.LegacyEquipmentFamily;
+import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipStats;
@@ -22,11 +26,12 @@ public class MorphProfile {
     public static final int DEFAULT_LEVEL = 1;
     public static final int DEFAULT_MORALE = 1600;
     public static final int MAX_MORALE = 16000;
-    public static final int MODERN_LIMIT = 3;
     private static final int MODERN_ATTRIBUTE_COUNT = 6;
 
     private static final String LEGACY_CLASS_ID_TAG = "LegacyClassId";
     private static final String LEVEL_TAG = "Level";
+    private static final String AIRCRAFT_LIGHT_TAG = "AircraftLight";
+    private static final String AIRCRAFT_HEAVY_TAG = "AircraftHeavy";
     private static final String EXPERIENCE_TAG = "Experience";
     private static final String MORALE_TAG = "Morale";
     private static final String AMMO_LIGHT_TAG = "AmmoLight";
@@ -69,6 +74,8 @@ public class MorphProfile {
     private int modernAttackSpeedSteps;
     private int modernSpeedSteps;
     private int modernRangeSteps;
+    private int aircraftLight;
+    private int aircraftHeavy;
     private boolean showHeldItem;
     private boolean auraEffect = true;
     private boolean aiAutoTarget = true;
@@ -95,6 +102,8 @@ public class MorphProfile {
     public CompoundTag saveToTag(CompoundTag tag) {
         tag.putInt(LEGACY_CLASS_ID_TAG, this.legacyClassId);
         tag.putInt(LEVEL_TAG, this.level);
+        tag.putInt(AIRCRAFT_LIGHT_TAG, this.aircraftLight);
+        tag.putInt(AIRCRAFT_HEAVY_TAG, this.aircraftHeavy);
         tag.putInt(EXPERIENCE_TAG, this.experience);
         tag.putInt(MORALE_TAG, this.morale);
         tag.putInt(AMMO_LIGHT_TAG, this.ammoLight);
@@ -122,19 +131,21 @@ public class MorphProfile {
     public void loadFromTag(CompoundTag tag) {
         this.guiState = tag.getCompound("MorphGui").copy();
         this.legacyClassId = tag.getInt(LEGACY_CLASS_ID_TAG);
-        this.level = Mth.clamp(tag.getInt(LEVEL_TAG), DEFAULT_LEVEL, this.getLevelCap());
+        this.level = Mth.clamp(tag.getInt(LEVEL_TAG), DEFAULT_LEVEL, 150);
+        this.aircraftLight = Math.max(0, tag.getInt(AIRCRAFT_LIGHT_TAG));
+        this.aircraftHeavy = Math.max(0, tag.getInt(AIRCRAFT_HEAVY_TAG));
         this.experience = Math.max(0, tag.getInt(EXPERIENCE_TAG));
         this.morale = Mth.clamp(tag.getInt(MORALE_TAG), 0, MAX_MORALE);
         this.ammoLight = Math.max(0, tag.getInt(AMMO_LIGHT_TAG));
         this.ammoHeavy = Math.max(0, tag.getInt(AMMO_HEAVY_TAG));
         this.grudge = Math.max(0, tag.getInt(GRUDGE_TAG));
         this.married = tag.getBoolean(MARRIED_TAG);
-        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, MODERN_LIMIT);
-        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, MODERN_LIMIT);
-        this.modernDefenseSteps = Mth.clamp(tag.getInt(MODERN_DEFENSE_TAG), 0, MODERN_LIMIT);
-        this.modernAttackSpeedSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_SPEED_TAG), 0, MODERN_LIMIT);
-        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, MODERN_LIMIT);
-        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, MODERN_LIMIT);
+        this.modernHealthSteps = Mth.clamp(tag.getInt(MODERN_HEALTH_TAG), 0, 127);
+        this.modernAttackSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_TAG), 0, 127);
+        this.modernDefenseSteps = Mth.clamp(tag.getInt(MODERN_DEFENSE_TAG), 0, 127);
+        this.modernAttackSpeedSteps = Mth.clamp(tag.getInt(MODERN_ATTACK_SPEED_TAG), 0, 127);
+        this.modernSpeedSteps = Mth.clamp(tag.getInt(MODERN_SPEED_TAG), 0, 127);
+        this.modernRangeSteps = Mth.clamp(tag.getInt(MODERN_RANGE_TAG), 0, 127);
         this.showHeldItem = tag.getBoolean(SHOW_HELD_TAG);
         this.auraEffect = !tag.contains(AURA_EFFECT_TAG) || tag.getBoolean(AURA_EFFECT_TAG);
         this.aiAutoTarget = !tag.contains(AI_AUTO_TARGET_TAG) || tag.getBoolean(AI_AUTO_TARGET_TAG);
@@ -158,15 +169,12 @@ public class MorphProfile {
     }
 
     public boolean addRandomModernization(RandomSource random) {
-        if (this.getModernizationCount() >= MODERN_LIMIT * MODERN_ATTRIBUTE_COUNT) {
-            return false;
-        }
-
+        int modernLimit = ShinColleConfig.modernLimit();
         int selected = random.nextInt(MODERN_ATTRIBUTE_COUNT);
-        if (this.getModernizationSteps(selected) >= MODERN_LIMIT) {
+        if (this.getModernizationSteps(selected) >= modernLimit) {
             selected = -1;
             for (int i = 0; i < MODERN_ATTRIBUTE_COUNT; i++) {
-                if (this.getModernizationSteps(i) < MODERN_LIMIT) {
+                if (this.getModernizationSteps(i) < modernLimit) {
                     selected = i;
                     break;
                 }
@@ -189,7 +197,7 @@ public class MorphProfile {
             case 3 -> this.modernAttackSpeedSteps;
             case 4 -> this.modernSpeedSteps;
             case 5 -> this.modernRangeSteps;
-            default -> MODERN_LIMIT;
+            default -> ShinColleConfig.modernLimit();
         };
     }
 
@@ -242,6 +250,29 @@ public class MorphProfile {
                 activeEffects);
     }
 
+    public int getAircraftLight() {
+        return this.aircraftLight;
+    }
+
+    public int getAircraftHeavy() {
+        return this.aircraftHeavy;
+    }
+
+    public void replenishAircraft() {
+        if (!this.buildAttackProfile().hasAirAttack()
+                || !LegacyShipBehaviorCatalog.managesAircraftInventory(this.getSpec())) return;
+        int equipmentCount = 0;
+        for (int slot = 0; slot < this.equipment.getSlots(); slot++) {
+            if (this.equipment.getStackInSlot(slot).getItem() instanceof LegacyEquipmentItem item
+                    && item.family() == LegacyEquipmentFamily.AIRPLANE) equipmentCount++;
+        }
+        this.aircraftLight = Math.min(this.aircraftLight + 1,
+                LegacyShipBehaviorCatalog.aircraftLightCapacityFor(this.getSpec(), this.level, equipmentCount));
+        this.aircraftHeavy = Math.min(this.aircraftHeavy + 1,
+                LegacyShipBehaviorCatalog.aircraftHeavyCapacityFor(this.getSpec(), this.level, equipmentCount));
+        this.markDirty();
+    }
+
     public int getLevelCap() {
         return this.married ? 150 : 100;
     }
@@ -269,7 +300,7 @@ public class MorphProfile {
     }
 
     public void setLevel(int level) {
-        this.level = Mth.clamp(level, DEFAULT_LEVEL, this.getLevelCap());
+        this.level = Mth.clamp(level, DEFAULT_LEVEL, 150);
         this.markDirty();
     }
 
@@ -340,9 +371,6 @@ public class MorphProfile {
 
     public void setMarried(boolean married) {
         this.married = married;
-        if (!married && this.level > 100) {
-            this.level = 100;
-        }
         this.markDirty();
     }
 

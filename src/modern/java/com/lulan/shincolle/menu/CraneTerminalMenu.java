@@ -196,6 +196,21 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
         return crane != null ? crane.getCheckNbtStateLabel() : Component.translatable("gui.shincolle.crane.state.disabled");
     }
 
+    public @Nullable BlockPos getLastWaypoint() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getLastWaypoint() : null;
+    }
+
+    public @Nullable BlockPos getNextWaypoint() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getNextWaypoint() : null;
+    }
+
+    public @Nullable BlockPos getPairedChest() {
+        CraneBlockEntity crane = this.getCrane();
+        return crane != null ? crane.getPairedChest() : null;
+    }
+
     public ItemStack getFilterStack(int slot) {
         CraneBlockEntity crane = this.getCrane();
         return crane != null ? crane.getFilterStack(slot) : ItemStack.EMPTY;

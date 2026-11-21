@@ -1,10 +1,12 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.blockentity.RouteEnergyAccess;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.morph.MorphHelper;
+import com.lulan.shincolle.network.GameplayCommandType;
+import com.lulan.shincolle.network.ModNetwork;
+import com.lulan.shincolle.network.ServerboundGameplayCommandPacket;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
@@ -12,9 +14,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
@@ -34,9 +34,7 @@ import java.util.List;
 
 public class TargetWrenchItem extends Item {
 
-    private static final String TARGET_POS_TAG = "SelectedPos";
-    private static final String TARGET_DIMENSION_TAG = "SelectedDimension";
-    private static final String TARGET_TYPE_TAG = "SelectedType";
+    private StoredTarget selectedTarget;
     private static final int WAYPOINT_PAIR_DISTANCE = 48;
     private static final int CONTAINER_PAIR_DISTANCE = 16;
 
@@ -52,77 +50,77 @@ public class TargetWrenchItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Player player = context.getPlayer();
-        if (player == null || !player.isShiftKeyDown()) {
+        if (player == null || !player.isShiftKeyDown() || !context.getLevel().isClientSide()) {
             return InteractionResult.PASS;
         }
 
         Level level = context.getLevel();
-        ItemStack stack = context.getItemInHand();
         BlockPos clickedPos = context.getClickedPos();
+        BlockPos first = this.selectTarget(level, player, clickedPos);
+        if (first != null) {
+            CompoundTag payload = new CompoundTag();
+            payload.put("First", NbtUtils.writeBlockPos(first));
+            payload.put("Second", NbtUtils.writeBlockPos(clickedPos));
+            ModNetwork.sendToServer(ServerboundGameplayCommandPacket.of(GameplayCommandType.WRENCH_PAIR_TARGETS, payload));
+        }
+        return InteractionResult.FAIL;
+    }
+
+    public @Nullable BlockPos selectTarget(Level level, Player player, BlockPos clickedPos) {
         TargetType clickedType = TargetType.of(level.getBlockEntity(clickedPos));
 
         if (clickedType == TargetType.NONE) {
-            if (!level.isClientSide()) {
-                clearSelection(stack);
-                player.displayClientMessage(Component.translatable("chat.shincolle.wrench.wrongtile"), true);
-            }
-
-            return InteractionResult.sidedSuccess(level.isClientSide());
+            this.selectedTarget = null;
+            player.displayClientMessage(Component.translatable("chat.shincolle.wrench.wrongtile"), true);
+            return null;
         }
 
-        if (level.isClientSide()) {
-            return InteractionResult.sidedSuccess(true);
-        }
-
-        StoredTarget storedTarget = getStoredTarget(stack);
+        StoredTarget storedTarget = this.selectedTarget;
         if (storedTarget == null) {
-            storeTarget(stack, clickedPos, level.dimension().location(), clickedType);
-            ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.55F,
-                    ShinColleSoundHelper.variedPitch(player, 1.1F, 0.12F));
+            this.selectedTarget = new StoredTarget(clickedPos.immutable(), clickedType);
             player.displayClientMessage(Component.translatable("chat.shincolle.wrench.selected",
                     clickedType.getDisplayName(), posComponent(clickedPos, ChatFormatting.AQUA)), true);
-            return InteractionResult.CONSUME;
+            return null;
         }
 
-        clearSelection(stack);
-
-        if (!storedTarget.dimension().equals(level.dimension().location())) {
-            player.displayClientMessage(Component.translatable("chat.shincolle.wrench.cross_dimension"), true);
-            return InteractionResult.CONSUME;
-        }
+        this.selectedTarget = null;
 
         if (storedTarget.pos().equals(clickedPos)) {
             player.displayClientMessage(Component.translatable("chat.shincolle.wrench.samepoint"), true);
-            return InteractionResult.CONSUME;
+            return null;
         }
+        return storedTarget.pos();
+    }
 
-        BlockEntity storedBlockEntity = level.getBlockEntity(storedTarget.pos());
+    public static void pairTargets(Level level, Player player, BlockPos first, BlockPos clickedPos) {
+        if (first.equals(clickedPos) || !level.hasChunkAt(first) || !level.hasChunkAt(clickedPos)) return;
+        BlockEntity storedBlockEntity = level.getBlockEntity(first);
         TargetType storedType = TargetType.of(storedBlockEntity);
-        if (storedType == TargetType.NONE || storedType != storedTarget.type()) {
+        TargetType clickedType = TargetType.of(level.getBlockEntity(clickedPos));
+        if (storedType == TargetType.NONE) {
             player.displayClientMessage(Component.translatable("chat.shincolle.wrench.wrongtile"), true);
-            return InteractionResult.CONSUME;
+            return;
         }
 
         if (storedType == TargetType.ROUTE_NODE && clickedType == TargetType.ROUTE_NODE) {
-            pairRouteNodes(level, player, storedTarget.pos(), (RouteNode) storedBlockEntity, clickedPos,
+            pairRouteNodes(level, player, first, (RouteNode) storedBlockEntity, clickedPos,
                     level.getBlockEntity(clickedPos) instanceof RouteNode routeNode ? routeNode : null);
-            return InteractionResult.CONSUME;
+            return;
         }
 
         if (storedType == TargetType.ROUTE_NODE && clickedType == TargetType.CONTAINER) {
-            pairRouteNodeAndContainer(level, player, storedTarget.pos(), (RouteNode) storedBlockEntity, clickedPos);
-            return InteractionResult.CONSUME;
+            pairRouteNodeAndContainer(level, player, first, (RouteNode) storedBlockEntity, clickedPos);
+            return;
         }
 
         if (storedType == TargetType.CONTAINER && clickedType == TargetType.ROUTE_NODE) {
             pairRouteNodeAndContainer(level, player, clickedPos,
                     level.getBlockEntity(clickedPos) instanceof RouteNode routeNode ? routeNode : null,
-                    storedTarget.pos());
-            return InteractionResult.CONSUME;
+                    first);
+            return;
         }
 
         player.displayClientMessage(Component.translatable("chat.shincolle.wrench.wrongtile"), true);
-        return InteractionResult.CONSUME;
     }
 
     @Override
@@ -211,49 +209,8 @@ public class TargetWrenchItem extends Item {
         return first.distSqr(second) <= (double) (maxDistance * maxDistance);
     }
 
-    private static void storeTarget(ItemStack stack, BlockPos pos, ResourceLocation dimension, TargetType type) {
-        CompoundTag tag = stack.getOrCreateTag();
-        tag.put(TARGET_POS_TAG, NbtUtils.writeBlockPos(pos));
-        tag.putString(TARGET_DIMENSION_TAG, dimension.toString());
-        tag.putInt(TARGET_TYPE_TAG, type.id);
-    }
-
-    private static void clearSelection(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
-        if (tag == null) {
-            return;
-        }
-
-        tag.remove(TARGET_POS_TAG);
-        tag.remove(TARGET_DIMENSION_TAG);
-        tag.remove(TARGET_TYPE_TAG);
-
-        if (tag.isEmpty()) {
-            stack.setTag(null);
-        }
-    }
-
-    private static boolean hasSelection(ItemStack stack) {
-        return getStoredTarget(stack) != null;
-    }
-
-    private static @Nullable StoredTarget getStoredTarget(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
-        if (tag == null || !tag.contains(TARGET_POS_TAG, Tag.TAG_COMPOUND) || !tag.contains(TARGET_DIMENSION_TAG, Tag.TAG_STRING)) {
-            return null;
-        }
-
-        ResourceLocation dimension = ResourceLocation.tryParse(tag.getString(TARGET_DIMENSION_TAG));
-        TargetType type = TargetType.fromId(tag.getInt(TARGET_TYPE_TAG));
-        if (dimension == null || type == TargetType.NONE) {
-            return null;
-        }
-
-        return new StoredTarget(NbtUtils.readBlockPos(tag.getCompound(TARGET_POS_TAG)), dimension, type);
-    }
-
-    private static Component describeSelection(ItemStack stack) {
-        StoredTarget storedTarget = getStoredTarget(stack);
+    private Component describeSelection(ItemStack stack) {
+        StoredTarget storedTarget = this.selectedTarget;
         if (storedTarget == null) {
             return Component.translatable("gui.shincolle.wrench.selection.none").withStyle(ChatFormatting.DARK_GRAY);
         }
@@ -268,7 +225,7 @@ public class TargetWrenchItem extends Item {
         return Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()).withStyle(color);
     }
 
-    private record StoredTarget(BlockPos pos, ResourceLocation dimension, TargetType type) {
+    private record StoredTarget(BlockPos pos, TargetType type) {
     }
 
     private enum TargetType {
@@ -294,7 +251,6 @@ public class TargetWrenchItem extends Item {
             }
 
             if (blockEntity instanceof Container
-                    || blockEntity instanceof RouteEnergyAccess
                     || (blockEntity != null && blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent())) {
                 return CONTAINER;
             }

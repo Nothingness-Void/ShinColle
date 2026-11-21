@@ -2,6 +2,8 @@
 
 更新时间：2026-11-22
 
+共通物品、补给与路线交互纠偏见 [方块与物品批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。本批不新增舰种或改变逐舰状态，不将共通修正视为逐舰重新验收。
+
 这是逐舰状态的唯一事实来源。当前批次只处理标记为 `NEXT` 的行；已经有独立批次证据的域不重复阅读，除非出现回归或明确的新证据。
 
 当前 45 行均为 `LOCKED`，对应旧版行为域已有现代生产实现与批次审计证据；客户端 V0 人工验收已于 2026-09-16 在 [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/) 确认通过，SP 主线已正式收口。未覆盖的边角与完整 1.12 特性保留在 parity backlog，待恢复 GameTest 回归护栏后按 [ROADMAP.md](ROADMAP.md) 推进。

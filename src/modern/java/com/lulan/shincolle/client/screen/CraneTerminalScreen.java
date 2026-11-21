@@ -23,8 +23,7 @@ public class CraneTerminalScreen extends AbstractContainerScreen<CraneTerminalMe
             {7, 83, 80, 94, CraneTerminalMenu.BUTTON_TOGGLE_UNLOAD},
             {50, 21, 63, 34, CraneTerminalMenu.BUTTON_TOGGLE_NBT},
             {64, 21, 77, 34, CraneTerminalMenu.BUTTON_REDSTONE_MODE},
-            {23, 36, 36, 49, CraneTerminalMenu.BUTTON_LIQUID_MODE},
-            {39, 36, 52, 49, CraneTerminalMenu.BUTTON_ENERGY_MODE}
+            {23, 36, 36, 49, CraneTerminalMenu.BUTTON_LIQUID_MODE}
     };
 
     public CraneTerminalScreen(CraneTerminalMenu menu, Inventory inventory, Component title) {

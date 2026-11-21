@@ -129,6 +129,7 @@ public class ShinColle {
                 BlockEntityRenderers.register(ModBlockEntities.GRUDGE_HEAVY.get(), HeavyGrudgeBlockEntityRenderer::new);
                 BlockEntityRenderers.register(ModBlockEntities.SMALL_SHIPYARD.get(), SmallShipyardBlockEntityRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP.get(), LegacyShipRenderer::new);
+                EntityRenderers.register(ModEntityTypes.RECOVERED_SHIP_ITEM.get(), net.minecraft.client.renderer.entity.ItemEntityRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_PROJECTILE.get(), LegacyShipProjectileRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_BEAM.get(), LegacyShipBeamRenderer::new);
                 EntityRenderers.register(ModEntityTypes.LEGACY_SHIP_STATIC_EFFECT.get(), LegacyShipStaticEffectRenderer::new);

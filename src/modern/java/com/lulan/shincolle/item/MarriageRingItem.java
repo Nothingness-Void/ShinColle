@@ -28,7 +28,7 @@ import java.util.List;
 
 public class MarriageRingItem extends Item {
 
-    private static final String ACTIVE_TAG = "Active";
+    private static final String ACTIVE_TAG = "isActive";
 
     public MarriageRingItem(Properties properties) {
         super(properties);

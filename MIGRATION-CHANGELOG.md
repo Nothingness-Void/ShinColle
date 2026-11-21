@@ -14,6 +14,10 @@
 
 - 舰娘核心行为一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-core/)。
 
+## 2026-11-22
+
+- [方块与物品旧版行为纠偏批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。
+
 ## 2026-11-18
 
 ### FULL-SHIP-BEHAVIOR-REAUDIT：全 64 舰船变体与全子系统两轮并发严查修复收口（`298/298` GameTest）

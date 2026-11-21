@@ -6,9 +6,11 @@ import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
-import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
 import com.lulan.shincolle.menu.DeskMenu;
+import com.lulan.shincolle.item.OpToolItem;
+import com.lulan.shincolle.item.TargetWrenchItem;
+import net.minecraft.nbt.NbtUtils;
 import com.lulan.shincolle.menu.FormationMenu;
 import com.lulan.shincolle.menu.ShipInventoryMenu;
 import com.lulan.shincolle.morph.MorphHelper;
@@ -160,6 +162,15 @@ public final class GameplayCommandHandler {
             }
             case OPTOOL_TOGGLE_UNATTACKABLE -> handleOpToolToggleUnattackable(player, payload);
             case OPTOOL_PRINT_UNATTACKABLE -> handleOpToolPrintUnattackable(player);
+            case WRENCH_PAIR_TARGETS -> {
+                if ((player.getMainHandItem().is(ModItems.TARGETWRENCH.get())
+                        || player.getOffhandItem().is(ModItems.TARGETWRENCH.get()))
+                        && payload.contains("First", 10) && payload.contains("Second", 10)) {
+                    TargetWrenchItem.pairTargets(player.level(), player,
+                            NbtUtils.readBlockPos(payload.getCompound("First")),
+                            NbtUtils.readBlockPos(payload.getCompound("Second")));
+                }
+            }
             case SET_FORMATION -> TeitokuHelper.setFormationId(player, resolveFormationId(payload));
             case SET_UNIT_NAME -> TeitokuHelper.setUnitName(player,
                     payload.contains(TAG_TEAM_ID) ? payload.getInt(TAG_TEAM_ID) : -1,
@@ -498,6 +509,10 @@ public final class GameplayCommandHandler {
     private static void handleOpToolToggleUnattackable(ServerPlayer player, CompoundTag payload) {
         if (!player.hasPermissions(2)) {
             player.displayClientMessage(Component.translatable("chat.shincolle.optool.no_permission"), true);
+            return;
+        }
+        net.minecraft.world.entity.Entity target = player.level().getEntity(payload.getInt(TAG_TARGET_ID));
+        if (OpToolItem.isExcludedTarget(target)) {
             return;
         }
         String targetClass = sanitizeTargetClass(payload.getString(TAG_TARGET_CLASS));

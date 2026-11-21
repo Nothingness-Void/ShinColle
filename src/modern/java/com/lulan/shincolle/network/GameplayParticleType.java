@@ -39,7 +39,8 @@ public enum GameplayParticleType {
     /** Legacy AbyssMissile type-2 railgun head particle. */
     LEGACY_RAILGUN,
     LEGACY_SHIP_ANIMATION,
-    LEGACY_DRIP_WATER;
+    LEGACY_DRIP_WATER,
+    CRANING_SPARKLE;
 
     public static GameplayParticleType fromOrdinal(int ordinal) {
         GameplayParticleType[] values = values();

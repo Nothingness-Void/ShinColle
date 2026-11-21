@@ -49,7 +49,6 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     private static final String MODERN_ATTACK_SPEED_TAG = "ModernAttackSpeed";
     private static final String MODERN_SPEED_TAG = "ModernSpeed";
     private static final String MODERN_RANGE_TAG = "ModernRange";
-    private static final String ROUTE_ENERGY_TAG = "RouteEnergy";
     private static final String AI_AUTO_TARGET_TAG = "AiAutoTarget";
     private static final String SHIP_FOLLOW_MIN_TAG = "FMin";
     private static final String SHIP_FOLLOW_MAX_TAG = "FMax";
@@ -588,18 +587,6 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
     public int getInventorySizePaged() {
         LegacyShipEntity ship = this.getShip();
         return ship != null ? ship.getInventorySizePaged() : LegacyShipEntity.SHIP_SLOT_COUNT;
-    }
-
-    public String getRouteEnergyText() {
-        LegacyShipEntity ship = this.getShip();
-        if (ship != null) {
-            return ship.getRouteEnergyText();
-        }
-
-        ShipEquipmentBehaviorState behaviorState = this.getBehaviorState();
-        int routeEnergy = this.getCachedInt(this.getCachedEntityTag(), ROUTE_ENERGY_TAG, 0);
-        int routeCapacity = (8 + behaviorState.transportTier() * 8) * 400;
-        return routeEnergy + " / " + routeCapacity;
     }
 
     public int getCurrentTeamId() {
