@@ -1,5 +1,7 @@
 # SHIP-03 Decision Record
 
+- **已撤销**：下方对现代公用 Boss 配置、额外敌舰战利品及其运行时存档的等价认可。见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+
 ## Decision
 
 `CHANGED`

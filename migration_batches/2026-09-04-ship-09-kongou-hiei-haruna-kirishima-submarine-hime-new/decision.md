@@ -14,7 +14,7 @@
 
 ## No-change audit
 
-- 四个 Kongou-family 普通攻击没有旧版专属自动 special hook；保留共享 ranged/heavy 路径，combo 仍只由既有 morph hook 触发。
+- 四个金刚级普通攻击沿用共享轻重炮路径。**已撤销**：此前保留现代变身 combo 的决定，见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
 - `LegacyShipEntity.performCatalogSpecialAttack` 的 `justLaunch()` 分支已经把 `roll.miss()` 传入 `LegacyShipProjectileEntity`，并在直接伤害前保留 projectile-style miss；`catalogHeavyMissesRemainProjectileOnly` 回归确认 miss 不造成直接伤害且投射物带 missed 标记。本批未重复实现第二套 miss 分派。
 - 敌对 Boss 远距离追击和玩家起飞/命中提示属于冻结的批次外范围；本批选定实体对照未证明存在直接错误调用，因此保持现状。
 - `verifyItemModelCoverage` 未触发：本批修改的是 legacy model state/parser/bake 路径，不是 item/model registry。

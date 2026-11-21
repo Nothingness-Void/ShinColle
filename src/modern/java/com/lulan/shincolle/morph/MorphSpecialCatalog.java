@@ -81,8 +81,6 @@ final class MorphSpecialCatalog {
             case YAMATO_BEAM_BARRAGE -> new Behavior(cooldown, MorphSpecialCatalog::performYamatoSpecial);
             case TENRYUU_DASH -> new Behavior(cooldown, MorphSpecialCatalog::performTenryuuSpecial);
             case TATSUTA_CONTROL_AOE -> new Behavior(cooldown, MorphSpecialCatalog::performTatsutaSpecial);
-            case HEAVY_CRUISER_BARRAGE -> new Behavior(cooldown, MorphSpecialCatalog::performHeavyCruiserSpecial);
-            case KONGOU_COMBO -> new Behavior(cooldown, MorphSpecialCatalog::performKongouClassSpecial);
             case BATTLESHIP_RU_BARRAGE -> null;
             case BATTLESHIP_TA_RENSOUHOU -> null;
             case SUBMARINE_HIME_DOUBLE_MISSILE -> null;
@@ -184,45 +182,6 @@ final class MorphSpecialCatalog {
 
         CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.HIT_EXPLOSION,
                 primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.5D, primaryTarget.getZ());
-        return hit;
-    }
-
-    private static boolean performHeavyCruiserSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
-        List<LivingEntity> targets = collectSpecialTargets(player, profile, primaryTarget, 5.5D, 4);
-        boolean hit = false;
-        for (LivingEntity target : targets) {
-            boolean attacked = applySpecialAttack(player, profile, target, LegacyShipAttackKind.HEAVY,
-                    target == primaryTarget ? 1.55F : 1.15F, true,
-                    GameplayParticleType.MISSILE_IMPACT, LegacyShipProjectileVisual.MISSILE);
-            if (attacked) {
-                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true, true));
-                hit = true;
-            }
-        }
-
-        CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.MISSILE_IMPACT,
-                primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.5D, primaryTarget.getZ());
-        return hit;
-    }
-
-    private static boolean performKongouClassSpecial(ServerPlayer player, MorphProfile profile, LivingEntity primaryTarget) {
-        List<LivingEntity> targets = collectSpecialTargets(player, profile, primaryTarget, 7.0D, 5);
-        boolean hit = false;
-        for (int index = 0; index < targets.size(); index++) {
-            LivingEntity target = targets.get(index);
-            boolean heavyHit = applySpecialAttack(player, profile, target, LegacyShipAttackKind.HEAVY,
-                    index == 0 ? 1.7F : 1.25F, true,
-                    GameplayParticleType.MISSILE_IMPACT, LegacyShipProjectileVisual.MISSILE);
-            boolean lightHit = applySpecialAttack(player, profile, target, LegacyShipAttackKind.LIGHT,
-                    index == 0 ? 1.2F : 0.95F, false,
-                    GameplayParticleType.HIT_EXPLOSION, LegacyShipProjectileVisual.NONE);
-            hit |= heavyHit || lightHit;
-        }
-
-        CombatFxDispatcher.sendParticle(player, GameplayParticleType.LAUNCH_SMOKE,
-                player.getX(), player.getY() + player.getBbHeight() * 0.7D, player.getZ());
-        CombatFxDispatcher.sendParticle(primaryTarget, GameplayParticleType.MISSILE_IMPACT,
-                primaryTarget.getX(), primaryTarget.getY() + primaryTarget.getBbHeight() * 0.55D, primaryTarget.getZ());
         return hit;
     }
 

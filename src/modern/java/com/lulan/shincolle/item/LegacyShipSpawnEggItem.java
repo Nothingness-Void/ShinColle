@@ -256,6 +256,9 @@ public class LegacyShipSpawnEggItem extends Item {
             ship.restoreRecoveredDeployment(player);
         } else {
             ship.applySpawnSpec(spec, player);
+            if (spec.hostile()) {
+                ship.initializeHostileRuntime(false, player.getRandom().nextInt(4));
+            }
         }
         if (stack.hasCustomHoverName()) {
             ship.setCustomName(stack.getHoverName());

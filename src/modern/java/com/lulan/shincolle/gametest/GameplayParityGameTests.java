@@ -26,8 +26,6 @@ import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileMoveType;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.mount.LegacyMountEntity;
-import com.lulan.shincolle.entity.ship.BossActionType;
-import com.lulan.shincolle.entity.ship.BossPhaseProfile;
 import com.lulan.shincolle.entity.ship.LegacyShipAttackKind;
 import com.lulan.shincolle.entity.ship.path.ShipPath;
 import com.lulan.shincolle.entity.ship.path.ShipPathPoint;
@@ -90,6 +88,8 @@ import com.lulan.shincolle.world.HostileEncounterSpawner;
 import io.netty.buffer.Unpooled;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.CriteriaTriggers;
+import net.minecraft.advancements.critereon.EntityPredicate;
+import net.minecraft.advancements.critereon.PlayerHurtEntityTrigger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
@@ -2940,7 +2940,8 @@ public final class GameplayParityGameTests {
             helper.getLevel().addFreshEntity(target);
 
             boolean handled = ship.performPlayerCompatAttack(target, LegacyShipAttackKind.HEAVY);
-            boolean cooledDown = ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY) > 0;
+            int appliedDelay = ship.getCompatAttackCooldown(LegacyShipAttackKind.HEAVY);
+            int expectedDelay = LegacyShipCombatHelper.attackDelay(ship, LegacyShipAttackKind.HEAVY);
             ship.discard();
             target.discard();
 
@@ -2948,8 +2949,9 @@ public final class GameplayParityGameTests {
                 helper.fail("special combat hook should handle heavy attack for eggMeta " + specialEggs[index]);
                 return;
             }
-            if (!cooledDown) {
-                helper.fail("special combat hook should set heavy cooldown for eggMeta " + specialEggs[index]);
+            if (appliedDelay != expectedDelay) {
+                helper.fail("重炮应使用统一冷却，舰种蛋号 " + specialEggs[index]
+                        + "：预期 " + expectedDelay + "，实际 " + appliedDelay);
                 return;
             }
         }
@@ -3004,43 +3006,116 @@ public final class GameplayParityGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void behaviorCatalogOwnsBossAndLootProfiles(GameTestHelper helper) {
-        BossPhaseProfile airfield = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(23));
-        BossPhaseProfile carrierDemon = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(35));
-        BossPhaseProfile battleshipHime = LegacyShipBehaviorCatalog.bossPhaseProfile(ShipEntitySpecs.getByEggMeta(28));
-        LegacyShipBehaviorCatalog.HostileLootProfile bossLoot = LegacyShipBehaviorCatalog.hostileLootProfile(
-                ShipEntitySpecs.getByEggMeta(23), true, true);
-        LegacyShipBehaviorCatalog.HostileLootProfile commonLoot = LegacyShipBehaviorCatalog.hostileLootProfile(
-                ShipEntitySpecs.getByEggMeta(2), false, false);
+    public static void hostileBossDropsOnlyItsLegacyEgg(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("应可创建敌舰");
+            return;
+        }
+        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2038), null);
+        ship.initializeHostileRuntime(false, 3);
+        ship.getShipInventory().setItem(LegacyShipEntity.EQUIPMENT_SLOT_COUNT, new ItemStack(Items.APPLE));
+        Vec3 position = helper.absoluteVec(new Vec3(2.5D, 2.0D, 2.5D));
+        ship.setPos(position.x, position.y, position.z);
+        var lootArea = ship.getBoundingBox().inflate(1.0D);
+        var existingDrops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea);
+        helper.getLevel().addFreshEntity(ship);
+        boolean killed = ship.hurt(ship.damageSources().generic(), 10000.0F) && ship.isDeadOrDying();
+        var drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea,
+                item -> !existingDrops.contains(item));
+        boolean onlyEgg = drops.size() == 1 && drops.get(0).getItem().getCount() == 1
+                && drops.get(0).getItem().is(ForgeRegistries.ITEMS.getValue(
+                        ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "shipegg38")));
+        drops.forEach(ItemEntity::discard);
+        ship.discard();
+        if (!killed || !onlyEgg) {
+            helper.fail("规模 3 的敌舰应只掉落一枚对应的基础舰娘蛋");
+            return;
+        }
+        helper.succeed();
+    }
 
-        if (!airfield.actionCycle().equals(List.of(BossActionType.AREA_BOMBARD, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST))
-                || airfield.summonEggMeta() != 14
-                || airfield.baseActionCooldown() != 40
-                || airfield.baseSummonCooldown() != 160) {
-            helper.fail("installation boss profile should live in the behavior catalog with its legacy action cycle");
-            return;
-        }
-        if (!carrierDemon.actionCycle().equals(List.of(BossActionType.AIR_ASSAULT, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST))
-                || carrierDemon.summonEggMeta() != 14) {
-            helper.fail("air boss profile should route through catalog metadata");
-            return;
-        }
-        if (!battleshipHime.actionCycle().equals(List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE, BossActionType.SUMMON_ESCORT))
-                || battleshipHime.summonEggMeta() != 2) {
-            helper.fail("princess boss profile should route through catalog metadata");
-            return;
-        }
-        if (!bossLoot.dropsAbyssMetal() || !bossLoot.dropsAbyssMetal1() || !bossLoot.dropsBossBonus()
-                || bossLoot.eggDropChance() < 0.89F) {
-            helper.fail("boss loot profile should keep advanced drops and high recovered egg chance");
-            return;
-        }
-        if (commonLoot.dropsAbyssMetal() || commonLoot.dropsAbyssMetal1() || commonLoot.dropsBossBonus()
-                || commonLoot.eggDropChance() > 0.21F) {
-            helper.fail("common hostile loot profile should stay lightweight");
+    @GameTest(template = "empty")
+    public static void hostileScaleUsesSpawnAndSaveDataWithLegacyExperience(GameTestHelper helper) {
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("应可创建敌舰");
             return;
         }
 
+        for (int egg : new int[]{2039, 2049, 2060}) {
+            ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(egg), null);
+            if (!ship.isHostileVariant() || ship.getLegacyHostileScaleLevel() != 0 || ship.isBossEncounter()) {
+                helper.fail("无显式生成规模时应使用 0，舰种蛋号 " + egg);
+                return;
+            }
+        }
+
+        CompoundTag saved = ship.saveWithoutId(new CompoundTag());
+        saved.remove("scaleLV");
+        saved.remove("HostileRuntime");
+        saved.putInt("ShipLevel", 88);
+        saved.putInt("ShipMorale", 9000);
+        ship.initializeHostileRuntime(false, 3);
+        ship.readAdditionalSaveData(saved);
+        if (ship.getLegacyHostileScaleLevel() != 0 || ship.isBossEncounter()
+                || ship.getShipLevel() != 150 || ship.getMorale() != 0) {
+            helper.fail("无规模标签的敌舰应恢复默认规模、固定等级及无士气状态");
+            return;
+        }
+
+        CompoundTag previousRuntime = new CompoundTag();
+        previousRuntime.putBoolean("Boss", true);
+        previousRuntime.putBoolean("Elite", true);
+        previousRuntime.putInt("BossPhase", 3);
+        previousRuntime.putInt("ActionCooldown", 30);
+        previousRuntime.putInt("SummonCooldown", 140);
+        previousRuntime.putInt("EngagedTicks", 80);
+        saved.put("HostileRuntime", previousRuntime);
+        ship.readAdditionalSaveData(saved);
+        CompoundTag resaved = ship.saveWithoutId(new CompoundTag());
+        if (!ship.isBossEncounter() || resaved.getByte("scaleLV") != 3
+                || resaved.contains("ShipLevel") || resaved.contains("ShipMorale")) {
+            helper.fail("旧现代存档规模应转写为 scaleLV，敌舰不应保存成长等级或士气");
+            return;
+        }
+        CompoundTag runtime = resaved.getCompound("HostileRuntime");
+        for (String field : List.of("BossPhase", "ActionCooldown", "SummonCooldown", "EngagedTicks")) {
+            if (runtime.contains(field)) {
+                helper.fail("已撤销的 Boss 运行时字段仍被写入存档：" + field);
+                return;
+            }
+        }
+
+        for (byte scale = 0; scale < 4; scale++) {
+            saved.putByte("scaleLV", scale);
+            ship.readAdditionalSaveData(saved);
+            if (ship.getLegacyHostileScaleLevel() != scale || ship.isBossEncounter() != (scale > 1)) {
+                helper.fail("显式规模应优先于旧现代存档标志：" + scale);
+                return;
+            }
+            double[] scaleStats = LegacyShipStatTables.hostileScaleFor(ship.getSpec().archetype(), scale);
+            int friendlyClassId = ShipEntitySpecs.friendlyCounterpart(ship.getSpec()).legacyClassId();
+            float[] shipStats = LegacyShipStatTables.copyHostileModifier(friendlyClassId);
+            float expectedHeavy = (float) (scaleStats[LegacyShipStatTables.BaseAttr.ATK]
+                    * shipStats[LegacyShipStatTables.BaseAttr.ATK]) * 3.0F;
+            if (Math.abs(ship.getLegacyStats().attackHeavy() - expectedHeavy) > 0.001F) {
+                helper.fail("敌舰重炮应使用规模属性，零士气不应施加疲劳减益。规模 "
+                        + scale + "，期望 " + expectedHeavy + "，实际 " + ship.getLegacyStats().attackHeavy());
+                return;
+            }
+            RandomSource expectedRandom = RandomSource.create(42L);
+            ship.getRandom().setSeed(42L);
+            int bonus = scale * 30;
+            for (int sample = 0; sample < 16; sample++) {
+                if (ship.getExperienceReward() != 10 + bonus + expectedRandom.nextInt(1 + bonus)) {
+                    helper.fail("经验应按规模使用旧版公式：" + scale);
+                    return;
+                }
+            }
+        }
+
+        ship.discard();
         helper.succeed();
     }
 
@@ -3406,7 +3481,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void morphSpecialDispatchUsesLegacyClassIds(GameTestHelper helper) {
-        int[] specialClassIds = {36, 37, 46, 56, 57, 58, 59, 60, 61, 62, 63};
+        int[] specialClassIds = {36, 37, 46, 56, 57};
         for (int classId : specialClassIds) {
             if (!MorphHelper.hasSpecialSkill(new MorphProfile(classId))
                     || !MorphHelper.hasSpecialSkill(new MorphProfile(classId + 2000))) {
@@ -3415,7 +3490,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        int[] nonSpecialClassIds = {38, 39, 47, 48, 51, 52, 53, 54};
+        int[] nonSpecialClassIds = {38, 39, 47, 48, 51, 52, 53, 54, 58, 59, 60, 61, 62, 63};
         for (int classId : nonSpecialClassIds) {
             if (MorphHelper.hasSpecialSkill(new MorphProfile(classId))
                     || MorphHelper.hasSpecialSkill(new MorphProfile(classId + 2000))) {
@@ -3432,10 +3507,12 @@ public final class GameplayParityGameTests {
         int[][] cooldownCases = {
                 {56, 120},
                 {57, 120},
-                {58, 140},
-                {59, 140},
-                {60, 150},
-                {63, 150},
+                {58, 0},
+                {59, 0},
+                {60, 0},
+                {61, 0},
+                {62, 0},
+                {63, 0},
                 {36, 130},
                 {37, 170},
                 {46, 200}
@@ -3857,8 +3934,9 @@ public final class GameplayParityGameTests {
                 || !spawned.isBossEncounter()
                 || spawned.getSoundSource() != SoundSource.HOSTILE
                 || !spawned.getAttackProfile().hasAirAttack()
-                || spawned.getShipLevel() != LegacyShipBehaviorCatalog.hostileSpawnLevel(spawned.getSpec(), true, true)
-                || spawned.getMorale() != LegacyShipBehaviorCatalog.hostileSpawnMorale(true, true)
+                || spawned.getLegacyHostileScaleLevel() != 3
+                || spawned.getShipLevel() != 150
+                || spawned.getMorale() != 0
                 || spawned.getHealth() < spawned.getMaxHealth()) {
             helper.fail("hostile encounter spawn should initialize hostile boss runtime, sound source, stats, and attack profile");
             return;
@@ -3940,6 +4018,29 @@ public final class GameplayParityGameTests {
         if (trigger == null || !trigger.getId().equals(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId())) {
             helper.fail("friendly ship deployment trigger should be registered in the vanilla criterion registry");
             return;
+        }
+
+        var bossCriterion = bossAdvancement.getCriteria().get("hurt_boss");
+        if (bossCriterion == null
+                || !(bossCriterion.getTrigger() instanceof PlayerHurtEntityTrigger.TriggerInstance bossTrigger)) {
+            helper.fail("海上 Boss 进度应保留原有伤害条件");
+            return;
+        }
+        LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        if (ship == null) {
+            helper.fail("应可创建用于验证进度条件的敌舰");
+            return;
+        }
+        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2038), null);
+        ServerPlayer player = makeServerBackedPlayer(helper, "BossCriterion");
+        for (int scale = 0; scale < 4; scale++) {
+            ship.initializeHostileRuntime(false, scale);
+            boolean matches = bossTrigger.matches(player, EntityPredicate.createContext(player, ship),
+                    ship.damageSources().playerAttack(player), 1.0F, 1.0F, false);
+            if (matches != (scale > 1)) {
+                helper.fail("海上 Boss 进度条件与敌舰规模不符：" + scale);
+                return;
+            }
         }
 
         helper.succeed();
@@ -6762,13 +6863,6 @@ public final class GameplayParityGameTests {
             ship.discard();
         }
 
-        LegacyShipBehaviorCatalog.HostileLootProfile bossLargeLoot =
-                LegacyShipBehaviorCatalog.hostileLootProfile(ShipEntitySpecs.getByEggMeta(2038), true, true);
-        if (bossLargeLoot.eggDropChance() != 1.0F) {
-            helper.fail("legacy scale-three hostile bosses should always drop their recovered egg");
-            return;
-        }
-
         helper.succeed();
     }
 
@@ -9158,10 +9252,8 @@ public final class GameplayParityGameTests {
         ship.setGrudge(100);
         ship.setNoAi(true);
         ship.setAiOnSightChase(true);
-        ship.setPos(helper.absolutePos(new BlockPos(1, 2, 1)).getX() + 0.5D, 2.0D,
-                helper.absolutePos(new BlockPos(1, 2, 1)).getZ() + 0.5D);
-        target.setPos(helper.absolutePos(new BlockPos(12, 2, 1)).getX() + 0.5D, 2.0D,
-                helper.absolutePos(new BlockPos(12, 2, 1)).getZ() + 0.5D);
+        ship.setPos(helper.absoluteVec(new Vec3(1.5D, 2.0D, 1.5D)));
+        target.setPos(helper.absoluteVec(new Vec3(12.5D, 2.0D, 1.5D)));
         target.setNoAi(true);
         target.setInvulnerable(true);
         helper.getLevel().addFreshEntity(ship);
@@ -9178,16 +9270,18 @@ public final class GameplayParityGameTests {
 
         BlockPos wall = helper.absolutePos(new BlockPos(6, 2, 1));
         helper.getLevel().setBlock(wall, Blocks.STONE.defaultBlockState(), 3);
+        helper.getLevel().setBlock(wall.above(), Blocks.STONE.defaultBlockState(), 3);
         summon.tick();
-        if (!summon.getShipNavigate().noPath() || summon.getInternalAmmo() != 6) {
-            helper.fail("Rensouhou should stop pursuit and hold fire while OnSightChase loses its target");
-            return;
-        }
-
+        boolean stopped = summon.getShipNavigate().noPath() && summon.getInternalAmmo() == 6;
+        helper.getLevel().removeBlock(wall.above(), false);
         helper.getLevel().removeBlock(wall, false);
         ship.discard();
         target.discard();
         summon.discard();
+        if (!stopped) {
+            helper.fail("连装炮失去视野时应停止追击且不消耗弹药");
+            return;
+        }
         helper.succeed();
     }
 

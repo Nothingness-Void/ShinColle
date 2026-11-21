@@ -2,6 +2,8 @@
 
 ## 2026-11-22
 
+- 舰种个体行为七项一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-variants/)。
+
 - AI移动与目标第1—5步修复、第6步文档归并及历史偏离撤销：[统一批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)。
 
 - 战斗与投射物七项一致性复核及修复：[批次记录](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。

@@ -75,3 +75,9 @@
 | 拾取的combat/无指令/无目标额外门槛 | 撤销旧现代限制；审计12；FollowMax范围复核已匹配，不制造重复变更 |
 
 没有在旧decision中找到明确认可的项目按“撤销现代实现假设”记录，不将协议read-set中的类名列举误说成设计决定。旧批次过程与结果保留历史语境，冲突部分已在原决定标注撤销并链接本批次。
+
+## D-014：舰种个体行为的现代偏离已撤销
+
+- **已撤销**：Boss 专用阶段与动作循环、额外物品掉落、舰种推导精英或 Boss 以及敌舰等级和士气注入。历史认可见 [SHIP-03](migration_batches/2026-09-03-ship-03-combat-behavior/decision.md) 与 [SHIP-06](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/decision.md) 的对应部分。
+- **已撤销**：特殊攻击钩子的独有倍率与冷却下限，以及为爱宕、高雄及金刚四舰保留专属变身技能的现代做法。历史记录见 [SHIP-06](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/decision.md)、[SHIP-09](migration_batches/2026-09-04-ship-09-kongou-hiei-haruna-kirishima-submarine-hime-new/decision.md) 与 [GameTest 修复批次](migration_batches/2026-11-16-gametest-repair/decision.md) 的对应部分。
+- 旧版依据和处理结论见 [舰种个体行为批次决定](migration_batches/2026-11-22-parity-fix-ship-variants/decision.md)。

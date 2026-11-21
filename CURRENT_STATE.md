@@ -2,9 +2,16 @@
 
 <a id="当前任务"></a>
 
-## 当前专题批次：AI移动与目标一致性
+## 当前专题批次：舰种个体行为一致性
 
-- 用户指定分支 `devin/parity-fix-ai-movement`；第1—5步已提交并推送，最近实现提交 `1dcd150`。当前第6步仅文档收尾，不修改代码/资源，不重跑GameTest。
+- 工作分支为 `devin/parity-fix-ship-variants`，基于 `origin/devin/parity-fix-ai-movement`。工作区边界为 `src/modern` 与迁移文档，`src/main` 只读。
+- 范围、决定与最近验证见 [批次入口](migration_batches/2026-11-22-parity-fix-ship-variants/)。撤销决定见 [D-014](MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+- 批次实现与服务端验证已完成，无已知阻塞。结果见 [验证证据](migration_batches/2026-11-22-parity-fix-ship-variants/STATUS.md)。
+- 唯一下一步入口为 [ROADMAP.md](ROADMAP.md)。本批验收限于所分配的舰种行为与服务端回归。
+
+## 此前专题批次：AI移动与目标一致性
+
+- 分支 `devin/parity-fix-ai-movement` 的实现与文档收尾已完成，最近实现提交为 `1dcd150`，收尾提交为 `e862680`。
 - 统一入口：[批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)、[最近实现验证证据](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)、[测试矩阵](MIGRATION-TEST-MATRIX.md)、[撤销决定](MIGRATION-DECISIONS.md#d-013ai移动与目标的现代偏离已撤销)。工作区边界为本次文档归并与引用修正，src/main继续只读。
 - 文档收尾无已知阻塞；不晋级客户端/多人或飞机坐骑验收，未接入项与粒子降级只见[批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。唯一下一步入口仍为[ROADMAP.md](ROADMAP.md)，不另立队列；完成用户授权的提交推送后停止。
 - 下方保留此前主线的基线快照；不以旧分支和旧测试数量覆盖当前批次证据。不晋级全舰种/客户端验收状态。

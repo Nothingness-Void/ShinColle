@@ -1,5 +1,7 @@
 # Batch Decision
 
+- **已撤销**：下方对敌舰规模默认推导、通用 Boss Runtime 以及特殊攻击独有冷却的等价认可。见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+
 - **已撤销**：下表与实现记录中将“非伤害 miss”及投射物 miss 伤害边界视为旧版一致的部分；其他弹道、坐标和目标排除结论不变。更正见 [D-006](../../MIGRATION-DECISIONS.md#d-006投射物-miss-语义不可丢失)。
 
 - 结论：`COMPLETE (SP submarine/Yamato/Kaga boundary)`

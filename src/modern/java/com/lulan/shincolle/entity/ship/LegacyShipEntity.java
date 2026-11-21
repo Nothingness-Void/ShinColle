@@ -252,6 +252,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     private static final String SHIP_INVENTORY_TAG = "ShipInventory";
     private static final String SHIP_INVENTORY_SLOT_TAG = "Slot";
     private static final String HOSTILE_RUNTIME_TAG = "HostileRuntime";
+    private static final String HOSTILE_SCALE_TAG = "scaleLV";
     private static final String LEGACY_EXTENDED_PROPERTIES_TAG = "ShipExtProps";
     private static final String LEGACY_MINOR_TAG = "Minor";
     private static final String LEGACY_OWNER_NAME_TAG = "Owner";
@@ -335,6 +336,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     private static final String SHIP_USE_AIR_HEAVY_TAG = "ShipUseAirHeavy";
 
     private static final int DEFAULT_LEVEL = 1;
+    private static final int HOSTILE_LEVEL = 150;
     private static final int DEFAULT_MORALE = 60;
     private static final int MAX_MORALE = 16000;
     private static final int DEFAULT_LIGHT_AMMO = 0;
@@ -375,6 +377,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     private static final int AUTO_PUMP_BUCKET_AMOUNT = 1000;
 
     private static final EntityDataAccessor<Integer> DATA_VARIANT_EGG_META =
+            SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_HOSTILE_SCALE =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Optional<UUID>> DATA_OWNER_UUID =
             SynchedEntityData.defineId(LegacyShipEntity.class, EntityDataSerializers.OPTIONAL_UUID);
@@ -648,6 +652,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_VARIANT_EGG_META, ShipEntitySpecs.DEFAULT.eggMeta());
+        this.entityData.define(DATA_HOSTILE_SCALE, 0);
         this.entityData.define(DATA_OWNER_UUID, Optional.empty());
         this.entityData.define(DATA_OWNER_NAME, "");
         this.entityData.define(DATA_ORDERED_TO_SIT, false);
@@ -933,12 +938,13 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.applyAiData(loadedAiFlags, loadedFollowRange);
         this.entityData.set(DATA_MODERNIZATION_TOTAL, this.getModernizationCount());
         this.loadShipInventory(tag);
-        if (tag.contains(HOSTILE_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
-            this.hostileRuntimeState.loadFromTag(tag.getCompound(HOSTILE_RUNTIME_TAG));
-        } else {
-            this.initializeHostileRuntime(false, false, this.getSpec().archetype() == ShipArchetype.PRINCESS
-                    || this.getSpec().archetype() == ShipArchetype.INSTALLATION);
-        }
+        CompoundTag hostileTag = tag.getCompound(HOSTILE_RUNTIME_TAG);
+        this.hostileRuntimeState.loadFromTag(hostileTag);
+        // 旧的 1.20.1 存档用两个标志记录规模。
+        int scale = tag.contains(HOSTILE_SCALE_TAG, Tag.TAG_ANY_NUMERIC)
+                ? tag.getByte(HOSTILE_SCALE_TAG)
+                : (hostileTag.getBoolean("Boss") ? 2 : 0) + (hostileTag.getBoolean("Elite") ? 1 : 0);
+        this.entityData.set(DATA_HOSTILE_SCALE, this.isHostileVariant() ? Mth.clamp(scale, 0, 3) : 0);
         this.loadingSaveData = false;
         this.refreshFromVariant(true);
     }
@@ -957,9 +963,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             tag.putInt(OWNER_UID_TAG, this.ownerUid);
         }
 
-        tag.putInt(SHIP_LEVEL_TAG, this.getShipLevel());
-        tag.putInt(SHIP_EXPERIENCE_TAG, this.getShipExperience());
-        tag.putInt(SHIP_MORALE_TAG, this.getMorale());
+        if (!this.isHostileVariant()) {
+            tag.putInt(SHIP_LEVEL_TAG, this.getShipLevel());
+            tag.putInt(SHIP_EXPERIENCE_TAG, this.getShipExperience());
+            tag.putInt(SHIP_MORALE_TAG, this.getMorale());
+        }
         tag.putInt(SHIP_COMBAT_RATION_LEVEL_TAG, this.getCombatRationLevel());
         tag.putInt(SHIP_FLEE_HP_TAG, this.getFleeHp());
         tag.putInt(SHIP_FOOD_SATURATION_TAG, this.getFoodSaturation());
@@ -1042,7 +1050,10 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         tag.putBoolean(SHIP_CAN_DROP_TAG, this.canDropItem);
         tag.putBoolean(SHIP_SHOW_HELD_ITEM_TAG, this.canShowHeldItem());
         this.saveShipInventory(tag);
-        tag.put(HOSTILE_RUNTIME_TAG, this.hostileRuntimeState.saveToTag(new CompoundTag()));
+        if (this.isHostileVariant()) {
+            tag.putByte(HOSTILE_SCALE_TAG, (byte) this.getLegacyHostileScaleLevel());
+            tag.put(HOSTILE_RUNTIME_TAG, this.hostileRuntimeState.saveToTag(new CompoundTag()));
+        }
     }
 
     @Override
@@ -1173,6 +1184,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         super.onSyncedDataUpdated(key);
 
         if (DATA_VARIANT_EGG_META.equals(key)
+                || DATA_HOSTILE_SCALE.equals(key)
                 || DATA_LEVEL.equals(key)
                 || DATA_MORALE.equals(key)
                 || DATA_MARRIED.equals(key)
@@ -1626,13 +1638,20 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             this.setTarget(null);
             this.setNoAi(true);
             this.cacheShipState(true);
-            super.dropCustomDeathLoot(damageSource, looting, recentlyHit);
-            this.dropHostileLoot(looting);
-            this.dropShipInventoryContents();
+            this.dropHostileEgg();
             if (this.level() instanceof ServerLevel serverLevel && this.shipUid > 0) {
                 TeitokuHelper.removeShipFromAllOnlineTeams(serverLevel.getServer(), this.shipUid);
             }
         }
+    }
+
+    @Override
+    public int getExperienceReward() {
+        if (!this.isHostileVariant()) {
+            return super.getExperienceReward();
+        }
+        int scaleBonus = this.getLegacyHostileScaleLevel() * 30;
+        return 10 + scaleBonus + this.random.nextInt(1 + scaleBonus);
     }
 
     @Override
@@ -1755,14 +1774,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         if (spec.hostile()) {
             this.clearOwner();
             this.setOrderedToSit(false);
-            this.initializeHostileRuntime(false,
-                    spec.archetype() == ShipArchetype.CARRIER || spec.archetype() == ShipArchetype.BATTLESHIP || spec.archetype() == ShipArchetype.CRUISER,
-                    spec.archetype() == ShipArchetype.PRINCESS || spec.archetype() == ShipArchetype.INSTALLATION);
         } else if (owner != null) {
             this.setOwner(owner);
-            this.initializeHostileRuntime(false, false, false);
         }
 
+        this.initializeHostileRuntime(false, 0);
         this.refreshFromVariant(false);
     }
 
@@ -1838,17 +1854,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     public boolean isBossEncounter() {
-        return this.hostileRuntimeState.isBoss();
+        return this.getLegacyHostileScaleLevel() > 1;
     }
 
     public int getLegacyHostileScaleLevel() {
-        if (!this.isHostileVariant()) {
-            return 0;
-        }
-        if (this.hostileRuntimeState.isBoss()) {
-            return this.hostileRuntimeState.isElite() ? 3 : 2;
-        }
-        return this.hostileRuntimeState.isElite() ? 1 : 0;
+        return this.isHostileVariant() ? this.entityData.get(DATA_HOSTILE_SCALE) : 0;
     }
 
     public boolean isOrderedToSit() {
@@ -1865,7 +1875,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     public int getShipLevel() {
-        return this.entityData.get(DATA_LEVEL);
+        return this.isHostileVariant() ? HOSTILE_LEVEL : this.entityData.get(DATA_LEVEL);
     }
 
     public void setShipLevel(int targetLevel) {
@@ -1924,7 +1934,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     public int getMorale() {
-        return this.entityData.get(DATA_MORALE);
+        return this.isHostileVariant() ? 0 : this.entityData.get(DATA_MORALE);
     }
 
     public void setMorale(int morale) {
@@ -2096,7 +2106,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.setPersistenceRequired();
     }
 
-    /** Legacy Display.Phase is kept separate from HostileRuntime.BossPhase. */
+    /** 舰种专属动画与攻击的旧版 Display.Phase。 */
     public int getDisplayPhase() {
         return this.entityData.get(DATA_DISPLAY_PHASE);
     }
@@ -3371,21 +3381,16 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     public void initializeHostileRuntime(boolean naturalSpawn, boolean elite, boolean boss) {
-        boolean installationBoss = boss && this.getSpec().archetype() == ShipArchetype.INSTALLATION;
-        this.hostileRuntimeState.reset(naturalSpawn, elite, boss, installationBoss);
+        this.initializeHostileRuntime(naturalSpawn, (boss ? 2 : 0) + (elite ? 1 : 0));
+    }
+
+    public void initializeHostileRuntime(boolean naturalSpawn, int scaleLevel) {
+        this.hostileRuntimeState.reset(naturalSpawn);
+        this.entityData.set(DATA_HOSTILE_SCALE, this.isHostileVariant() ? Mth.clamp(scaleLevel, 0, 3) : 0);
         if (this.isHostileVariant()) {
-            int targetLevel = LegacyShipBehaviorCatalog.hostileSpawnLevel(this.getSpec(), elite, boss);
-            int targetMorale = LegacyShipBehaviorCatalog.hostileSpawnMorale(elite, boss);
-            if (this.getShipLevel() < targetLevel) {
-                this.entityData.set(DATA_LEVEL, targetLevel);
-            }
-            if (this.getMorale() < targetMorale) {
-                this.entityData.set(DATA_MORALE, targetMorale);
-            }
-            this.refreshFromVariant(true);
             this.setHealth(this.getMaxHealth());
         }
-        if (!boss && this.bossEvent != null) {
+        if (!this.isBossEncounter() && this.bossEvent != null) {
             this.bossEvent.removeAllPlayers();
             this.bossEvent = null;
         }
@@ -4075,56 +4080,6 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.playLegacyAttackVoice();
     }
 
-    boolean performCatalogSpecialAttack(LivingEntity target, LegacyShipAttackKind attackKind, float damageScale,
-                                        boolean knockback, LegacyShipProjectileVisual projectileVisual,
-                                        GameplayParticleType hitParticleType) {
-        if (!this.canAttackLegacyTarget(target) || !this.canUseCompatAttack(attackKind)
-                || !this.hasRequiredAttackResources(attackKind)) {
-            return false;
-        }
-
-        this.markLegacyCombat();
-
-        LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, attackKind);
-        if (attackKind.justLaunch()) {
-            LegacyShipCombatHelper.AttackRoll projectileRoll = new LegacyShipCombatHelper.AttackRoll(
-                    Math.max(0.0F, roll.damage() * damageScale),
-                    roll.miss(),
-                    roll.crit(),
-                    roll.doubleHit(),
-                    roll.tripleHit());
-            boolean launched = this.launchCompatProjectile(target, attackKind, projectileRoll);
-            if (launched) {
-                this.setLastHurtMob(target);
-            }
-            return launched;
-        }
-
-        if (roll.miss()) {
-            this.setLastHurtMob(target);
-            this.emitAttackFx(target, attackKind, roll, false, projectileVisual, hitParticleType);
-            return true;
-        }
-
-        float scaledDamage = Math.max(0.0F, roll.damage() * damageScale);
-        boolean attacked = target.hurt(this.damageSources().mobAttack(this), scaledDamage);
-        if (attacked) {
-            this.setLastHurtMob(target);
-            if (knockback) {
-                target.knockback(0.32D, this.getX() - target.getX(), this.getZ() - target.getZ());
-            }
-            if (attackKind == LegacyShipAttackKind.MELEE) {
-                this.playShipCombatSound(ModSoundEvents.SHIP_HITMETAL.get(), 0.55F, 0.9F + this.random.nextFloat() * 0.2F);
-            } else if (attackKind == LegacyShipAttackKind.LIGHT) {
-                this.playShipCombatSound(ModSoundEvents.SHIP_FIRELIGHT.get(), 0.6F, 0.9F + this.random.nextFloat() * 0.2F);
-            } else if (attackKind == LegacyShipAttackKind.HEAVY) {
-                this.playShipCombatSound(ModSoundEvents.SHIP_FIREHEAVY.get(), 0.7F, 0.85F + this.random.nextFloat() * 0.3F);
-            }
-        }
-        this.emitAttackFx(target, attackKind, roll, attacked, projectileVisual, hitParticleType);
-        return attacked;
-    }
-
     public boolean performCatalogDirectAttack(LivingEntity target,
                                         LegacyShipCombatHelper.AttackRoll roll,
                                         boolean knockback, boolean applyAttackEffect,
@@ -4460,14 +4415,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             return;
         }
 
-        this.hostileRuntimeState.tick();
-        LivingEntity target = this.getTarget();
-        if (this.clearInvalidHostileTarget()) {
-            target = null;
-        }
-
-        if (target == null) {
-            target = this.findBossTarget();
+        this.clearInvalidHostileTarget();
+        if (this.getTarget() == null) {
+            LivingEntity target = LegacyShipBehaviorCatalog.findLegacyRangeTarget(this);
             if (target != null) {
                 this.setTarget(target);
             }
@@ -4499,24 +4449,12 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             }
         }
 
-        if (!this.hostileRuntimeState.isBoss()) {
-            return;
-        }
-
-        this.ensureBossEvent();
-        this.updateBossPhase();
-        if (this.bossEvent != null) {
-            this.bossEvent.setName(this.getName());
-            this.bossEvent.setProgress(Mth.clamp(this.getHealth() / this.getMaxHealth(), 0.0F, 1.0F));
-        }
-
-        if (target == null) {
-            return;
-        }
-
-        this.hostileRuntimeState.setEngagedTicks(this.hostileRuntimeState.getEngagedTicks() + 1);
-        if (this.hostileRuntimeState.getActionCooldown() <= 0) {
-            this.performBossAction(target);
+        if (this.isBossEncounter()) {
+            this.ensureBossEvent();
+            if (this.bossEvent != null) {
+                this.bossEvent.setName(this.getName());
+                this.bossEvent.setProgress(Mth.clamp(this.getHealth() / this.getMaxHealth(), 0.0F, 1.0F));
+            }
         }
     }
 
@@ -4541,182 +4479,30 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     private void ensureBossEvent() {
-        if (!this.hostileRuntimeState.isBoss() || this.level().isClientSide()) {
+        if (!this.isBossEncounter() || this.level().isClientSide()) {
             return;
         }
 
         if (this.bossEvent == null) {
-            BossEvent.BossBarColor color = this.hostileRuntimeState.isInstallationBoss()
-                    ? BossEvent.BossBarColor.YELLOW
-                    : LegacyShipBehaviorCatalog.hostileBossBarColorFor(this.getSpec());
+            BossEvent.BossBarColor color = LegacyShipBehaviorCatalog.hostileBossBarColorFor(this.getSpec());
             this.bossEvent = new ServerBossEvent(this.getName(), color, BossEvent.BossBarOverlay.NOTCHED_10);
             this.bossEvent.setDarkenScreen(false);
         }
     }
 
-    private void updateBossPhase() {
-        float ratio = this.getHealth() / Math.max(1.0F, this.getMaxHealth());
-        int phase = ratio <= 0.25F ? 3 : ratio <= 0.5F ? 2 : ratio <= 0.75F ? 1 : 0;
-        if (phase == this.hostileRuntimeState.getPhase()) {
+    private void dropHostileEgg() {
+        if (!this.canDropItem) {
             return;
         }
-
-        this.hostileRuntimeState.setPhase(phase);
-        if (this.level() instanceof ServerLevel) {
-            CombatFxDispatcher.sendParticle(this, GameplayParticleType.HIT_EXPLOSION,
-                    this.getX(), this.getY() + this.getBbHeight() * 0.7D, this.getZ());
-        }
-    }
-
-    private void performBossAction(LivingEntity target) {
-        BossPhaseProfile phaseProfile = BossPhaseProfile.forSpec(this.getSpec());
-        int actionIndex = (this.hostileRuntimeState.getPhase() + this.tickCount / 40) % phaseProfile.actionCycle().size();
-        BossActionType actionType = phaseProfile.actionCycle().get(actionIndex);
-        boolean acted = false;
-
-        switch (actionType) {
-            case AIR_ASSAULT -> {
-                acted = this.tryCompatAirAttack(target) || this.tryCompatCannonAttack(target);
-            }
-            case CANNON_BURST -> {
-                acted = this.tryCompatCannonAttack(target);
-                if (!acted) {
-                    acted = this.tryCompatAirAttack(target);
-                }
-            }
-            case CHARGE -> {
-                Vec3 dash = target.position().subtract(this.position());
-                if (dash.lengthSqr() > 0.01D) {
-                    Vec3 motion = dash.normalize().scale(0.55D + this.hostileRuntimeState.getPhase() * 0.08D);
-                    this.push(motion.x, 0.08D, motion.z);
-                    this.hurtMarked = true;
-                }
-                acted = this.doHurtTarget(target) || this.tryCompatCannonAttack(target);
-            }
-            case AREA_BOMBARD -> {
-                acted = this.launchBossBombardment(target);
-            }
-            case SUMMON_ESCORT -> acted = this.summonBossEscort(phaseProfile.summonEggMeta());
-        }
-
-        if (!acted) {
-            this.hostileRuntimeState.setActionCooldown(20);
-            return;
-        }
-
-        int cooldown = Math.max(16, phaseProfile.baseActionCooldown() - this.hostileRuntimeState.getPhase() * 6);
-        this.hostileRuntimeState.setActionCooldown(cooldown);
-        if (actionType == BossActionType.SUMMON_ESCORT) {
-            this.hostileRuntimeState.setSummonCooldown(Math.max(80, phaseProfile.baseSummonCooldown() - this.hostileRuntimeState.getPhase() * 20));
-        }
-    }
-
-    private boolean launchBossBombardment(LivingEntity target) {
-        if (this.level().isClientSide()) {
-            return true;
-        }
-
-        int count = 1 + this.hostileRuntimeState.getPhase();
-        boolean launched = false;
-        for (int i = 0; i < count; i++) {
-            LegacyShipCombatHelper.AttackRoll roll = LegacyShipCombatHelper.rollAttack(this, target, LegacyShipAttackKind.HEAVY);
-            LegacyShipProjectileEntity projectile = LegacyShipProjectileEntity.create(this.level(), this, target,
-                    LegacyShipAttackKind.HEAVY, roll.damage(), roll.miss());
-            double offsetX = (this.random.nextDouble() - 0.5D) * 0.12D;
-            double offsetZ = (this.random.nextDouble() - 0.5D) * 0.12D;
-            projectile.setDeltaMovement(projectile.getDeltaMovement().add(offsetX, 0.0D, offsetZ));
-            this.level().addFreshEntity(projectile);
-            CombatFxDispatcher.sendCombatReact(this, target, CombatReactType.LAUNCH, LegacyShipAttackKind.HEAVY,
-                    projectile.getProjectileVisual());
-            CombatFxDispatcher.sendParticle(this, projectile.getLaunchParticleType(),
-                    this.getX(), this.getY() + this.getBbHeight() * 0.7D, this.getZ());
-            launched = true;
-        }
-        if (launched) {
-            this.setLastHurtMob(target);
-        }
-        return launched;
-    }
-
-    private boolean summonBossEscort(int summonEggMeta) {
-        if (!(this.level() instanceof ServerLevel serverLevel) || this.hostileRuntimeState.getSummonCooldown() > 0) {
-            return false;
-        }
-
-        ShipEntitySpec summonSpec = ShipEntitySpecs.findByEggMeta(summonEggMeta);
-        if (summonSpec == null || !summonSpec.hostile()) {
-            return false;
-        }
-
-        int count = 1 + Math.min(2, this.hostileRuntimeState.getPhase());
-        boolean summoned = false;
-        for (int i = 0; i < count; i++) {
-            LegacyShipEntity escort = new LegacyShipEntity((EntityType<? extends LegacyShipEntity>) this.getType(), serverLevel);
-            if (escort == null) {
-                continue;
-            }
-
-            double spawnX = this.getX() + (this.random.nextDouble() - 0.5D) * 6.0D;
-            double spawnZ = this.getZ() + (this.random.nextDouble() - 0.5D) * 6.0D;
-            escort.moveTo(spawnX, this.getY(), spawnZ, this.random.nextFloat() * 360.0F, 0.0F);
-            escort.finalizeSpawn(serverLevel, serverLevel.getCurrentDifficultyAt(BlockPos.containing(spawnX, this.getY(), spawnZ)),
-                    MobSpawnType.MOB_SUMMONED, null, null);
-            escort.applySpawnSpec(summonSpec, null);
-            escort.initializeHostileRuntime(true, true, false);
-            if (this.getTarget() != null) {
-                escort.setTarget(this.getTarget());
-            }
-            if (!serverLevel.noCollision(escort, escort.getBoundingBox())) {
-                escort.discard();
-                continue;
-            }
-            serverLevel.addFreshEntity(escort);
-            summoned = true;
-        }
-
-        return summoned;
-    }
-
-    private @Nullable LivingEntity findBossTarget() {
-        return LegacyShipBehaviorCatalog.findLegacyRangeTarget(this);
-    }
-
-    private void dropHostileLoot(int looting) {
-        if (!this.isHostileVariant() || this.level().isClientSide()) {
-            return;
-        }
-
-        LegacyShipBehaviorCatalog.HostileLootProfile lootProfile = LegacyShipBehaviorCatalog.hostileLootProfile(
-                this.getSpec(), this.hostileRuntimeState.isElite(), this.hostileRuntimeState.isBoss());
-        int grudgeCount = 1 + this.random.nextInt(2 + looting);
-        int ammoCount = 1 + this.random.nextInt(2 + looting);
-        this.spawnAtLocation(new ItemStack(ModItems.GRUDGE.get(), grudgeCount));
-        this.spawnAtLocation(new ItemStack(ModItems.AMMO.get(), ammoCount));
-
-        if (lootProfile.dropsAbyssMetal()) {
-            this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL.get(), 1 + this.random.nextInt(1 + looting)));
-        }
-
-        if (lootProfile.dropsAbyssMetal1()) {
-            this.spawnAtLocation(new ItemStack(ModItems.ABYSSMETAL1.get(), 1 + this.random.nextInt(2 + looting)));
-        }
-
-        if (lootProfile.dropsBossBonus()) {
-            this.spawnAtLocation(new ItemStack(ModItems.GRUDGE1.get(), 1 + this.random.nextInt(2)));
-            if (this.random.nextFloat() < 0.4F) {
-                this.spawnAtLocation(new ItemStack(ModItems.INSTANTCONMAT.get()));
-            }
-        }
-
-        if (this.canDropItem) {
-            // Legacy hostile entities consume their one-shot egg gate even when the roll returns no egg.
-            this.canDropItem = false;
-            if (this.random.nextFloat() < lootProfile.eggDropChance()) {
-                ItemStack eggDrop = this.resolveHostileEggDrop();
-                if (!eggDrop.isEmpty()) {
-                    this.spawnAtLocation(eggDrop);
-                }
-            }
+        this.canDropItem = false;
+        boolean dropEgg = switch (this.getLegacyHostileScaleLevel()) {
+            case 0 -> this.random.nextInt(5) == 0;
+            case 1 -> this.random.nextInt(3) == 0;
+            case 2 -> this.random.nextInt(10) > 0;
+            default -> true;
+        };
+        if (dropEgg) {
+            this.spawnAtLocation(this.resolveHostileEggDrop());
         }
     }
 
@@ -4733,7 +4519,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     @Override
     public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
-        if (this.hostileRuntimeState.isBoss()) {
+        if (this.isBossEncounter()) {
             this.ensureBossEvent();
             if (this.bossEvent != null) {
                 this.bossEvent.addPlayer(player);

@@ -115,7 +115,9 @@ public final class LegacyShipStats {
                 : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, defenseBonus, attackSpeedBonus, moveBonus, rangeBonus, night);
         float[] equip = equipmentProfile.toArray();
         float[] marriage = LegacyShipStatTables.copyMarriageStats(married);
-        float[] morale = LegacyShipStatTables.copyMoraleStats(moraleValue);
+        float[] morale = hostileVariant
+                ? LegacyShipStatTables.copyResetMorale()
+                : LegacyShipStatTables.copyMoraleStats(moraleValue);
         float[] potion = buildPotionStats(activeEffects);
         float[] formation = hostileVariant
                 ? LegacyShipStatTables.copyResetFormation()

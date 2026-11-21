@@ -16,6 +16,13 @@
 
 ## 舰娘核心回归
 
+### 舰种个体行为回归
+
+- `hostileBossDropsOnlyItsLegacyEgg` 通过实际击杀核对规模 3 的敌舰只掉一枚基础舰娘蛋。`hostileScaleUsesSpawnAndSaveDataWithLegacyExperience` 验证通用部署默认值、旧档回读、已撤销字段清理和四级规模经验公式。
+- `hostileEncounterSpawnInitializesRuntime` 验证显式遭遇规模、固定等级和无士气。`specialCombatHooksApplyHeavyCooldowns` 精确比较重炮冷却。`morphSpecialDispatchUsesLegacyClassIds` 和 `morphSpecialPreviewCooldownUsesBehaviorCatalog` 验证 class ID 58–63 及敌对镜像无专属技能与对应冷却。
+- `progressionAdvancementsLoadAndFriendlyShipTriggerAwards` 核对海上 Boss 进度只接受规模 2 和 3 的敌舰。
+- JDK 17 运行 `bash ./gradlew compileJava --no-daemon`，通过后运行 `bash ./gradlew runGameTestServer --no-daemon`。要求全量必过项全部通过，运行记录归 [批次证据](migration_batches/2026-11-22-parity-fix-ship-variants/STATUS.md)。
+
 ### AI移动与目标回归
 
 - 完整服务端套件规模为 **319项GameTest**（本批次代码完成时的覆盖规模，不是文档整理重跑结果）；历史实测输出归 [AI批次STATUS](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)。

@@ -155,19 +155,11 @@ public final class LegacyShipBehaviorCatalog {
         YAMATO_BEAM_BARRAGE,
         TENRYUU_DASH,
         TATSUTA_CONTROL_AOE,
-        HEAVY_CRUISER_BARRAGE,
-        KONGOU_COMBO,
         BATTLESHIP_RU_BARRAGE,
         BATTLESHIP_TA_RENSOUHOU,
         SUBMARINE_HIME_DOUBLE_MISSILE,
         CARRIER_HIME_MELEE_MISSILE,
         NORTHERN_HIME_FLOATING_FORT
-    }
-
-    public record HostileLootProfile(boolean dropsAbyssMetal,
-                                     boolean dropsAbyssMetal1,
-                                     boolean dropsBossBonus,
-                                     float eggDropChance) {
     }
 
     /** Snapshot of the legacy AttackEffectMap entry carried by a launched attack. */
@@ -5111,8 +5103,6 @@ public final class LegacyShipBehaviorCatalog {
             case YAMATO_BEAM_BARRAGE -> performYamatoBeam(ship, target);
             case TENRYUU_DASH -> performTenryuuDash(ship, target);
             case TATSUTA_CONTROL_AOE -> performTatsutaControl(ship, target);
-            case HEAVY_CRUISER_BARRAGE -> hookResult(performHeavyCruiserBarrage(ship, target));
-            case KONGOU_COMBO -> hookResult(performKongouCombo(ship, target));
             case BATTLESHIP_RU_BARRAGE -> performBattleshipRuBarrage(ship, target);
             case BATTLESHIP_TA_RENSOUHOU -> performBattleshipTaSummon(ship, target);
             case SUBMARINE_HIME_DOUBLE_MISSILE -> performSubmarineHimeDoubleMissile(ship, target);
@@ -5122,9 +5112,7 @@ public final class LegacyShipBehaviorCatalog {
         };
 
         if (result.handled() && respectEntityCooldown) {
-            int baseDelay = LegacyShipCombatHelper.attackDelay(ship, attackKind);
-            ship.setCatalogAttackCooldown(attackKind,
-                    Math.max(8, Math.round(baseDelay * cooldownMultiplier(behavior.combatHook()))));
+            ship.setCatalogAttackCooldown(attackKind, LegacyShipCombatHelper.attackDelay(ship, attackKind));
         }
         return result;
     }
@@ -5148,99 +5136,9 @@ public final class LegacyShipBehaviorCatalog {
         };
 
         if (result.handled() && respectEntityCooldown) {
-            int baseDelay = LegacyShipCombatHelper.attackDelay(ship, attackKind);
-            ship.setCatalogAttackCooldown(attackKind,
-                    Math.max(8, Math.round(baseDelay * cooldownMultiplier(behavior.combatHook()))));
+            ship.setCatalogAttackCooldown(attackKind, LegacyShipCombatHelper.attackDelay(ship, attackKind));
         }
         return result;
-    }
-
-    private static CombatHookResult hookResult(boolean handled) {
-        return handled ? CombatHookResult.HANDLED : CombatHookResult.NOT_HANDLED;
-    }
-
-    public static BossPhaseProfile bossPhaseProfile(ShipEntitySpec spec) {
-        int legacyClassId = spec.legacyClassId();
-        if (spec.archetype() == ShipArchetype.INSTALLATION) {
-            int summonEggMeta = legacyClassId == 21 ? 14 : 18;
-            return new BossPhaseProfile(
-                    List.of(BossActionType.AREA_BOMBARD, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST),
-                    summonEggMeta,
-                    40,
-                    160);
-        }
-
-        if (legacyClassId == 30 || legacyClassId == 33 || legacyClassId == 49) {
-            return new BossPhaseProfile(
-                    List.of(BossActionType.AIR_ASSAULT, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST),
-                    14,
-                    34,
-                    140);
-        }
-
-        if (spec.archetype() == ShipArchetype.PRINCESS) {
-            int summonEggMeta = legacyClassId == 44 ? 19 : 2;
-            return new BossPhaseProfile(
-                    List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE, BossActionType.SUMMON_ESCORT),
-                    summonEggMeta,
-                    36,
-                    180);
-        }
-
-        return new BossPhaseProfile(
-                List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE),
-                2,
-                54,
-                220);
-    }
-
-    public static HostileLootProfile hostileLootProfile(ShipEntitySpec spec, boolean elite, boolean boss) {
-        boolean dropsAbyssMetal = elite
-                || spec.archetype() == ShipArchetype.CARRIER
-                || spec.archetype() == ShipArchetype.BATTLESHIP;
-        boolean dropsAbyssMetal1 = spec.archetype() == ShipArchetype.INSTALLATION || boss;
-        int scaleLevel = boss ? elite ? 3 : 2 : elite ? 1 : 0;
-        float eggDropChance = switch (scaleLevel) {
-            case 1 -> 0.33F;
-            case 2 -> 0.9F;
-            case 3 -> 1.0F;
-            default -> 0.2F;
-        };
-        return new HostileLootProfile(dropsAbyssMetal, dropsAbyssMetal1, boss, eggDropChance);
-    }
-
-    public static int hostileSpawnLevel(ShipEntitySpec spec, boolean elite, boolean boss) {
-        if (!spec.hostile()) {
-            return 1;
-        }
-
-        int base = switch (spec.archetype()) {
-            case DESTROYER, SUBMARINE -> 18;
-            case TRANSPORT, CRUISER -> 24;
-            case CARRIER, BATTLESHIP -> 32;
-            case PRINCESS -> 48;
-            case INSTALLATION -> 52;
-        };
-        if (elite) {
-            base += 12;
-        }
-        if (boss) {
-            base += 28;
-        }
-        if (spec.eggMeta() >= 2000) {
-            base += 8;
-        }
-        return Math.max(1, Math.min(100, base));
-    }
-
-    public static int hostileSpawnMorale(boolean elite, boolean boss) {
-        if (boss) {
-            return 9000;
-        }
-        if (elite) {
-            return 7000;
-        }
-        return 5200;
     }
 
     public static void tickMarriagePassive(LegacyShipEntity ship) {
@@ -5291,8 +5189,6 @@ public final class LegacyShipBehaviorCatalog {
             case YAMATO_BEAM_BARRAGE -> 200;
             case TENRYUU_DASH -> 120;
             case TATSUTA_CONTROL_AOE -> 120;
-            case HEAVY_CRUISER_BARRAGE -> 140;
-            case KONGOU_COMBO -> 150;
             case BATTLESHIP_RU_BARRAGE -> 0;
             case BATTLESHIP_TA_RENSOUHOU -> 130;
             case SUBMARINE_HIME_DOUBLE_MISSILE -> 0;
@@ -5354,27 +5250,7 @@ public final class LegacyShipBehaviorCatalog {
             case 46 -> CombatHook.YAMATO_BEAM_BARRAGE;
             case 56 -> CombatHook.TENRYUU_DASH;
             case 57 -> CombatHook.TATSUTA_CONTROL_AOE;
-            case 58, 59 -> CombatHook.HEAVY_CRUISER_BARRAGE;
-            case 60, 61, 62, 63 -> CombatHook.KONGOU_COMBO;
             default -> CombatHook.NONE;
-        };
-    }
-
-    private static float cooldownMultiplier(CombatHook hook) {
-        return switch (hook) {
-            case SHIMAKAZE_TORPEDO_BURST -> 1.0F;
-            case NAGATO_HEAVY_STRIKE -> 1.3F;
-            case YAMATO_BEAM_BARRAGE -> 1.5F;
-            case TENRYUU_DASH -> 0.9F;
-            case TATSUTA_CONTROL_AOE -> 1.0F;
-            case HEAVY_CRUISER_BARRAGE -> 1.1F;
-            case KONGOU_COMBO -> 1.25F;
-            case BATTLESHIP_RU_BARRAGE -> 1.0F;
-            case BATTLESHIP_TA_RENSOUHOU -> 1.0F;
-            case SUBMARINE_HIME_DOUBLE_MISSILE -> 1.0F;
-            case CARRIER_HIME_MELEE_MISSILE -> 1.0F;
-            case NORTHERN_HIME_FLOATING_FORT -> 1.0F;
-            case NONE -> 1.0F;
         };
     }
 
@@ -5810,63 +5686,6 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         return CombatHookResult.HANDLED_WITH_RESOURCES;
-    }
-
-    private static boolean performHeavyCruiserBarrage(LegacyShipEntity ship, LivingEntity primaryTarget) {
-        boolean acted = false;
-        for (LivingEntity target : collectTargets(ship, primaryTarget, 5.5D, 4)) {
-            boolean hit = ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.HEAVY,
-                    target == primaryTarget ? 1.45F : 1.05F,
-                    true,
-                    LegacyShipProjectileVisual.MISSILE,
-                    GameplayParticleType.MISSILE_IMPACT);
-            if (hit) {
-                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true, true));
-                acted = true;
-            }
-        }
-        sendLaunchSmoke(ship);
-        return acted;
-    }
-
-    private static boolean performKongouCombo(LegacyShipEntity ship, LivingEntity primaryTarget) {
-        List<LivingEntity> targets = collectTargets(ship, primaryTarget, 7.0D, 5);
-        boolean acted = false;
-        for (int index = 0; index < targets.size(); index++) {
-            LivingEntity target = targets.get(index);
-            acted |= ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.HEAVY,
-                    index == 0 ? 1.55F : 1.15F,
-                    true,
-                    LegacyShipProjectileVisual.MISSILE,
-                    GameplayParticleType.MISSILE_IMPACT);
-            acted |= ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.LIGHT,
-                    index == 0 ? 1.0F : 0.78F,
-                    false,
-                    LegacyShipProjectileVisual.NONE,
-                    GameplayParticleType.HIT_EXPLOSION);
-        }
-        sendLaunchSmoke(ship);
-        return acted;
-    }
-
-    private static List<LivingEntity> collectTargets(LegacyShipEntity ship, LivingEntity primaryTarget,
-                                                     double radius, int maxTargets) {
-        List<LivingEntity> targets = new ArrayList<>();
-        targets.add(primaryTarget);
-
-        AABB searchArea = primaryTarget.getBoundingBox().inflate(radius, radius * 0.5D, radius);
-        for (LivingEntity candidate : ship.level().getEntitiesOfClass(LivingEntity.class, searchArea)) {
-            if (candidate == primaryTarget || !ship.canEngage(candidate)) {
-                continue;
-            }
-            targets.add(candidate);
-        }
-
-        targets.sort(Comparator.comparingDouble(ship::distanceToSqr));
-        if (targets.size() > maxTargets) {
-            return List.copyOf(targets.subList(0, maxTargets));
-        }
-        return List.copyOf(targets);
     }
 
     private static List<LivingEntity> collectLineTargets(LegacyShipEntity ship, LivingEntity primaryTarget,
