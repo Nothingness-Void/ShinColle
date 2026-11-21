@@ -178,3 +178,8 @@ git diff --check
 ```
 
 不要在每个小改动后重复启动游戏；一个批次完成后统一执行所需门，并在 `results/` 记录命令、JDK、退出状态、测试计数和日志路径。
+
+## PARITY-FIX-CRAFTING-WORLD-CONFIG（2026-11-22）
+
+- 命令：`bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`（JDK 17）。
+- 结果：`compileJava` 通过；GameTest `297` 项中 `296` 通过，`passiveAiStopsAutomaticRangeTargeting` 失败（基线 `8f1d2fd` 同样失败）。删除 `progressionAdvancementsLoadAndFriendlyShipTriggerAwards`；`chestLootInjectorUsesLegacyConfigLootDefaults` 改为断言跳过 `shincolle:Torpedo` 与整数 rolls；`worldgenResourcesKeepLegacyPolymetalPlacement` 改为断言 `shincolle:polymetal_gravel` feature 与 `Polymetal_Gravel*` 默认值。证据见 [verification](migration_batches/2026-11-22-parity-fix-crafting-world-config/results/verification.md)。

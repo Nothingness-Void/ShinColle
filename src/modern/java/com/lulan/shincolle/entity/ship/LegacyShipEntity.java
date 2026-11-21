@@ -4655,7 +4655,12 @@ public class LegacyShipEntity extends PathfinderMob {
             if (this.random.nextFloat() < lootProfile.eggDropChance()) {
                 ItemStack eggDrop = this.resolveHostileEggDrop();
                 if (!eggDrop.isEmpty()) {
-                    this.spawnAtLocation(eggDrop);
+                    net.minecraft.world.entity.item.ItemEntity eggEntity = this.spawnAtLocation(eggDrop);
+                    if (eggEntity != null) {
+                        // 1.12.2 BasicEntityItem: despawn after ConfigHandler.despawnEgg ticks, -1 = never.
+                        int despawnEgg = ShinColleConfig.despawnEgg();
+                        eggEntity.lifespan = despawnEgg < 0 ? Integer.MAX_VALUE : despawnEgg;
+                    }
                 }
             }
         }

@@ -47,6 +47,7 @@
 | 25 | `B3-MULTIPLAYER-TEAM` | 对照 `TeamData`、`TeamHelper`、`ServerProxy`、`CapaTeitoku`、`TargetHelper`、`OwnerPaper` 与 `KaitaiHammer` 的多人队伍/同盟权限、PVP/友伤与雷达同步 | `B2-PACKET-PARITY` 完成；协议已冻结 | 已完成；Part 1+2 全部收口，`286/286` GameTest 通过，证据见 [B3-MULTIPLAYER-TEAM](migration_batches/2026-11-17-b3-multiplayer-team/) |
 | 26 | `B6-INTERMOD-DETAILS` | `ShinColleConfig` + `SystemConfig`、`polyAsMn`、9 条 `/ship*` 指令、动态光方块、`ShipKills`/`Raiden`、Curios 可选联动与外置 mod/`ID.java` 40 历史名称收口 | `B3-MULTIPLAYER-TEAM` 完成；协议已冻结 | 已完成；全量 `289/289` GameTest 通过，证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/) |
 | 27 | `FULL-SHIP-BEHAVIOR-REAUDIT` | 全 64 个注册变体与跨子系统（敌我身份、隐身/发光/防剔除、生命周期、受伤管线、阵型槽位/航速、装备附魔、坐骑/召唤物/导弹/鱼雷、指挥棒/起重机/道具/模型渲染）两轮并发严查与修复 | `v0.1.0-alpha` 玩家反馈驱动全量复审；协议已冻结 | 已完成；新增 9 项综合回归，全量 `298/298` GameTest 通过，证据见 [FULL-SHIP-BEHAVIOR-REAUDIT](migration_batches/2026-11-18-full-ship-behavior-reaudit/) |
+| 28 | `PARITY-FIX-CRAFTING-WORLD-CONFIG` | 审计 crafting/world/config 12 项偏离按 1.12.2 还原（大建装备与投料、宝箱 loot、敌舰生成、多金属砂砾、配置项、删除 advancements） | 1.20.1 parity 审计 | 已完成；`296/297` GameTest（唯一失败项基线同样失败），其余配置项留 backlog，证据见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/) |
 
 ## 晋级规则
 

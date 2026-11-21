@@ -30,9 +30,6 @@ import javax.annotation.Nullable;
 public final class HostileEncounterSpawner {
 
     private static final int MOB_SPAWN_CHECK_MASK = 127;
-    private static final int LEGACY_MOB_LIMIT = 50;
-    private static final int LEGACY_MOB_ROLL = 10;
-    private static final int LEGACY_MOB_GROUPS = 1;
     private static final int LEGACY_BOSS_COOLDOWN = 4800;
     private static final int LEGACY_BOSS_GROUPS = 2;
     private static final int LEGACY_ESCORT_GROUPS = 4;
@@ -66,14 +63,15 @@ public final class HostileEncounterSpawner {
         if (!canSpawnMobForPlayer(player, level, teitokuData)) {
             return;
         }
-        if (countLoadedNonBossHostiles(level) > LEGACY_MOB_LIMIT) {
+        int[] mobSpawn = ShinColleConfig.mobSpawn();
+        if (countLoadedNonBossHostiles(level) > mobSpawn[0]) {
             return;
         }
-        if (level.getRandom().nextInt(100) > LEGACY_MOB_ROLL) {
+        if (level.getRandom().nextInt(100) > mobSpawn[1]) {
             return;
         }
 
-        int groupsRemaining = LEGACY_MOB_GROUPS;
+        int groupsRemaining = mobSpawn[2];
         int attemptsRemaining = 30 + groupsRemaining * 30;
         while (groupsRemaining > 0 && attemptsRemaining-- > 0) {
             BlockPos anchor = findMobSpawnAnchor(level, player);
@@ -81,12 +79,22 @@ public final class HostileEncounterSpawner {
                 continue;
             }
 
-            HostileSpawnProfile profile = HostileEncounterTable.commonProfile(level.getRandom());
-            LegacyShipEntity spawned = spawnEncounterAt(level, anchor, player, profile);
-            if (spawned != null) {
-                groupsRemaining--;
+            groupsRemaining--;
+            int shipNum = mobShipsPerGroup(mobSpawn, level.getRandom());
+            for (int i = 0; i < shipNum; i++) {
+                spawnEncounterAt(level, anchor, player, HostileEncounterTable.commonProfile(level.getRandom()));
             }
         }
+    }
+
+    /** 1.12.2 spawnMobShip: max(1, min), or min + rand(max - min + 1) when max > min. */
+    public static int mobShipsPerGroup(int[] mobSpawn, RandomSource random) {
+        int shipNum = Math.max(1, mobSpawn[3]);
+        int ranMax = mobSpawn[4] - mobSpawn[3];
+        if (ranMax > 0) {
+            shipNum = mobSpawn[3] + random.nextInt(ranMax + 1);
+        }
+        return shipNum;
     }
 
     public static boolean canRollBossEncounter(@Nullable TeitokuData teitokuData) {
@@ -120,7 +128,7 @@ public final class HostileEncounterSpawner {
                 spawnedBoss |= spawnEncounterAt(level, anchor, player, HostileEncounterTable.bossProfile(level.getRandom())) != null;
             }
             for (int i = 0; i < escortGroups; i++) {
-                spawnEncounterAt(level, anchor, player, HostileEncounterTable.commonProfile(level.getRandom()));
+                spawnEncounterAt(level, anchor, player, HostileEncounterTable.escortProfile(level.getRandom()));
             }
 
             if (spawnedBoss) {
@@ -156,7 +164,8 @@ public final class HostileEncounterSpawner {
     }
 
     private static boolean canSpawnMobForPlayer(ServerPlayer player, ServerLevel level, @Nullable TeitokuData teitokuData) {
-        return isLegacyOceanBiome(level, player.blockPosition()) && canRollBossEncounter(teitokuData);
+        return (!ShinColleConfig.checkRing() || canRollBossEncounter(teitokuData))
+                && isLegacyOceanBiome(level, player.blockPosition());
     }
 
     private static boolean canSpawnBossForPlayer(ServerPlayer player, ServerLevel level, @Nullable TeitokuData teitokuData) {

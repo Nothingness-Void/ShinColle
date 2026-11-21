@@ -34,6 +34,8 @@
 
 多人 UI、完整旧版 GUI packet pages、全 inter-mod、完整 worldgen 历史矩阵和非主线边角行为单独进入 backlog，不伪装成主线完成。
 
+> 部分撤销（2026-11-22，D-012）：“配置项可以写死为旧版默认值”不再作为可接受的现状；`Check_Ring`、`Limit_MobSpawnNumber`、`DropRate_Grudge`、`Despawn_Egg`、`Tile_*`、`Polymetal_Gravel*` 已接回，其余缺失配置项仍是待补的偏离，而不是已认可的设计。
+
 ## D-009：活动舰种全集以旧版注册为准
 
 当前可迁移舰种以 `mc-1.12.2` 的 `ModEntity.regShipEntity` 和实际实体源文件为准。`ID.java` 中只有常量/NameMap、没有实体源文件和注册入口的历史名称记录为 `HISTORICAL_SOURCE_GAP`；没有恢复旧版实现前，不根据名称猜测或新造现代实体。精确核对见 [SHIP-UNIVERSE-AUDIT](migration_batches/2026-09-04-ship-universe-audit/)。
@@ -48,3 +50,12 @@
 - `ConfigHandler.polyAsMn` 的默认 `false` 静态包契约不变（不改动 `data/forge/tags/items/` 静态 JSON），运行时由 `PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 承担动态切换；`SystemConfig` 随 `TeitokuHelper` 状态包向客户端同步。
 - 1.12.2 外置依赖按 1.20.1 原生能力与零编译期强依赖原则收口：Metamorph 使用原生 `MorphHelper` + `MorphCompatBridge.NOOP`/`SoftDependencyBridge`；IC2 由内部 `RouteEnergyAccess` 与 `ForgeCapabilities.ITEM_HANDLER`/`FLUID_HANDLER` 替代；Curios 仅通过 `ModList` + 反射触发结婚戒指佩戴槽周期效果。
 - 40 个仅存在于 `ID.java` 的历史名称（含 `Raiden` 作为合体形态而非独立注册实体）继续按 D-009 保持 `HISTORICAL_SOURCE_GAP` 记录，不虚构实现。详细证据见 [B6-INTERMOD-DETAILS](migration_batches/2026-11-17-b6-intermod-details/)。
+
+## D-012：crafting / world / config 严格按 1.12.2 还原（2026-11-22）
+
+- 已撤销：[WORLDGEN-AUDIT](migration_batches/2026-09-16-worldgen-audit/decision.md) 用 `minecraft:disk` + `height_range 3..55` 近似 `WorldGenPolyGravel`、视半径/放置差异为“≈”的决定；改为移植 `generateSea` + `WorldGenPolyGravel` 的 `shincolle:polymetal_gravel` feature。
+- 已撤销：宝箱 loot 写死在 Java、随机 meta 平分权重拆分、把旧版无法解析的 `shincolle:Torpedo` 映射为真实鱼雷的做法；恢复 `config/shincolle/loottable.cfg`，未解析条目跳过，rolls 整数除法，随机 meta 以最小公倍数缩放权重保持旧版概率。
+- 已撤销：大建装备 `equipRate` + 弹药兜底、大建实例 roll 代入总材料、建造装备无附魔、大建投料只认材料的现代实现。
+- 已撤销：普通敌舰写死 50/10/1 且每组 1 只、护卫沿用 20% 精英的做法。
+- 已撤销：旧版不存在的 10 个 progression advancements 与 `shincolle:friendly_ship_deployed` 触发器，已删除。
+- 详细证据见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)。

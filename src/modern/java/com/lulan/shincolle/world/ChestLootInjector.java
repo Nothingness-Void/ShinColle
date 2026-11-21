@@ -1,10 +1,11 @@
 package com.lulan.shincolle.world;
 
 import com.lulan.shincolle.ShinColle;
-import com.lulan.shincolle.registry.ModBlocks;
-import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.config.LegacyLootConfig;
+import com.lulan.shincolle.item.equipment.LegacyEquipmentFamily;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
@@ -15,11 +16,12 @@ import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
 import net.minecraftforge.event.LootTableLoadEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.RegistryObject;
+import net.minecraftforge.registries.ForgeRegistries;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 @Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -53,24 +55,36 @@ public final class ChestLootInjector {
             return;
         }
 
+        // 1.12.2 ChestLootTable: rolls 1 ~ N/2+1 (integer division, N = resolved ConfigLoot entries), bonus rolls 1.
+        int maxRolls = entries.size() / 2 + 1;
         LootPool.Builder pool = LootPool.lootPool()
                 .name("shincollePool")
-                .setRolls(UniformGenerator.between(1.0F, entries.size() / 2.0F + 1.0F))
+                .setRolls(UniformGenerator.between(1.0F, maxRolls))
                 .setBonusRolls(ConstantValue.exactly(1.0F));
 
+        // 1.12 random meta was one weighted entry with SetMetadata(0~N); 1.20 splits metas into separate items,
+        // so every weight is scaled by the lcm of variant counts to keep the same per-entry probability.
+        int scale = 1;
         for (LootEntryDef entry : entries) {
-            LootItem.Builder<?> lootEntry = LootItem.lootTableItem(entry.item().get())
-                    .setWeight(entry.weight())
-                    .apply(SetItemCountFunction.setCount(UniformGenerator.between(entry.minCount(), entry.maxCount())))
-                    .when(LootItemRandomChanceCondition.randomChance(entry.chance()));
-            pool.add(lootEntry);
+            scale = lcm(scale, entry.items().size());
+        }
+
+        for (LootEntryDef entry : entries) {
+            int variantWeight = entry.weight() * (scale / entry.items().size());
+            for (Supplier<? extends ItemLike> item : entry.items()) {
+                LootItem.Builder<?> lootEntry = LootItem.lootTableItem(item.get())
+                        .setWeight(variantWeight)
+                        .apply(SetItemCountFunction.setCount(UniformGenerator.between(entry.minCount(), entry.maxCount())))
+                        .when(LootItemRandomChanceCondition.randomChance(entry.chance()));
+                pool.add(lootEntry);
+            }
         }
 
         event.getTable().addPool(pool.build());
     }
 
     public static List<String> legacySourceKeysForTesting(ResourceLocation tableId) {
-        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        List<String> keys = new ArrayList<>();
         for (LootEntryDef entry : resolveEntries(tableId)) {
             keys.add(entry.legacySourceKey());
         }
@@ -78,137 +92,152 @@ public final class ChestLootInjector {
     }
 
     public static int concreteEntryCountForTesting(ResourceLocation tableId) {
-        return resolveEntries(tableId).size();
+        int count = 0;
+        for (LootEntryDef entry : resolveEntries(tableId)) {
+            count += entry.items().size();
+        }
+        return count;
+    }
+
+    public static int maxRollsForTesting(ResourceLocation tableId) {
+        return resolveEntries(tableId).size() / 2 + 1;
     }
 
     private static List<LootEntryDef> resolveEntries(ResourceLocation tableId) {
-        if (BONUS_CHEST.equals(tableId)) {
-            return bonusChest();
+        int chestId = legacyChestId(tableId);
+        if (chestId < 0) {
+            return List.of();
         }
-        if (IGLOO_CHEST.equals(tableId)) {
-            return iglooChest();
-        }
-        if (SIMPLE_DUNGEON.equals(tableId)) {
-            return simpleDungeon();
-        }
-        if (VILLAGE_WEAPONSMITH.equals(tableId)) {
-            return villageBlacksmith();
-        }
-        if (ABANDONED_MINESHAFT.equals(tableId)) {
-            return randomEquipmentChest();
-        }
-        if (DESERT_PYRAMID.equals(tableId)) {
-            return randomEquipmentChest();
-        }
-        if (JUNGLE_TEMPLE.equals(tableId)) {
-            return jungleTemple();
-        }
-        if (NETHER_BRIDGE.equals(tableId)) {
-            return netherBridge();
-        }
-        if (STRONGHOLD_LIBRARY.equals(tableId) || STRONGHOLD_CROSSING.equals(tableId) || STRONGHOLD_CORRIDOR.equals(tableId)) {
-            return randomEquipmentChest();
-        }
-        if (END_CITY_TREASURE.equals(tableId)) {
-            return randomEquipmentChest();
-        }
-        return List.of();
-    }
 
-    private static List<LootEntryDef> bonusChest() {
-        return List.of(
-                entry("shincolle:Grudge:0", ModItems.GRUDGE::get, 1, 10, 15, 1.0F),
-                entry("shincolle:ShipSpawnEgg:2", shipEgg(2), 2, 1, 1, 1.0F),
-                entry("shincolle:Ammo:0", ModItems.AMMO::get, 1, 5, 8, 1.0F));
-    }
-
-    private static List<LootEntryDef> iglooChest() {
-        return List.of(
-                entry("shincolle:Grudge:0", ModItems.GRUDGE::get, 1, 5, 8, 1.0F),
-                entry("shincolle:ShipSpawnEgg:0", shipEgg(0), 1, 1, 1, 1.0F),
-                entry("shincolle:Ammo:0", ModItems.AMMO::get, 1, 2, 3, 1.0F),
-                entry("shincolle:InstantConMat:0", ModItems.INSTANTCONMAT::get, 1, 3, 5, 1.0F));
-    }
-
-    private static List<LootEntryDef> simpleDungeon() {
-        return List.of(
-                entry("shincolle:MarriageRing:0", ModItems.MARRIAGERING::get, 4, 1, 1, 0.70F),
-                entry("shincolle:TrainingBook:0", ModItems.TRAININGBOOK::get, 4, 1, 3, 0.80F),
-                entry("shincolle:ShipSpawnEgg:0", shipEgg(0), 3, 1, 1, 1.0F),
-                entry("shincolle:ShipSpawnEgg:1", shipEgg(1), 3, 1, 1, 1.0F),
-                entry("shincolle:ShipSpawnEgg:17", shipEgg(17), 1, 1, 1, 0.80F),
-                entry("shincolle:ShipSpawnEgg:48", shipEgg(48), 1, 1, 1, 0.80F));
-    }
-
-    private static List<LootEntryDef> villageBlacksmith() {
-        return List.of(
-                entry("shincolle:InstantConMat:0", ModItems.INSTANTCONMAT::get, 20, 10, 20, 1.0F),
-                entry("shincolle:BlockAbyssium:0", ModBlocks.BLOCK_ABYSSIUM::get, 10, 5, 10, 1.0F),
-                entry("shincolle:BlockPolymetal:0", ModBlocks.BLOCK_POLYMETAL::get, 10, 5, 10, 1.0F),
-                entry("shincolle:ShipSpawnEgg:0", shipEgg(0), 5, 1, 1, 1.0F));
-    }
-
-    private static List<LootEntryDef> randomEquipmentChest() {
         List<LootEntryDef> entries = new ArrayList<>();
-        entries.add(entry("shincolle:TrainingBook:0", ModItems.TRAININGBOOK::get, 6, 1, 3, 0.80F));
-        entries.add(entry("shincolle:MarriageRing:0", ModItems.MARRIAGERING::get, 6, 1, 1, 0.70F));
-        entries.add(entry("shincolle:ShipSpawnEgg:0", shipEgg(0), 3, 1, 1, 1.0F));
-        entries.add(entry("shincolle:ShipSpawnEgg:1", shipEgg(1), 3, 1, 1, 1.0F));
-        entries.addAll(legacyRandomMeta("shincolle:EquipCannon:-1", ModItems.EQUIPCANNON_DISPLAY_ITEMS, 8, 1, 1, 1.0F));
-        entries.addAll(legacyRandomMeta("shincolle:EquipAirplane:-1", ModItems.EQUIPAIRPLANE_DISPLAY_ITEMS, 8, 1, 1, 1.0F));
-        entries.addAll(legacyRandomMeta("shincolle:Torpedo:-1", ModItems.EQUIPTORPEDO_DISPLAY_ITEMS, 8, 1, 1, 1.0F));
-        return List.copyOf(entries);
-    }
-
-    private static List<LootEntryDef> jungleTemple() {
-        return List.of(
-                entry("shincolle:MarriageRing:0", ModItems.MARRIAGERING::get, 4, 1, 1, 0.70F),
-                entry("shincolle:ShipSpawnEgg:1", shipEgg(1), 2, 1, 1, 1.0F),
-                entry("shincolle:ShipSpawnEgg:17", shipEgg(17), 1, 1, 1, 0.80F),
-                entry("shincolle:ShipSpawnEgg:48", shipEgg(48), 1, 1, 1, 0.80F));
-    }
-
-    private static List<LootEntryDef> netherBridge() {
-        return List.of(
-                entry("shincolle:TrainingBook:0", ModItems.TRAININGBOOK::get, 4, 1, 3, 0.80F),
-                entry("shincolle:InstantConMat:0", ModItems.INSTANTCONMAT::get, 4, 10, 12, 1.0F),
-                entry("shincolle:MarriageRing:0", ModItems.MARRIAGERING::get, 4, 1, 1, 0.70F),
-                entry("shincolle:BlockAbyssium:0", ModBlocks.BLOCK_ABYSSIUM::get, 4, 5, 15, 1.0F),
-                entry("shincolle:BlockPolymetal:0", ModBlocks.BLOCK_POLYMETAL::get, 4, 5, 15, 1.0F));
-    }
-
-    private static List<LootEntryDef> legacyRandomMeta(String legacySourceKey, List<RegistryObject<Item>> items,
-                                                       int weight, int minCount, int maxCount, float chance) {
-        List<LootEntryDef> entries = new ArrayList<>();
-        // 1.12 used one metadata item plus SetMetadata(-1); 1.20 stores those legacy metas as separate registered items.
-        int splitWeight = Math.max(1, Math.round((float) weight / Math.max(1, items.size())));
-        for (RegistryObject<Item> item : items) {
-            entries.add(entry(legacySourceKey, item::get, splitWeight, minCount, maxCount, chance));
+        for (LegacyLootConfig.Entry entry : LegacyLootConfig.entries(chestId)) {
+            List<Supplier<? extends ItemLike>> items = resolveLegacyItem(entry.itemName(), entry.itemMeta());
+            if (items.isEmpty()) {
+                continue;
+            }
+            entries.add(new LootEntryDef(entry.itemName() + ":" + entry.itemMeta(), items, entry.weight(),
+                    entry.min(), entry.max(), entry.chance()));
         }
         return entries;
     }
 
-    private static Supplier<Item> shipEgg(int legacyMeta) {
-        String itemPath = switch (legacyMeta) {
-            case 0 -> "smallegg";
-            case 1 -> "largeegg";
-            default -> "shipegg" + legacyMeta;
-        };
+    /** chest_ID of 1.12.2 ChestLootTable.editLoot; village blacksmith maps to the 1.20 weaponsmith table. */
+    private static int legacyChestId(ResourceLocation tableId) {
+        if (BONUS_CHEST.equals(tableId)) {
+            return 0;
+        }
+        if (IGLOO_CHEST.equals(tableId)) {
+            return 1;
+        }
+        if (SIMPLE_DUNGEON.equals(tableId)) {
+            return 2;
+        }
+        if (VILLAGE_WEAPONSMITH.equals(tableId)) {
+            return 3;
+        }
+        if (ABANDONED_MINESHAFT.equals(tableId)) {
+            return 4;
+        }
+        if (DESERT_PYRAMID.equals(tableId)) {
+            return 5;
+        }
+        if (JUNGLE_TEMPLE.equals(tableId)) {
+            return 6;
+        }
+        if (NETHER_BRIDGE.equals(tableId)) {
+            return 7;
+        }
+        if (STRONGHOLD_LIBRARY.equals(tableId) || STRONGHOLD_CROSSING.equals(tableId) || STRONGHOLD_CORRIDOR.equals(tableId)) {
+            return 8;
+        }
+        if (END_CITY_TREASURE.equals(tableId)) {
+            return 9;
+        }
+        return -1;
+    }
 
-        for (RegistryObject<Item> item : ModItems.SHIPSPAWNEGG_ITEMS) {
-            if (item.getId().getPath().equals(itemPath)) {
-                return item::get;
+    /**
+     * 1.12.2 Item.getByNameOrId (ResourceLocation lower-cases the name) plus SetMetadata.
+     * Unresolved names return an empty list and are skipped like the legacy null item.
+     */
+    private static List<Supplier<? extends ItemLike>> resolveLegacyItem(String itemName, int meta) {
+        ResourceLocation id = ResourceLocation.tryParse(itemName.toLowerCase(Locale.ROOT));
+        if (id == null) {
+            return List.of();
+        }
+
+        if (!ShinColle.MOD_ID.equals(id.getNamespace())) {
+            Item item = ForgeRegistries.ITEMS.getValue(id);
+            return item == null || item == Items.AIR ? List.of() : List.of(() -> item);
+        }
+
+        String path = id.getPath();
+        if ("shipspawnegg".equals(path)) {
+            String eggPath = meta <= 0 ? "smallegg" : meta == 1 ? "largeegg" : "shipegg" + meta;
+            Item egg = modItem(eggPath);
+            return egg == null ? List.of() : List.of(() -> egg);
+        }
+
+        for (LegacyEquipmentFamily family : LegacyEquipmentFamily.values()) {
+            if (family.registryName(0).equals(path)) {
+                List<Supplier<? extends ItemLike>> variants = new ArrayList<>();
+                if (meta == -1) {
+                    for (int i = 0; i < family.variantCount(); i++) {
+                        Item variant = modItem(family.registryName(i));
+                        if (variant != null) {
+                            variants.add(() -> variant);
+                        }
+                    }
+                } else if (meta >= 0 && meta < family.variantCount()) {
+                    Item variant = modItem(family.registryName(meta));
+                    if (variant != null) {
+                        variants.add(() -> variant);
+                    }
+                }
+                return variants;
             }
         }
-        throw new IllegalStateException("Missing 1.12 ShipSpawnEgg meta mapping for " + legacyMeta);
+
+        Item base = modItem(path);
+        if (base == null) {
+            return List.of();
+        }
+        if (meta > 0) {
+            Item variant = modItem(path + meta);
+            return variant == null ? List.of(() -> base) : List.of(() -> variant);
+        }
+        if (meta == -1) {
+            List<Supplier<? extends ItemLike>> variants = new ArrayList<>();
+            variants.add(() -> base);
+            for (int i = 1; ; i++) {
+                Item variant = modItem(path + i);
+                if (variant == null) {
+                    break;
+                }
+                variants.add(() -> variant);
+            }
+            return variants;
+        }
+        return List.of(() -> base);
     }
 
-    private static LootEntryDef entry(String legacySourceKey, Supplier<? extends ItemLike> item,
-                                      int weight, int minCount, int maxCount, float chance) {
-        return new LootEntryDef(legacySourceKey, item, weight, minCount, maxCount, chance);
+    private static @Nullable Item modItem(String path) {
+        Item item = ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, path));
+        return item == null || item == Items.AIR ? null : item;
     }
 
-    private record LootEntryDef(String legacySourceKey, Supplier<? extends ItemLike> item, int weight,
+    private static int lcm(int a, int b) {
+        int x = a;
+        int y = b;
+        while (y != 0) {
+            int t = x % y;
+            x = y;
+            y = t;
+        }
+        return a / x * b;
+    }
+
+    private record LootEntryDef(String legacySourceKey, List<Supplier<? extends ItemLike>> items, int weight,
                                 int minCount, int maxCount, float chance) {
     }
 }

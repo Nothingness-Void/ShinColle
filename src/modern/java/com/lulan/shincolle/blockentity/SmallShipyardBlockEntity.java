@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.block.SmallShipyardBlock;
 import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
@@ -43,10 +44,22 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     private static final String POWER_GOAL_TAG = "GoalPower";
     private static final String BUILD_TYPE_TAG = "BuildType";
     private static final String BUILD_RECORD_TAG = "BuildRecord";
-    public static final int POWER_MAX = 460800;
-    public static final int BUILD_SPEED = 48;
-    public static final float FUEL_MAGNIFICATION = 1.0F;
-    public static final int POWER_INSTANT = BUILD_SPEED * 2400;
+    /** 1.12.2 TileEntitySmallShipyard POWERMAX/BUILDSPEED/FUELMAGN from ConfigHandler.tileShipyardSmall. */
+    public static int powerMax() {
+        return (int) ShinColleConfig.tileShipyardSmall()[0];
+    }
+
+    public static int buildSpeed() {
+        return (int) ShinColleConfig.tileShipyardSmall()[1];
+    }
+
+    public static float fuelMagnification() {
+        return (float) ShinColleConfig.tileShipyardSmall()[2];
+    }
+
+    public static int powerInstant() {
+        return buildSpeed() * 2400;
+    }
 
     @Nullable
     private PlayerOwnerData owner;
@@ -213,11 +226,11 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     }
 
     public boolean hasRemainedPower() {
-        return this.powerRemained > BUILD_SPEED;
+        return this.powerRemained > buildSpeed();
     }
 
     public int getPowerRemainingScaled(int height) {
-        return Mth.floor((this.powerRemained * (double) height) / POWER_MAX);
+        return Mth.floor((this.powerRemained * (double) height) / powerMax());
     }
 
     public String getBuildTimeString() {
@@ -225,7 +238,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return "00:00";
         }
 
-        int remainingSeconds = Math.max(0, (int) (((this.powerGoal - this.powerConsumed) / (float) BUILD_SPEED) * 0.05F));
+        int remainingSeconds = Math.max(0, (int) (((this.powerGoal - this.powerConsumed) / (float) buildSpeed()) * 0.05F));
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
@@ -304,8 +317,8 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
 
         if (this.isBuilding()) {
             changed |= this.consumeInstantConstruction();
-            this.powerRemained -= BUILD_SPEED;
-            this.powerConsumed += BUILD_SPEED;
+            this.powerRemained -= buildSpeed();
+            this.powerConsumed += buildSpeed();
             changed = true;
 
             if (this.powerConsumed >= this.powerGoal) {
@@ -341,7 +354,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
 
     private boolean refuelFromFuelSlot() {
         ItemStack fuelStack = this.items.getStackInSlot(SmallShipyardRecipes.SLOT_FUEL);
-        if (fuelStack.isEmpty() || fuelStack.is(ModItems.INSTANTCONMAT.get()) || this.powerRemained >= POWER_MAX) {
+        if (fuelStack.isEmpty() || fuelStack.is(ModItems.INSTANTCONMAT.get()) || this.powerRemained >= powerMax()) {
             return false;
         }
 
@@ -350,8 +363,8 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return false;
         }
 
-        int fuelValue = Math.round(fuelUse.get().power() * FUEL_MAGNIFICATION);
-        if (fuelValue <= 0 || fuelValue + this.powerRemained > POWER_MAX) {
+        int fuelValue = Math.round(fuelUse.get().power() * fuelMagnification());
+        if (fuelValue <= 0 || fuelValue + this.powerRemained > powerMax()) {
             return false;
         }
 
@@ -368,7 +381,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         }
 
         fuelStack.shrink(1);
-        this.powerConsumed += POWER_INSTANT;
+        this.powerConsumed += powerInstant();
         if (fuelStack.isEmpty()) {
             this.items.setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, ItemStack.EMPTY);
         }

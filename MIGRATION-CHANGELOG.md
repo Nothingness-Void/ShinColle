@@ -1,5 +1,11 @@
 # Migration Changelog
 
+## 2026-11-22
+
+### PARITY-FIX-CRAFTING-WORLD-CONFIG：大建装备/投料、宝箱 loot、敌舰生成、多金属砂砾与配置按 1.12.2 还原
+
+- 删除大建 `equipRate` 弹药兜底、恢复大建 `totalMat = 0` 与 `enchLv` 附魔；大建投料补齐装备/船蛋回收与 easyMode；恢复 `loottable.cfg` 与整数 rolls、移除鱼雷条目；接回 `Check_Ring`/`Limit_MobSpawnNumber`、护卫 50% 精英；移植 `WorldGenPolyGravel`；接回 `DropRate_Grudge`、`Despawn_Egg`、`Tile_*`、`Polymetal_Gravel*`；删除自创 advancements。GameTest `296/297`（唯一失败项在基线同样失败）。证据见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)，决定见 D-012。
+
 ## 2026-11-18
 
 ### FULL-SHIP-BEHAVIOR-REAUDIT：全 64 舰船变体与全子系统两轮并发严查修复收口（`298/298` GameTest）

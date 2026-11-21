@@ -1,7 +1,6 @@
 package com.lulan.shincolle;
 
 import com.mojang.logging.LogUtils;
-import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.client.renderer.blockentity.DeskBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.blockentity.HeavyGrudgeBlockEntityRenderer;
 import com.lulan.shincolle.client.renderer.blockentity.SmallShipyardBlockEntityRenderer;
@@ -38,6 +37,7 @@ import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.registry.ModBlocks;
 import com.lulan.shincolle.registry.ModCreativeModeTabs;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.registry.ModFeatures;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.registry.ModSoundEvents;
@@ -87,11 +87,11 @@ public class ShinColle {
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModBlocks.BLOCKS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);
+        ModFeatures.FEATURES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModSoundEvents.SOUND_EVENTS.register(modEventBus);
         ModCreativeModeTabs.TABS.register(modEventBus);
-        ModCriteriaTriggers.init();
         ModNetwork.register();
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.addListener(ShinColleCommands::register);

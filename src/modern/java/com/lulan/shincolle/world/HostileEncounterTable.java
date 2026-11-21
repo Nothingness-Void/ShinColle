@@ -57,6 +57,11 @@ public final class HostileEncounterTable {
         return new HostileSpawnProfile(pickLegacyMobEggMeta(random), 1, random.nextInt(10) > 7, false);
     }
 
+    /** 1.12.2 EntityHelper.spawnBossShip escort: initAttrs(rng.nextInt(2)), 50% elite. */
+    public static HostileSpawnProfile escortProfile(RandomSource random) {
+        return new HostileSpawnProfile(pickLegacyMobEggMeta(random), 1, random.nextInt(2) == 1, false);
+    }
+
     public static HostileSpawnProfile bossProfile(RandomSource random) {
         return new HostileSpawnProfile(pickLegacyMobEggMeta(random), 1, random.nextInt(100) > 65, true);
     }

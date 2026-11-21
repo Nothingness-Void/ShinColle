@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.lulan.shincolle.ShinColle;
-import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
@@ -83,8 +82,6 @@ import com.lulan.shincolle.world.ChestLootInjector;
 import com.lulan.shincolle.world.HostileEncounterTable;
 import com.lulan.shincolle.world.HostileEncounterSpawner;
 import io.netty.buffer.Unpooled;
-import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
@@ -1380,7 +1377,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.receiveRouteEnergy(HeavyGrudgeBlockEntity.POWER_MAX, false);
+        shipyard.receiveRouteEnergy(HeavyGrudgeBlockEntity.powerMax(), false);
         shipyard.getContainerData().set(0, ShipyardBuildTypes.SHIP);
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         if (shipyard.getPowerGoal() <= 0) {
@@ -1388,7 +1385,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.BUILD_SPEED);
+        shipyard.getContainerData().set(1, shipyard.getPowerGoal() - HeavyGrudgeBlockEntity.buildSpeed());
         HeavyGrudgeBlockEntity.serverTick(helper.getLevel(), shipyardPos, helper.getLevel().getBlockState(shipyardPos), shipyard);
         ItemStack output = shipyard.getItems().getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT);
         if (!output.is(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get())
@@ -2088,8 +2085,7 @@ public final class GameplayParityGameTests {
                 "item.shincolle.abyssmetal",
                 "item.shincolle.shipegg58",
                 "gui.shincolle.ship_inventory.owner",
-                "chat.shincolle.spawn_egg.deployed",
-                "advancement.shincolle.progression.root.title"
+                "chat.shincolle.spawn_egg.deployed"
         };
         for (String key : representativeLocalizedKeys) {
             if (english.get(key).getAsString().equals(simplifiedChinese.get(key).getAsString())) {
@@ -2216,24 +2212,29 @@ public final class GameplayParityGameTests {
         }
 
         ResourceLocation mineshaft = ResourceLocation.fromNamespaceAndPath("minecraft", "chests/abandoned_mineshaft");
+        // 1.12 "shincolle:Torpedo" resolves to null (registry name is EquipTorpedo) and is skipped by ChestLootTable.
         List<String> legacyRandomMetaSource = List.of(
                 "shincolle:TrainingBook:0",
                 "shincolle:MarriageRing:0",
                 "shincolle:ShipSpawnEgg:0",
                 "shincolle:ShipSpawnEgg:1",
                 "shincolle:EquipCannon:-1",
-                "shincolle:EquipAirplane:-1",
-                "shincolle:Torpedo:-1");
+                "shincolle:EquipAirplane:-1");
         if (!ChestLootInjector.legacySourceKeysForTesting(mineshaft).equals(legacyRandomMetaSource)) {
-            helper.fail("mineshaft loot should keep the 1.12 random-meta equipment source entries");
+            helper.fail("mineshaft loot should keep the resolvable 1.12 ConfigLoot entries and skip shincolle:Torpedo");
             return;
         }
         int expectedConcreteEntries = 4
-                + ModItems.EQUIPCANNON_DISPLAY_ITEMS.size()
-                + ModItems.EQUIPAIRPLANE_DISPLAY_ITEMS.size()
-                + ModItems.EQUIPTORPEDO_DISPLAY_ITEMS.size();
+                + ModItems.EQUIPCANNON_ITEMS.size()
+                + ModItems.EQUIPAIRPLANE_ITEMS.size();
         if (ChestLootInjector.concreteEntryCountForTesting(mineshaft) != expectedConcreteEntries) {
             helper.fail("1.12 random metadata equipment should fan out to all modern 1.20 item variants");
+            return;
+        }
+        if (ChestLootInjector.maxRollsForTesting(mineshaft) != 4
+                || ChestLootInjector.maxRollsForTesting(ResourceLocation.fromNamespaceAndPath("minecraft", "chests/igloo_chest")) != 3
+                || ChestLootInjector.maxRollsForTesting(ResourceLocation.fromNamespaceAndPath("minecraft", "chests/spawn_bonus_chest")) != 2) {
+            helper.fail("loot rolls should use the 1.12 integer N/2+1 upper bound over legacy entries");
             return;
         }
 
@@ -2274,26 +2275,26 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        JsonObject config = gravelConfigured.getAsJsonObject("config");
-        JsonObject radius = config.getAsJsonObject("radius").getAsJsonObject("value");
-        if (config.get("half_height").getAsInt() != 1
-                || radius.get("min_inclusive").getAsInt() != 1
-                || radius.get("max_inclusive").getAsInt() != 2) {
-            helper.fail("polymetal gravel disk should keep the 1.12 WorldGenPolyGravel radius and thickness");
+        if (!"shincolle:polymetal_gravel".equals(gravelConfigured.get("type").getAsString())) {
+            helper.fail("polymetal gravel should use the ported 1.12 WorldGenPolyGravel feature");
             return;
         }
-
-        String targetBlocks = config.getAsJsonObject("target").getAsJsonArray("blocks").toString();
-        for (String required : List.of("minecraft:stone", "minecraft:gravel")) {
-            if (!targetBlocks.contains(required)) {
-                helper.fail("polymetal gravel target block list is missing 1.12 base block: " + required);
-                return;
-            }
+        JsonObject gravelPlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_gravel.json");
+        if (gravelPlaced == null || gravelPlaced.getAsJsonArray("placement").size() != 1
+                || placementByType(gravelPlaced, "minecraft:biome") == null) {
+            helper.fail("polymetal gravel should run once per ocean chunk like 1.12 generateSea");
+            return;
         }
-        if (targetBlocks.contains("minecraft:sand")
-                || targetBlocks.contains("minecraft:dirt")
-                || targetBlocks.contains("minecraft:clay")) {
-            helper.fail("polymetal gravel target block list must only match 1.12 ConfigHandler.polyGravelBaseBlock defaults {true, true, false, false}");
+        boolean[] replace = ShinColleConfig.polyGravelBaseBlock();
+        if (!replace[0] || !replace[1] || replace[2] || replace[3] || ShinColleConfig.polyGravelBaseRate() != 4) {
+            helper.fail("polymetal gravel config defaults must match 1.12 Polymetal_Gravel / Polymetal_Gravel_Replace");
+            return;
+        }
+        if (!com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), replace)
+                || !com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.GRAVEL.defaultBlockState(), replace)
+                || com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.SAND.defaultBlockState(), replace)
+                || com.lulan.shincolle.world.PolymetalGravelFeature.isReplaceable(net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState(), replace)) {
+            helper.fail("polymetal gravel replace targets should follow Polymetal_Gravel_Replace");
             return;
         }
 
@@ -3912,26 +3913,6 @@ public final class GameplayParityGameTests {
                 CombatReactType.LAUNCH, 10, 20, LegacyShipAttackKind.AIR_HEAVY, LegacyShipProjectileVisual.AIRPLANE);
         if (!packet.involvesEntity(10) || !packet.involvesEntity(20) || packet.involvesEntity(30)) {
             helper.fail("combat reaction actionbar eligibility should be limited to attacker and target entity ids");
-            return;
-        }
-
-        helper.succeed();
-    }
-
-    @GameTest(template = "empty")
-    public static void progressionAdvancementsLoadAndFriendlyShipTriggerAwards(GameTestHelper helper) {
-        Advancement deployAdvancement = helper.getLevel().getServer().getAdvancements()
-                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/deploy_first_ship"));
-        Advancement bossAdvancement = helper.getLevel().getServer().getAdvancements()
-                .getAdvancement(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "progression/ocean_boss_encounter"));
-        if (deployAdvancement == null || bossAdvancement == null) {
-            helper.fail("expected progression advancements to load into the server advancement manager");
-            return;
-        }
-
-        var trigger = CriteriaTriggers.getCriterion(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId());
-        if (trigger == null || !trigger.getId().equals(ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.getId())) {
-            helper.fail("friendly ship deployment trigger should be registered in the vanilla criterion registry");
             return;
         }
 

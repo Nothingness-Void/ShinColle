@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
@@ -104,7 +105,8 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     public static LegacyCoreBlockEntity newVolCore(BlockPos pos, BlockState state) {
-        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore", 16, 9600);
+        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore",
+                (int) ShinColleConfig.tileVolCore()[1], (int) ShinColleConfig.tileVolCore()[0]);
     }
 
     @Override
@@ -461,14 +463,16 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
             return 0;
         }
 
+        // 1.12.2 TileEntityVolCore: FUELMAGN per grudge, FUELMAGN * 9 per grudge block.
+        int fuelPerGrudge = (int) ShinColleConfig.tileVolCore()[2];
         if (stack.is(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
-            return 2160;
+            return fuelPerGrudge * 9;
         }
         if (stack.is(ModItems.GRUDGE1.get())) {
-            return 240;
+            return fuelPerGrudge;
         }
         if (stack.is(ModItems.GRUDGE.get())) {
-            return 240;
+            return fuelPerGrudge;
         }
 
         return 0;

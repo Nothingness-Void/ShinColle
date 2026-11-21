@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.block.HeavyGrudgeBlock;
 import com.lulan.shincolle.crafting.LargeShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
@@ -64,9 +65,22 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     private static final String LEGACY_BUILD_RECORD_TAG = "BuildRecord";
     private static final String LEGACY_MATERIAL_STOCK_TAG = "MaterialStock";
 
-    public static final int POWER_MAX = 1382400;
-    public static final int BUILD_SPEED = 48;
-    public static final int POWER_INSTANT = BUILD_SPEED * 1200;
+    /** 1.12.2 TileMultiGrudgeHeavy POWERMAX/BUILDSPEED/FUELMAGN from ConfigHandler.tileShipyardLarge. */
+    public static int powerMax() {
+        return (int) ShinColleConfig.tileShipyardLarge()[0];
+    }
+
+    public static int buildSpeed() {
+        return (int) ShinColleConfig.tileShipyardLarge()[1];
+    }
+
+    public static float fuelMagnification() {
+        return (float) ShinColleConfig.tileShipyardLarge()[2];
+    }
+
+    public static int powerInstant() {
+        return buildSpeed() * 1200;
+    }
     private static final int LAVA_POWER_PER_BUCKET = 20000;
     private static final int LAVA_TRANSFER_AMOUNT = 1000;
 
@@ -110,7 +124,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             switch (index) {
                 case 0 -> HeavyGrudgeBlockEntity.this.buildType = value;
                 case 1 -> HeavyGrudgeBlockEntity.this.powerConsumed = value;
-                case 2 -> HeavyGrudgeBlockEntity.this.powerRemained = Mth.clamp(value, 0, POWER_MAX);
+                case 2 -> HeavyGrudgeBlockEntity.this.powerRemained = Mth.clamp(value, 0, powerMax());
                 case 3 -> HeavyGrudgeBlockEntity.this.powerGoal = Math.max(0, value);
                 case 4 -> HeavyGrudgeBlockEntity.this.structureComplete = value != 0;
                 case 6 -> HeavyGrudgeBlockEntity.this.invMode = value == 0 ? 0 : 1;
@@ -183,7 +197,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             this.lavaTank.readFromNBT(tag.getCompound(SHIPYARD_TANK_TAG));
         }
         this.powerConsumed = getIntCompat(tag, POWER_CONSUMED_TAG, LEGACY_POWER_CONSUMED_TAG);
-        this.powerRemained = Mth.clamp(getIntCompat(tag, POWER_REMAINED_TAG, LEGACY_POWER_REMAINED_TAG), 0, POWER_MAX);
+        this.powerRemained = Mth.clamp(getIntCompat(tag, POWER_REMAINED_TAG, LEGACY_POWER_REMAINED_TAG), 0, powerMax());
         this.powerGoal = Math.max(0, getIntCompat(tag, POWER_GOAL_TAG, LEGACY_POWER_GOAL_TAG));
         this.buildType = getIntCompat(tag, BUILD_TYPE_TAG, LEGACY_BUILD_TYPE_TAG);
         this.invMode = tag.getInt(INV_MODE_TAG) == 0 ? 0 : 1;
@@ -265,8 +279,8 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
 
         if (this.canBuild()) {
             changed |= this.consumeInstantConstruction();
-            this.powerRemained = Math.max(0, this.powerRemained - BUILD_SPEED);
-            this.powerConsumed += BUILD_SPEED;
+            this.powerRemained = Math.max(0, this.powerRemained - buildSpeed());
+            this.powerConsumed += buildSpeed();
             changed = true;
 
             if (this.powerConsumed >= this.powerGoal) {
@@ -355,7 +369,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     private boolean absorbGenericMaterials() {
         for (int slot = LargeShipyardRecipes.SLOT_FUEL; slot < this.shipyardItems.getSlots(); slot++) {
             ItemStack stack = this.shipyardItems.getStackInSlot(slot);
-            if (!LargeShipyardRecipes.addMaterialStock(this.matsStock, stack)) {
+            if (!LargeShipyardRecipes.addMaterialStock(this.matsStock, stack, this.level.random)) {
                 continue;
             }
 
@@ -369,15 +383,17 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
 
     private boolean releaseGenericMaterials() {
         int material = Mth.clamp(this.selectMat, 0, 3);
-        if (this.matsStock[material] >= LargeShipyardRecipes.COMPRESSED_OUTPUT_AMOUNT
+        int compressedAmount = LargeShipyardRecipes.compressedOutputAmount();
+        int singleAmount = LargeShipyardRecipes.singleOutputAmount();
+        if (this.matsStock[material] >= compressedAmount
                 && LargeShipyardRecipes.outputMaterialToSlot(this.shipyardItems, material, true)) {
-            this.matsStock[material] -= LargeShipyardRecipes.COMPRESSED_OUTPUT_AMOUNT;
+            this.matsStock[material] -= compressedAmount;
             return true;
         }
 
-        if (this.matsStock[material] >= LargeShipyardRecipes.SINGLE_OUTPUT_AMOUNT
+        if (this.matsStock[material] >= singleAmount
                 && LargeShipyardRecipes.outputMaterialToSlot(this.shipyardItems, material, false)) {
-            this.matsStock[material] -= LargeShipyardRecipes.SINGLE_OUTPUT_AMOUNT;
+            this.matsStock[material] -= singleAmount;
             return true;
         }
 
@@ -385,7 +401,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     }
 
     private boolean refuelFromInventory() {
-        if (this.powerRemained >= POWER_MAX) {
+        if (this.powerRemained >= powerMax()) {
             return false;
         }
 
@@ -400,7 +416,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
                 continue;
             }
 
-            this.powerRemained = Math.min(POWER_MAX, this.powerRemained + fuelUse.get().power());
+            this.powerRemained = Math.min(powerMax(), this.powerRemained + (int) (fuelUse.get().power() * fuelMagnification()));
             this.shipyardItems.setStackInSlot(slot, fuelUse.get().remainder().copy());
             return true;
         }
@@ -409,7 +425,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     }
 
     private boolean refuelFromLavaTank() {
-        if (this.lavaTank.getFluidAmount() < LAVA_TRANSFER_AMOUNT || this.powerRemained >= POWER_MAX) {
+        if (this.lavaTank.getFluidAmount() < LAVA_TRANSFER_AMOUNT || this.powerRemained >= powerMax()) {
             return false;
         }
 
@@ -418,7 +434,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             return false;
         }
 
-        this.powerRemained = Math.min(POWER_MAX, this.powerRemained + LAVA_POWER_PER_BUCKET);
+        this.powerRemained = Math.min(powerMax(), this.powerRemained + (int) (LAVA_POWER_PER_BUCKET * fuelMagnification()));
         return true;
     }
 
@@ -436,7 +452,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             }
 
             stack.shrink(1);
-            this.powerConsumed += POWER_INSTANT;
+            this.powerConsumed += powerInstant();
             this.shipyardItems.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : stack);
             return true;
         }
@@ -501,7 +517,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
         CompoundTag tag = stack.getTag();
         int[] mats = tag.getIntArray(HeavyGrudgeBlockItem.MATS_TAG);
         System.arraycopy(mats, 0, this.matsStock, 0, Math.min(this.matsStock.length, mats.length));
-        this.powerRemained = Mth.clamp(tag.getInt(HeavyGrudgeBlockItem.FUEL_TAG), 0, POWER_MAX);
+        this.powerRemained = Mth.clamp(tag.getInt(HeavyGrudgeBlockItem.FUEL_TAG), 0, powerMax());
         this.markUpdated();
     }
 
@@ -515,7 +531,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
     }
 
     public boolean isBuilding() {
-        return this.structureComplete && this.powerRemained > BUILD_SPEED && this.canBuild();
+        return this.structureComplete && this.powerRemained > buildSpeed() && this.canBuild();
     }
 
     public int getPowerRemained() {
@@ -551,7 +567,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
 
     @Override
     public int getRouteEnergyCapacity() {
-        return this.structureComplete ? POWER_MAX : 0;
+        return this.structureComplete ? powerMax() : 0;
     }
 
     @Override
@@ -672,7 +688,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
             return 0;
         }
 
-        int accepted = Math.min(Math.max(0, amount), POWER_MAX - this.powerRemained);
+        int accepted = Math.min(Math.max(0, amount), powerMax() - this.powerRemained);
         if (accepted <= 0) {
             return 0;
         }
@@ -705,7 +721,7 @@ public class HeavyGrudgeBlockEntity extends BlockEntity implements LargeShipyard
                 && this.powerGoal > 0
                 && this.shipyardItems.getStackInSlot(LargeShipyardRecipes.SLOT_OUTPUT).isEmpty()
                 && LargeShipyardRecipes.canRecipeBuild(this.matsBuild)
-                && this.powerRemained > BUILD_SPEED;
+                && this.powerRemained > buildSpeed();
     }
 
     private static int getIntCompat(CompoundTag tag, String currentKey, String legacyKey) {

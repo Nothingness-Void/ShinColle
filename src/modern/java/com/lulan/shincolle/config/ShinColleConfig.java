@@ -132,6 +132,113 @@ public final class ShinColleConfig {
         return getInt("maxDmgOnPlayer", COMMON_SPEC, COMMON.maxDmgOnPlayer, 59);
     }
 
+    /** 1.12.2 DropRate_Grudge. */
+    public static double dropGrudge() {
+        return getDouble("dropGrudge", COMMON_SPEC, COMMON.dropGrudge, 1.0D);
+    }
+
+    /** 1.12.2 Despawn_Egg, -1 = do NOT despawn. */
+    public static int despawnEgg() {
+        return getInt("despawnEgg", COMMON_SPEC, COMMON.despawnEgg, 12000);
+    }
+
+    /** 1.12.2 Tile_SmallShipyard: max fuel storage, build speed, fuel magnification. */
+    public static double[] tileShipyardSmall() {
+        return doubleArray("tileShipyardSmall", COMMON.tileShipyardSmall, new double[]{460800D, 48D, 1D});
+    }
+
+    /** 1.12.2 Tile_LargeShipyard: max fuel storage, build speed, fuel magnification. */
+    public static double[] tileShipyardLarge() {
+        return doubleArray("tileShipyardLarge", COMMON.tileShipyardLarge, new double[]{1382400D, 48D, 1D});
+    }
+
+    /** 1.12.2 Tile_VolCore: max fuel storage, fuel consume speed, fuel value per grudge item. */
+    public static double[] tileVolCore() {
+        return doubleArray("tileVolCore", COMMON.tileVolCore, new double[]{9600D, 16D, 240D});
+    }
+
+    /** 1.12.2 Polymetal_Gravel: polymetallic gravel clusters in one chunk. */
+    public static int polyGravelBaseRate() {
+        return getInt("polyGravelBaseRate", COMMON_SPEC, COMMON.polyGravelBaseRate, 4);
+    }
+
+    /** 1.12.2 Polymetal_Gravel_Replace: stone, gravel, sand, dirt. */
+    public static boolean[] polyGravelBaseBlock() {
+        boolean[] fallback = new boolean[]{true, true, false, false};
+        Object override = TEST_OVERRIDES.get("polyGravelBaseBlock");
+        if (override instanceof boolean[] bools && bools.length >= 4) {
+            return Arrays.copyOf(bools, 4);
+        }
+        List<? extends Boolean> loaded = null;
+        if (COMMON_SPEC.isLoaded()) {
+            try {
+                loaded = COMMON.polyGravelBaseBlock.get();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+        if (loaded == null || loaded.size() < 4) {
+            return fallback;
+        }
+        boolean[] values = new boolean[4];
+        for (int i = 0; i < 4; i++) {
+            values[i] = loaded.get(i);
+        }
+        return values;
+    }
+
+    public static boolean checkRing() {
+        return getBoolean("checkRing", COMMON_SPEC, COMMON.checkRing, true);
+    }
+
+    /** 1.12.2 Limit_MobSpawnNumber: [max mob count, spawn chance %, groups, min per group, max per group]. */
+    public static int[] mobSpawn() {
+        return intArray("mobSpawn", COMMON.mobSpawn, new int[]{50, 10, 1, 1, 1});
+    }
+
+    static int[] intArray(String key, ForgeConfigSpec.ConfigValue<List<? extends Number>> value, int[] fallback) {
+        Object override = TEST_OVERRIDES.get(key);
+        if (override instanceof int[] ints && ints.length >= fallback.length) {
+            return Arrays.copyOf(ints, fallback.length);
+        }
+        List<? extends Number> loaded = null;
+        if (COMMON_SPEC.isLoaded()) {
+            try {
+                loaded = value.get();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+        if (loaded == null || loaded.size() < fallback.length) {
+            return fallback.clone();
+        }
+        int[] values = new int[fallback.length];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = loaded.get(i).intValue();
+        }
+        return values;
+    }
+
+    static double[] doubleArray(String key, ForgeConfigSpec.ConfigValue<List<? extends Number>> value, double[] fallback) {
+        Object override = TEST_OVERRIDES.get(key);
+        if (override instanceof double[] doubles && doubles.length >= fallback.length) {
+            return Arrays.copyOf(doubles, fallback.length);
+        }
+        List<? extends Number> loaded = null;
+        if (COMMON_SPEC.isLoaded()) {
+            try {
+                loaded = value.get();
+            } catch (IllegalStateException ignored) {
+            }
+        }
+        if (loaded == null || loaded.size() < fallback.length) {
+            return fallback.clone();
+        }
+        double[] values = new double[fallback.length];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = loaded.get(i).doubleValue();
+        }
+        return values;
+    }
+
     public static int[] ringAbility() {
         Object override = TEST_OVERRIDES.get("ringAbility");
         if (override instanceof int[] ints && ints.length >= 5) {
@@ -289,6 +396,15 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.IntValue modernLimit;
         public final ForgeConfigSpec.IntValue maxDmgOnPlayer;
         public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
+        public final ForgeConfigSpec.DoubleValue dropGrudge;
+        public final ForgeConfigSpec.IntValue despawnEgg;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileVolCore;
+        public final ForgeConfigSpec.IntValue polyGravelBaseRate;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
+        public final ForgeConfigSpec.BooleanValue checkRing;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> mobSpawn;
         public final ForgeConfigSpec.BooleanValue enableMetamorphSkill;
         public final ForgeConfigSpec.DoubleValue expGainPlayerSkill;
         public final ForgeConfigSpec.DoubleValue morphHpRatio;
@@ -353,6 +469,36 @@ public final class ShinColleConfig {
             this.despawnMinion = builder
                     .comment("Despawn time of nonboss ship, -1 = do NOT despawn")
                     .defineInRange("despawnMinion", 600, -1, 1728000);
+            this.despawnEgg = builder
+                    .comment("Despawn time of spawn egg of ship mob, -1 = do NOT despawn (Despawn_Egg)")
+                    .defineInRange("Despawn_Egg", 12000, -1, 1728000);
+            this.dropGrudge = builder
+                    .comment("Grudge drop rate (ex: 0.5 = 50% drop 1 grudge, 5.5 = drop 5 grudge + 50% drop 1 grudge) (DropRate_Grudge)")
+                    .defineInRange("DropRate_Grudge", 1.0D, 0.0D, 64.0D);
+            this.tileShipyardSmall = builder
+                    .comment("Small shipyard: max fuel storage, build speed, fuel magnification (Tile_SmallShipyard)")
+                    .defineList("Tile_SmallShipyard", List.of(460800.0D, 48.0D, 1.0D), entry -> entry instanceof Number);
+            this.tileShipyardLarge = builder
+                    .comment("Large shipyard: max fuel storage, build speed, fuel magnification (Tile_LargeShipyard)")
+                    .defineList("Tile_LargeShipyard", List.of(1382400.0D, 48.0D, 1.0D), entry -> entry instanceof Number);
+            this.tileVolCore = builder
+                    .comment("Volcano Core: max fuel storage, fuel consume speed, fuel value per grudge item (Tile_VolCore)")
+                    .defineList("Tile_VolCore", List.of(9600.0D, 16.0D, 240.0D), entry -> entry instanceof Number);
+            this.checkRing = builder
+                    .comment("Spawn mob ship only if player has marriage ring (Check_Ring)")
+                    .define("Check_Ring", true);
+            this.mobSpawn = builder
+                    .comment("Mob ship spawn: [max mob in all worlds, spawn chance (0~100), groups, min per group, max per group] (Limit_MobSpawnNumber)")
+                    .defineList("Limit_MobSpawnNumber", List.of(50, 10, 1, 1, 1), entry -> entry instanceof Number);
+            builder.pop();
+
+            builder.push("world_gen");
+            this.polyGravelBaseRate = builder
+                    .comment("Polymetallic Gravel clusters in one chunk (Polymetal_Gravel)")
+                    .defineInRange("Polymetal_Gravel", 4, 0, 100);
+            this.polyGravelBaseBlock = builder
+                    .comment("PolyGravel replaced block: stone, gravel, sand, dirt (Polymetal_Gravel_Replace)")
+                    .defineList("Polymetal_Gravel_Replace", List.of(true, true, false, false), entry -> entry instanceof Boolean);
             builder.pop();
 
             builder.push("ship_setting");
