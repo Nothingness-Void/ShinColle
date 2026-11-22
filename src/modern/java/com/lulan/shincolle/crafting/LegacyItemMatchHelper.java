@@ -85,7 +85,8 @@ public final class LegacyItemMatchHelper {
         if (!checkOredict) {
             return false;
         }
-        if (target.getTags().anyMatch(tag -> template.getTags().anyMatch(tag::equals))) {
+        if (target.getTags().filter(LegacyItemMatchHelper::isLegacyMatchingTag)
+                .anyMatch(tag -> template.getTags().anyMatch(tag::equals))) {
             return true;
         }
         if (ShinColleConfig.polyAsMn()) {
@@ -96,6 +97,19 @@ public final class LegacyItemMatchHelper {
             }
         }
         return false;
+    }
+
+    private static boolean isLegacyMatchingTag(TagKey<Item> tag) {
+        ResourceLocation id = tag.location();
+        if ((id.getNamespace().equals("c") || id.getNamespace().equals("forge"))
+                && switch (id.getPath()) {
+                    case "buckets", "ingots", "nuggets", "ores", "dusts", "gems", "storage_blocks" -> true;
+                    default -> false;
+                }) {
+            return false;
+        }
+        return !id.getNamespace().equals("minecraft") || !id.getPath().equals("beacon_payment_items")
+                && !id.getPath().equals("trim_materials");
     }
 
     private static boolean matchesLegacyNbt(ItemStack target, ItemStack template) {
