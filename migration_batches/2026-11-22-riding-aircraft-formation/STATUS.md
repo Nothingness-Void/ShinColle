@@ -1,14 +1,10 @@
 # Consolidated VM queue
 
-Latest07:19: D3 Neo fixture/barrier cause resolved in2200559 (365/365, pushed),
-same wider fixture backported. B2 kill+entity-region reload resurrection reproduced
-and fixed in read health restoration; Forge360/360 green. See
-[B2 evidence](../2026-11-22-inventory-book-layout/round2-result.md).
-
-Authoritative latest: [CHECKPOINT06:53](CHECKPOINT.md). Forge357/357 is pushed;
-Neo build passes but365 GT have1 required D3 mount-route failure, not pushed.
-New B round2 kill/reload resurrection is OPEN; no verdict or production fix yet.
-Earlier progress below is superseded where the checkpoint explicitly differs.
+Authoritative latest: [08:00 result and outstanding VM checks](queue-final-result.md).
+Forge362/362, Neo370/370 green after dynamic formation test. Neo source4302073
+pushed; Forge44bfc38 remains local under the explicit push hold. D3 fixture and
+B2 production regressions resolved; original line-abreast stall not reproduced.
+Earlier gate snapshots below are historical, not current blockers.
 
 | Item | Verdict | Legacy evidence / change |
 | --- | --- | --- |
@@ -23,13 +19,14 @@ Earlier progress below is superseded where the checkpoint explicitly differs.
 | Desk book | fixed text; remaining layout legacy-identical | Restored115 English values from en_US.lang; all37 explicit page entries retain legacy text/image/icon placements and 0.8 text scale. |
 | Aircraft collision/path | fixed | BasicEntityAirplane disables entity collision only; normal move and ShipPathFinder retain solids. Removed noPhysics and restored obstacle path steering. |
 | Mount right-click | fixed | BasicEntityMount is living/pickable and interacts to ride; modern false isPickable blocked client selection before existing interact. |
-| Shimakaze minecart | fixed 1.21 attachment; pose legacy-identical | Both normal/bored ModelDestroyerShimakaze bodies match; old/Forge cart anchor0 versus 1.21 anchor0.1875 compensated in NeoForge only. |
-| Line-abreast settling | OPEN | Formulas, thresholds4/7, pickup64, repath/stuck32, turn60 and explicit extra movement match legacy. Live oscillation cause not established; no speculative change. |
-| Curios ring slot/all effects | implemented; final gates pending | Add curios:ring; support Forge LazyOptional and Neo Optional, dispatch full legacy onUpdate-equivalent inventory tick for passive breathing even toggled off. Real optional integration GT covers active/off/remove/fire/breathing/water flight. |
-| Attrs_Scale / four hostile arrays | implemented; final gates pending | ConfigHandler113–119/395–400 exact defaults; all production friendly/buff/potion/movement and hostile-band uses read config. Tables retain default reference constants. |
+| Shimakaze minecart | attachment compensated; visual OPEN | Normal/bored model source matches legacy; old/Forge cart anchor0 versus 1.21 anchor0.1875 compensated in Neo only. New diagnostic frames still show boots outside cart and body mostly concealed; not a passing visual check or verified cause. |
+| Line-abreast settling | controlled trace matches; original stall OPEN | Six real slots×384ticks compare independent formula/4 and7 hysteresis/path fields and reach squared7 arrival on both versions. Original4.6–5.9 gap not reproduced; fixture isolates follow goal and overrides owner lookup. No production change. See line-abreast-result.md. |
+| Curios ring slot/all effects | fixed; gates green | Add curios:ring; support Forge LazyOptional and Neo Optional, dispatch full legacy onUpdate-equivalent inventory tick for passive breathing even toggled off. Real optional integration GT covers active/off/remove/fire/breathing/water flight. |
+| Attrs_Scale / four hostile arrays | fixed; gates green | ConfigHandler113–119/395–400 exact defaults; all production friendly/buff/potion/movement and hostile-band uses read config. Tables retain default reference constants. |
 | Morph G/H | unlock-only gate legacy-identical; client counter-check pending | Old C2SInputPackets/GuiHandler require active morphEntity; modern unlock neither selects nor activates, missing selected profile closes screen. No invented activation; external bridge remains none. |
-| OpenAL Stop error | OPEN | Vanilla Channel.stop/destroy both issue this diagnostic; supplied full log missing here; no causal mod stop/loop call found. Cannot classify a single message as migration or legacy. |
-| Floating fortress + all 8 Hime mounts | implemented; full gate/visual pending | BasicEntityMount/EntityFloatingFort and ShipPathFinder keep solid collision. Remove noPhysics and share aerial obstacle route helper with aircraft. D3 GT all8 styles+fort checks swept glass, finite wall routing, clear path. Root start node skipped so partial-height entities do not try to climb into a ceiling solely from start-Y rounding. |
+| OpenAL Stop error | vanilla/unattributed | Explicit stop/stopsound/custom SoundInstance audit finds no mod path. Vanilla Channel.stop/destroy issue this label. No single-session causal attribution and no workaround. See openal-result.md. |
+| Floating fortress + all 8 Hime mounts | fixed; full gates green, wall visuals OPEN | Legacy keeps solid collision. Shared swept bounds/obstacle routing and all8 real mount profiles+fort pass. Neo failure was9³ GameTest barrier enclosure, resolved by dedicated fixture without assertion changes. See D3-resolution.md. |
+| B2 kill/reload | fixed | Actual command kill and entity-region storage reload reproduce health refill after variant reconstruction. Restore original Health and death lock. Neo damage overflow also caused kill NaN: saturate amplified damage finite, same normal RNG/formula. See inventory-book-layout/round2-result.md. |
 
 ## Complete recipe differences
 

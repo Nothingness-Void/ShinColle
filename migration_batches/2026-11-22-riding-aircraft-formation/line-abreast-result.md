@@ -27,3 +27,11 @@ Only one fleet member moves at a time; other fixtures remain at staging. Thus
 crowded fleet, actual player movement/terrain and original world's state remain
 unverified. To investigate original stall further, capture its actual live fleet
 and follow goal target/paths rather than infer legacy-identical from source alone.
+
+Neo annotations adapted only: build17s,370/370 full GT70s green. Copies of both
+2304-row CSVs persist at /home/ubuntu/shincolle-line-abreast-{forge,neo}.csv.
+Final squared distances slots0..5:
+Forge 0.270354,0.233494,0.284092,0.113071,1.130521,0.088964;
+Neo 0.273449,0.233494,0.284092,0.351964,1.962461,0.088964.
+Every controlled slot is below squared7; this disproves a universal deterministic
+pickup-off formation5 settling failure, not a configuration/terrain-specific one.
