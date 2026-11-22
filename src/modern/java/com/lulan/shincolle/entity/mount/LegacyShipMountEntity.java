@@ -229,9 +229,13 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     private void moveToward(Vec3 destination, double stopDistance, LegacyShipEntity host) {
+        if (this.position().distanceToSqr(destination) <= stopDistance * stopDistance) {
+            this.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
         Vec3 offset = this.obstaclePath.resolve(this, destination).subtract(this.position());
         double distance = offset.length();
-        if (distance <= stopDistance) {
+        if (distance < 1.0E-7D) {
             this.setDeltaMovement(Vec3.ZERO);
             return;
         }

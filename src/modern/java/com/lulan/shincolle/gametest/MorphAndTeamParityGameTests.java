@@ -3,10 +3,14 @@ package com.lulan.shincolle.gametest;
 import com.mojang.authlib.GameProfile;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.item.PointerCommandEvents;
 import com.lulan.shincolle.item.PointerItem;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
+import com.lulan.shincolle.network.ServerboundShipCommandPacket;
+import com.lulan.shincolle.network.ShipCommandService;
+import com.lulan.shincolle.registry.ModBlocks;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuData;
@@ -19,6 +23,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -46,6 +51,91 @@ public final class MorphAndTeamParityGameTests {
         ship.setPos(pos.getX(), pos.getY(), pos.getZ());
         ship.setOwner(owner.getUUID(), owner.getGameProfile().getName(), 98401);
         return ship;
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void pointerLongRaySelectsOwnedTransportAndDispatchesToCrane(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        LegacyShipEntity transport = ship(helper, player);
+        transport.setVariantEggMeta(18);
+        BlockPos origin = helper.absolutePos(new BlockPos(3, 150, 2));
+        player.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
+        player.setYRot(0);
+        player.setXRot(0);
+        transport.setPos(player.getX(), player.getY(), player.getZ() + 20.0D);
+        helper.getLevel().addFreshEntity(transport);
+        transport.tickCount++;
+        transport.tick();
+        player.setXRot((float) Math.toDegrees(Math.atan2(
+                player.getEyeY() - transport.getY() - transport.getBbHeight() * 0.5D, 20.0D)));
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.POINTERITEM.get()));
+        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        data.clearCurrentTeam();
+        BlockPos crane = origin.offset(4, 0, 0);
+        helper.getLevel().setBlockAndUpdate(crane, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
+        var order = ServerboundShipCommandPacket.guardBlock(0, -1, -1, crane);
+        try {
+            helper.assertTrue(!ShipCommandService.handle(player, order),
+                    "an empty team must not dispatch a transport");
+            var hit = PointerItem.pickCommandTarget(player);
+            helper.assertTrue(hit != null && hit.getEntity() == transport && player.distanceToSqr(transport) > 9.0D,
+                    "legacy long ray: eye=" + player.getEyePosition() + " look=" + player.getLookAngle()
+                            + " box=" + transport.getBoundingBox() + " pick=" + transport.isPickable()
+                            + " invuln=" + transport.isInvulnerable() + " tracked="
+                            + (helper.getLevel().getEntity(transport.getId()) == transport) + " hit=" + hit);
+            CompoundTag payload = new CompoundTag();
+            payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, hit.getEntity().getId());
+            GameplayCommandHandler.handle(player, GameplayCommandType.POINTER_LEFT_CLICK, payload);
+            helper.assertTrue(data.getShipUid(0, 0) == transport.getShipUid() && data.isShipSelected(0, 0),
+                    "a single-mode long click must add and focus the owned transport on the server");
+            helper.assertTrue(ShipCommandService.handle(player, order)
+                            && crane.equals(transport.getRouteNodePos()),
+                    "the selected transport must accept the actual crane route-node command");
+            BlockPos wall = origin.offset(0, 1, 10);
+            helper.getLevel().setBlockAndUpdate(wall, Blocks.STONE.defaultBlockState());
+            helper.assertTrue(PointerItem.pickCommandTarget(player) == null,
+                    "solid blocks must occlude the legacy long selection ray");
+            helper.getLevel().setBlockAndUpdate(wall, Blocks.AIR.defaultBlockState());
+            player.setYRot(90);
+            helper.assertTrue(PointerItem.pickCommandTarget(player) == null, "an empty ray must not select a ship");
+            data.clearCurrentTeam();
+            payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, -1);
+            GameplayCommandHandler.handle(player, GameplayCommandType.POINTER_LEFT_CLICK, payload);
+            transport.setOwner(UUID.randomUUID(), "Foreign", 98402);
+            payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, transport.getId());
+            GameplayCommandHandler.handle(player, GameplayCommandType.POINTER_LEFT_CLICK, payload);
+            helper.assertTrue(data.getShipUid(0, 0) <= 0, "missing and foreign ray targets must not join the fleet");
+            transport.setOwner(player.getUUID(), player.getGameProfile().getName(), 98401);
+            transport.setPos(player.getX(), player.getY(), player.getZ() + 70.0D);
+            GameplayCommandHandler.handle(player, GameplayCommandType.POINTER_LEFT_CLICK, payload);
+            helper.assertTrue(data.getShipUid(0, 0) <= 0, "a forged out-of-range ray target must not join the fleet");
+            LegacyShipEntity host = ship(helper, player);
+            host.setVariantEggMeta(23);
+            host.setGrudge(50000);
+            host.setPos(player.getX() + 5, player.getY(), player.getZ() + 20);
+            helper.getLevel().addFreshEntity(host);
+            host.tickCount++;
+            host.tick();
+            host.setModelState(1);
+            var mount = LegacyShipMountEntity.create(helper.getLevel(), host);
+            helper.assertTrue(mount != null, "owned Airfield Hime must create a pointer-targetable mount");
+            helper.getLevel().addFreshEntity(mount);
+            helper.assertTrue(host.startRiding(mount, true), "mount target must have its actual host passenger");
+            try {
+                payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, mount.getId());
+                GameplayCommandHandler.handle(player, GameplayCommandType.POINTER_LEFT_CLICK, payload);
+                helper.assertTrue(data.getShipUid(0, 0) == host.getShipUid() && data.isShipSelected(0, 0),
+                        "a pointer hit on an owned mount must focus its host ship");
+            } finally {
+                host.stopRiding();
+                mount.discard();
+                host.discard();
+            }
+            helper.succeed();
+        } finally {
+            transport.discard();
+            helper.getLevel().setBlockAndUpdate(crane, Blocks.AIR.defaultBlockState());
+        }
     }
 
     @GameTest(template = "gameplayparitygametests.empty")

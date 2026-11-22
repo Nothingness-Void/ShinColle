@@ -22,7 +22,7 @@ public final class LegacyShipObstaclePath {
         BlockPos target = BlockPos.containing(destination);
         if (this.path == null || !target.equals(this.target) || entity.tickCount >= this.nextPathTick) {
             this.path = new ShipPathFinder(entity.level(), true).findPath(
-                    entity, target.getX(), target.getY(), target.getZ(), 32.0F);
+                    entity, target.getX(), target.getY(), target.getZ(), 70.0F);
             if (this.path != null && this.path.getCurrentPathLength() > 1) {
                 this.path.incrementPathIndex();
             }

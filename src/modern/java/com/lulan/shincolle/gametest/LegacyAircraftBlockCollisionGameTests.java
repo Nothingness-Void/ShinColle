@@ -24,6 +24,58 @@ public final class LegacyAircraftBlockCollisionGameTests {
     }
 
     @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space")
+    public static void allEightMountsActuallyTickPastIntermediateWaypoints(GameTestHelper helper) {
+        BlockPos origin = helper.absolutePos(new BlockPos(4, 5, 4));
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -1; y <= 4; y++) {
+                helper.getLevel().setBlockAndUpdate(origin.offset(x, y, 3), Blocks.GLASS.defaultBlockState());
+            }
+        }
+        for (int egg : new int[] {23, 30, 31, 32, 22, 28, 35, 46}) {
+            var host = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+            helper.assertTrue(host != null, "mount host must exist");
+            host.setVariantEggMeta(egg);
+            host.setModelState(1);
+            host.setGrudge(50000);
+            host.setNoAi(true);
+            host.setNoGravity(true);
+            host.setPos(origin.getX() - 3, origin.getY(), origin.getZ() - 2);
+            helper.getLevel().addFreshEntity(host);
+            var mount = LegacyShipMountEntity.create(helper.getLevel(), host);
+            helper.assertTrue(mount != null, "each Hime must have a real factory mount");
+            helper.getLevel().addFreshEntity(mount);
+            helper.assertTrue(host.startRiding(mount, true), "actual mount tick requires its real host passenger");
+            Vec3 start = new Vec3(origin.getX() + 0.5D, origin.getY(), origin.getZ() - 2.5D);
+            mount.setPos(start);
+            BlockPos destination = BlockPos.containing(start.add(0, 0, 15));
+            host.commandMoveTo(destination, helper.getLevel().dimension().location().toString());
+            try {
+                for (int tick = 0; tick < 200 && mount.getZ() < origin.getZ() + 5; tick++) {
+                    mount.tickCount++;
+                    mount.tick();
+                    helper.assertTrue(!mount.isRemoved() && helper.getLevel().noCollision(mount, mount.getBoundingBox()),
+                            "actual mount movement must stay valid and outside glass: " + egg);
+                }
+                helper.assertTrue(mount.getZ() >= origin.getZ() + 5,
+                        "mount.tick must not apply final arrival radius to an intermediate node: " + egg + " " + mount.position());
+                Vec3 open = start.add(15, 0, 0);
+                mount.setPos(open);
+                host.commandMoveTo(BlockPos.containing(open.add(0, 0, 3)), helper.getLevel().dimension().location().toString());
+                mount.tickCount++;
+                mount.tick();
+                helper.assertTrue(mount.getZ() > open.z, "unobstructed movement must remain enabled");
+                host.stopRiding();
+                mount.tick();
+                helper.assertTrue(mount.isRemoved(), "orphaned mounts must still be discarded");
+            } finally {
+                mount.discard();
+                host.discard();
+            }
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space")
     public static void floatingFortAndAllEightMountStylesKeepSolidsAndObstacleRoutes(GameTestHelper helper) {
         BlockPos origin = helper.absolutePos(new BlockPos(4, 5, 4));
         for (int x = -2; x <= 2; x++) {

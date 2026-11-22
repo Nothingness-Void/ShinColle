@@ -8,6 +8,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.formation.FormationRuntimeState;
 import com.lulan.shincolle.menu.DeskMenu;
 import com.lulan.shincolle.item.OpToolItem;
+import com.lulan.shincolle.item.PointerCommandEvents;
 import com.lulan.shincolle.item.TargetWrenchItem;
 import net.minecraft.nbt.NbtUtils;
 import com.lulan.shincolle.menu.FormationMenu;
@@ -98,6 +99,7 @@ public final class GameplayCommandHandler {
                         teamId + 1), true);
             }
             case ASSIGN_SHIP_SLOT -> handleAssignShip(player, payload);
+            case POINTER_LEFT_CLICK -> PointerCommandEvents.handleRayHit(player, payload.getInt(TAG_TARGET_ID));
             case SWAP_TEAM_SLOT -> handleSwapTeamSlots(player, payload);
             case TOGGLE_SHIP_SELECT -> handleToggleShipSelect(player, payload);
             case SET_SLOT_SELECTION -> handleSetSlotSelection(player, payload);

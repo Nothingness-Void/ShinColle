@@ -106,7 +106,7 @@ public final class PointerClientEvents {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(receiveCanceled = true)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
         if (!(event.getEntity() instanceof LocalPlayer player)) {
             return;
@@ -127,6 +127,14 @@ public final class PointerClientEvents {
         }
 
         int mode = PointerItem.getMode(pointer);
+        if (!PointerItem.isCaressMode(mode)) {
+            EntityHitResult hit = PointerItem.pickCommandTarget(player);
+            if (hit != null) {
+                sendCommand(GameplayCommandType.POINTER_LEFT_CLICK, payload ->
+                        payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, hit.getEntity().getId()));
+                return;
+            }
+        }
         if (player.isShiftKeyDown()) {
             if (player.isSprinting()) {
                 sendEmptyCommand(GameplayCommandType.CLEAR_CURRENT_TEAM);

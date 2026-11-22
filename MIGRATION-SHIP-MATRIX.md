@@ -35,12 +35,12 @@ GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migrati
 | 13 | `EntityBattleshipRu` | `EntityBattleshipRu` | heavy barrage、ring Luck、block target、damage profile、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | queued barrage edge cases |
 | 14 | `EntityBattleshipTa` | `EntityBattleshipTa` | Rensouhou pool、light hook、model state、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | servant lifecycle edge cases |
 | 15 | `EntityBattleshipRe` | `EntityBattleshipRe` | light laser、push、damage profile、mounted、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | post-attack motion edge cases |
-| 16 | `EntityTransportWa` | `EntityTransportWa` | supply loop、task/cargo、mounted、attack eligibility、idle AP resource | LOCKED | route interruption / save |
+| 16 | `EntityTransportWa` | `EntityTransportWa` | supply loop、task/cargo、mounted、attack eligibility、idle AP resource、64格Pointer实际crane派遣GT | LOCKED | route interruption / save |
 | 17 | `EntitySubmKa` | `EntitySubmKa` | submarine path、invisibility、pickup、mounted、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 18 | `EntitySubmYo` | `EntitySubmYo` | submarine path、invisibility、pickup、mounted、light missile、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 19 | `EntitySubmSo` | `EntitySubmSo` | submarine path、invisibility、pickup、mounted、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 20 | `EntityCarrierHime` | `EntityCarrierHime` | melee missile、mount、aura/heal、damage、air selection/capacity/recovery、launch height | LOCKED | boss runtime edge cases |
-| 21 | `EntityAirfieldHime` | `EntityAirfieldHime` | mount、heal、air attack、damage、legacy model source/bake、model state bit 1、0.7F launch height | LOCKED | boss/runtime edge cases |
+| 21 | `EntityAirfieldHime` | `EntityAirfieldHime` | mount、heal、air attack、damage、legacy model source/bake、model state bit 1、0.7F launch height、实际mount waypoint/Pointer host选择GT | LOCKED | boss/runtime edge cases / independent LEVITATION API |
 | 26 | `EntityBattleshipHime` | `EntityBattleshipHime` | cluster heavy、mount、resistance aura、damage、legacy model source/bake、cluster projectile family | LOCKED | boss/runtime edge cases |
 | 27 | `EntityDestroyerHime` | `EntityDestroyerHime` | mount、blindness effect、damage、legacy model source/bake、model state bits 0-5 | LOCKED | boss/runtime edge cases；[获批陆上开腿，水中保留旧 bit4](migration_batches/neoforge-1.21.1/decision.md) |
 | 28 | `EntityHarbourHime` | `EntityHarbourHime` | railgun、mount、heal/attack effect、damage、legacy model source/bake、0.7F launch height、railgun particle | LOCKED | boss/runtime edge cases |
