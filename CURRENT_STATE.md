@@ -1,5 +1,9 @@
 # 当前状态
 
+> 最新07:09覆盖旧checkpoint：D3失败已定位为1.21 GameTest自动barrier封闭9³模板，目标和detour在模板外，并非已证实的游戏路径/远坐标bug。新增完整flight_space模板，原始随机远位置/墙/速度/160tick/所有断言不变，另断言目标AABB无遮挡；Neo build10s、365/365 GT42s通过，即刻commit/push，再按用户顺序调查B2 /kill。证据见[D3-resolution](migration_batches/2026-11-22-riding-aircraft-formation/D3-resolution.md)。旧checkpoint仅历史，不再是阻塞。
+
+> 权威最新06:53：Forge d375353已push，build12s、357/357 GT54s绿；Neo本地merge c6fc3fd→bb8eb58（未push），build9s绿但365 GT中1个D3 mount绕玻璃角失败。同一失败三次停止重试，先诊断随机远坐标path/partial-path，再新增B2 /kill复现。源码已提交，剩余dirty仅checkpoint文档；缺失目标截图尚未做。详细错误、排除项、命令、SHA和新B2范围见[migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md](migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md)。下方旧checkpoints遇冲突以此为准。
+
 本文件只保存当前事实与交接快照；历史入口见 [迁移变更索引](MIGRATION-CHANGELOG.md)，下一步只看 [ROADMAP.md](ROADMAP.md)。
 
 <a id="当前任务"></a>

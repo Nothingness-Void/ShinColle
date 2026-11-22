@@ -1,7 +1,13 @@
 # Consolidated VM queue
 
-Implementation review complete except the live line-abreast settling cause.
-Final gates, commits and requested NeoForge VM screenshots pending below.
+Latest07:09: D3 resolved, Neo build10s and365/365 full GT42s green. The actual
+cause was the9³ GameTest barrier enclosure, not proven gameplay precision.
+See [verified chain and unchanged assertions](D3-resolution.md). B2 remains next.
+
+Authoritative latest: [CHECKPOINT06:53](CHECKPOINT.md). Forge357/357 is pushed;
+Neo build passes but365 GT have1 required D3 mount-route failure, not pushed.
+New B round2 kill/reload resurrection is OPEN; no verdict or production fix yet.
+Earlier progress below is superseded where the checkpoint explicitly differs.
 
 | Item | Verdict | Legacy evidence / change |
 | --- | --- | --- |

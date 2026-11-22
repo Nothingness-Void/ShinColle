@@ -1,0 +1,11 @@
+{
+  size: [26, 16, 24],
+  entities: [],
+  blocks: [
+    {pos: [0, 0, 0], state: 0}
+  ],
+  palette: [
+    {Name: "minecraft:stone"}
+  ],
+  DataVersion: 3465
+}

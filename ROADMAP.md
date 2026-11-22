@@ -4,6 +4,10 @@
 
 ## 当前指针
 
+最新NEXT07:09：Neo D3已365/365，提交push后进入B2 kill/save/reload；再动态line-abreast、OpenAL stop审计、指定VM截图，最后双端门禁/push。保持旧存档mayfly不动（用户已同意）。不再重做已排除的D3浮点猜测。
+
+最新NEXT06:53：[CHECKPOINT](migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md) 的D3 Neo失败隔离，禁止重复猜测修复或降低断言；再B2 /kill保存重载调查（protocol在Forge）；之后才最终门禁、缺失截图、文档和Neo push。以下NEXT旧checkpoint不再优先。
+
 当前NEXT：F round2 / D round3 最终收口。Forge源码和真实Curios5.14.1全量357/357已绿；
 push shared helper swept-box补充后，完成Neo merge及Curios9.6完整365项门禁，
 最后完成waypoint/aircraft/mount/fort/岛风VM截图与状态更新，按Forge→Neo顺序push后停止。
