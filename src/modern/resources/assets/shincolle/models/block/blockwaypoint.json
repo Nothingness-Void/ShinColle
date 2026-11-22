@@ -1,4 +1,5 @@
 {
+  "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
     "all": "shincolle:block/blockwaypoint"

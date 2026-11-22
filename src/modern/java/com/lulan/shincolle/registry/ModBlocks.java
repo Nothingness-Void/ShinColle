@@ -53,7 +53,8 @@ public final class ModBlocks {
                     .mapColor(MapColor.WOOD)
                     .strength(1.0F, 60.0F)
                     .requiresCorrectToolForDrops()
-                    .sound(SoundType.WOOD)));
+                    .sound(SoundType.WOOD)
+                    .noOcclusion()));
 
     public static final DeferredHolder<Block, Block> BLOCK_FRAME = register("blockframe",
             () -> new Block(BlockBehaviour.Properties.of()

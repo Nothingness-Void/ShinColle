@@ -37,7 +37,7 @@ public class DeskBlockEntityRenderer implements BlockEntityRenderer<DeskBlockEnt
 
         poseStack.pushPose();
         poseStack.translate(0.5D, 1.5D, 0.5D);
-        poseStack.scale(1.0F, -1.0F, -1.0F);
+        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(rotationFor(facing)));
         this.model.render(poseStack, vertexConsumer, packedLight, packedOverlay);
         poseStack.popPose();

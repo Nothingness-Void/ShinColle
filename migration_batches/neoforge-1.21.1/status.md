@@ -321,3 +321,69 @@ with hitboxes, standing and sitting. Screenshots are recorded with the block
 follow-up below. This is not a full per-variant/animation/glow/held-item visual
 acceptance, nor a visual test of every riding/misc-model combination. Riding
 offset coverage here is source comparison plus the existing full GameTests.
+
+## Client rendering follow-up: special blocks and items
+
+- Crown is `blockcrane`: a legacy baked JSON model, not an OBJ or TESR.
+  Its model (and waypoint's) had no block-model parent, so the inventory
+  renderer inherited identity display transforms and front lighting. Looking
+  straight down Z flattens its thin frame to the gray side texture. Inherit
+  `minecraft:block/block` for the normal 3D block-item view. Legacy JSON
+  geometry/UVs/textures are otherwise byte-semantically unchanged.
+- Desk and small shipyard used Java models `ModelBlockDesk` and
+  `ModelSmallShipyard`, world TESRs and `RenderTileEntityItem`, installed by
+  `ClientProxy.init`. The modern BERs already parse those same Java models,
+  but inventory items used baked approximations instead of that renderer.
+  Register a client-only `IClientItemExtensions` BEWLR for these two items;
+  use `builtin/entity` item models, legacy block-item transforms, and dispatch
+  to their existing BERs. The shipyard inventory selects the legacy active
+  texture, as the old no-world tile did. Unknown/empty stacks simply draw
+  nothing in this renderer.
+- Both BERs flipped around X (`scale(1,-1,-1)`), whereas the TESRs rotated
+  180 degrees around Z. Restore that rotation without changing facing tables.
+  Desk also retained opaque/full-block lighting defaults: dispatcher light
+  sampled inside it was black. Match the legacy non-opaque desk with
+  `noOcclusion`; the parsed five-part model and its original 64x64 texture
+  were not missing/corrupted (old and canonical modern PNG SHA-256 both
+  `9470adea7e2e1780c8fb41cf7744985eb265b44342637d80385dbbda1493cd6e`).
+- Audit: waypoint/crane/volcano core are baked blocks in the reference, not
+  missing TESRs. Volcano core already inherits a cube model. Small shipyard
+  shares the corrected item/orientation path. The large shipyard/vortex
+  renderer and its lowercase textures already exist; it did not share the
+  missing desk/small-shipyard inventory dispatch. No unrelated BER added.
+- Removed all 16 case-colliding uppercase modern texture copies, including
+  particles. Lowercase runtime references and assets are retained unchanged.
+  The unused uppercase `GuiNameIcon2.png` differs from its lowercase sibling;
+  reference audit found the runtime uses lowercase, so retain that current
+  atlas rather than silently replacing it with the obsolete uppercase image.
+  `processResources` lowercase-copy behavior and `src/main/**` are untouched.
+
+Final-source checks are the compile/full GameTest results above, plus:
+
+```text
+Render resource checks passed: 0 case-fold collisions; legacy geometry, textures and item render paths intact
+```
+
+Command: `python3 src/modern/scripts/check_render_resources.py`.
+The two new block GameTests cover non-opaque TESR shape, legacy model parts,
+renderer marker/display parents, and canonical textures; client screenshots
+are necessary to verify the actual draw path, not replaced by those assertions.
+
+Targeted NeoForge client check passed: corrected standing/sitting ships and
+grounded hitboxes; 3D crown/desk/shipyard hotbar items, desk/shipyard held items,
+and placed desk, crane, waypoint, small shipyard and volcano core. Evidence:
+
+- `/home/ubuntu/screenshots/shincolle-ships-before.png`
+- `/home/ubuntu/screenshots/shincolle-ships-standing-after.png`
+- `/home/ubuntu/screenshots/shincolle-ships-sitting-after.png`
+- `/home/ubuntu/screenshots/shincolle-blocks-before.png`
+- `/home/ubuntu/screenshots/shincolle-blocks-after.png`
+- Client log: `/home/ubuntu/shincolle-render-client-fixed.log`
+
+**Observed upgrade caveat:** the desk already saved in the test world retained
+its old dark block-light cache until it was removed/replaced. A block/light
+update restored the correct lit texture; newly placed desks render correctly.
+This is not a claim that every previously saved chunk auto-relights. Full
+old-world upgrade, Windows-native checkout/build, complete large-shipyard
+multiblock visuals, all model/animation/rider combinations, and broad client
+parity remain unverified. No new mechanics or model-local gameplay values.
