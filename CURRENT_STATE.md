@@ -8,13 +8,13 @@
 - 分支：`devin/parity-fix-integration`，基于 `origin/codex/mc-1.20.1`。
 - 已集成九个 parity 修复批次：ship-core、combat-projectile、ai-movement、ship-variants、menu-network-command、client、items-blocks、crafting-world-config、teitoku-morph-skill。各批次过程和历史验收从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入，不以专题历史分支/通过数覆盖当前集成状态。
 - 最终 merge：`042a3696bef65c712614ea19ba4ae76ddec3f8af`；前序物品方块 merge 为 `ba0288157aa67cbad12c65b229f1d66106328e82`，crafting/world/config merge 为 `351e3ab5ca02ccf1cc1940cc019e5e99876a2d75`。
-- 当前任务：将 NeoForge 后续渲染修复回移 Forge 47 / JDK17；包含获批 Destroyer Hime 陆上开腿（不改存储 bit）、水中保留旧切换。推送 integration 后仅将更新基线 merge 回 NeoForge 并按用户要求验证；不修改 `codex/mc-1.20.1` 或 src/main。
+- 当前任务：GUI/audio 回归复核；Forge 先恢复大型船坞旧布局，再 merge NeoForge。仅修迁移差异，保留雷达长名及冻结整点报时；双端验证与截图后推送并停止，不修改 `codex/mc-1.20.1` 或 src/main。
 - 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`；本轮其余改动仅迁移文档。`src/main/**` 继续只读，相对 `origin/codex/mc-1.20.1` 无差异。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
 
-- 本轮 GUI/audio 复核：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时先按旧版保留。[复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。本轮仅按授权同步 NeoForge、验证截图并推送，不启动历史 NEXT。
+- 本轮 GUI/audio 复核完成：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时按旧版保留，报时 A/B 已复现。双端门禁和 scale-8 GUI 见[复核记录](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。最终同步推送后停止，不启动历史 NEXT。
 
 - 渲染回移：JDK17 build 成功，全量 **344/344** GameTests 通过；资源零大小写冲突，45 模型源码核对（仅精确豁免获批陆上开腿）及 64 变体/1536 姿态 CPU 测量通过。源提交、API 适配、review 不适用结论与视觉边界见 [本批记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。
 

@@ -9,6 +9,10 @@ Only the following level/HP/coordinates use scale 0.8. This is also true in
 checked by src/modern/scripts/check_gui_audio_parity.py. A long English name
 such as Isolated Island Princess therefore overflows the 113-pixel right panel
 in legacy as well. No name-rendering changes are authorized by this report.
+Input cross-check: legacy en_US.lang entity keys EntityIsolatedHime,
+EntityNorthernHime and EntityDestroyerHime already translate to exactly the same
+Isolated Island Princess, Northern Princess and Destroyer Princess strings.
+This is not a regression introduced by longer modern English names.
 
 ## 2. Large shipyard: regression fixed
 
@@ -50,5 +54,12 @@ on every server tick, exactly as modern code does. Its playTimeSound (484)
 plays ordinary sounds, not retained loop instances. Suppressing this replay or
 adding a cooldown would change this legacy behavior, so no such fix was made.
 
-Final client A/B at frozen 6001 versus 6000 will discriminate this path from a
-retained-loop leak; record measurements in STATUS.md before calling it verified.
+Live NeoForge counter-check in an isolated copy of the reported world now
+reproduces this chain: at the same ship position, frozen 6001 has zero pool/handle
+warnings; frozen 6000 produces 1025 of each over 24 seconds; switching back to
+6001 and stopping queued sounds yields zero of either for 34 seconds. The
+timeKeeping config is enabled and both voice volume multipliers are 1.0. This
+disproves a persistent custom-loop leak as the cause of this reproduction.
+No audio code was changed. This verifies the reproduced legacy timing path,
+not a claim that all possible sources of sound saturation have been excluded.
+Measurements and scope are in STATUS.md.

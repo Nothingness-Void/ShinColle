@@ -4,7 +4,7 @@
 
 ## 当前指针
 
-本轮追加授权：先 Forge 再 merge NeoForge，复核并仅修 GUI/audio 迁移回归；完成双端 build/GameTests 与 scale-8 GUI 证据并推送后停止。[协议](migration_batches/2026-11-22-gui-audio-regressions/protocol.md)。历史 NEXT 不变。
+本轮 GUI/audio 复核已完成双端 build/GameTests、scale-8 GUI 与报时 A/B；只恢复船坞旧 UI。最终同步并推送两端后停止，[证据](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。历史 NEXT 不变。
 
 本轮用户授权渲染回移和 Destroyer Hime 陆上开腿例外，完成后只同步并验证 NeoForge 分支、推送两端，然后停止；[本批边界](migration_batches/rendering-backport-1.20.1/protocol.md)。下列历史队列不自动启动。
 唯一 NEXT：**剩余自定义粒子严格移植**。九批集成收尾推送后停在这里，未获用户授权不自动开工。
