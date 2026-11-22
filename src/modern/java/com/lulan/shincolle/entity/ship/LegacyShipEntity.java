@@ -1266,7 +1266,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     @Override
     public Vec3 getVehicleAttachmentPoint(Entity vehicle) {
-        return new Vec3(0.0D, -this.getMyRidingOffset(), 0.0D);
+        return com.lulan.shincolle.entity.LegacyRiding.vehicleAttachment(this, vehicle);
     }
 
     @Override
