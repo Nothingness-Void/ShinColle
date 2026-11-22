@@ -4,6 +4,11 @@
 
 ## 当前指针
 
+最新NEXT07:19：B2 Forge360/360提交push，merge Neo并适配EntityStorage；随后按本轮用户顺序做动态line-abreast、OpenAL、指定VM截图，最终双端绿/push。旧存档mayfly保持不动。
+
+最新NEXT06:53：[CHECKPOINT](migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md) 的D3 Neo失败隔离，禁止重复猜测修复或降低断言；再B2 /kill保存重载调查（protocol在Forge）；之后才最终门禁、缺失截图、文档和Neo push。以下NEXT旧checkpoint不再优先。
+
+
 最新NEXT07:09：Neo D3已365/365，提交push后进入B2 kill/save/reload；再动态line-abreast、OpenAL stop审计、指定VM截图，最后双端门禁/push。保持旧存档mayfly不动（用户已同意）。不再重做已排除的D3浮点猜测。
 
 最新NEXT06:53：[CHECKPOINT](migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md) 的D3 Neo失败隔离，禁止重复猜测修复或降低断言；再B2 /kill保存重载调查（protocol在Forge）；之后才最终门禁、缺失截图、文档和Neo push。以下NEXT旧checkpoint不再优先。
