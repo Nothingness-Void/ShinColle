@@ -23,7 +23,7 @@ public final class LegacyNegativeHeightGameTests {
     private LegacyNegativeHeightGameTests() {
     }
 
-    @GameTest(template = "empty")
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void waterDepthAndBuoyancyAreTranslationInvariantBelowZero(GameTestHelper helper) {
         for (int surface : new int[] {65, -60}) {
             for (double coordinate : new double[] {3200.5D, -3200.5D}) {
