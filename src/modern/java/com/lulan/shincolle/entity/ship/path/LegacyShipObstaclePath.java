@@ -2,8 +2,6 @@ package com.lulan.shincolle.entity.ship.path;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -15,8 +13,8 @@ public final class LegacyShipObstaclePath {
 
     public Vec3 resolve(Entity entity, Vec3 destination) {
         if (!entity.horizontalCollision && !entity.verticalCollision
-                && entity.level().clip(new ClipContext(entity.position(), destination, ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, entity)).getType() == HitResult.Type.MISS) {
+                && !entity.level().getBlockCollisions(entity,
+                entity.getBoundingBox().expandTowards(destination.subtract(entity.position()))).iterator().hasNext()) {
             this.path = null;
             this.target = null;
             return destination;

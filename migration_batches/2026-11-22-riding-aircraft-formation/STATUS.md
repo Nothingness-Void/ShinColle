@@ -64,3 +64,15 @@ also revokes ring-owned flying when toggle is off (mayfly never granted/revoked)
 NeoForge port/final gate and D3 visual evidence still pending. Latest waypoint
 stone/wrench VM screenshots: /home/ubuntu/screenshots/shincolle-121-queue-waypoint-
 {stone,wrench}.png (same camera; stone genuinely equipped, not pointer).
+
+Follow-up from the Neo gate: the helper's feet-only line-of-sight shortcut could
+abandon a usable route while the mount's upper body was still beneath a glass
+overhang. Replace that shortcut with a block-only swept bounding-box test;
+entity-collision behavior is not changed. Strengthen D3 fixtures by adding real
+hosts/targets to the level and asserting host resolution so all eight actual
+host profiles, not the no-host fallback dimensions, are exercised. Shorten only
+failure diagnostics to fit the 1.21 GameTest lectern's 1024-character book limit.
+
+Final Forge follow-up gate06:50: build SUCCESSFUL in12s (8 tasks:5 executed,
+3 up-to-date); all357 required GT passed, SUCCESSFUL in54s (11 tasks:3 executed,
+8 up-to-date). Same round2 log paths, supersedes the16s/65s gate above.

@@ -12,6 +12,8 @@
 
 ## 最近证据与权威入口
 
+- 最新06:50：后续共享helper的feet-ray shortcut在Neo失败，已Forge-first改成block-only swept AABB，GT加入真实已跟踪host并断言解析，全部8种实际profile均覆盖。最终Forge build12s、357/357 GT、54s通过（真实Curios5.14.1 ring槽），日志同round2路径。下一步push此补充，再Neo移植/完成merge、private QA gameDir完整门禁，最后截图。Neo原run/config与他人旧client FileWatcher冲突，改用外部init /home/ubuntu/shincolle-queue-gametest.init.gradle，复制run/gameteststructures到私有gameDir；不能关闭他人原client56623113。
+
 - **最终Forge06:38（覆盖下方WIP checkpoints）**：最新source已完成build16s、357/357 required GT，含真实Curios5.14.1 ring配置槽的全能力/禁用/移除分支，日志/home/ubuntu/shincolle-queue-forge-round2-{build,gametest}.log。isRingFlying legacy缓存flag在scan中保留，不修改旧GameplayParity断言；禁用新增清理只依据owned标记清flying，不碰mayfly。所有Forge新代码已ready，下一步显式stage/commit/push，然后Neo merge+API适配+完整门禁+最终截图。下方写setRingFlying(false)的历史尝试已撤回，不能作为最终实现。Neo尚未合入F2/D3，也未push88952bf/f63d392。
 
 - 最新checkpoint06:35：Forge此前真实Curios5.14.1配置ring槽后build19s和357/357通过；随后补充Curios关戒指仍应有legacy passive breathing/禁飞断言，发现scan只在移除时清flight。已改onRingScan也在data.isRingFlying&&!active清理owned飞行并setRingFlying(false)，不碰mayfly。optional Curios tick改为find(false)+ring.inventoryTick(...,-1,false)，与Baubles.onWornTick相同，确保关戒指仍有legacy被动呼吸。新最终build/fullGT正待工具shell，下次先读日志，不以先前357当最终。实际Curios配置在run/config/curios-common.toml slots=["id=ring;size=1"]（非跟踪文件）；先前API empty是未配置槽，随后错误是GT试图改getCurios不可变Map，现GT直接取真实ring handler保存/还原stack。规则：未装Curios或无配置槽只检查tag，不计集成；真实最终运行有ring槽，完整能力断言必执行。
