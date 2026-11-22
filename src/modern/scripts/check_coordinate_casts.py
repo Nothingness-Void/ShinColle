@@ -29,7 +29,7 @@ for path in sorted((root / "src/modern").rglob("*.java")):
             source), f"unadapted world-Y cast in {relative}"
 
 with args.output.open("w", newline="") as stream:
-    writer = csv.writer(stream)
+    writer = csv.writer(stream, lineterminator="\n")
     writer.writerow(("path", "line", "cast_operand_line", "review"))
     writer.writerows(rows)
 print(f"Coordinate-cast inventory: {len(rows)} explicit int casts across src/modern Java; no raw entity/world-Y casts")

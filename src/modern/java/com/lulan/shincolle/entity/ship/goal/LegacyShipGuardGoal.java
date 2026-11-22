@@ -161,7 +161,7 @@ public final class LegacyShipGuardGoal extends Goal {
             }
             this.position = Vec3.atCenterOf(guarded);
         }
-        if (this.position.y <= 0.0D || !this.guardDimensionMatches()) {
+        if (this.position.y <= this.ship.level().getMinBuildHeight() || !this.guardDimensionMatches()) {
             this.cancelGuard();
             return false;
         }

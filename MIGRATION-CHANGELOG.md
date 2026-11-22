@@ -1,5 +1,10 @@
 # 迁移变更索引
 
+## VM A/B/C/D/E/F 回归收口
+
+Forge-first parity fixes, book text restoration, height adapters and explicit
+line-abreast investigation boundary: [queue table and evidence](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md).
+
 - GUI/audio 回归复核：雷达旧行为、大船坞布局恢复、冻结整点报时溯源；[本轮记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
 
 ## Rendering backport and approved land legs

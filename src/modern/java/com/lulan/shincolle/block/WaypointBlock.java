@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -55,8 +56,21 @@ public class WaypointBlock extends BaseEntityBlock {
     @Override
     public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player,
                                        boolean willHarvest, net.minecraft.world.level.material.FluidState fluid) {
-        return level.getBlockEntity(pos) instanceof WaypointBlockEntity tile && tile.canDestroy(player)
-                && super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+        if (!(level.getBlockEntity(pos) instanceof WaypointBlockEntity tile) || !tile.canDestroy(player)) {
+            return false;
+        }
+        if (!level.isClientSide()) {
+            ItemStack stack = new ItemStack(this);
+            if (!player.getInventory().add(stack)) {
+                level.addFreshEntity(new ItemEntity(level, player.getX(), player.getY() + 0.5D, player.getZ(), stack));
+            }
+        }
+        return super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+    }
+
+    @Override
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, ItemStack tool) {
     }
 
     @Override

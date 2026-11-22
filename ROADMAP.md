@@ -4,6 +4,14 @@
 
 ## 当前指针
 
+当前用户授权 NEXT：完成 VM A/B/C/D/E/F 回归队列。先收口 B inventory/book
+源码核对、D round2 aircraft block collision/pathing / mount right-click /
+line-abreast 调查；Waypoint harvest/B world-height 改动已在工作区。然后 Forge
+提交 → merge NeoForge API 适配 → 最终 build/full GT 双端 → 批次记录与核心文档
+更新 → Forge first push 两端。Waypoint stone/wrench VM 截图已保存。不得把 A
+新夹具 template 修正前的崩溃或旧 349/357 gates 说成当前完整通过。完成后停止，
+不启动下列历史 NEXT。
+
 本轮 GUI/audio 复核已完成双端 build/GameTests、scale-8 GUI 与报时 A/B；只恢复船坞旧 UI。最终同步并推送两端后停止，[证据](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。历史 NEXT 不变。
 
 本轮获批：将全部渲染修复回移 Forge，并仅让 Destroyer Hime 陆上开腿落地、水中保留旧开关，绝不写存储 bit。Forge 已推送 `bccd7dc`（含水面深度判定修正）；将其 merge 到 NeoForge，验证并推送后停止。[获批视觉例外](migration_batches/neoforge-1.21.1/decision.md)。

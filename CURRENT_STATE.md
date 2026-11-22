@@ -5,14 +5,14 @@
 <a id="当前任务"></a>
 ## 当前集成与任务边界
 
-- 分支：`devin/mc-1.21.1-neoforge`；固定基线 `5b95cfe`；本轮 merge Forge 船坞修复 `e234d5b` 和最终证据 `cf08c01`。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
-- Minecraft **1.21.1**、NeoForge **21.1.267**、ModDevGradle **2.0.148**、Gradle **8.8**、JDK **21**；模组版本 **0.2.0-alpha**。
-- PR #11 复核末次代码提交：`3a06c51`；回收蛋旧 NBT 与宽泛附魔标签匹配已分别修复，伤害记录滞留已证实为 NeoForge 上游问题。初次完整构建及本轮证据见 [1.21.1 批次结果](migration_batches/neoforge-1.21.1/status.md#pr-11-review-follow-up)。
-- 当前任务：GUI/audio 回归复核已完成；仅恢复船坞旧布局，雷达长名与冻结整点报时按旧版保留。双端门禁、NeoForge scale-8 GUI 与报时 A/B 已验证；推送本次 merge 后停止，不创建 PR 或自动开始后续批次。
-- 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`，另有构建配置与迁移文档。`src/main/**` 继续只读，相对固定 parity 基线无差异。
+- 分支：`devin/mc-1.21.1-neoforge`；Minecraft1.21.1 / NeoForge21.1.267 / JDK21。
+- 当前任务：合并 Forge 已验证 VM 回归 ca635d7/cdb3706/ee1ffba；354/354 Forge tests通过，NeoForge final build/GameTests和新VM截图待验。
+- 全队列状态及line-abreast未解边界见 [本批记录](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)。仅机械API适配，无force-push；src/main只读。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
+
+- WIP 最后检查：Forge JDK17 build SUCCESSFUL in 18s，日志 `/home/ubuntu/shincolle-queue-forge-build.log`。Full GT `/home/ubuntu/shincolle-queue-forge-gametest.log` 失败两项：`guardinvalidtargetscancelandrestorefollow` 仍断言 nonpositive Y invalid（应按获批 min build height 更新夹具）；`hostilebossdropsonlyitslegacyegg` 仍断言立即蛋（应验证 deadline 前无蛋、推进 Death_Time 后正确蛋）。其余新测试未报失败，勿声称全绿。新增 inventory/book source guard 在英语文本比较失败：旧 chap0 text0d0 为 are a group/现代 is a group，实际译文不同；之前全部 page placement 比较已通过，需调查 recipe 页译文，不能声称英语完全相同。diff --check 无输出。尚未 commit WIP、merge 或 push。
 
 - 本轮 GUI/audio 复核完成：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时按旧版保留，报时 A/B 已复现。双端门禁和 scale-8 GUI 见[复核记录](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。最终同步推送后停止，不启动历史 NEXT。
 

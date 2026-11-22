@@ -199,7 +199,7 @@ public class ShipPathFinder
                     return pp;
                 }
                 int j1 = 0;
-                while (y > 0)
+                while (y > this.world.getMinBuildHeight())
                 {
                     EnumPathType downCase = getPathType(entity, x, y - 1, z, entitySize);
                     if (downCase == EnumPathType.FLUID)
@@ -216,7 +216,7 @@ public class ShipPathFinder
                         return null;
                     }
                     --y;
-                    if (y > 0)
+                    if (y > this.world.getMinBuildHeight())
                     {
                         pp = this.openPoint(x, y, z);
                     }

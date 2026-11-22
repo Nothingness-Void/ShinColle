@@ -3930,6 +3930,18 @@ public final class GameplayParityGameTests {
         } finally {
             ShinColleConfig.clearTestOverride("dropGrudge");
         }
+        for (int tick = 0; tick < 400; tick++) {
+            var earlyDrops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea,
+                    item -> !existingDrops.contains(item));
+            helper.assertTrue(earlyDrops.size() == 1 && earlyDrops.get(0).getItem().is(ModItems.GRUDGE.get())
+                            && earlyDrops.get(0).getItem().getCount() == 1,
+                    "before hostile death tick 400 only the configured grudge, not the egg or inventory, may drop");
+            helper.assertTrue(!ship.isRemoved() && ship.deathTime == tick,
+                    "hostile corpse must remain through death-animation tick 399");
+            ship.tick();
+        }
+        helper.assertTrue(ship.isRemoved() && ship.deathTime == 400,
+                "hostile corpse must finish at legacy death-animation tick 400");
         var drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, lootArea,
                 item -> !existingDrops.contains(item));
         boolean onlyLegacyDrops = drops.size() == 2
@@ -16338,9 +16350,9 @@ public final class GameplayParityGameTests {
             helper.fail("cross-dimension guard blocks must cancel and restore follow");
             return;
         }
-        ship.commandGuardBlock(new BlockPos(guard.getX(), -1, guard.getZ()), "");
+        ship.commandGuardBlock(new BlockPos(guard.getX(), helper.getLevel().getMinBuildHeight() - 1, guard.getZ()), "");
         if (goal.canUse() || ship.hasActiveCommandState() || !ship.canFollow()) {
-            helper.fail("guard coordinates with nonpositive Y must cancel");
+            helper.fail("guard coordinates below the level minimum build height must cancel");
             return;
         }
         ship.commandGuardEntity(UUID.randomUUID());
@@ -18627,7 +18639,13 @@ public final class GameplayParityGameTests {
         }
 
         owner.setYRot(0.0F);
-        owner.startRiding(shipMount, true);
+        helper.assertTrue(shipMount.isPickable()
+                        && shipMount.interact(intruder, InteractionHand.MAIN_HAND) == InteractionResult.PASS
+                        && !intruder.isPassenger(),
+                "summoned mount must be client-pickable while rejecting a non-owner interaction");
+        helper.assertTrue(shipMount.interact(owner, InteractionHand.MAIN_HAND).consumesAction()
+                        && owner.getVehicle() == shipMount,
+                "normal owner right-click must mount without a forced startRiding test shortcut");
         if (PlayerSkillHostResolver.resolve(owner).mode() != MorphHostMode.MOUNT
                 || PlayerSkillHostResolver.resolve(owner).ship() != ship) {
             helper.fail("PlayerSkillHostResolver should resolve LegacyShipMountEntity to MorphHostMode.MOUNT with host ship");

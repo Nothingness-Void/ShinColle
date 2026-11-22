@@ -4645,7 +4645,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
         if (this.routeNodePos != null) {
             String routeDimension = this.guardedBlockPos == null ? this.commandDimension : this.guardedBlockDimension;
-            if (this.routeNodePos.getY() <= 0 || !this.dimensionMatches(routeDimension, serverLevel)) {
+            if (this.routeNodePos.getY() <= serverLevel.getMinBuildHeight() || !this.dimensionMatches(routeDimension, serverLevel)) {
                 this.clearCommandState();
                 this.setTarget(null);
                 this.getShipNavigate().clearPathEntity();

@@ -1,5 +1,11 @@
 # Waypoint world visibility regression
 
+Round2 harvest scope: historical BlockWaypoint.removedByPlayer/harvestBlock/
+quantityDropped and modern WaypointBlock.onDestroyedByPlayer/playerDestroy,
+WaypointBlockEntity.canDestroy and block loot data. Preserve owner restriction,
+server-only inventory return (including legacy creative), full-inventory ground
+fallback and no duplicate vanilla loot. Add directed harvesting tests.
+
 Scope: compare historical 0aad501 BlockWaypoint, TileEntityWaypoint, client
 renderer registration/TESR and modern WaypointBlock, WaypointBlockEntity,
 waypoint marker particles and block/item model resources. Inspect relevant
