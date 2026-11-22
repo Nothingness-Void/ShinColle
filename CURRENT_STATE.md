@@ -1,5 +1,7 @@
 # 当前状态
 
+> 最新07:30：B2第二根因已证实：/kill的MAX伤害随机放大成Infinity→Neo DamageContainer Armor的Infinity-Infinity→HP NaN（seed0原始失败日志有tracked=true/hpNaN）。公共伤害放大结果限有限MAX；普通数值/随机序列不变。加上先前保存HP恢复，Forge build20s、361/361 GT69s；Neo build18s、369/369 GT54s绿（最终seed0）。证据inventory-book-layout/round2-result.md。提交同步后唯一NEXT=line-abreast动态跟随trace，之后OpenAL→VM指定截图。旧mayfly不动。
+
 > 最新07:19：B2真实/kill+实体region磁盘重开已复现并修复：readAdditionalSaveData选variant的refresh(false)覆盖原HP，DeathTime0复活/受伤回血；最后恢复数值Health，保留DeathTime锁和缺失Health默认。新增3GT（friendly/hostile、多时刻、受伤高等级、空region、缺失/冲突Health）。Forge最终build15s、360/360 GT1m16s绿；D3 Neo9³barrier夹具根因已解，Neo2200559已push365/365，Forge已同步宽夹具。下一步提交push本端→Neo merge/API适配/门禁→动态line-abreast→OpenAL→截图。旧checkpoint不再是阻塞。详见inventory-book-layout/round2-result.md。
 
 > 权威最新06:53：Forge d375353已push，build12s、357/357 GT54s绿；Neo本地merge c6fc3fd→bb8eb58（未push），build9s绿但365 GT中1个D3 mount绕玻璃角失败。同一失败三次停止重试，先诊断随机远坐标path/partial-path，再新增B2 /kill复现。源码已提交，剩余dirty仅checkpoint文档；缺失目标截图尚未做。详细错误、排除项、命令、SHA和新B2范围见[migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md](migration_batches/2026-11-22-riding-aircraft-formation/CHECKPOINT.md)。下方旧checkpoints遇冲突以此为准。

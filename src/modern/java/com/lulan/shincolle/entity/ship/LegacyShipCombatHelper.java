@@ -316,7 +316,7 @@ public final class LegacyShipCombatHelper {
 
     public static float applyDefenseReduction(RandomSource random, LegacyShipStats stats, float rawDamage) {
         float factor = 1F - stats.defense() + (random.nextFloat() * 0.5F - 0.25F);
-        return rawDamage * Math.max(0F, factor);
+        return Math.min(Float.MAX_VALUE, rawDamage * Math.max(0F, factor));
     }
 
     public static boolean canDodge(LegacyShipEntity host, Entity attacker) {

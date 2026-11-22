@@ -1,6 +1,7 @@
 package com.lulan.shincolle.gametest;
 
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipCombatHelper;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
@@ -9,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.EntityStorage;
@@ -35,6 +37,7 @@ public final class LegacyKilledShipPersistenceGameTests {
             for (int elapsed : egg == 53 ? new int[] {0, 5} : new int[] {0, 5, 399}) {
                 var ship = createShip(helper, egg);
                 helper.getLevel().addFreshEntity(ship);
+                ship.getRandom().setSeed(0L);
                 helper.getLevel().getServer().getCommands().performPrefixedCommand(
                         helper.getLevel().getServer().createCommandSourceStack().withSuppressedOutput(),
                         "kill " + ship.getStringUUID());
@@ -102,6 +105,21 @@ public final class LegacyKilledShipPersistenceGameTests {
         ship.setNoGravity(true);
         ship.setPos(Vec3.atCenterOf(helper.absolutePos(new BlockPos(2, 2, 2))));
         return ship;
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty", batch = "kill_region_reload")
+    public static void damageOverflowSaturatesWithoutChangingNormalOrZeroDamage(GameTestHelper helper) {
+        var ship = createShip(helper, 53);
+        var stats = ship.getLegacyStats();
+        float factor = Math.max(0F, 1F - stats.defense() + (RandomSource.create(0L).nextFloat() * 0.5F - 0.25F));
+        helper.assertTrue(LegacyShipCombatHelper.applyDefenseReduction(RandomSource.create(0L), stats, 16F) == 16F * factor,
+                "ordinary damage arithmetic and random draw must stay exact");
+        helper.assertTrue(LegacyShipCombatHelper.applyDefenseReduction(RandomSource.create(0L), stats, 0F) == 0F,
+                "zero damage must remain zero");
+        helper.assertTrue(LegacyShipCombatHelper.applyDefenseReduction(RandomSource.create(0L), stats, Float.MAX_VALUE) == Float.MAX_VALUE,
+                "kill damage amplification must saturate to finite damage, not overflow into Neo damage-container NaN");
+        ship.discard();
+        helper.succeed();
     }
 
     private static LegacyShipEntity diskRoundTrip(GameTestHelper helper, LegacyShipEntity ship) throws IOException {
