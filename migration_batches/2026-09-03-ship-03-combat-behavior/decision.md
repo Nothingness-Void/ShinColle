@@ -1,5 +1,7 @@
 # SHIP-03 Decision Record
 
+- **已撤销**：下方对现代公用 Boss 配置、额外敌舰战利品及其运行时存档的等价认可。见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+
 ## Decision
 
 `CHANGED`
@@ -28,7 +30,7 @@ An exact match must still be recorded so a later batch does not reread the same 
 
 - `SHIP-02` command/route/target boundaries are reused and not reopened.
 - The hostile Boss far-chase report remains a separate reproduction batch.
-- The old Carrier Hime heavy-special miss finding does not reproduce in the current selected path: projectile-style attacks carry `missedShot` into the projectile entity, where a miss cannot hit or resolve damage.
+- **已撤销**：此前认为传递 `missedShot` 后禁止命中或伤害即可证明旧版一致的结论。更正见 [D-006](../../MIGRATION-DECISIONS.md#d-006投射物-miss-语义不可丢失)，其余批次结论不变。
 - The generic heavy-special miss rule is in scope only where one of these five legacy attack paths reaches it; otherwise record the finding as a follow-up without changing unrelated behavior.
 - Any direct legacy helper dependency discovered during method-level comparison must be added here and to `protocol.md` before it is read.
 

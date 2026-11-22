@@ -1,18 +1,17 @@
 package com.lulan.shincolle.block;
 
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
-import com.lulan.shincolle.menu.WaypointTerminalMenu;
+import com.lulan.shincolle.item.PointerItem;
+import com.lulan.shincolle.item.WaypointBlockItem;
+import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.registry.ModItems;
-import com.lulan.shincolle.registry.ModSoundEvents;
-import com.lulan.shincolle.sound.ShinColleSoundHelper;
-import net.minecraft.ChatFormatting;
+import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -21,12 +20,13 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 
@@ -49,8 +49,38 @@ public class WaypointBlock extends BaseEntityBlock {
     }
 
     @Override
+    public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player,
+                                       boolean willHarvest, net.minecraft.world.level.material.FluidState fluid) {
+        if (!(level.getBlockEntity(pos) instanceof WaypointBlockEntity tile) || !tile.canDestroy(player)) {
+            return false;
+        }
+        if (!level.isClientSide()) {
+            ItemStack stack = new ItemStack(this);
+            if (!player.getInventory().add(stack)) {
+                level.addFreshEntity(new ItemEntity(level, player.getX(), player.getY() + 0.5D, player.getZ(), stack));
+            }
+        }
+        return super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+    }
+
+    @Override
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state,
+                              @Nullable BlockEntity blockEntity, ItemStack tool) {
+    }
+
+    @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.INVISIBLE;
+    }
+
+    public static boolean showsMarker(ItemStack held) {
+        return held.getItem() instanceof WaypointBlockItem || held.is(ModItems.TARGETWRENCH.get())
+                || held.getItem() instanceof PointerItem && PointerItem.getMode(held) < 3;
+    }
+
+    @Override
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        return level.isClientSide() ? createTickerHelper(type, ModBlockEntities.WAYPOINT.get(), WaypointBlockEntity::clientTick) : null;
     }
 
     @Override
@@ -73,41 +103,22 @@ public class WaypointBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
 
-        ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown()) {
-            return InteractionResult.PASS;
-        }
-
         if (!level.isClientSide()) {
-            if (stack.is(ModItems.TARGETWRENCH.get())) {
-                if (!waypoint.canEdit(player)) {
-                    player.displayClientMessage(Component.translatable("chat.shincolle.wrongowner"), true);
-                    return InteractionResult.CONSUME;
+            level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
+            if (player != null && !player.isShiftKeyDown()
+                    && player.getItemInHand(hand).is(ModItems.TARGETWRENCH.get())) {
+                if (TeitokuHelper.getPlayerUid(player) == waypoint.getOwnerUid()) {
+                    waypoint.cycleStayMode();
+                    player.sendSystemMessage(Component.literal("Change waypoint stay time to: "
+                            + WaypointBlockEntity.formatStayTicks(waypoint.getStayTicks())));
+                    return InteractionResult.SUCCESS;
                 }
-
-                waypoint.cycleStayMode();
-                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-                player.displayClientMessage(Component.translatable("chat.shincolle.waypoint.stay_changed", waypoint.getStayLabel()), true);
-                player.displayClientMessage(labelWithPos("chat.shincolle.wrench.wplast", waypoint.getLastWaypoint(), ChatFormatting.LIGHT_PURPLE), false);
-                player.displayClientMessage(labelWithPos("chat.shincolle.wrench.wpnext", waypoint.getNextWaypoint(), ChatFormatting.AQUA), false);
-                player.displayClientMessage(labelWithPos("chat.shincolle.waypoint.paired_chest", waypoint.getPairedChest(), ChatFormatting.GOLD), false);
-            } else if (player instanceof ServerPlayer serverPlayer) {
-                ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
-                        ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-                NetworkHooks.openScreen(serverPlayer,
-                        new SimpleMenuProvider(
-                                (containerId, inventory, ignoredPlayer) -> new WaypointTerminalMenu(containerId, inventory, pos),
-                                Component.translatable("block.shincolle.blockwaypoint")),
-                        buffer -> buffer.writeBlockPos(pos));
-
-                if (!waypoint.canEdit(player)) {
-                    player.displayClientMessage(Component.translatable("chat.shincolle.waypoint.readonly"), true);
-                }
+                player.sendSystemMessage(Component.translatable("chat.shincolle.wrongowner")
+                        .append(" " + waypoint.getOwnerUid()));
             }
         }
 
-        return InteractionResult.sidedSuccess(level.isClientSide());
+        return InteractionResult.PASS;
     }
 
     @Override
@@ -125,17 +136,4 @@ public class WaypointBlock extends BaseEntityBlock {
         return true;
     }
 
-    private static Component labelWithPos(String key, @Nullable BlockPos pos, ChatFormatting color) {
-        return Component.translatable(key)
-                .append(Component.literal(" "))
-                .append(formatPos(pos, color));
-    }
-
-    private static Component formatPos(@Nullable BlockPos pos, ChatFormatting color) {
-        if (pos == null) {
-            return Component.translatable("gui.shincolle.waypoint.none").withStyle(ChatFormatting.DARK_GRAY);
-        }
-
-        return Component.literal(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()).withStyle(color);
-    }
 }

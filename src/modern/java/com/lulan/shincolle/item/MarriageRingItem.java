@@ -6,6 +6,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.TeitokuEvents;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
@@ -28,7 +29,7 @@ import java.util.List;
 
 public class MarriageRingItem extends Item {
 
-    private static final String ACTIVE_TAG = "Active";
+    private static final String ACTIVE_TAG = "isActive";
 
     public MarriageRingItem(Properties properties) {
         super(properties);
@@ -48,9 +49,9 @@ public class MarriageRingItem extends Item {
                     TeitokuHelper.get(serverPlayer).ifPresent(data -> {
                         if (data.isRingFlying()) {
                             serverPlayer.getAbilities().flying = false;
-                            serverPlayer.getAbilities().mayfly = false;
                             data.setRingFlying(false);
                             serverPlayer.onUpdateAbilities();
+                            TeitokuHelper.sync(serverPlayer);
                         }
                     });
                 }
@@ -102,7 +103,7 @@ public class MarriageRingItem extends Item {
             for (LegacyShipEntity ship : level.getEntitiesOfClass(
                     LegacyShipEntity.class, player.getBoundingBox().inflate(6.0D, 5.0D, 6.0D))) {
                 if (ship.isAlive()
-                        && ship.getShipFuel() > 0
+                        && !ship.hasNoFuel()
                         && LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)) {
                     ship.setEmotion(2);
                     if (ship.getRandom().nextInt(5) == 0) {
@@ -135,30 +136,27 @@ public class MarriageRingItem extends Item {
         }
 
         int flyThreshold = ringAbility.length > 1 ? ringAbility[1] : 6;
-        if (!(player instanceof ServerPlayer serverPlayer) || flyThreshold < 0 || data.getMarriageNum() < flyThreshold) {
+        if (flyThreshold < 0 || data.getMarriageNum() < flyThreshold) {
             return;
         }
 
-        boolean inLiquid = player.isInWaterOrBubble() || player.isInLava();
+        boolean inLiquid = TeitokuEvents.isInLegacyLiquid(player);
         if (inLiquid) {
-            if (!player.getAbilities().instabuild) {
-                serverPlayer.getAbilities().mayfly = true;
+            if (!player.getAbilities().flying && data.hasRing() && data.isRingActive()) {
+                player.getAbilities().flying = true;
+                data.setRingFlying(true);
+                if (player instanceof ServerPlayer serverPlayer) serverPlayer.onUpdateAbilities();
             }
-
-            serverPlayer.getAbilities().flying = true;
-            data.setRingFlying(true);
-            serverPlayer.onUpdateAbilities();
             return;
         }
 
-        if (!data.isRingFlying() || player.getAbilities().instabuild) {
+        if (!data.isRingFlying() || player.getAbilities().instabuild || !player.getAbilities().flying) {
             return;
         }
 
-        serverPlayer.getAbilities().flying = false;
-        serverPlayer.getAbilities().mayfly = false;
+        player.getAbilities().flying = false;
         data.setRingFlying(false);
-        serverPlayer.onUpdateAbilities();
+        if (player instanceof ServerPlayer serverPlayer) serverPlayer.onUpdateAbilities();
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.lulan.shincolle.client.renderer.entity;
 
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
+import com.lulan.shincolle.entity.ship.LegacyShipModelKind;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collection;
@@ -40,7 +41,7 @@ public final class LegacyShipRenderCatalog {
                     spec.modelSourceStem(),
                     spec.modelSourceLocation(),
                     spec.textureLocation(),
-                    spec.archetype().shadowRadius(),
+                    LegacyShipModelKind.forSpec(spec).shadowRadius(),
                     spec.hostile()));
             if (previous != null) {
                 throw new IllegalStateException("Duplicate legacy ship render entry for egg meta " + spec.eggMeta());

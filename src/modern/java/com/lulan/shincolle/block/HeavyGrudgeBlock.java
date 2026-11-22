@@ -39,6 +39,13 @@ public class HeavyGrudgeBlock extends BaseEntityBlock {
     }
 
     @Override
+    public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player,
+                                       boolean willHarvest, net.minecraft.world.level.material.FluidState fluid) {
+        return level.getBlockEntity(pos) instanceof HeavyGrudgeBlockEntity tile && tile.canDestroy(player)
+                && super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+    }
+
+    @Override
     public RenderShape getRenderShape(BlockState state) {
         return state.getValue(MBS) > 0 ? RenderShape.ENTITYBLOCK_ANIMATED : RenderShape.MODEL;
     }

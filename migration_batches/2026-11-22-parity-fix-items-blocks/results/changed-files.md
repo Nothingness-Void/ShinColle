@@ -1,0 +1,50 @@
+# 本批次实现改动文件
+
+清单按 `git diff --name-status 8f1d2fd..79b4527 -- src/modern` 归档，覆盖三个实现提交。仅现代目录；本次文档收口不再改代码。具体职责见 [逐条结论](../decision.md)。
+
+| 状态 | 文件 |
+| --- | --- |
+| 新增 | `src/modern/item-final-protocol.md` |
+| 新增 | `src/modern/item-final-results.md` |
+| 修改 | `src/modern/java/com/lulan/shincolle/ShinColle.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/block/CraneBlock.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/block/HeavyGrudgeBlock.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/block/LegacyCoreBlock.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/block/SmallShipyardBlock.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/block/WaypointBlock.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/HeavyGrudgeBlockEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/LegacyCoreBlockEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/PolymetalServantBlockEntity.java` |
+| 删除 | `src/modern/java/com/lulan/shincolle/blockentity/RouteEnergyAccess.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/blockentity/WaypointBlockEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/client/GameplayClientEffects.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/client/screen/CraneTerminalScreen.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java` |
+| 新增 | `src/modern/java/com/lulan/shincolle/entity/other/RecoveredShipItemEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/BucketRepairItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/CombatRationItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/LegacyShipSpawnEggItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/MarriageRingItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/OpToolItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/OwnerPaperItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/ShipTankItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/item/TargetWrenchItem.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/menu/CraneTerminalMenu.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/menu/LargeShipyardMenu.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/menu/ShipInventoryMenu.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/menu/SmallShipyardMenu.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/morph/MorphProfile.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/network/GameplayCommandType.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/network/GameplayParticleType.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/registry/ModEntityTypes.java` |
+| 修改 | `src/modern/java/com/lulan/shincolle/registry/ModItems.java` |
+| 修改 | `src/modern/resources/assets/shincolle/lang/en_us.json` |
+| 修改 | `src/modern/resources/assets/shincolle/lang/zh_cn.json` |
+| 修改 | `src/modern/resources/assets/shincolle/lang/zh_tw.json` |

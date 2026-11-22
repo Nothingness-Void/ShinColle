@@ -1,0 +1,19 @@
+{
+  "compileJava": {
+    "command": "bash ./gradlew compileJava --no-daemon",
+    "result": "BUILD SUCCESSFUL in 1m 26s",
+    "log": "/home/ubuntu/shincolle-ai-step4-compile.log"
+  },
+  "gameTests": {
+    "command": "bash ./gradlew runGameTestServer --no-daemon",
+    "passed": 315,
+    "total": 315,
+    "failed": [],
+    "result": "BUILD SUCCESSFUL in 3m 17s",
+    "log": "/home/ubuntu/shincolle-ai-step4-gametest.log"
+  },
+  "localPrecedingCommit": "e2c9a74",
+  "commitPolicy": "local Chinese commit only",
+  "pushed": false,
+  "visualVerification": false
+}

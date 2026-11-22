@@ -9,7 +9,7 @@
   },
   "pattern": [
     "a a",
-    "aaa",
+    " a ",
     " a "
   ],
   "result": {

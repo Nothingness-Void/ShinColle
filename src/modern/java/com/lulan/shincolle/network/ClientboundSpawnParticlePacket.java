@@ -9,7 +9,13 @@ import java.util.function.Supplier;
 public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
                                              double x, double y, double z,
                                              double velocityX, double velocityY, double velocityZ,
-                                             int variant) {
+                                             int variant, int entityId) {
+
+    public ClientboundSpawnParticlePacket(GameplayParticleType particleType,
+                                           double x, double y, double z,
+                                           double velocityX, double velocityY, double velocityZ, int variant) {
+        this(particleType, x, y, z, velocityX, velocityY, velocityZ, variant, -1);
+    }
 
     public ClientboundSpawnParticlePacket(GameplayParticleType particleType,
                                            double x, double y, double z,
@@ -26,6 +32,7 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         buffer.writeDouble(packet.velocityY);
         buffer.writeDouble(packet.velocityZ);
         buffer.writeVarInt(packet.variant);
+        buffer.writeVarInt(packet.entityId);
     }
 
     public static ClientboundSpawnParticlePacket decode(FriendlyByteBuf buffer) {
@@ -37,7 +44,8 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         double velocityY = buffer.readDouble();
         double velocityZ = buffer.readDouble();
         int variant = buffer.readVarInt();
-        return new ClientboundSpawnParticlePacket(type, x, y, z, velocityX, velocityY, velocityZ, variant);
+        int entityId = buffer.readVarInt();
+        return new ClientboundSpawnParticlePacket(type, x, y, z, velocityX, velocityY, velocityZ, variant, entityId);
     }
 
     public static void handle(ClientboundSpawnParticlePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -46,4 +54,3 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         context.setPacketHandled(true);
     }
 }
-

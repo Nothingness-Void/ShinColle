@@ -1,3 +1,6 @@
 {
-  "parent": "shincolle:block/blockdesk"
+  "parent": "shincolle:item/legacy_block_entity",
+  "textures": {
+    "particle": "shincolle:block/blockdesk"
+  }
 }

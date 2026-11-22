@@ -1,6 +1,8 @@
 package com.lulan.shincolle.network;
 
 import com.lulan.shincolle.teitoku.TeitokuHelper;
+import com.lulan.shincolle.menu.FormationMenu;
+import com.lulan.shincolle.menu.ShipInventoryMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -35,6 +37,15 @@ public record ClientboundGameplayStatePacket(CompoundTag payload) {
             return;
         }
         TeitokuHelper.applyClientState(player, payload);
+        if (player.containerMenu instanceof FormationMenu menu
+                && payload.contains("FormationVisualData")
+                && payload.getInt("FormationContainerId") == menu.containerId) {
+            menu.applyVisualData(payload.getCompound("FormationVisualData"));
+        }
+        if (player.containerMenu instanceof ShipInventoryMenu menu
+                && payload.contains("ShipInventoryPresentation")
+                && payload.getInt("ShipInventoryContainerId") == menu.containerId) {
+            menu.applyPresentation(payload.getCompound("ShipInventoryPresentation"));
+        }
     }
 }
-

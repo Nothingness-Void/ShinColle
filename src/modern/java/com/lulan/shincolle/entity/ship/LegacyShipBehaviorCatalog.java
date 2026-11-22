@@ -4,7 +4,7 @@ import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.client.GameplayClientEffects;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyMountControls;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.other.LegacyShipFishingHookEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
@@ -32,7 +32,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.Container;
@@ -156,19 +155,11 @@ public final class LegacyShipBehaviorCatalog {
         YAMATO_BEAM_BARRAGE,
         TENRYUU_DASH,
         TATSUTA_CONTROL_AOE,
-        HEAVY_CRUISER_BARRAGE,
-        KONGOU_COMBO,
         BATTLESHIP_RU_BARRAGE,
         BATTLESHIP_TA_RENSOUHOU,
         SUBMARINE_HIME_DOUBLE_MISSILE,
         CARRIER_HIME_MELEE_MISSILE,
         NORTHERN_HIME_FLOATING_FORT
-    }
-
-    public record HostileLootProfile(boolean dropsAbyssMetal,
-                                     boolean dropsAbyssMetal1,
-                                     boolean dropsBossBonus,
-                                     float eggDropChance) {
     }
 
     /** Snapshot of the legacy AttackEffectMap entry carried by a launched attack. */
@@ -268,28 +259,28 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static final ShipMountProfile AIRFIELD_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_AIRFIELD, 1.9F, 1.3F,
+            LegacyMountControls.STYLE_AIRFIELD, 1.9F, 1.3F,
             0.59D, -0.25D, 0.0D, -0.85D, 1.0D, -1.12D, true);
     private static final ShipMountProfile BATTLESHIP_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_BATTLESHIP, 1.9F, 3.1F,
+            LegacyMountControls.STYLE_BATTLESHIP, 1.9F, 3.1F,
             1.05D, 2.6D, 0.0D, 1.2D, 0.7D, -1.3D, false);
     private static final ShipMountProfile HARBOUR_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_HARBOUR, 1.9F, 1.6F,
+            LegacyMountControls.STYLE_HARBOUR, 1.9F, 1.6F,
             0.0D, -0.29D, 0.0D, -1.5D, 1.06D, 0.44D, true);
     private static final ShipMountProfile ISOLATED_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_ISOLATED, 1.6F, 2.2F,
+            LegacyMountControls.STYLE_ISOLATED, 1.6F, 2.2F,
             -0.32D, 1.0D, 0.0D, 0.61D, 0.28D, 0.0D, true);
     private static final ShipMountProfile MIDWAY_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_MIDWAY, 2.5F, 2.9F,
+            LegacyMountControls.STYLE_MIDWAY, 2.5F, 2.9F,
             0.0D, 2.0D, 0.0D, -0.3D, 0.5D, 0.0D, true);
     private static final ShipMountProfile CARRIER_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_CARRIER, 1.9F, 2.1F,
+            LegacyMountControls.STYLE_CARRIER, 1.9F, 2.1F,
             0.0D, 1.12D, 0.0D, 0.14D, -0.39D, 0.0D, true);
     private static final ShipMountProfile CARRIER_WD_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_CARRIER_WD, 1.9F, 2.1F,
+            LegacyMountControls.STYLE_CARRIER_WD, 1.9F, 2.1F,
             0.25D, 1.1D, 0.0D, 0.14D, -0.39D, 0.0D, true);
     private static final ShipMountProfile SUBMARINE_HIME_MOUNT = new ShipMountProfile(
-            LegacyMountEntity.STYLE_SUBMARINE, 1.8F, 1.6F,
+            LegacyMountControls.STYLE_SUBMARINE, 1.8F, 1.6F,
             -0.8D, 0.6D, 0.0D, 0.55D, 1.2D, 0.0D, false);
 
     private LegacyShipBehaviorCatalog() {
@@ -335,7 +326,7 @@ public final class LegacyShipBehaviorCatalog {
         return ship != null
                 && hasLegacyShipMounts(ship.getSpec())
                 && (ship.getModelState() & 1) != 0
-                && ship.getShipFuel() > 0;
+                && !ship.hasNoFuel();
     }
 
     /**
@@ -405,6 +396,10 @@ public final class LegacyShipBehaviorCatalog {
     /** Mirrors EntityAIShipGuarding.findTarget's narrower moving-guard box. */
     public static LivingEntity findLegacyGuardTarget(LegacyShipEntity ship) {
         double range = Math.max(1.0D, (int) ship.getCompatAttackRange());
+        return findLegacyGuardTarget(ship, range);
+    }
+
+    public static LivingEntity findLegacyGuardTarget(LegacyShipEntity ship, double range) {
         AABB guardArea = ship.getBoundingBox().inflate(range * 0.9D, range * 0.6D, range * 0.9D);
         return findLegacyRangeTarget(ship, guardArea);
     }
@@ -441,41 +436,11 @@ public final class LegacyShipBehaviorCatalog {
             return target;
         }
 
-        return chooseRangeTarget(ship, nearby, candidate -> {
-            if (isExplicitCustomTarget(ship, candidate)) {
-                return true;
-            }
-            if (!(candidate instanceof Enemy) || isPassiveFlyingAnimal(candidate)) {
-                return false;
-            }
-            Player owner = ship.getOwnerPlayer();
-            return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, candidate);
-        });
+        return chooseRangeTarget(ship, nearby, candidate -> true);
     }
 
     public static boolean isLegacyRangeTarget(LegacyShipEntity ship, LivingEntity target) {
-        if (!isSelectableLegacyRangeTarget(ship, target)) {
-            return false;
-        }
-        if (ship.isHostileVariant()) {
-            return isHostileRangeTarget(target);
-        }
-        if ((ship.isAiAntiAir()
-                && LegacyShipCombatHelper.isFlyingTarget(target)
-                && (!isPassiveFlyingAnimal(target) || isExplicitCustomTarget(ship, target)))
-                || (ship.isAiAntiSub() && isLegacyUnderseaTarget(target))
-                || (ship.isAiPvpFirst() && target instanceof LegacyShipEntity other
-                && !isLegacyUnderseaTarget(other))) {
-            return true;
-        }
-        if (isExplicitCustomTarget(ship, target)) {
-            return true;
-        }
-        if (!(target instanceof Enemy) || isPassiveFlyingAnimal(target)) {
-            return false;
-        }
-        Player owner = ship.getOwnerPlayer();
-        return owner == null || com.lulan.shincolle.teitoku.TeitokuHelper.isAutoTargetAllowed(owner, target);
+        return isSelectableLegacyRangeTarget(ship, target);
     }
 
     /** Mirrors TargetHelper's flare/searchlight gate for invisible non-player targets. */
@@ -497,31 +462,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static boolean isSelectableLegacyRangeTarget(LegacyShipEntity ship, LivingEntity target) {
-        if (target == null || target == ship || !target.isAlive()) {
-            return false;
-        }
-        if (ship.isAiOnSightChase() && !ship.getSensing().hasLineOfSight(target)) {
-            return false;
-        }
-        if (!ship.isHostileVariant() && isPassiveFlyingAnimal(target) && !isExplicitCustomTarget(ship, target)) {
-            return false;
-        }
-        if (ship.canEngage(target)) {
-            return true;
-        }
-        if (!ship.isHostileVariant()
-                && !(target instanceof Player)
-                && !(target instanceof LegacyShipEntity)
-                && isExplicitCustomTarget(ship, target)
-                && canTargetLegacyInvisibleEntity(ship, target)) {
-            if (ship.level() instanceof ServerLevel serverLevel
-                    && com.lulan.shincolle.combat.WorldCombatRulesSavedData.get(serverLevel)
-                            .isUnattackable(com.lulan.shincolle.teitoku.TeitokuHelper.resolveTargetClass(target))) {
-                return false;
-            }
-            return true;
-        }
-        return false;
+        return ship.canEngage(target);
     }
 
     private static boolean isPassiveFlyingAnimal(LivingEntity target) {
@@ -535,7 +476,7 @@ public final class LegacyShipBehaviorCatalog {
                 || type == EntityType.ALLAY;
     }
 
-    private static boolean isExplicitCustomTarget(LegacyShipEntity ship, LivingEntity target) {
+    public static boolean isExplicitCustomTarget(LegacyShipEntity ship, LivingEntity target) {
         Player owner = ship.getOwnerPlayer();
         if (owner == null || target == null) {
             return false;
@@ -550,7 +491,8 @@ public final class LegacyShipBehaviorCatalog {
 
     private static boolean isHostileRangeTarget(LivingEntity target) {
         return target instanceof Player
-                || target instanceof LegacyShipEntity ship && !ship.isHostileVariant();
+                || target instanceof LegacyShipEntity ship && !ship.isHostileVariant()
+                || target instanceof LegacyShipRensouhouEntity;
     }
 
     /** Mirrors TargetHelper.SelectorForHostile for the modern LivingEntity target family. */
@@ -1430,7 +1372,7 @@ public final class LegacyShipBehaviorCatalog {
         return switch (normalizeLegacyClassId(ship.getShipClassId())) {
             case 10 -> 0.3D;
             case 31, 72 -> 0.25D;
-            default -> 0.0D;
+            default -> ship.isHostileVariant() ? 0.0D : 0.14D;
         };
     }
 
@@ -1776,6 +1718,14 @@ public final class LegacyShipBehaviorCatalog {
         return hitCount;
     }
 
+    public static int modelAttackAnimationParticleFor(ShipEntitySpec spec, LegacyShipAttackKind kind, int phase) {
+        return switch (spec.textureStem()) {
+            case "EntityCruiserTenryuu" -> kind == LegacyShipAttackKind.HEAVY ? (phase == 0 ? 12 : -1) : 15;
+            case "EntityCruiserTatsuta" -> kind == LegacyShipAttackKind.HEAVY ? (phase == 0 ? 12 : -1) : 16;
+            default -> 0;
+        };
+    }
+
     /** Mirrors TeamHelper.checkSameOwner without widening it to the modern ally relation. */
     public static boolean hasLegacySameOwner(LegacyShipEntity ship, LivingEntity candidate) {
         if (ship.getOwnerUid() <= 0) {
@@ -1834,6 +1784,25 @@ public final class LegacyShipBehaviorCatalog {
     /** Mirrors the legacy same-owner and hostile-team friendly-fire boundary. */
     public static boolean isLegacyProjectileDamageAllowed(LegacyShipEntity host, LivingEntity candidate) {
         return isLegacyFriendlyFireAllowed(host, candidate);
+    }
+
+    private static final java.util.Set<Integer> LEGACY_KAITAI_CLASS_IDS = java.util.Set.of(
+            0, 1, 2, 3, 9, 10, 16, 17, 18, 19,
+            12, 13, 14, 15, 20, 21, 26, 27, 28, 29, 30, 31, 33, 44, 49, 72,
+            36, 38, 39, 51, 52, 53, 54, 55,
+            56, 57, 58, 59,
+            37, 46, 47, 48, 60, 61, 62, 63);
+
+    /** 1.12.2 ShipCalc.getKaitaiItems(shipID) as used by LargeRecipes; null when the legacy switch has no case. */
+    public static @javax.annotation.Nullable List<ItemStack> createLegacyShipyardKaitaiDrops(int legacyClassId, RandomSource random) {
+        if (!LEGACY_KAITAI_CLASS_IDS.contains(legacyClassId)) {
+            return null;
+        }
+        ShipEntitySpec spec = ShipEntitySpecs.findByLegacyClassId(legacyClassId);
+        if (spec == null) {
+            return null;
+        }
+        return createLegacyKaitaiDrops(spec, legacyClassId == 55, random);
     }
 
     /** Mirrors 1.12.2 ShipCalc.getKaitaiItems per-class recycle drops. */
@@ -1958,7 +1927,7 @@ public final class LegacyShipBehaviorCatalog {
     /** Central task entry point, preserving TaskHelper's four task ids and eight-tick cadence. */
     public static void tickLegacyTask(LegacyShipEntity ship) {
         if (ship == null || ship.level().isClientSide() || ship.isHostileVariant()
-                || !ship.isAlive() || ship.getShipFuel() <= 0) {
+                || !ship.isAlive() || ship.hasNoFuel()) {
             return;
         }
 
@@ -1986,7 +1955,7 @@ public final class LegacyShipBehaviorCatalog {
         double guardX = guard.getX() + 0.5D;
         double guardZ = guard.getZ() + 0.5D;
         if (ship.distanceToSqr(guardX, guard.getY(), guardZ) > 10.0D) {
-            ship.getNavigation().moveTo(guardX, guard.getY(), guardZ, 1.0D);
+            ship.getShipNavigate().tryMoveToXYZ(guardX, guard.getY(), guardZ, 1.0D);
             return;
         }
 
@@ -2066,11 +2035,11 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         BlockPos paired = waypoint.getPairedChest();
-        if (paired == null || paired.getY() <= 0
+        if (paired == null || paired.getY() <= ship.level().getMinBuildHeight()
                 || ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
-            if (paired != null && paired.getY() > 0
+            if (paired != null && paired.getY() > ship.level().getMinBuildHeight()
                     && ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
-                ship.getNavigation().moveTo(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 1.0D);
+                ship.getShipNavigate().tryMoveToXYZ(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 1.0D);
             }
             return null;
         }
@@ -2124,7 +2093,7 @@ public final class LegacyShipBehaviorCatalog {
                                                boolean checkNbt) {
         Container inventory = ship.getShipInventory();
         for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT;
-             slot < LegacyShipEntity.SHIP_SLOT_COUNT; slot++) {
+             slot < ship.getInventorySizePaged(); slot++) {
             if (slot == LegacyShipEntity.LEGACY_MAIN_HAND_SLOT
                     || slot == LegacyShipEntity.LEGACY_OFF_HAND_SLOT) {
                 continue;
@@ -2248,7 +2217,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static int moveLegacyTaskStackToShip(LegacyShipEntity ship, ItemStack source) {
         return insertLegacyTaskStack(ship.getShipInventory(), source,
-                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, LegacyShipEntity.SHIP_SLOT_COUNT);
+                LegacyShipEntity.EQUIPMENT_SLOT_COUNT, ship.getInventorySizePaged());
     }
 
     private static void dropLegacyTaskRemainder(LegacyShipEntity ship, ItemStack stack) {
@@ -2403,7 +2372,7 @@ public final class LegacyShipBehaviorCatalog {
             return;
         }
         if ((ship.tickCount & 63) == 0) {
-            ship.getNavigation().moveTo(ship.getX() + ship.getRandom().nextInt(9) - 4,
+            ship.getShipNavigate().tryMoveToXYZ(ship.getX() + ship.getRandom().nextInt(9) - 4,
                     ship.getY() + ship.getRandom().nextInt(5) - 2,
                     ship.getZ() + ship.getRandom().nextInt(9) - 4, 1.0D);
             return;
@@ -2655,7 +2624,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static boolean isLegacyTaskGuard(LegacyShipEntity ship, @javax.annotation.Nullable BlockPos guard) {
-        if (guard == null || guard.getY() <= 0) {
+        if (guard == null || guard.getY() <= ship.level().getMinBuildHeight()) {
             return false;
         }
 
@@ -2740,16 +2709,16 @@ public final class LegacyShipBehaviorCatalog {
 
     /** Mirrors EntityHelper.getMoraleLevel's legacy IDs and strict boundaries. */
     public static int legacyMoraleIdFor(int morale) {
-        if (morale > 5100) {
+        if (morale > LegacyShipStatTables.MORALE_EXCITED_LOWER) {
             return 0;
         }
-        if (morale > 3900) {
+        if (morale > LegacyShipStatTables.MORALE_HAPPY_LOWER) {
             return 1;
         }
-        if (morale > 2100) {
+        if (morale > LegacyShipStatTables.MORALE_NORMAL_LOWER) {
             return 2;
         }
-        if (morale > 900) {
+        if (morale > LegacyShipStatTables.MORALE_TIRED_LOWER) {
             return 3;
         }
         return 4;
@@ -2794,8 +2763,8 @@ public final class LegacyShipBehaviorCatalog {
             case MELEE -> 2;
             case LIGHT -> 4;
             case HEAVY -> 6;
-            case AIR_LIGHT -> 3;
-            case AIR_HEAVY -> 4;
+            case AIR_LIGHT -> 6;
+            case AIR_HEAVY -> 8;
         };
     }
 
@@ -2867,7 +2836,7 @@ public final class LegacyShipBehaviorCatalog {
         if (!ship.level().isClientSide() && ship.isOwnedBy(player)) {
             ship.setOrderedToSit(false);
             ship.startRiding(player, true);
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
         }
         return true;
     }
@@ -2893,7 +2862,7 @@ public final class LegacyShipBehaviorCatalog {
      */
     public static void tickLegacyRiderBehavior(LegacyShipEntity ship) {
         if (ship == null || ship.level().isClientSide() || !ship.isAlive()
-                || (ship.tickCount & 31) != 0) {
+                || ((ship.tickCount & 31) != 0 && !ship.hasNoFuel())) {
             return;
         }
 
@@ -2987,7 +2956,7 @@ public final class LegacyShipBehaviorCatalog {
                 continue;
             }
             if (point.requiresActiveFriendlyState()
-                    && (ship.isOrderedToSit() || ship.getShipFuel() <= 0)) {
+                    && (ship.isOrderedToSit() || ship.hasNoFuel())) {
                 continue;
             }
 
@@ -3272,7 +3241,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickCarrierWoClientBehavior(LegacyShipEntity ship) {
-        if (shouldSpawnCarrierWoEyeEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+        if (shouldSpawnCarrierWoEyeEffect(ship.getModelState(), ship.hasNoFuel(),
                 ship.isOrderedToSit(), ship.getEmotion())) {
             float yaw = ship.getYHeadRot() * ((float) Math.PI / 180.0F);
             float pitch = ship.getXRot() * ((float) Math.PI / 180.0F);
@@ -3313,7 +3282,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static void tickSubmarineYoClientBehavior(LegacyShipEntity ship) {
-        if (!shouldSpawnSubmarineYoEyeEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+        if (!shouldSpawnSubmarineYoEyeEffect(ship.getModelState(), ship.hasNoFuel(),
                 ship.isOrderedToSit(), ship.getEmotion())) {
             return;
         }
@@ -3327,7 +3296,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void tickCarrierAkagiClientBehavior(LegacyShipEntity ship) {
         if (!ship.isHostileVariant()
                 && shouldSpawnCarrierAkagiEmotion(ship.tickCount, ship.getRandom().nextInt(4),
-                        ship.getShipFuel() <= 0)) {
+                        ship.hasNoFuel())) {
             spawnLegacyEntityEmotion(ship, 9);
         }
     }
@@ -3613,7 +3582,7 @@ public final class LegacyShipBehaviorCatalog {
                 : healthRatio > 0.25F ? LEGACY_HP_MODERATE : LEGACY_HP_HEAVY;
         ship.setHpState(hpState);
 
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (ship.getEmotion() != LEGACY_EMOTION_HUNGRY) {
                 ship.setEmotion(LEGACY_EMOTION_HUNGRY);
             }
@@ -3797,9 +3766,9 @@ public final class LegacyShipBehaviorCatalog {
         int normalizedClassId = normalizeLegacyClassId(ship.getShipClassId());
 
         if (normalizedClassId == 31) {
-            if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.getShipFuel() <= 0,
+            if (shouldSpawnNorthernHimeMouthEffect(ship.getModelState(), ship.hasNoFuel(),
                     ship.tickCount)) {
-                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_EMOTION,
+                CombatFxDispatcher.sendParticle(ship, GameplayParticleType.LEGACY_DRIP_WATER,
                         ship.getX(),
                         ship.getY() + northernHimeMouthYOffsetFor(
                                 ship.isOrderedToSit(), ship.isPassenger()),
@@ -3942,7 +3911,7 @@ public final class LegacyShipBehaviorCatalog {
 
     private static void startNorthernHimeRidingSearch(LegacyShipEntity ship) {
         ship.resetLegacyHimeRiding();
-        if (ship.isOrderedToSit() || ship.isLeashed() || ship.getShipFuel() <= 0) {
+        if (ship.isOrderedToSit() || ship.isLeashed() || ship.hasNoFuel()) {
             return;
         }
 
@@ -3984,12 +3953,12 @@ public final class LegacyShipBehaviorCatalog {
 
         double distance = ship.distanceTo(target);
         if (distance > 2.0D && ship.tickCount % 32 == 0) {
-            ship.getNavigation().moveTo(target, 1.0D);
+            ship.getShipNavigate().tryMoveToEntityLiving(target, 1.0D);
         }
         if (distance <= 2.0D && !target.isPassenger() && ship.getPassengers().isEmpty()
                 && target.getPassengers().isEmpty()) {
             ship.startRiding(target, true);
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
             ship.resetLegacyHimeRiding();
         }
     }
@@ -4104,7 +4073,7 @@ public final class LegacyShipBehaviorCatalog {
                     15, 135, LegacyShipStatTables.Attr.AMMO, true);
         }
 
-        if ((ship.tickCount & 255) != 0 || ship.getShipFuel() <= 0) {
+        if ((ship.tickCount & 255) != 0 || ship.hasNoFuel()) {
             return;
         }
 
@@ -4191,7 +4160,7 @@ public final class LegacyShipBehaviorCatalog {
                 ship.playLegacyRePushSound();
                 ship.resetLegacyRePush();
             } else if (ship.tickCount % 32 == 0) {
-                ship.getNavigation().moveTo(target, 1.0D);
+                ship.getShipNavigate().tryMoveToEntityLiving(target, 1.0D);
             }
             return;
         }
@@ -4200,7 +4169,7 @@ public final class LegacyShipBehaviorCatalog {
                 || ship.getRandom().nextInt(5) != 0
                 || ship.isOrderedToSit()
                 || ship.isPassenger()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || ship.isLeashed()) {
             return;
         }
@@ -4233,14 +4202,14 @@ public final class LegacyShipBehaviorCatalog {
 
         if (ship.isOrderedToSit()
                 || ship.isPassenger()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || !ship.isLegacyOutOfCombat()
                 || ship.hasActiveCommandState()
                 || ship.getRandom().nextFloat() <= 0.5F) {
             return;
         }
 
-        ship.getNavigation().moveTo(
+        ship.getShipNavigate().tryMoveToEntityLiving(
                 nearby.get(ship.getRandom().nextInt(nearby.size())), 1.0D);
         CombatFxDispatcher.sendLegacyEmotion(ship,
                 nagatoMoraleEmotionTypeFor(ship.getRandom().nextInt(5)));
@@ -4356,6 +4325,7 @@ public final class LegacyShipBehaviorCatalog {
         int timer = ship.getLegacySkillTimer();
         if (timer == 6) {
             ship.clearLegacySkillDamagedTargets();
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             sendLaunchSmoke(ship);
         } else if (timer == 3) {
             Vec3 motion = ship.getLegacySkillMotion();
@@ -4426,7 +4396,7 @@ public final class LegacyShipBehaviorCatalog {
                 ? Vec3.ZERO : direction.normalize().scale(-1.25D);
         ship.setLegacySkillMotion(motion);
         faceLegacyDirection(ship, motion);
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         ship.moveTo(destination.x, destination.y, destination.z, ship.getYRot(), ship.getXRot());
         ship.setLegacySkillRemaining(ship.getLegacySkillRemaining() - 1);
         ship.setLegacySkillTimer(7);
@@ -4440,7 +4410,7 @@ public final class LegacyShipBehaviorCatalog {
                 -Math.abs(destination.y - target.getY()) * 0.25D,
                 0.0D);
         ship.setLegacySkillMotion(motion);
-        ship.getNavigation().stop();
+        ship.getShipNavigate().clearPathEntity();
         ship.moveTo(destination.x, destination.y, destination.z, ship.getYRot(), ship.getXRot());
         ship.setLegacySkillRemaining(ship.getLegacySkillRemaining() - 1);
         ship.setLegacySkillTimer(9);
@@ -4552,6 +4522,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaCharge(LegacyShipEntity ship, LivingEntity target) {
         int timer = ship.getLegacySkillTimer();
         if (timer == 8) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             Vec3 direction = target.position().subtract(ship.position());
             Vec3 motion = direction.scale(0.14D);
             ship.setLegacySkillMotion(motion);
@@ -4576,6 +4547,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaWave(LegacyShipEntity ship) {
         int timer = ship.getLegacySkillTimer();
         if (timer <= 0) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             ship.setLegacySkillMotion(new Vec3(0.0D,
                     0.3D + (ship.isHostileVariant() ? ship.getLegacyHostileScaleLevel() * 0.1D : 0.0D),
                     0.0D));
@@ -4645,6 +4617,7 @@ public final class LegacyShipBehaviorCatalog {
     private static void updateTatsutaFinalAttack(LegacyShipEntity ship, LivingEntity target) {
         int timer = ship.getLegacySkillTimer();
         if (timer <= 0) {
+            CombatFxDispatcher.sendLegacyAttackAnimation(ship, 0);
             Vec3 direction = target.position().subtract(
                     ship.position().add(0.0D, 1.0D, 0.0D));
             ship.setLegacySkillMotion(direction.lengthSqr() <= 1.0E-4D
@@ -4693,7 +4666,7 @@ public final class LegacyShipBehaviorCatalog {
 
         // EntityDestroyerAkatsuki.updateFuelState dismounts every rider as soon
         // as the legacy no-fuel flag is raised.
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             dismountSixDestroyerRiders(ship);
             return;
         }
@@ -4730,7 +4703,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity host = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (host != null) {
                 dismountSixDestroyerRiders(host);
             }
@@ -4749,7 +4722,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity sixDestroyerHost = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (sixDestroyerHost != null) {
                 dismountSixDestroyerRiders(sixDestroyerHost);
             }
@@ -4796,7 +4769,7 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         LegacyShipEntity sixDestroyerHost = friendlyVehicleOfClass(ship, 51);
-        if (ship.getShipFuel() <= 0) {
+        if (ship.hasNoFuel()) {
             if (sixDestroyerHost != null) {
                 dismountSixDestroyerRiders(sixDestroyerHost);
             }
@@ -4906,7 +4879,7 @@ public final class LegacyShipBehaviorCatalog {
         if (host.isHostileVariant()
                 || host.isPassenger()
                 || host.isOrderedToSit()
-                || host.getShipFuel() <= 0
+                || host.hasNoFuel()
                 || host.getLegacyRiderType() == 7
                 || host.getHealth() <= host.getMaxHealth() * 0.5F
                 || host.getLegacyFormationId() != 1) {
@@ -4956,7 +4929,7 @@ public final class LegacyShipBehaviorCatalog {
                 && candidate.isAlive()
                 && !candidate.isPassenger()
                 && !candidate.isOrderedToSit()
-                && candidate.getShipFuel() > 0
+                && !candidate.hasNoFuel()
                 && candidate.getLegacyRiderType() == 0
                 && !candidate.isLegacyRaiden()
                 && candidate.getLegacyFormationId() == 1;
@@ -4966,7 +4939,7 @@ public final class LegacyShipBehaviorCatalog {
         if (ship.isHostileVariant()
                 || ship.isPassenger()
                 || ship.isOrderedToSit()
-                || ship.getShipFuel() <= 0
+                || ship.hasNoFuel()
                 || ship.getLegacyRiderType() > 0
                 || ship.isLegacyRaiden()
                 || ship.getHealth() <= ship.getMaxHealth() * 0.5F) {
@@ -4983,7 +4956,7 @@ public final class LegacyShipBehaviorCatalog {
                         && candidate.isAlive()
                         && !candidate.isPassenger()
                         && !candidate.isOrderedToSit()
-                        && candidate.getShipFuel() > 0
+                        && !candidate.hasNoFuel()
                         && candidate.getLegacyRiderType() == 0
                         && !candidate.isLegacyRaiden());
         if (nearby.isEmpty()) {
@@ -5149,7 +5122,7 @@ public final class LegacyShipBehaviorCatalog {
         if (!shouldUseCombatHook(ship.getSpec(), attackKind)
                 || !behavior.hasCombatHook()
                 || respectEntityCooldown && ship.getCompatAttackCooldown(attackKind) > 0
-                || !ship.canEngage(target)) {
+                || !ship.canCommandOrRevengeEngage(target)) {
             return CombatHookResult.NOT_HANDLED;
         }
 
@@ -5161,8 +5134,6 @@ public final class LegacyShipBehaviorCatalog {
             case YAMATO_BEAM_BARRAGE -> performYamatoBeam(ship, target);
             case TENRYUU_DASH -> performTenryuuDash(ship, target);
             case TATSUTA_CONTROL_AOE -> performTatsutaControl(ship, target);
-            case HEAVY_CRUISER_BARRAGE -> hookResult(performHeavyCruiserBarrage(ship, target));
-            case KONGOU_COMBO -> hookResult(performKongouCombo(ship, target));
             case BATTLESHIP_RU_BARRAGE -> performBattleshipRuBarrage(ship, target);
             case BATTLESHIP_TA_RENSOUHOU -> performBattleshipTaSummon(ship, target);
             case SUBMARINE_HIME_DOUBLE_MISSILE -> performSubmarineHimeDoubleMissile(ship, target);
@@ -5172,9 +5143,7 @@ public final class LegacyShipBehaviorCatalog {
         };
 
         if (result.handled() && respectEntityCooldown) {
-            int baseDelay = LegacyShipCombatHelper.attackDelay(ship, attackKind);
-            ship.setCatalogAttackCooldown(attackKind,
-                    Math.max(8, Math.round(baseDelay * cooldownMultiplier(behavior.combatHook()))));
+            ship.setCatalogAttackCooldown(attackKind, LegacyShipCombatHelper.attackDelay(ship, attackKind));
         }
         return result;
     }
@@ -5198,99 +5167,9 @@ public final class LegacyShipBehaviorCatalog {
         };
 
         if (result.handled() && respectEntityCooldown) {
-            int baseDelay = LegacyShipCombatHelper.attackDelay(ship, attackKind);
-            ship.setCatalogAttackCooldown(attackKind,
-                    Math.max(8, Math.round(baseDelay * cooldownMultiplier(behavior.combatHook()))));
+            ship.setCatalogAttackCooldown(attackKind, LegacyShipCombatHelper.attackDelay(ship, attackKind));
         }
         return result;
-    }
-
-    private static CombatHookResult hookResult(boolean handled) {
-        return handled ? CombatHookResult.HANDLED : CombatHookResult.NOT_HANDLED;
-    }
-
-    public static BossPhaseProfile bossPhaseProfile(ShipEntitySpec spec) {
-        int legacyClassId = spec.legacyClassId();
-        if (spec.archetype() == ShipArchetype.INSTALLATION) {
-            int summonEggMeta = legacyClassId == 21 ? 14 : 18;
-            return new BossPhaseProfile(
-                    List.of(BossActionType.AREA_BOMBARD, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST),
-                    summonEggMeta,
-                    40,
-                    160);
-        }
-
-        if (legacyClassId == 30 || legacyClassId == 33 || legacyClassId == 49) {
-            return new BossPhaseProfile(
-                    List.of(BossActionType.AIR_ASSAULT, BossActionType.SUMMON_ESCORT, BossActionType.CANNON_BURST),
-                    14,
-                    34,
-                    140);
-        }
-
-        if (spec.archetype() == ShipArchetype.PRINCESS) {
-            int summonEggMeta = legacyClassId == 44 ? 19 : 2;
-            return new BossPhaseProfile(
-                    List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE, BossActionType.SUMMON_ESCORT),
-                    summonEggMeta,
-                    36,
-                    180);
-        }
-
-        return new BossPhaseProfile(
-                List.of(BossActionType.CANNON_BURST, BossActionType.CHARGE),
-                2,
-                54,
-                220);
-    }
-
-    public static HostileLootProfile hostileLootProfile(ShipEntitySpec spec, boolean elite, boolean boss) {
-        boolean dropsAbyssMetal = elite
-                || spec.archetype() == ShipArchetype.CARRIER
-                || spec.archetype() == ShipArchetype.BATTLESHIP;
-        boolean dropsAbyssMetal1 = spec.archetype() == ShipArchetype.INSTALLATION || boss;
-        int scaleLevel = boss ? elite ? 3 : 2 : elite ? 1 : 0;
-        float eggDropChance = switch (scaleLevel) {
-            case 1 -> 0.33F;
-            case 2 -> 0.9F;
-            case 3 -> 1.0F;
-            default -> 0.2F;
-        };
-        return new HostileLootProfile(dropsAbyssMetal, dropsAbyssMetal1, boss, eggDropChance);
-    }
-
-    public static int hostileSpawnLevel(ShipEntitySpec spec, boolean elite, boolean boss) {
-        if (!spec.hostile()) {
-            return 1;
-        }
-
-        int base = switch (spec.archetype()) {
-            case DESTROYER, SUBMARINE -> 18;
-            case TRANSPORT, CRUISER -> 24;
-            case CARRIER, BATTLESHIP -> 32;
-            case PRINCESS -> 48;
-            case INSTALLATION -> 52;
-        };
-        if (elite) {
-            base += 12;
-        }
-        if (boss) {
-            base += 28;
-        }
-        if (spec.eggMeta() >= 2000) {
-            base += 8;
-        }
-        return Math.max(1, Math.min(100, base));
-    }
-
-    public static int hostileSpawnMorale(boolean elite, boolean boss) {
-        if (boss) {
-            return 9000;
-        }
-        if (elite) {
-            return 7000;
-        }
-        return 5200;
     }
 
     public static void tickMarriagePassive(LegacyShipEntity ship) {
@@ -5341,8 +5220,6 @@ public final class LegacyShipBehaviorCatalog {
             case YAMATO_BEAM_BARRAGE -> 200;
             case TENRYUU_DASH -> 120;
             case TATSUTA_CONTROL_AOE -> 120;
-            case HEAVY_CRUISER_BARRAGE -> 140;
-            case KONGOU_COMBO -> 150;
             case BATTLESHIP_RU_BARRAGE -> 0;
             case BATTLESHIP_TA_RENSOUHOU -> 130;
             case SUBMARINE_HIME_DOUBLE_MISSILE -> 0;
@@ -5404,27 +5281,7 @@ public final class LegacyShipBehaviorCatalog {
             case 46 -> CombatHook.YAMATO_BEAM_BARRAGE;
             case 56 -> CombatHook.TENRYUU_DASH;
             case 57 -> CombatHook.TATSUTA_CONTROL_AOE;
-            case 58, 59 -> CombatHook.HEAVY_CRUISER_BARRAGE;
-            case 60, 61, 62, 63 -> CombatHook.KONGOU_COMBO;
             default -> CombatHook.NONE;
-        };
-    }
-
-    private static float cooldownMultiplier(CombatHook hook) {
-        return switch (hook) {
-            case SHIMAKAZE_TORPEDO_BURST -> 1.0F;
-            case NAGATO_HEAVY_STRIKE -> 1.3F;
-            case YAMATO_BEAM_BARRAGE -> 1.5F;
-            case TENRYUU_DASH -> 0.9F;
-            case TATSUTA_CONTROL_AOE -> 1.0F;
-            case HEAVY_CRUISER_BARRAGE -> 1.1F;
-            case KONGOU_COMBO -> 1.25F;
-            case BATTLESHIP_RU_BARRAGE -> 1.0F;
-            case BATTLESHIP_TA_RENSOUHOU -> 1.0F;
-            case SUBMARINE_HIME_DOUBLE_MISSILE -> 1.0F;
-            case CARRIER_HIME_MELEE_MISSILE -> 1.0F;
-            case NORTHERN_HIME_FLOATING_FORT -> 1.0F;
-            case NONE -> 1.0F;
         };
     }
 
@@ -5860,63 +5717,6 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         return CombatHookResult.HANDLED_WITH_RESOURCES;
-    }
-
-    private static boolean performHeavyCruiserBarrage(LegacyShipEntity ship, LivingEntity primaryTarget) {
-        boolean acted = false;
-        for (LivingEntity target : collectTargets(ship, primaryTarget, 5.5D, 4)) {
-            boolean hit = ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.HEAVY,
-                    target == primaryTarget ? 1.45F : 1.05F,
-                    true,
-                    LegacyShipProjectileVisual.MISSILE,
-                    GameplayParticleType.MISSILE_IMPACT);
-            if (hit) {
-                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, false, true, true));
-                acted = true;
-            }
-        }
-        sendLaunchSmoke(ship);
-        return acted;
-    }
-
-    private static boolean performKongouCombo(LegacyShipEntity ship, LivingEntity primaryTarget) {
-        List<LivingEntity> targets = collectTargets(ship, primaryTarget, 7.0D, 5);
-        boolean acted = false;
-        for (int index = 0; index < targets.size(); index++) {
-            LivingEntity target = targets.get(index);
-            acted |= ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.HEAVY,
-                    index == 0 ? 1.55F : 1.15F,
-                    true,
-                    LegacyShipProjectileVisual.MISSILE,
-                    GameplayParticleType.MISSILE_IMPACT);
-            acted |= ship.performCatalogSpecialAttack(target, LegacyShipAttackKind.LIGHT,
-                    index == 0 ? 1.0F : 0.78F,
-                    false,
-                    LegacyShipProjectileVisual.NONE,
-                    GameplayParticleType.HIT_EXPLOSION);
-        }
-        sendLaunchSmoke(ship);
-        return acted;
-    }
-
-    private static List<LivingEntity> collectTargets(LegacyShipEntity ship, LivingEntity primaryTarget,
-                                                     double radius, int maxTargets) {
-        List<LivingEntity> targets = new ArrayList<>();
-        targets.add(primaryTarget);
-
-        AABB searchArea = primaryTarget.getBoundingBox().inflate(radius, radius * 0.5D, radius);
-        for (LivingEntity candidate : ship.level().getEntitiesOfClass(LivingEntity.class, searchArea)) {
-            if (candidate == primaryTarget || !ship.canEngage(candidate)) {
-                continue;
-            }
-            targets.add(candidate);
-        }
-
-        targets.sort(Comparator.comparingDouble(ship::distanceToSqr));
-        if (targets.size() > maxTargets) {
-            return List.copyOf(targets.subList(0, maxTargets));
-        }
-        return List.copyOf(targets);
     }
 
     private static List<LivingEntity> collectLineTargets(LegacyShipEntity ship, LivingEntity primaryTarget,

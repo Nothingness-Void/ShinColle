@@ -2,6 +2,7 @@ package com.lulan.shincolle.entity.ship.goal;
 
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -60,7 +61,7 @@ public class LegacyShipPickItemGoal extends Goal {
     public void stop() {
         this.targetItem = null;
         if (this.ship.getTarget() == null) {
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
         }
     }
 
@@ -72,7 +73,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
         if (--this.timeToRecalcPath <= 0) {
             this.timeToRecalcPath = this.adjustedTickDelay(16);
-            this.ship.getNavigation().moveTo(this.targetItem, this.speedModifier);
+            this.ship.getShipNavigate().tryMoveToEntityLiving(this.targetItem, this.speedModifier);
         }
 
         if (this.pickupCooldown > 0) {
@@ -85,20 +86,19 @@ public class LegacyShipPickItemGoal extends Goal {
     }
 
     private boolean canRunPickupLogic() {
-        return this.ship.canExecuteCombatGoal()
-                && !this.ship.isHostileVariant()
+        return !this.ship.isHostileVariant()
                 && LegacyShipBehaviorCatalog.supportsItemPickup(this.ship.getSpec())
                 && this.ship.isAiPickItem()
                 && !this.ship.isOrderedToSit()
                 && !this.ship.isPassenger()
-                && this.ship.getShipFuel() > 0
-                && !this.ship.hasActiveCommandState()
-                && this.ship.getTarget() == null
+                && !this.ship.hasNoFuel()
+                && this.ship.getLegacyCraneState() < 1
+                && this.ship.getFishingHook() == null
                 && this.hasAnyCargoSpace();
     }
 
     private boolean hasAnyCargoSpace() {
-        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getShipInventory().getContainerSize(); slot++) {
+        for (int slot = LegacyShipEntity.EQUIPMENT_SLOT_COUNT; slot < this.ship.getInventorySizePaged(); slot++) {
             ItemStack stack = this.ship.getShipInventory().getItem(slot);
             if (stack.isEmpty()) {
                 return true;
@@ -110,7 +110,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
     private @Nullable ItemEntity findNearestItem() {
         double pickupRangeBase = LegacyShipBehaviorCatalog.pickupRangeBaseFor(this.ship.getSpec());
-        double range = Math.min(pickupRangeBase + this.ship.getAiFollowRange(),
+        double range = Math.min(pickupRangeBase + this.ship.getFollowMax(),
                 pickupRangeBase + this.ship.getCompatAttackRange() * 0.5D);
         List<ItemEntity> nearbyItems = this.ship.level().getEntitiesOfClass(ItemEntity.class,
                 this.ship.getBoundingBox().inflate(range, range * 0.5D + 1.0D, range),
@@ -128,7 +128,7 @@ public class LegacyShipPickItemGoal extends Goal {
 
         this.pickupCooldown = this.getPickupCooldown();
         if (this.targetItem.hasPickUpDelay()) {
-            this.ship.getNavigation().stop();
+            this.ship.getShipNavigate().clearPathEntity();
             return;
         }
 
@@ -152,7 +152,7 @@ public class LegacyShipPickItemGoal extends Goal {
         stack.shrink(moved);
         this.ship.take(this.targetItem, moved);
         this.ship.level().playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
-                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), 1.0F,
+                SoundEvents.ITEM_PICKUP, this.ship.getSoundSource(), (float) ShinColleConfig.volumeShip(),
                 ((this.ship.getRandom().nextFloat() - this.ship.getRandom().nextFloat()) * 0.7F + 1.0F) * 2.0F);
         this.ship.playLegacyItemPickupVoice();
         this.ship.addShipExperience(LegacyShipBehaviorCatalog.pickupExperience());

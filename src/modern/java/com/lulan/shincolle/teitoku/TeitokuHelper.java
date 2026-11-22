@@ -1,15 +1,10 @@
 package com.lulan.shincolle.teitoku;
 
-import com.lulan.shincolle.blockentity.CraneBlockEntity;
-import com.lulan.shincolle.blockentity.DeskBlockEntity;
-import com.lulan.shincolle.blockentity.HeavyGrudgeBlockEntity;
-import com.lulan.shincolle.blockentity.LegacyCoreBlockEntity;
-import com.lulan.shincolle.blockentity.RouteNode;
-import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
-import com.lulan.shincolle.blockentity.WaypointBlockEntity;
 import com.lulan.shincolle.combat.WorldCombatRulesSavedData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
+import com.lulan.shincolle.playerskill.PlayerSkillHostResolver;
 import com.lulan.shincolle.network.ModNetwork;
 import com.lulan.shincolle.team.TeamData;
 import com.lulan.shincolle.team.TeamSavedData;
@@ -32,8 +27,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -72,7 +65,7 @@ public final class TeitokuHelper {
     private static volatile @Nullable Boolean clientPolyAsMn;
 
     public record DeskRadarContactSnapshot(String kind, String name, String statusText,
-                                           int x, int y, int z, int ownerUid, boolean hostile) {
+                                           float x, float y, float z, int ownerUid, boolean hostile) {
     }
 
     private TeitokuHelper() {
@@ -122,6 +115,7 @@ public final class TeitokuHelper {
     public static CompoundTag buildGameplayStateTag(ServerLevel level, Player player) {
         CompoundTag payload = new CompoundTag();
         get(player).ifPresent(teitokuData -> payload.put(TEITOKU_PAYLOAD_TAG, teitokuData.saveToTag(new CompoundTag())));
+        get(player).ifPresent(teitokuData -> payload.putBoolean("ShipIdsInitialized", teitokuData.areShipIdsInitialized()));
 
         TeamSavedData teamSavedData = TeamSavedData.get(level);
         ListTag teamList = new ListTag();
@@ -158,6 +152,7 @@ public final class TeitokuHelper {
     public static void applyClientState(Player player, CompoundTag payload) {
         if (payload.contains(TEITOKU_PAYLOAD_TAG, Tag.TAG_COMPOUND)) {
             get(player).ifPresent(data -> data.loadFromTag(payload.getCompound(TEITOKU_PAYLOAD_TAG)));
+            get(player).ifPresent(data -> data.setShipIdsInitialized(payload.getBoolean("ShipIdsInitialized")));
         }
 
         if (payload.contains(TEAM_LIST_PAYLOAD_TAG, Tag.TAG_LIST)) {
@@ -202,9 +197,9 @@ public final class TeitokuHelper {
                         entryTag.getString("Kind"),
                         entryTag.getString("Name"),
                         entryTag.getString("Status"),
-                        entryTag.getInt("X"),
-                        entryTag.getInt("Y"),
-                        entryTag.getInt("Z"),
+                        entryTag.getFloat("X"),
+                        entryTag.getFloat("Y"),
+                        entryTag.getFloat("Z"),
                         entryTag.getInt("OwnerUid"),
                         entryTag.getBoolean("Hostile")));
             }
@@ -292,106 +287,16 @@ public final class TeitokuHelper {
         }
 
         ServerLevel level = player.serverLevel();
-        double maxRadius = 256.0D;
-        double maxRadiusSq = maxRadius * maxRadius;
-
-        for (LegacyShipEntity ship : level.getEntitiesOfClass(
-                LegacyShipEntity.class,
-                player.getBoundingBox().inflate(maxRadius),
-                candidate -> candidate.isAlive() && candidate.distanceToSqr(player) <= maxRadiusSq)) {
-            CompoundTag entry = new CompoundTag();
-            entry.putString("Kind", "SHIP");
-            entry.putString("Name", ship.getName().getString());
-            entry.putString("Status", Mth.floor(ship.getHealth()) + "/" + Mth.floor(ship.getMaxHealth()));
-            entry.putInt("X", Mth.floor((float) ship.getX()));
-            entry.putInt("Y", Mth.floor((float) ship.getY()));
-            entry.putInt("Z", Mth.floor((float) ship.getZ()));
-            entry.putInt("OwnerUid", ship.getOwnerUid());
-            entry.putBoolean("Hostile", ship.isHostileVariant());
-            contacts.add(entry);
-        }
-
         for (ItemEntity item : level.getEntitiesOfClass(
                 ItemEntity.class,
-                player.getBoundingBox().inflate(maxRadius),
-                candidate -> candidate.isAlive() && candidate.distanceToSqr(player) <= maxRadiusSq)) {
-            ItemStack stack = item.getItem();
+                player.getBoundingBox().expandTowards(128D, 256D, 128D),
+                LegacyEntityItemMarker::isMarked)) {
             CompoundTag entry = new CompoundTag();
             entry.putString("Kind", "ITEM");
-            entry.putString("Name", stack.isEmpty() ? "Item" : stack.getHoverName().getString());
-            entry.putString("Status", "Stack: " + Math.max(1, stack.getCount()));
-            entry.putInt("X", Mth.floor((float) item.getX()));
-            entry.putInt("Y", Mth.floor((float) item.getY()));
-            entry.putInt("Z", Mth.floor((float) item.getZ()));
-            entry.putInt("OwnerUid", 0);
-            entry.putBoolean("Hostile", false);
+            entry.putFloat("X", (float)item.getX());
+            entry.putFloat("Y", (float)item.getY());
+            entry.putFloat("Z", (float)item.getZ());
             contacts.add(entry);
-        }
-
-        int playerUid = getPlayerUid(player);
-        int radius = 256;
-        int radiusSq = radius * radius;
-        BlockPos playerPos = player.blockPosition();
-        int centerChunkX = playerPos.getX() >> 4;
-        int centerChunkZ = playerPos.getZ() >> 4;
-        int chunkRadius = Mth.ceil(radius / 16.0F) + 1;
-
-        for (int chunkX = centerChunkX - chunkRadius; chunkX <= centerChunkX + chunkRadius; chunkX++) {
-            for (int chunkZ = centerChunkZ - chunkRadius; chunkZ <= centerChunkZ + chunkRadius; chunkZ++) {
-                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk == null) {
-                    continue;
-                }
-                for (BlockPos pos : chunk.getBlockEntitiesPos()) {
-                    if (pos.distSqr(playerPos) > radiusSq) {
-                        continue;
-                    }
-                    BlockEntity blockEntity = level.getBlockEntity(pos);
-                    if (blockEntity == null) {
-                        continue;
-                    }
-
-                    String kind;
-                    String status;
-                    if (blockEntity instanceof WaypointBlockEntity waypoint && waypoint.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = waypoint.getPairedChest() == null ? "Route: idle" : "Route: supply linked";
-                    } else if (blockEntity instanceof CraneBlockEntity crane && crane.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = crane.getPairedChest() == null ? "Crane: idle" : "Crane: linked";
-                    } else if (blockEntity instanceof HeavyGrudgeBlockEntity heavyGrudge && heavyGrudge.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = heavyGrudge.isStructureComplete()
-                                ? "Heavy Grudge: grand shipyard"
-                                : "Heavy Grudge: unformed";
-                    } else if (blockEntity instanceof LegacyCoreBlockEntity core && core.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = core.isVolCore() ? "VolCore charge " + core.getStoredCharge() : "Core charge " + core.getStoredCharge();
-                    } else if (blockEntity instanceof DeskBlockEntity) {
-                        kind = "FACILITY";
-                        status = "Desk terminal";
-                    } else if (blockEntity instanceof SmallShipyardBlockEntity shipyard && shipyard.canEdit(player)) {
-                        kind = "FACILITY";
-                        status = "Small shipyard";
-                    } else if (blockEntity instanceof RouteNode routeNode && routeNode.canEdit(player)) {
-                        kind = "ROUTE";
-                        status = routeNode.getRouteNodeName().getString();
-                    } else {
-                        continue;
-                    }
-
-                    CompoundTag entry = new CompoundTag();
-                    entry.putString("Kind", kind);
-                    entry.putString("Name", blockEntity.getBlockState().getBlock().getName().getString());
-                    entry.putString("Status", status);
-                    entry.putInt("X", pos.getX());
-                    entry.putInt("Y", pos.getY());
-                    entry.putInt("Z", pos.getZ());
-                    entry.putInt("OwnerUid", playerUid);
-                    entry.putBoolean("Hostile", false);
-                    contacts.add(entry);
-                }
-            }
         }
 
         payload.put(DESK_RADAR_PAYLOAD_TAG, contacts);
@@ -436,18 +341,13 @@ public final class TeitokuHelper {
 
     public static void markRingState(ServerPlayer player, boolean active) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.setHasRing(true);
             teitokuData.setRingActive(active);
-            if (!active) {
-                teitokuData.setRingFlying(false);
-            }
             sync(player);
         });
     }
 
     public static void incrementMarriageCount(ServerPlayer player) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.setHasRing(true);
             teitokuData.incrementMarriageNum();
             sync(player);
         });
@@ -632,7 +532,14 @@ public final class TeitokuHelper {
 
     public static void assignShipToCurrentTeam(ServerPlayer player, int slot, int shipUid) {
         get(player).ifPresent(teitokuData -> {
-            teitokuData.assignCurrentTeamSlot(slot, shipUid);
+            LegacyShipEntity ship = shipUid > 0 ? findShipByUid(player, shipUid) : null;
+            if (shipUid > 0 && ship == null) {
+                return;
+            }
+            if (!teitokuData.addShipEntity(slot, ship, false)) {
+                return;
+            }
+            teitokuData.setFormationId(teitokuData.getCurrentTeamId(), TeitokuData.DEFAULT_FORMATION_ID);
             syncGameplayState(player);
         });
     }
@@ -721,20 +628,10 @@ public final class TeitokuHelper {
         if (shipUid <= 0) {
             return;
         }
-        removeShipFromAllOnlineTeams(player.server, shipUid);
-    }
-
-    public static void removeShipFromAllOnlineTeams(MinecraftServer server, int shipUid) {
-        if (server == null || shipUid <= 0) {
-            return;
-        }
-
-        for (ServerPlayer online : server.getPlayerList().getPlayers()) {
-            get(online).ifPresent(teitokuData -> {
-                teitokuData.removeShipUidEverywhere(shipUid);
-                syncGameplayState(online);
-            });
-        }
+        get(player).ifPresent(data -> {
+            data.removeShipUidFromCurrentTeam(shipUid);
+            syncGameplayState(player);
+        });
     }
 
     public static void collectCurrentTeamShips(Player player, boolean selectedOnly, List<LegacyShipEntity> output) {
@@ -749,6 +646,11 @@ public final class TeitokuHelper {
     }
 
     public static LegacyShipEntity findOwnedShipByUid(Player player, int shipUid) {
+        LegacyShipEntity ship = findShipByUid(player, shipUid);
+        return ship != null && ship.canCommanderEdit(player) ? ship : null;
+    }
+
+    public static LegacyShipEntity findShipByUid(Player player, int shipUid) {
         if (shipUid <= 0) {
             return null;
         }
@@ -760,7 +662,7 @@ public final class TeitokuHelper {
                 if (dimensionId != null) {
                     ServerLevel cachedLevel = serverPlayer.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
                     if (cachedLevel != null && cachedLevel.getEntity(cached.entityId()) instanceof LegacyShipEntity ship
-                            && ship.getShipUid() == shipUid && ship.canCommanderEdit(player)) {
+                            && ship.getShipUid() == shipUid) {
                         return ship;
                     }
                 }
@@ -770,8 +672,29 @@ public final class TeitokuHelper {
         List<LegacyShipEntity> nearby = player.level().getEntitiesOfClass(
                 LegacyShipEntity.class,
                 player.getBoundingBox().inflate(512.0D),
-                ship -> ship.getShipUid() == shipUid && ship.canCommanderEdit(player));
+                ship -> ship.getShipUid() == shipUid);
         return nearby.isEmpty() ? null : nearby.get(0);
+    }
+
+    public static void refreshPointerTeam(ServerPlayer player, TeitokuData data, boolean initialize) {
+        int firstTeam = initialize ? 0 : data.getCurrentTeamId();
+        int lastTeam = initialize ? TeitokuData.TEAM_COUNT : firstTeam + 1;
+        for (int team = firstTeam; team < lastTeam; team++) {
+            for (int slot = 0; slot < TeitokuData.TEAM_SIZE; slot++) {
+                int uid = data.getShipUid(team, slot);
+                LegacyShipEntity ship = findShipByUid(player, uid);
+                if (ship != null) {
+                    refreshShipCache(ship, !ship.isAlive());
+                    if (!initialize && !PlayerSkillHostResolver.sameOwner(player, ship)) {
+                        data.setShipUid(team, slot, -1);
+                        data.setShipSelected(team, slot, false);
+                    }
+                } else if (!initialize && uid <= 0) {
+                    data.setShipUid(team, slot, -1);
+                    data.setShipSelected(team, slot, false);
+                }
+            }
+        }
     }
 
     public static void refreshShipCache(LegacyShipEntity ship, boolean dead) {
@@ -783,7 +706,25 @@ public final class TeitokuHelper {
             return;
         }
 
-        ShipCacheSavedData.get(serverLevel).updateFromShip(ship, dead, online);
+        ShipCacheSavedData cache = ShipCacheSavedData.get(serverLevel);
+        if (!dead && ship.tickCount > 200 && serverLevel.getEntity(ship.getId()) == ship) {
+            ShipWorldCacheEntry entry = cache.getShip(ship.getShipUid());
+            ResourceLocation dimension = entry == null ? null : ResourceLocation.tryParse(entry.dimensionId());
+            ServerLevel cachedLevel = dimension == null ? null : serverLevel.getServer().getLevel(
+                    ResourceKey.create(Registries.DIMENSION, dimension));
+            Entity candidate = cachedLevel == null ? null : cachedLevel.getEntity(entry.entityId());
+            if (candidate instanceof LegacyShipEntity other && other != ship
+                    && other.getShipUid() == ship.getShipUid() && other.tickCount > 200
+                    && other.isAlive() && ship.isAlive()) {
+                if (other.tickCount > ship.tickCount) {
+                    other.discard();
+                } else {
+                    ship.discard();
+                    ship = other;
+                }
+            }
+        }
+        cache.updateFromShip(ship, dead, online);
     }
 
     public static void renameOwnTeam(ServerPlayer player, String teamName) {

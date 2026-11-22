@@ -2,6 +2,7 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipStatTables;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphProfile;
 import com.lulan.shincolle.network.CombatFxDispatcher;
@@ -60,14 +61,6 @@ public class CombatRationItem extends Item {
         return this.grudgeMax;
     }
 
-    public int getFuelMin() {
-        return this.grudgeMin;
-    }
-
-    public int getFuelMax() {
-        return this.grudgeMax;
-    }
-
     public boolean clearsDebuffs() {
         return this.clearsDebuffs;
     }
@@ -108,8 +101,9 @@ public class CombatRationItem extends Item {
         if (!level.isClientSide() && livingEntity instanceof ServerPlayer player) {
             MorphProfile profile = MorphHelper.getActiveProfile(player);
             if (profile != null) {
+                float grudgeMultiplier = profile.buildStats(player.getActiveEffects()).get(LegacyShipStatTables.Attr.GRUDGE);
                 profile.addMorale(this.moraleValue);
-                profile.addGrudge(this.rollGrudge(player));
+                profile.addGrudge((int) (this.rollGrudge(player) * grudgeMultiplier));
                 if (this.clearsDebuffs) {
                     removeNegativeEffects(player);
                 }
@@ -138,14 +132,13 @@ public class CombatRationItem extends Item {
         for (LegacyShipEntity ship : level.getEntitiesOfClass(LegacyShipEntity.class,
                 player.getBoundingBox().inflate(8.0D, 6.0D, 8.0D))) {
             if (!ship.isAlive() || ship.isHostileVariant()
-                    || !LegacyShipBehaviorCatalog.hasLegacySameOwner(ship, player)
-                    || ship.getShipFuel() <= 0 || ship.isOrderedToSit() || ship.isPassenger()) {
+                    || ship.hasNoFuel() || ship.isOrderedToSit() || ship.isPassenger()) {
                 continue;
             }
 
             if (player.distanceToSqr(ship) > 4.0D) {
                 ship.setEmotion(3);
-                ship.getNavigation().moveTo(player, 0.75D);
+                ship.getShipNavigate().tryMoveToEntityLiving(player, 0.75D);
 
                 if (player.getRandom().nextInt(5) == 0) {
                     int emotion = switch (player.getRandom().nextInt(3)) {

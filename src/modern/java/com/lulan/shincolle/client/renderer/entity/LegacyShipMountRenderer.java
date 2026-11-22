@@ -2,7 +2,7 @@ package com.lulan.shincolle.client.renderer.entity;
 
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.client.model.legacy.LegacyStaticModel;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.mount.LegacyMountControls;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -23,23 +23,23 @@ import java.util.Map;
 public final class LegacyShipMountRenderer extends EntityRenderer<LegacyShipMountEntity> {
 
     private static final Map<Integer, String> MODEL_NAMES = Map.of(
-            LegacyMountEntity.STYLE_AIRFIELD, "ModelMountAfH",
-            LegacyMountEntity.STYLE_BATTLESHIP, "ModelMountBaH",
-            LegacyMountEntity.STYLE_CARRIER, "ModelMountCaH",
-            LegacyMountEntity.STYLE_CARRIER_WD, "ModelMountCaWD",
-            LegacyMountEntity.STYLE_HARBOUR, "ModelMountHbH",
-            LegacyMountEntity.STYLE_ISOLATED, "ModelMountIsH",
-            LegacyMountEntity.STYLE_MIDWAY, "ModelMountMiH",
-            LegacyMountEntity.STYLE_SUBMARINE, "ModelMountSuH");
+            LegacyMountControls.STYLE_AIRFIELD, "ModelMountAfH",
+            LegacyMountControls.STYLE_BATTLESHIP, "ModelMountBaH",
+            LegacyMountControls.STYLE_CARRIER, "ModelMountCaH",
+            LegacyMountControls.STYLE_CARRIER_WD, "ModelMountCaWD",
+            LegacyMountControls.STYLE_HARBOUR, "ModelMountHbH",
+            LegacyMountControls.STYLE_ISOLATED, "ModelMountIsH",
+            LegacyMountControls.STYLE_MIDWAY, "ModelMountMiH",
+            LegacyMountControls.STYLE_SUBMARINE, "ModelMountSuH");
     private static final Map<Integer, ResourceLocation> TEXTURES = Map.of(
-            LegacyMountEntity.STYLE_AIRFIELD, texture("entitymountafh.png"),
-            LegacyMountEntity.STYLE_BATTLESHIP, texture("entitymountbah.png"),
-            LegacyMountEntity.STYLE_CARRIER, texture("entitymountcah.png"),
-            LegacyMountEntity.STYLE_CARRIER_WD, texture("entitymountcawd.png"),
-            LegacyMountEntity.STYLE_HARBOUR, texture("entitymounthbh.png"),
-            LegacyMountEntity.STYLE_ISOLATED, texture("entitymountish.png"),
-            LegacyMountEntity.STYLE_MIDWAY, texture("entitymountmih.png"),
-            LegacyMountEntity.STYLE_SUBMARINE, texture("entitymountsuh.png"));
+            LegacyMountControls.STYLE_AIRFIELD, texture("entitymountafh.png"),
+            LegacyMountControls.STYLE_BATTLESHIP, texture("entitymountbah.png"),
+            LegacyMountControls.STYLE_CARRIER, texture("entitymountcah.png"),
+            LegacyMountControls.STYLE_CARRIER_WD, texture("entitymountcawd.png"),
+            LegacyMountControls.STYLE_HARBOUR, texture("entitymounthbh.png"),
+            LegacyMountControls.STYLE_ISOLATED, texture("entitymountish.png"),
+            LegacyMountControls.STYLE_MIDWAY, texture("entitymountmih.png"),
+            LegacyMountControls.STYLE_SUBMARINE, texture("entitymountsuh.png"));
 
     private final Map<Integer, LegacyStaticModel> models = new HashMap<>();
 
@@ -68,7 +68,7 @@ public final class LegacyShipMountRenderer extends EntityRenderer<LegacyShipMoun
     @Override
     public ResourceLocation getTextureLocation(LegacyShipMountEntity entity) {
         return TEXTURES.getOrDefault(entity.getMountStyle(),
-                TEXTURES.get(LegacyMountEntity.STYLE_BATTLESHIP));
+                TEXTURES.get(LegacyMountControls.STYLE_BATTLESHIP));
     }
 
     @Override
@@ -79,7 +79,7 @@ public final class LegacyShipMountRenderer extends EntityRenderer<LegacyShipMoun
 
     private LegacyStaticModel modelFor(int style) {
         int resolvedStyle = MODEL_NAMES.containsKey(style)
-                ? style : LegacyMountEntity.STYLE_BATTLESHIP;
+                ? style : LegacyMountControls.STYLE_BATTLESHIP;
         return this.models.computeIfAbsent(resolvedStyle,
                 key -> LegacyStaticModel.load(MODEL_NAMES.get(key),
                         ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID,

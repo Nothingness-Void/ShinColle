@@ -35,7 +35,7 @@ An exact match must still be recorded so a later batch does not reread the same 
 - The five selected rows now have an explicit runtime, attack/servant, target/cadence, and render/feedback result.
 - `LegacyShipModelStateCatalog` now covers the exact legacy `showEquip` boundaries for all five selected model sources; unknown parts remain visible as in the old model default.
 - The hostile Rensouhou correction is limited to the old hostile servant path. It does not alter friendly servant damage or the shared ship combat dispatcher.
-- The previously supplied heavy-special miss concern was rechecked: `LegacyShipEntity.performCatalogSpecialAttack` already carries `roll.miss()` into the launched projectile, whose impact path is non-damaging on a miss. No duplicate rewrite was made.
+- **已撤销**：此前将 `roll.miss()` 传入投射物、撞击不造成伤害视为正确且无需修复的结论。更正见 [D-006](../../MIGRATION-DECISIONS.md#d-006投射物-miss-语义不可丢失)，其余批次结论不变。
 
 ## Remaining work
 

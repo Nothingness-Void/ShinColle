@@ -2,6 +2,7 @@ package com.lulan.shincolle.item;
 
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
@@ -19,6 +20,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -28,6 +31,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -41,6 +45,22 @@ public class PointerItem extends Item {
 
     public PointerItem(Properties properties) {
         super(properties);
+    }
+
+    public static @Nullable EntityHitResult pickCommandTarget(Player player) {
+        Vec3 start = player.getEyePosition();
+        Vec3 motion = player.getLookAngle().scale(POINTER_RAYTRACE_RANGE);
+        Vec3 end = start.add(motion);
+        BlockHitResult block = player.level().clip(new ClipContext(start, end,
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        double distance = block.getType() == HitResult.Type.BLOCK
+                ? start.distanceToSqr(block.getLocation()) : POINTER_RAYTRACE_RANGE * POINTER_RAYTRACE_RANGE;
+        Entity vehicle = player.getVehicle();
+        return ProjectileUtil.getEntityHitResult(player, start, end,
+                player.getBoundingBox().expandTowards(motion).inflate(1.0D),
+                candidate -> candidate.isPickable() && !candidate.isSpectator() && !candidate.isInvulnerable()
+                        && candidate != vehicle && !(vehicle instanceof LegacyShipMountEntity mount
+                        && candidate == mount.getHostShip()), distance);
     }
 
     @Override

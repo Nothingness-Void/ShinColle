@@ -1,6 +1,5 @@
 package com.lulan.shincolle.item;
 
-import com.lulan.shincolle.advancement.ModCriteriaTriggers;
 import com.lulan.shincolle.crafting.LegacyShipConstructionHelper;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
@@ -44,7 +43,7 @@ import java.util.UUID;
 
 public class LegacyShipSpawnEggItem extends Item {
 
-    private static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
+    public static final String VARIANT_EGG_META_TAG = "VariantEggMeta";
     private static final String LEGACY_CLASS_ID_TAG = "ShipClassId";
     private static final String RECOVERED_SHIP_TAG = "RecoveredShip";
     private static final String OWNER_UUID_TAG = "OwnerUuid";
@@ -160,6 +159,11 @@ public class LegacyShipSpawnEggItem extends Item {
 
         BlockPos clickedPos = hitResult.getBlockPos();
 
+        if (!level.mayInteract(player, clickedPos)
+                || !player.mayUseItemAt(clickedPos, hitResult.getDirection(), stack)) {
+            return InteractionResultHolder.pass(stack);
+        }
+
         if (level.getFluidState(clickedPos).isEmpty()) {
             return InteractionResultHolder.pass(stack);
         }
@@ -256,6 +260,9 @@ public class LegacyShipSpawnEggItem extends Item {
             ship.restoreRecoveredDeployment(player);
         } else {
             ship.applySpawnSpec(spec, player);
+            if (spec.hostile()) {
+                ship.initializeHostileRuntime(false, player.getRandom().nextInt(4));
+            }
         }
         if (stack.hasCustomHoverName()) {
             ship.setCustomName(stack.getHoverName());
@@ -264,15 +271,10 @@ public class LegacyShipSpawnEggItem extends Item {
         ship.setYHeadRot(player.getYRot());
         ship.yBodyRot = player.getYRot();
 
-        if (!serverLevel.noCollision(ship, ship.getBoundingBox())) {
-            return InteractionResult.FAIL;
-        }
-
         serverLevel.addFreshEntity(ship);
 
         if (!spec.hostile() && player instanceof ServerPlayer serverPlayer) {
             TeitokuHelper.addCollectedShip(serverPlayer, spec.legacyClassId());
-            ModCriteriaTriggers.FRIENDLY_SHIP_DEPLOYED.trigger(serverPlayer);
         }
 
         if (!player.getAbilities().instabuild) {

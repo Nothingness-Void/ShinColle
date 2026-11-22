@@ -1,10 +1,20 @@
 # ShinColle 逐舰迁移矩阵
 
-更新时间：2026-11-16
+更新时间：2026-11-22
+
+Pointer client ownership 共通修复不改变逐舰 LOCKED 状态；[synced UUID 与回归证据](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
+
+共通D3墙顶缺少 legacy waypoint clearance 已修复，NF07/08/02/01/NF10 原生控制场景及双端回归通过；原 VM 场景分组仍待新包复测，不把控制场景冒充逐项验收。LEVITATION 保留明确 gap，禁止当前 LivingEntity 移植；逐舰 LOCKED 状态不变。Shimakaze +0.14 与残余穿模不变。见[当前详细证据](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md)。
+
+GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
+
+共通物品、补给与路线交互纠偏见 [方块与物品批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。本批不新增舰种或改变逐舰状态，不将共通修正视为逐舰重新验收。
 
 这是逐舰状态的唯一事实来源。当前批次只处理标记为 `NEXT` 的行；已经有独立批次证据的域不重复阅读，除非出现回归或明确的新证据。
 
 当前 45 行均为 `LOCKED`，对应旧版行为域已有现代生产实现与批次审计证据；客户端 V0 人工验收已于 2026-09-16 在 [V0-CLIENT-GATE](migration_batches/2026-09-05-v0-client-gate/) 确认通过，SP 主线已正式收口。未覆盖的边角与完整 1.12 特性保留在 parity backlog，待恢复 GameTest 回归护栏后按 [ROADMAP.md](ROADMAP.md) 推进。
+
+19 个敌对 `*Mob` 变体的共享规模与战利品，以及长门、大和、天龙、爱宕、高雄和金刚四舰相关攻击边界的补充证据见 [舰种个体行为批次](migration_batches/2026-11-22-parity-fix-ship-variants/)。逐舰状态沿用下表。
 
 ## 状态码
 
@@ -29,14 +39,14 @@
 | 13 | `EntityBattleshipRu` | `EntityBattleshipRu` | heavy barrage、ring Luck、block target、damage profile、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | queued barrage edge cases |
 | 14 | `EntityBattleshipTa` | `EntityBattleshipTa` | Rensouhou pool、light hook、model state、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | servant lifecycle edge cases |
 | 15 | `EntityBattleshipRe` | `EntityBattleshipRe` | light laser、push、damage profile、mounted、command range、route/guard、target boundary、legacy waypoint NBT | LOCKED | post-attack motion edge cases |
-| 16 | `EntityTransportWa` | `EntityTransportWa` | supply loop、task/cargo、mounted、attack eligibility、idle AP resource | LOCKED | route interruption / save |
+| 16 | `EntityTransportWa` | `EntityTransportWa` | supply loop、task/cargo、mounted、attack eligibility、idle AP resource、64格Pointer实际crane派遣GT | LOCKED | route interruption / save |
 | 17 | `EntitySubmKa` | `EntitySubmKa` | submarine path、invisibility、pickup、mounted、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 18 | `EntitySubmYo` | `EntitySubmYo` | submarine path、invisibility、pickup、mounted、light missile、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 19 | `EntitySubmSo` | `EntitySubmSo` | submarine path、invisibility、pickup、mounted、combat selection/cadence、idle SS resource | LOCKED | combat result / save |
 | 20 | `EntityCarrierHime` | `EntityCarrierHime` | melee missile、mount、aura/heal、damage、air selection/capacity/recovery、launch height | LOCKED | boss runtime edge cases |
-| 21 | `EntityAirfieldHime` | `EntityAirfieldHime` | mount、heal、air attack、damage、legacy model source/bake、model state bit 1、0.7F launch height | LOCKED | boss/runtime edge cases |
+| 21 | `EntityAirfieldHime` | `EntityAirfieldHime` | mount、heal、air attack、damage、legacy model source/bake、model state bit 1、0.7F launch height、实际mount waypoint/Pointer host选择GT | LOCKED | boss/runtime edge cases / independent LEVITATION API |
 | 26 | `EntityBattleshipHime` | `EntityBattleshipHime` | cluster heavy、mount、resistance aura、damage、legacy model source/bake、cluster projectile family | LOCKED | boss/runtime edge cases |
-| 27 | `EntityDestroyerHime` | `EntityDestroyerHime` | mount、blindness effect、damage、legacy model source/bake、model state bits 0-5 | LOCKED | boss/runtime edge cases |
+| 27 | `EntityDestroyerHime` | `EntityDestroyerHime` | mount、blindness effect、damage、legacy model source/bake、model state bits 0-5 | LOCKED | boss/runtime edge cases；[获批陆上开腿，水中保留旧 bit4](migration_batches/rendering-backport-1.20.1/decision.md) |
 | 28 | `EntityHarbourHime` | `EntityHarbourHime` | railgun、mount、heal/attack effect、damage、legacy model source/bake、0.7F launch height、railgun particle | LOCKED | boss/runtime edge cases |
 | 29 | `EntityIsolatedHime` | `EntityIsolatedHime` | black-hole effect、mount、dual attack effect、legacy model source/bake、model state bit 6 inverse rule | LOCKED | boss/runtime edge cases |
 | 30 | `EntityMidwayHime` | `EntityMidwayHime` | mount、air height、heal/absorption、special runtime、model source/state | LOCKED | full parity backlog |
@@ -67,6 +77,8 @@
 
 ## 批次证据索引
 
+- 舰娘核心公共资源、士气与断粮行为：见 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/)；不改逐舰注册、既有锁定域或敌我归属。
+
 - `SHIP-03` class 16-20 的行为、攻击、资源与 runtime 审计：见 [SHIP-03 batch](migration_batches/2026-09-03-ship-03-combat-behavior/)，最终回归 `All 254 required tests passed`。
 - `SHIP-05` class 30、31、33、36、37 的特殊 runtime、召唤物生命周期、攻击节奏、模型状态和 hostile servant 边界：见 [SHIP-05 batch](migration_batches/2026-09-04-ship-05-special-runtime/)，最终回归 `All 258 required tests passed`；Java 17 客户端启动、资源 reload 和单人集成连接通过，进世界人工交互留给 V0。
 - `SHIP-06` class 38、39、44、46、47 的潜艇/Yamato/Kaga runtime、模型源与 scale 分支、双导弹、beam、host/miss 边界：见 [SHIP-06 batch](migration_batches/2026-09-04-ship-06-submarine-yamato-kaga/)，最终回归 `All 261 required tests passed`；Java 17 客户端启动、资源 reload 和单人集成连接通过，进世界人工交互留给 V0。
@@ -89,3 +101,7 @@
 - 下一行为域必须先绑定旧版类名和方法，再开始阅读；没有绑定来源的条目不得实现。
 - 如果一次 targeted audit 没有发现差异，记录为 `LOCKED / no change`，并立即进入下一行，不重复启动测试。
 - M8 的 pose/layer/进世界结果和 M6/M7 行为状态分开记录，不能互相替代。
+
+## 客户端还原批次入口
+
+[2026-11-22 客户端还原](migration_batches/2026-11-22-parity-fix-client/)：只链接批次问题、协议、决定与证据，不在本文件复制结论。

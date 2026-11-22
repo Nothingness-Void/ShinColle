@@ -5,6 +5,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 import com.lulan.shincolle.item.PointerItem;
+import com.lulan.shincolle.item.PointerCommandEvents;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
@@ -16,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -86,6 +88,24 @@ public final class PointerClientEvents {
     }
 
     @SubscribeEvent
+    public static void onCaressInteraction(PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getEntity() instanceof LocalPlayer player)
+                || !(event.getTarget() instanceof LegacyShipEntity ship)
+                || ship.isHostileVariant() || player.isShiftKeyDown()) {
+            return;
+        }
+        ItemStack pointer = player.getItemInHand(event.getHand());
+        if (!(pointer.getItem() instanceof PointerItem) || !PointerItem.isCaressMode(PointerItem.getMode(pointer))) {
+            return;
+        }
+        if (Minecraft.getInstance().hitResult instanceof EntityHitResult hit && hit.getEntity() == ship) {
+            double relY = Mth.clamp((hit.getLocation().y - ship.getY()) / Math.max(0.1D, ship.getBbHeight()), 0D, 1D);
+            int hitHeight = Mth.clamp((int)Math.round(relY * 100D), 0, 100);
+            if (hitHeight > (ship.isOrderedToSit() ? 29 : 58)) ship.startLegacyModelCaress();
+        }
+    }
+
+    @SubscribeEvent
     public static void onLeftClickEmpty(PlayerInteractEvent.LeftClickEmpty event) {
         if (event.getEntity() instanceof LocalPlayer player) {
             handlePointerLeftClick(player);
@@ -93,6 +113,16 @@ public final class PointerClientEvents {
     }
 
     @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        if (event.getEntity() instanceof LocalPlayer player
+                && player.getMainHandItem().getItem() instanceof PointerItem
+                && !PointerItem.isCaressMode(PointerItem.getMode(player.getMainHandItem()))
+                && !PointerCommandEvents.consumesTargetClick(player, event.getTarget())) {
+            handlePointerLeftClick(player);
+        }
+    }
+
+    @SubscribeEvent(receiveCanceled = true)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
         if (!(event.getEntity() instanceof LocalPlayer player)) {
             return;
@@ -113,6 +143,14 @@ public final class PointerClientEvents {
         }
 
         int mode = PointerItem.getMode(pointer);
+        if (!PointerItem.isCaressMode(mode)) {
+            EntityHitResult hit = PointerItem.pickCommandTarget(player);
+            if (hit != null && PointerCommandEvents.consumesTargetClick(player, hit.getEntity())) {
+                sendCommand(GameplayCommandType.POINTER_LEFT_CLICK, payload ->
+                        payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, hit.getEntity().getId()));
+                return;
+            }
+        }
         if (player.isShiftKeyDown()) {
             if (player.isSprinting()) {
                 sendEmptyCommand(GameplayCommandType.CLEAR_CURRENT_TEAM);

@@ -18,7 +18,7 @@ import org.joml.Vector3f;
 public final class LegacyTeamMarkerParticle extends Particle {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            ShinColle.MOD_ID, "textures/particles/ParticleTeam.png");
+            ShinColle.MOD_ID, "textures/particles/particleteam.png");
     private static final int LIFETIME = 30;
     private static final int FULL_BRIGHT = 0xF000F0;
 

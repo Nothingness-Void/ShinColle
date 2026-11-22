@@ -1,6 +1,7 @@
 package com.lulan.shincolle.blockentity;
 
 import com.lulan.shincolle.registry.ModBlockEntities;
+import com.lulan.shincolle.client.WaypointClientEffects;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -11,6 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -35,6 +37,7 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     @Nullable
     private PlayerOwnerData owner;
     private int stayMode;
+    private int clientTicks;
     @Nullable
     private BlockPos lastWaypoint;
     @Nullable
@@ -44,6 +47,12 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
 
     public WaypointBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.WAYPOINT.get(), pos, state);
+    }
+
+    public static void clientTick(Level level, BlockPos pos, BlockState state, WaypointBlockEntity tile) {
+        if ((++tile.clientTicks & 7) == 0) {
+            WaypointClientEffects.spawnMarker(pos);
+        }
     }
 
     @Override
@@ -89,6 +98,12 @@ public class WaypointBlockEntity extends BlockEntity implements RouteNode {
     public void setOwner(Player player) {
         this.owner = PlayerOwnerData.of(player);
         this.markUpdated();
+    }
+
+    public boolean canDestroy(Player player) {
+        return player.isCreative() || player.hasPermissions(2)
+                || (this.owner != null && (this.owner.uuid() != null ? this.owner.uuid().equals(player.getUUID())
+                : this.owner.uid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player)));
     }
 
     public boolean canEdit(Player player) {

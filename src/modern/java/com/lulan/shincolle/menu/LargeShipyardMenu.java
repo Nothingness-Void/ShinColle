@@ -111,7 +111,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public boolean hasRemainedPower() {
-        return this.getPowerRemained() > HeavyGrudgeBlockEntity.BUILD_SPEED;
+        return this.getPowerRemained() > HeavyGrudgeBlockEntity.buildSpeed();
     }
 
     public boolean hasBuildMode() {
@@ -139,16 +139,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public Component getFailureMessage() {
-        if (!this.isStructureComplete()) {
-            return Component.translatable("gui.shincolle.shipyard.structure_missing");
-        }
-        if (!this.hasBuildMode()) {
-            return Component.translatable("gui.shincolle.shipyard.select_mode");
-        }
-        if (this.isOutputBlocked()) {
-            return Component.translatable("gui.shincolle.shipyard.output_locked");
-        }
-        if (this.getPowerGoal() <= 0) {
+        if (this.getPowerGoal() <= 0 && this.hasBuildMode()) {
             return Component.translatable("gui.shincolle.shipyard.nomaterial");
         }
         if (!this.hasRemainedPower()) {
@@ -162,7 +153,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public int getPowerRemainingScaled(int height) {
-        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / HeavyGrudgeBlockEntity.POWER_MAX);
+        return this.getPowerRemained() <= 0 ? 0 : (int) ((this.getPowerRemained() * (double) height) / HeavyGrudgeBlockEntity.powerMax());
     }
 
     public String getBuildTimeString() {
@@ -170,7 +161,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
             return "00:00";
         }
 
-        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) HeavyGrudgeBlockEntity.BUILD_SPEED) * 0.05F));
+        int remainingSeconds = Math.max(0, (int) (((this.getPowerGoal() - this.getPowerConsumed()) / (float) HeavyGrudgeBlockEntity.buildSpeed()) * 0.05F));
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);

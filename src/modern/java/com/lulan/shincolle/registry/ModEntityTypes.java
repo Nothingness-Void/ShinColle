@@ -1,7 +1,7 @@
 package com.lulan.shincolle.registry;
 
 import com.lulan.shincolle.ShinColle;
-import com.lulan.shincolle.entity.mount.LegacyMountEntity;
+import com.lulan.shincolle.entity.other.RecoveredShipItemEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import com.lulan.shincolle.entity.other.LegacyShipFishingHookEntity;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileEntity;
@@ -22,6 +22,12 @@ public final class ModEntityTypes {
 
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
             DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, ShinColle.MOD_ID);
+
+    public static final RegistryObject<EntityType<RecoveredShipItemEntity>> RECOVERED_SHIP_ITEM =
+            ENTITY_TYPES.register("recovered_ship_item", () -> EntityType.Builder
+                    .<RecoveredShipItemEntity>of(RecoveredShipItemEntity::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F).fireImmune().clientTrackingRange(6).updateInterval(20)
+                    .build("recovered_ship_item"));
 
     public static final RegistryObject<EntityType<LegacyShipEntity>> LEGACY_SHIP = ENTITY_TYPES.register("legacy_ship",
             () -> EntityType.Builder.of(LegacyShipEntity::new, MobCategory.CREATURE)
@@ -71,13 +77,6 @@ public final class ModEntityTypes {
                             .clientTrackingRange(10)
                             .updateInterval(1)
                             .build("legacy_ship_takoyaki"));
-    public static final RegistryObject<EntityType<LegacyMountEntity>> LEGACY_MOUNT =
-            ENTITY_TYPES.register("legacy_mount",
-                    () -> EntityType.Builder.<LegacyMountEntity>of(LegacyMountEntity::new, MobCategory.MISC)
-                            .sized(0.95F, 0.95F)
-                            .clientTrackingRange(8)
-                            .updateInterval(1)
-                            .build("legacy_mount"));
     public static final RegistryObject<EntityType<LegacyShipMountEntity>> LEGACY_SHIP_MOUNT =
             ENTITY_TYPES.register("legacy_ship_mount",
                     () -> EntityType.Builder.<LegacyShipMountEntity>of(LegacyShipMountEntity::new, MobCategory.MISC)

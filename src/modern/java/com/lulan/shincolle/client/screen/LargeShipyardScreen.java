@@ -33,9 +33,6 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
 
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        String title = this.title.getString();
-        guiGraphics.drawString(this.font, title, this.imageWidth / 2 - this.font.width(title) / 2, 6, 0x404040, false);
-
         String buildTime = this.menu.getBuildTimeString();
         guiGraphics.drawString(this.font, buildTime, 176 - this.font.width(buildTime) / 2, 77, 0x404040, false);
 
@@ -45,17 +42,6 @@ public class LargeShipyardScreen extends AbstractContainerScreen<LargeShipyardMe
             this.drawCentered(guiGraphics, Integer.toString(buildAmt), 73, 20 + i * 19, materialColor(buildAmt));
             this.drawCentered(guiGraphics, Integer.toString(stockAmt), 125, 20 + i * 19, 0xE0C54E);
         }
-
-        guiGraphics.drawString(this.font,
-                Component.translatable(this.menu.isStructureComplete()
-                        ? "gui.shincolle.shipyard.structure_ready"
-                        : "gui.shincolle.shipyard.structure_missing"),
-                103, 17, this.menu.isStructureComplete() ? 0x57C26B : 0xD15C5C, false);
-        guiGraphics.drawString(this.font,
-                Component.translatable(this.menu.isCoreLinked()
-                        ? "gui.shincolle.shipyard.core_linked"
-                        : "gui.shincolle.shipyard.core_missing"),
-                103, 28, this.menu.isCoreLinked() ? 0x7CC6D8 : 0xB5B5B5, false);
 
         Component failure = this.menu.getFailureMessage();
         if (!failure.getString().isBlank()) {

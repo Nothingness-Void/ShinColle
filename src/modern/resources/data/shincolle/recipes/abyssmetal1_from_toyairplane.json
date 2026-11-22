@@ -1,0 +1,5 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [{"item": "shincolle:toyairplane"}],
+  "result": {"item": "shincolle:abyssmetal1", "count": 5}
+}

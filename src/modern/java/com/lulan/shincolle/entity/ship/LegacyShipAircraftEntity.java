@@ -2,6 +2,7 @@ package com.lulan.shincolle.entity.ship;
 
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
+import com.lulan.shincolle.entity.ship.path.LegacyShipObstaclePath;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
@@ -95,10 +96,10 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     private float maxHp = 20.0F;
     private float hp = 20.0F;
     private boolean returnedToOwner;
+    private final LegacyShipObstaclePath obstaclePath = new LegacyShipObstaclePath();
 
     protected LegacyShipAircraftEntity(EntityType<? extends LegacyShipAircraftEntity> entityType, Level level) {
         super(entityType, level);
-        this.noPhysics = true;
         this.setNoGravity(true);
     }
 
@@ -124,7 +125,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
         aircraft.remainingAttacks = attackKind == LegacyShipAttackKind.AIR_HEAVY
                 ? LEGACY_HEAVY_AIRCRAFT_AMMO : LEGACY_LIGHT_AIRCRAFT_AMMO;
         aircraft.attackCooldown = 0;
-        aircraft.speedScale = (float) owner.getEquipmentBehaviorState().projectileSpeedMultiplier(attackKind);
+        aircraft.speedScale = 1.0F;
         aircraft.turnBlend = attackKind == LegacyShipAttackKind.AIR_HEAVY ? 0.12F : 0.18F;
         aircraft.maxHp = Math.max(1.0F, owner.getShipLevel()
                 + owner.getMaxHealth() * (aircraft.isHeavyAirframe() ? 0.15F : 0.1F));
@@ -234,7 +235,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
         if (this.level().isClientSide()) {
             this.spawnTrailParticles();
-            this.setPos(this.position().add(this.getDeltaMovement()));
+            this.move(MoverType.SELF, this.getDeltaMovement());
             return;
         }
 
@@ -505,7 +506,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             desiredPos = owner.position().add(owner.getLookAngle().scale(6.0D)).add(0.0D, owner.getBbHeight() + 1.0D, 0.0D);
         }
 
-        Vec3 desired = desiredPos.subtract(this.position());
+        Vec3 desired = this.obstaclePath.resolve(this, desiredPos).subtract(this.position());
         if (desired.lengthSqr() < 1.0E-6D) {
             return;
         }

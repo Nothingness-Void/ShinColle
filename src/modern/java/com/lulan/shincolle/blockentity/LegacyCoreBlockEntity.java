@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
@@ -31,7 +32,7 @@ import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 
-public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAccess, RouteEnergyAccess, MenuProvider {
+public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAccess, MenuProvider {
 
     private static final String OWNER_NAME_TAG = "OwnerName";
     private static final String OWNER_UUID_TAG = "OwnerUuid";
@@ -50,8 +51,6 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     private static final int VOLCORE_EFFECT_INTERVAL = 32;
 
     private final String blockNameKey;
-    private final int chargePerTick;
-    private final int maxCharge;
     private final ItemStackHandler fuelItems = new ItemStackHandler(FUEL_SLOT_COUNT) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -73,7 +72,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
             return switch (index) {
                 case 0 -> LegacyCoreBlockEntity.this.mode;
                 case 1 -> LegacyCoreBlockEntity.this.storedCharge;
-                case 2 -> LegacyCoreBlockEntity.this.maxCharge;
+                case 2 -> LegacyCoreBlockEntity.this.maxCharge();
                 case 3 -> LegacyCoreBlockEntity.this.volCoreWet ? 1 : 0;
                 default -> 0;
             };
@@ -83,7 +82,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         public void set(int index, int value) {
             switch (index) {
                 case 0 -> LegacyCoreBlockEntity.this.mode = Mth.clamp(value, MODE_IDLE, MAX_MODE);
-                case 1 -> LegacyCoreBlockEntity.this.storedCharge = Mth.clamp(value, 0, LegacyCoreBlockEntity.this.maxCharge);
+                case 1 -> LegacyCoreBlockEntity.this.storedCharge = Mth.clamp(value, 0, LegacyCoreBlockEntity.this.maxCharge());
                 case 3 -> LegacyCoreBlockEntity.this.volCoreWet = value != 0;
                 default -> {
                 }
@@ -96,15 +95,13 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         }
     };
 
-    private LegacyCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, String blockNameKey, int chargePerTick, int maxCharge) {
+    private LegacyCoreBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, String blockNameKey) {
         super(type, pos, state);
         this.blockNameKey = blockNameKey;
-        this.chargePerTick = chargePerTick;
-        this.maxCharge = maxCharge;
     }
 
     public static LegacyCoreBlockEntity newVolCore(BlockPos pos, BlockState state) {
-        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore", 16, 9600);
+        return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore");
     }
 
     @Override
@@ -135,7 +132,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         this.mode = tag.contains(ACTIVE_TAG)
                 ? (tag.getBoolean(ACTIVE_TAG) ? MODE_ACTIVE : MODE_IDLE)
                 : Mth.clamp(tag.getInt(MODE_TAG), MODE_IDLE, MAX_MODE);
-        this.storedCharge = Mth.clamp(tag.contains(POWER_TAG) ? tag.getInt(POWER_TAG) : tag.getInt(CHARGE_TAG), 0, this.maxCharge);
+        this.storedCharge = Mth.clamp(tag.contains(POWER_TAG) ? tag.getInt(POWER_TAG) : tag.getInt(CHARGE_TAG), 0, this.maxCharge());
         if (tag.contains(FUEL_ITEMS_TAG)) {
             this.fuelItems.deserializeNBT(tag.getCompound(FUEL_ITEMS_TAG));
         }
@@ -177,6 +174,12 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         this.markUpdated();
     }
 
+    public boolean canDestroy(Player player) {
+        return player.isCreative() || player.hasPermissions(2)
+                || (this.owner != null && (this.owner.uuid() != null ? this.owner.uuid().equals(player.getUUID())
+                : this.owner.uid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player)));
+    }
+
     public boolean canEdit(Player player) {
         return this.owner == null || this.owner.canEdit(player);
     }
@@ -204,49 +207,15 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     public Component getChargeLabel() {
-        return Component.literal(this.storedCharge + " / " + this.maxCharge);
+        return Component.literal(this.storedCharge + " / " + this.maxCharge());
     }
 
     public int getStoredCharge() {
         return this.storedCharge;
     }
 
-    @Override
-    public int getRouteEnergyStored() {
-        return this.storedCharge;
-    }
-
-    @Override
-    public int getRouteEnergyCapacity() {
-        return this.maxCharge;
-    }
-
     public boolean canProvideCharge() {
         return this.storedCharge > 0;
-    }
-
-    @Override
-    public int extractRouteEnergy(int amount, boolean simulate) {
-        if (!this.canProvideCharge()) {
-            return 0;
-        }
-
-        int extracted = Math.min(Math.max(0, amount), this.storedCharge);
-        if (extracted > 0 && !simulate) {
-            this.storedCharge -= extracted;
-            this.markUpdated();
-        }
-        return extracted;
-    }
-
-    @Override
-    public int receiveRouteEnergy(int amount, boolean simulate) {
-        int accepted = Math.min(Math.max(0, amount), this.maxCharge - this.storedCharge);
-        if (accepted > 0 && !simulate) {
-            this.storedCharge += accepted;
-            this.markUpdated();
-        }
-        return accepted;
     }
 
     public Component getFuelLabel() {
@@ -352,13 +321,13 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         }
 
         if (core.syncTick % 16 == 0) {
-            boolean canWork = core.storedCharge >= core.chargePerTick;
+            boolean canWork = core.storedCharge >= (int) ShinColleConfig.tileVolCore()[1];
             if (canWork != core.canWork) {
                 core.canWork = canWork;
                 changed = true;
             }
             if (core.mode == MODE_ACTIVE && core.canWork) {
-                core.storedCharge = Math.max(0, core.storedCharge - core.chargePerTick);
+                core.storedCharge = Math.max(0, core.storedCharge - (int) ShinColleConfig.tileVolCore()[1]);
                 changed = true;
 
                 if (core.isVolCore() && core.syncTick % VOLCORE_EFFECT_INTERVAL == 0) {
@@ -387,7 +356,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     private boolean refuelFromInventory() {
-        if (this.storedCharge >= this.maxCharge) {
+        if (this.storedCharge >= this.maxCharge()) {
             return false;
         }
 
@@ -398,7 +367,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
                 continue;
             }
 
-            this.storedCharge = Math.min(this.maxCharge, this.storedCharge + fuelValue);
+            this.storedCharge = Math.min(this.maxCharge(), this.storedCharge + fuelValue);
             stack.shrink(1);
             this.fuelItems.setStackInSlot(slot, stack.isEmpty() ? net.minecraft.world.item.ItemStack.EMPTY : stack);
             return true;
@@ -456,19 +425,23 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         return false;
     }
 
+    private int maxCharge() { return (int) ShinColleConfig.tileVolCore()[0]; }
+
     private int getFuelValue(net.minecraft.world.item.ItemStack stack) {
         if (stack.isEmpty()) {
             return 0;
         }
 
+        // 1.12.2 TileEntityVolCore: FUELMAGN per grudge, FUELMAGN * 9 per grudge block.
+        int fuelPerGrudge = (int) ShinColleConfig.tileVolCore()[2];
         if (stack.is(ModBlocks.BLOCK_GRUDGE.get().asItem())) {
-            return 2160;
+            return fuelPerGrudge * 9;
         }
         if (stack.is(ModItems.GRUDGE1.get())) {
-            return 240;
+            return fuelPerGrudge;
         }
         if (stack.is(ModItems.GRUDGE.get())) {
-            return 240;
+            return fuelPerGrudge;
         }
 
         return 0;

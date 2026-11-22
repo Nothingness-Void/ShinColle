@@ -77,8 +77,7 @@ public final class ShipCommandService {
             case GUARD_ENTITY -> guardEntity(player, packet.mode(), packet.shipId(), packet.shipUid(), packet.targetId());
             case ATTACK_ENTITY -> attackEntity(player, packet.mode(), packet.shipId(), packet.shipUid(), packet.targetId());
             case STOP_COMMAND -> stop(player, packet.mode(), packet.shipId(), packet.shipUid());
-            case SET_AI_FLAGS -> setAiFlags(player, packet.shipId(), packet.shipUid(), packet.value());
-            case SET_FOLLOW_RANGE -> setFollowRange(player, packet.shipId(), packet.shipUid(), packet.value());
+            case SHIP_GUI_BUTTON -> guiButton(player, packet.shipId(), packet.shipUid(), packet.mode(), packet.value());
             case TOGGLE_SIT -> toggleSit(player, packet.mode(), packet.shipId(), packet.shipUid());
             case OPEN_SHIP_INVENTORY -> openShipInventory(player, packet.shipId(), packet.shipUid());
             case TOGGLE_RING_EFFECT -> toggleRingEffect(player, packet.shipId(), packet.shipUid());
@@ -118,14 +117,6 @@ public final class ShipCommandService {
             case OPEN_SHIP_INVENTORY -> openShipInventory(player,
                     payload.getInt(GameplayCommandHandler.TAG_SHIP_ID),
                     getShipUid(payload));
-            case SET_SHIP_AI_FLAGS -> setAiFlags(player,
-                    payload.getInt(GameplayCommandHandler.TAG_SHIP_ID),
-                    getShipUid(payload),
-                    payload.getInt(GameplayCommandHandler.TAG_AI_FLAGS));
-            case SET_SHIP_FOLLOW_RANGE -> setFollowRange(player,
-                    payload.getInt(GameplayCommandHandler.TAG_SHIP_ID),
-                    getShipUid(payload),
-                    payload.getInt(GameplayCommandHandler.TAG_FOLLOW_RANGE));
             default -> null;
         };
         return result != null && result.successful();
@@ -198,7 +189,7 @@ public final class ShipCommandService {
                 if (ship.isGuardingBlockAt(runtimeState.targetPos(), player.level().dimension().location().toString())) {
                     ship.clearCommandState();
                     ship.setTarget(null);
-                    ship.getNavigation().stop();
+                    ship.getShipNavigate().clearPathEntity();
                 } else {
                     ship.commandGuardBlock(runtimeState.targetPos(), player.level().dimension().location().toString());
                 }
@@ -232,7 +223,7 @@ public final class ShipCommandService {
             if (target.getUUID().equals(ship.getGuardEntityUuid())) {
                 ship.clearCommandState();
                 ship.setTarget(null);
-                ship.getNavigation().stop();
+                ship.getShipNavigate().clearPathEntity();
             } else {
                 ship.commandGuardEntity(target.getUUID());
                 ship.setOrderedToSit(false);
@@ -277,36 +268,75 @@ public final class ShipCommandService {
         for (LegacyShipEntity ship : ships) {
             ship.setTarget(null);
             ship.clearCommandState();
-            ship.getNavigation().stop();
+            ship.getShipNavigate().clearPathEntity();
             markShipDirty(ship);
         }
         return ShipCommandResult.SUCCESS;
     }
 
-    private static ShipCommandResult setAiFlags(Player player, int shipId, int shipUid, int flags) {
+    private static ShipCommandResult guiButton(Player player, int shipId, int shipUid, int button, int value) {
         LegacyShipEntity ship = resolveOwnedShip(player, shipId, shipUid);
         if (ship == null) {
             return ShipCommandResult.NO_COMMANDABLE_SHIP;
         }
 
-        ship.setAiAutoTarget((flags & GameplayCommandHandler.AI_FLAG_AUTO_TARGET) != 0);
-        ship.setAiAllowPvp((flags & GameplayCommandHandler.AI_FLAG_ALLOW_PVP) != 0);
-        ship.setAiAutoSupply((flags & GameplayCommandHandler.AI_FLAG_AUTO_SUPPLY) != 0);
-        ship.setAiPickItem((flags & GameplayCommandHandler.AI_FLAG_PICK_ITEM) != 0);
-        ship.setAiRespectRouteStay((flags & GameplayCommandHandler.AI_FLAG_ROUTE_STAY) != 0);
+        setEntityByGui(ship, button, value);
         markShipDirty(ship);
+        if (button == ShipGuiButton.INV_PAGE && player.containerMenu instanceof ShipInventoryMenu menu
+                && menu.getShipUid() == ship.getShipUid()) {
+            menu.broadcastChanges();
+            menu.broadcastFullState();
+        }
         return ShipCommandResult.SUCCESS;
     }
 
-    private static ShipCommandResult setFollowRange(Player player, int shipId, int shipUid, int followRange) {
-        LegacyShipEntity ship = resolveOwnedShip(player, shipId, shipUid);
-        if (ship == null) {
-            return ShipCommandResult.NO_COMMANDABLE_SHIP;
+    /** Legacy PacketHelper.setEntityByGUI; boolean flags follow setStateFlagI (value > 0). */
+    public static void setEntityByGui(LegacyShipEntity ship, int button, int value) {
+        boolean flag = value > 0;
+        switch (button) {
+            case ShipGuiButton.MELEE -> ship.setUseAttackMelee(flag);
+            case ShipGuiButton.AMMO_LIGHT -> ship.setUseAttackLight(flag);
+            case ShipGuiButton.AMMO_HEAVY -> ship.setUseAttackHeavy(flag);
+            case ShipGuiButton.AIR_LIGHT -> ship.setUseAttackAirLight(flag);
+            case ShipGuiButton.AIR_HEAVY -> ship.setUseAttackAirHeavy(flag);
+            case ShipGuiButton.FOLLOW_MIN -> {
+                ship.setFollowMin(value);
+                if (ship.getFollowMin() >= ship.getFollowMax()) {
+                    ship.setFollowMax(value + 1);
+                }
+            }
+            case ShipGuiButton.FOLLOW_MAX -> {
+                ship.setFollowMax(value);
+                if (ship.getFollowMax() <= ship.getFollowMin()) {
+                    ship.setFollowMin(value - 1);
+                }
+            }
+            case ShipGuiButton.FLEE_HP -> ship.setFleeHp(value);
+            // TarAI writes ID.F.PassiveAI; modern stores the inverse as AutoTarget.
+            case ShipGuiButton.TAR_AI -> ship.setAiAutoTarget(!flag);
+            case ShipGuiButton.AURA_EFFECT -> ship.setRingEffectEnabled(flag);
+            case ShipGuiButton.ON_SIGHT_AI -> ship.setAiOnSightChase(flag);
+            case ShipGuiButton.PVP_AI -> ship.setAiPvpFirst(flag);
+            case ShipGuiButton.AA_AI -> ship.setAiAntiAir(flag);
+            case ShipGuiButton.ASM_AI -> ship.setAiAntiSub(flag);
+            case ShipGuiButton.TIMEKEEP_AI -> ship.setTimeKeeper(flag);
+            case ShipGuiButton.INV_PAGE -> ship.setInventoryPage(value);
+            case ShipGuiButton.PICKITEM_AI -> ship.setAiPickItem(flag);
+            case ShipGuiButton.WP_STAY -> ship.setWaypointStayMode(value);
+            case ShipGuiButton.SHOW_HELD -> ship.setShowHeldItem(flag);
+            case ShipGuiButton.AUTO_CR -> ship.setCombatRationLevel(value);
+            case ShipGuiButton.AUTO_PUMP -> ship.setAutoPump(flag);
+            case ShipGuiButton.TASK -> ship.setTask(value);
+            case ShipGuiButton.TASK_SIDE -> ship.setTaskSide(value);
+            case ShipGuiButton.SIT -> ship.setOrderedToSit(!ship.isOrderedToSit());
+            case ShipGuiButton.EMO_FLAG_1 -> ship.setEmotion(value);
+            case ShipGuiButton.EMO_FLAG_2 -> ship.setEmotion4(value);
+            default -> {
+                if (button >= ShipGuiButton.MODEL_STATE_01 && button <= ShipGuiButton.MODEL_STATE_16) {
+                    ship.setModelState(ship.getModelState() ^ (1 << (button - ShipGuiButton.MODEL_STATE_01)));
+                }
+            }
         }
-
-        ship.setAiFollowRange(followRange);
-        markShipDirty(ship);
-        return ShipCommandResult.SUCCESS;
     }
 
     private static ShipCommandResult setWaypointStay(Player player, int shipId, int shipUid, int stayMode) {
@@ -364,8 +394,7 @@ public final class ShipCommandService {
                         (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, ship.getId(), ship.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", ship.getName())),
                 buffer -> {
-                    buffer.writeVarInt(ship.getId());
-                    buffer.writeVarInt(ship.getShipUid());
+                    ShipInventoryMenu.writeOpeningData(buffer, ship);
                 });
         }
         return true;
@@ -475,8 +504,7 @@ public final class ShipCommandService {
             case GUARD_ENTITY -> "chat.shincolle.ship_command.action.guard";
             case ATTACK_ENTITY -> "chat.shincolle.ship_command.action.attack";
             case STOP_COMMAND -> "chat.shincolle.ship_command.action.stop";
-            case SET_AI_FLAGS -> "chat.shincolle.ship_command.action.ai_flags";
-            case SET_FOLLOW_RANGE -> "chat.shincolle.ship_command.action.follow_range";
+            case SHIP_GUI_BUTTON -> "chat.shincolle.ship_command.action.gui_button";
             case TOGGLE_SIT -> "chat.shincolle.ship_command.action.toggle_sit";
             case OPEN_SHIP_INVENTORY -> "chat.shincolle.ship_command.action.open_inventory";
             case TOGGLE_RING_EFFECT -> "chat.shincolle.ship_command.action.toggle_ring_effect";

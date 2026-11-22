@@ -21,3 +21,7 @@ migration_batches/<batch-id>/
 - 只有需要验证语义时才读 `protocol.md` 指定的 legacy/modern 文件。
 - 已完成批次只读 `decision.md` 和 `results/`，不要重新扫描代码；代码发生影响时才重新打开批次。
 - `decision.md` 的结论必须链接回根部矩阵，但根部矩阵不复制整段结论。
+
+## 客户端还原批次入口
+
+[2026-11-22 客户端还原](2026-11-22-parity-fix-client/)：只链接批次问题、协议、决定与证据，不在本文件复制结论。

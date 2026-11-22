@@ -1,4 +1,64 @@
-# Migration Changelog
+# 迁移变更索引
+
+## VM A/B/C/D/E/F 回归收口
+
+- PR11 client ownership：消费判定使用已有 synced owner UUID，[证据](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
+
+- section readiness / 实际五 profile / legacy waypoint clearance：[本轮证据](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md)。此前宽墙/recovery/PR11A+B/crane 见[历史记录](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md)。
+
+Forge-first parity fixes, book text restoration, height adapters and explicit
+line-abreast investigation boundary: [queue table and evidence](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md).
+
+- GUI/audio 回归复核：雷达旧行为、大船坞布局恢复、冻结整点报时溯源；[本轮记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
+
+## Forge 1.20.1 rendering backport
+
+回移 NeoForge 的外层舰娘姿态、特殊方块/物品 BEWLR、旋转/透光、库存图标、大小写资源清理及渲染审计/测试；包含用户批准的 Destroyer Hime 陆上开腿视觉例外。API 与 review 适用性、344 项验收和范围见 [批次记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。
+
+## 九批 parity 集成收尾
+
+`devin/parity-fix-integration` 的当前快照/最终 merge SHA 见 [CURRENT_STATE.md](CURRENT_STATE.md)，最终结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
+
+九个批次入口：
+[ship-core](migration_batches/2026-11-22-parity-fix-ship-core/) ·
+[combat-projectile](migration_batches/2026-11-22-parity-fix-combat-projectile/) ·
+[ai-movement](migration_batches/2026-11-22-parity-fix-ai-movement/) ·
+[ship-variants](migration_batches/2026-11-22-parity-fix-ship-variants/) ·
+[menu-network-command](migration_batches/2026-11-22-parity-fix-menu-network-command/) ·
+[client](migration_batches/2026-11-22-parity-fix-client/) ·
+[items-blocks](migration_batches/2026-11-22-parity-fix-items-blocks/) ·
+[crafting-world-config](migration_batches/2026-11-22-parity-fix-crafting-world-config/) ·
+[teitoku-morph-skill](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/)。
+
+下方保留各专题历史记录；不替代上述集成验证。
+
+## 2026-11-22 客户端还原与文档收尾
+
+详见 [批次导航](migration_batches/2026-11-22-parity-fix-client/)、[批次决定](migration_batches/2026-11-22-parity-fix-client/decision.md) 与 [验收证据](migration_batches/2026-11-22-parity-fix-client/results/README.md)。本索引不复制具体结论。
+
+## 2026-11-22
+
+- 舰种个体行为七项一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-variants/)。
+
+- AI移动与目标第1—5步修复、第6步文档归并及历史偏离撤销：[统一批次](migration_batches/2026-11-22-parity-fix-ai-movement/README.md)。
+
+- 战斗与投射物七项一致性复核及修复：[批次记录](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
+- 舰娘核心行为一致性修复：[批次记录](migration_batches/2026-11-22-parity-fix-ship-core/)。
+
+## 2026-11-22
+
+- [方块与物品旧版行为纠偏批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。
+
+## 2026-11-22
+
+### PARITY-FIX-CRAFTING-WORLD-CONFIG：大建装备/投料、宝箱 loot、敌舰生成、多金属砂砾与配置按 1.12.2 还原
+
+- 删除大建 `equipRate` 弹药兜底、恢复大建 `totalMat = 0` 与 `enchLv` 附魔；大建投料补齐装备/船蛋回收与 easyMode；恢复 `loottable.cfg` 与整数 rolls、移除鱼雷条目；接回 `Check_Ring`/`Limit_MobSpawnNumber`、护卫 50% 精英；移植 `WorldGenPolyGravel`；接回 `DropRate_Grudge`、`Despawn_Egg`、`Tile_*`、`Polymetal_Gravel*`；删除自创 advancements。GameTest `296/297`（唯一失败项在基线同样失败）。证据见 [PARITY-FIX-CRAFTING-WORLD-CONFIG](migration_batches/2026-11-22-parity-fix-crafting-world-config/)，决定见 D-017。
+
+## 2026-11-22
+
+- [PARITY-FIX-TEITOKU-MORPH-SKILL：批次入口](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/README.md) · [STATUS](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/STATUS.md) · [decision](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md) · [results](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/README.md) · [D-018](MIGRATION-DECISIONS.md#d-018)。
 
 ## 2026-11-18
 
@@ -14,7 +74,7 @@
 ### B6-INTERMOD-DETAILS（最终收口）：9 条 `/ship*` 指令、动态光方块、`ShinColleConfig` + `SystemConfig`/`polyAsMn`、`ShipKills`/`Raiden` 与外置 mod 收口
 
 - 完成全队列最后一批 `B6-INTERMOD-DETAILS` 并正式将 [ROADMAP.md](ROADMAP.md) 当前指针归零为 **`NONE`**：
-  - **全部 9 条 `/ship*` 指令**：新增 [ShinColleCommands.java](src/modern/java/com/lulan/shincolle/command/ShinColleCommands.java) 并在 [ShinColle.java](src/modern/java/com/lulan/shincolle/ShinColle.java) 注册，覆盖 `/shipchangeowner`（`/shipch`）、`/shipemotes`（`/em`/`/emo`/`/emote`/`/emotes` 与 35 个别名）、`/ship list|get|del`、`/shipkill`、`/shipattrs`、`/shipcleardrop`、`/shipinfo`、`/shipstopai`（`/shipstop`）及 `/shipupdateowneruid`；补齐 [ShipCacheSavedData.java](src/modern/java/com/lulan/shincolle/teitoku/ShipCacheSavedData.java) `removeShip`、[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 全局 `stopAi` + `0..100` 近代化存读区间 + `setModernizationSteps` 与 [LegacyMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyMountEntity.java) / [LegacyShipMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyShipMountEntity.java) `stopAi` 暂停。
+  - **全部 9 条 `/ship*` 指令**：新增 [ShinColleCommands.java](src/modern/java/com/lulan/shincolle/command/ShinColleCommands.java) 并在 [ShinColle.java](src/modern/java/com/lulan/shincolle/ShinColle.java) 注册，覆盖 `/shipchangeowner`（`/shipch`）、`/shipemotes`（`/em`/`/emo`/`/emote`/`/emotes` 与 35 个别名）、`/ship list|get|del`、`/shipkill`、`/shipattrs`、`/shipcleardrop`、`/shipinfo`、`/shipstopai`（`/shipstop`）及 `/shipupdateowneruid`；补齐 [ShipCacheSavedData.java](src/modern/java/com/lulan/shincolle/teitoku/ShipCacheSavedData.java) `removeShip`、[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 全局 `stopAi` + `0..100` 近代化存读区间 + `setModernizationSteps` 与 [LegacyMountEntity.java（已撤销）](MIGRATION-DECISIONS.md#d-018) / [LegacyShipMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyShipMountEntity.java) `stopAi` 暂停。
   - **动态光方块与照明联动**：新增 [TemporaryLightBlock.java](src/modern/java/com/lulan/shincolle/block/TemporaryLightBlock.java)、[LightBlockEntity.java](src/modern/java/com/lulan/shincolle/blockentity/LightBlockEntity.java) 与 [LightBlockHelper.java](src/modern/java/com/lulan/shincolle/world/LightBlockHelper.java)，更新 [ModBlocks.java](src/modern/java/com/lulan/shincolle/registry/ModBlocks.java) 与 [ModBlockEntities.java](src/modern/java/com/lulan/shincolle/registry/ModBlockEntities.java) 实现 15 亮度及 120-tick 自动还原空气/静水/流水；接入 [LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) Searchlight/Flare 光块放置及 [GameplayClientEffects.java](src/modern/java/com/lulan/shincolle/client/GameplayClientEffects.java) 粒子门控。
   - **配置体系、`SystemConfig` 同步与 `polyAsMn`**：[TeitokuHelper.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java) 同步 `SystemConfig`（`RingAbility`、`EasyMode`、`CloseGuiDist`、`RadarUpdate`、`PolyAsMn`）与客户端有效读取，并接入 `teamCooldown`；新建 [PolyAsMnCondition.java](src/modern/java/com/lulan/shincolle/crafting/PolyAsMnCondition.java)（`shincolle:poly_as_mn`）与 [LegacyItemMatchHelper.java](src/modern/java/com/lulan/shincolle/crafting/LegacyItemMatchHelper.java) `matchesTag` 动态匹配（保持静态包标签默认值）；[GameplayCommandHandler.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java)、[TargetWrenchItem.java](src/modern/java/com/lulan/shincolle/item/TargetWrenchItem.java)、[DeskTerminalMenu.java](src/modern/java/com/lulan/shincolle/menu/DeskTerminalMenu.java)、[DeskReferenceScreen.java](src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java)、[HostileEncounterSpawner.java](src/modern/java/com/lulan/shincolle/world/HostileEncounterSpawner.java)、[LegacyShipCombatHelper.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipCombatHelper.java)、[MorphHelper.java](src/modern/java/com/lulan/shincolle/morph/MorphHelper.java)、[MarriageRingItem.java](src/modern/java/com/lulan/shincolle/item/MarriageRingItem.java)、[ShinColleSoundHelper.java](src/modern/java/com/lulan/shincolle/sound/ShinColleSoundHelper.java) 与 [LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 完成全量配置接线。
   - **`ShipKills`、`Raiden` 与外置 mod 收口**：[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java)、[LegacyShipRensouhouEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java)、[LegacyShipAircraftEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java)、[ShipInventoryMenu.java](src/modern/java/com/lulan/shincolle/menu/ShipInventoryMenu.java) 与 [ShipInventoryScreen.java](src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java) 实现 `ShipKills` 统计展示及 `Raiden` 合体角色识别，补全三语翻译键；[TeitokuEvents.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java) 新增 Curios 反射软钩，并将 Metamorph、IC2 替代方案与 40 个 `ID.java` `HISTORICAL_SOURCE_GAP` 名称在 [B6 closeout](migration_batches/2026-11-17-b6-intermod-details/results/b6-closeout.json) 建档收口。
@@ -24,7 +84,7 @@
 
 - 完成 `B3-MULTIPLAYER-TEAM` 第二部分全部收口并将 [ROADMAP.md](ROADMAP.md) 唯一 `NEXT` 晋级至 `B6-INTERMOD-DETAILS`：
   - **Forge 配置骨架与战斗友伤/PVP**：新建 [ShinColleConfig.java](src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java) 并在 [ShinColle.java](src/modern/java/com/lulan/shincolle/ShinColle.java) 注册 `COMMON_SPEC` + `CLIENT_SPEC`；在 [LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 接入非创造非主人玩家 `friendlyFire` 门禁、`isLegacyFriendlyFireAllowed` + 友方舰 `dmgSvS * 0.01F` 百分比缩放、同盟免防御反伤、新增 `canCommandOrRevengeEngage` 及 `canEngage` 的 `mobAttackPlayer`/`shipAttackPlayer` `0..3` 分支。
-  - **召唤物/投射物/目标目标选择器同盟门禁**：[LegacyShipBehaviorCatalog.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java) 新增 `isLegacyFriendlyFireAllowed`；[LegacyShipRensouhouEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java) 与 [LegacyShipAircraftEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java) 补全 `hurt` 门禁；[LegacyShipProjectileEntity.java](src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java) 过滤同盟接触；[LegacyShipOwnerHurtByTargetGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtByTargetGoal.java)、[LegacyShipOwnerHurtTargetGoal.java](src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtTargetGoal.java) 与 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 切换为 `canCommandOrRevengeEngage`。
+  - **召唤物/投射物/目标目标选择器同盟门禁**：[LegacyShipBehaviorCatalog.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java) 新增 `isLegacyFriendlyFireAllowed`；[LegacyShipRensouhouEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java) 与 [LegacyShipAircraftEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java) 补全 `hurt` 门禁；[LegacyShipProjectileEntity.java](src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java) 过滤同盟接触；[LegacyShipOwnerHurtByTargetGoal.java](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)、[LegacyShipOwnerHurtTargetGoal.java](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md) 与 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 切换为 `canCommandOrRevengeEngage`。
   - **`OwnerPaper` 与 `KaitaiHammer` 双模式**：[OwnerPaperItem.java](src/modern/java/com/lulan/shincolle/item/OwnerPaperItem.java) 为 `resolveTransferTarget` 增加全服关卡玩家回退查询；[LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 对齐 `OwnerPaper` `emotion(2)` + `MARRY` 音效，区分 [KaitaiHammerItem.java](src/modern/java/com/lulan/shincolle/item/KaitaiHammerItem.java) 左键一击回收（`performKaitaiKill`）与潜行右键 `createLegacyKaitaiDrops` 分舰种 4 格掉落 + `6`/`8` 情绪。
   - **多人雷达服务端同步**：[GameplayCommandType.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandType.java)、[GameplayCommandHandler.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java)、[TeitokuHelper.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java) 与 [DeskReferenceScreen.java](src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java) 新增 `REQUEST_DESK_RADAR`、局部缓存保护及雷达/世界规则合并显示。
 - 在 [GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 新增 `b3Part2FriendlyFirePvpModesAndCommandRevengeTargeting` 与 `b3Part2OwnerPaperKaitaiHammerAndDeskRadarSync`；`git diff --check`、`src/main/` 零改动与 JDK `17.0.3.1` `runGameTestServer --no-daemon` 通过 **`All 286 required tests passed :)`**（证据见 [B3 Part 2 results](migration_batches/2026-11-17-b3-multiplayer-team/results/b3-part2.json)）。
@@ -49,7 +109,7 @@
   - `TileWaypoint` & `TileDesk` & `Desk_FuncSync(77)`：[WaypointBlockEntity.java](src/modern/java/com/lulan/shincolle/blockentity/WaypointBlockEntity.java) 与 [DeskBlockEntity.java](src/modern/java/com/lulan/shincolle/blockentity/DeskBlockEntity.java) 补全 `getUpdateTag()`/`getUpdatePacket()`，Desk 持久化并同步 `radarZoomIndex`/`bookChapter`/`bookPage` 及 `SYNC_DESK_FUNC`。
   - `SyncPlayerItem(24)` & `SetFormation(31)` & `SetUnitName(36)`：[TeitokuHelper.java](src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java)、[GameplayCommandHandler.java](src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java) 与 [FormationScreen.java](src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java) 补齐跨模式切回单舰聚焦首舰（`% 3 != 0`）、`SET_FORMATION` 与按分队 `0..8` 独立命名的 `SET_UNIT_NAME`（不再受提督 Team 前置阻断）。
   - `SetUnatkClass(50)` & `HitHeight(35)`：恢复 `OPTOOL_TOGGLE_UNATTACKABLE` 服务端 level-2 OP 校验与 3 语种拒绝提示；新增 `SET_SHIP_HIT_ZONE`、[PointerClientEvents.java](src/modern/java/com/lulan/shincolle/client/PointerClientEvents.java) 4-tick 抚摸区射线计算及 [LegacyShipEntity.java](src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java) 摸头区 `+30` 士气反应。
-  - `PlayerSkill(12)` & `MountGUI(1)` & `MountMove(0)`：修正 [PlayerSkillHostResolver.java](src/modern/java/com/lulan/shincolle/playerskill/PlayerSkillHostResolver.java) 与 [MorphHelper.java](src/modern/java/com/lulan/shincolle/morph/MorphHelper.java) 解析舰娘坐骑与背负乘客技能宿主；补齐 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 骑乘打开舰娘背包、[MorphClientEvents.java](src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java) 输入捕获及 [LegacyMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyMountEntity.java)/[LegacyShipMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyShipMountEntity.java) WASD+Jump 接管转向。
+  - `PlayerSkill(12)` & `MountGUI(1)` & `MountMove(0)`：修正 [PlayerSkillHostResolver.java](src/modern/java/com/lulan/shincolle/playerskill/PlayerSkillHostResolver.java) 与 [MorphHelper.java](src/modern/java/com/lulan/shincolle/morph/MorphHelper.java) 解析舰娘坐骑与背负乘客技能宿主；补齐 [ShipCommandService.java](src/modern/java/com/lulan/shincolle/network/ShipCommandService.java) 骑乘打开舰娘背包、[MorphClientEvents.java](src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java) 输入捕获及 [LegacyMountEntity.java（已撤销）](MIGRATION-DECISIONS.md#d-018)/[LegacyShipMountEntity.java](src/modern/java/com/lulan/shincolle/entity/mount/LegacyShipMountEntity.java) WASD+Jump 接管转向。
 - 在 [GameplayParityGameTests.java](src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java) 新增 5 项 B2 `@GameTest` 并修复 `heavyCruisersKeepLegacyNightEffectsAndNePush` `updateSkyBrightness()` 夹具时序竞争；验证 `git diff --check`、JDK 17 `cleanProcessResources build verifyItemModelCoverage runGameTestServer --no-daemon` 全部通过，实测 **`All 282 required tests passed :)`**（282/282，0 失败，0 跳过）；[ROADMAP.md](ROADMAP.md) 将唯一 `NEXT` 推进为 `B3-MULTIPLAYER-TEAM`（证据见 [B2-PACKET-PARITY](migration_batches/2026-11-16-b2-packet-parity/)）。
 
 ### MINECRAFT-BLOCK-TAGS：补全现代原版方块采集工具与信标底座 Tag（生存挖矿掉落修复）

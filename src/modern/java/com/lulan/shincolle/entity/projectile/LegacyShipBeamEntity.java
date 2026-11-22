@@ -203,12 +203,18 @@ public final class LegacyShipBeamEntity extends Entity {
         if (roll.crit()) {
             CombatFxDispatcher.sendCombatReact(host, target, CombatReactType.CRIT,
                     LegacyShipAttackKind.HEAVY, LegacyShipProjectileVisual.NONE);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_CRIT,
+                    target.getX(), target.getY() + target.getBbHeight() * 1.3D, target.getZ());
         } else if (roll.tripleHit()) {
             CombatFxDispatcher.sendCombatReact(host, target, CombatReactType.TRIPLE_HIT,
                     LegacyShipAttackKind.HEAVY, LegacyShipProjectileVisual.NONE);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_TRIPLE,
+                    target.getX(), target.getY() + target.getBbHeight() * 1.3D, target.getZ());
         } else if (roll.doubleHit()) {
             CombatFxDispatcher.sendCombatReact(host, target, CombatReactType.DOUBLE_HIT,
                     LegacyShipAttackKind.HEAVY, LegacyShipProjectileVisual.NONE);
+            CombatFxDispatcher.sendParticle(target, GameplayParticleType.TEXT_DOUBLE,
+                    target.getX(), target.getY() + target.getBbHeight() * 1.3D, target.getZ());
         }
 
         boolean attacked = target.hurt(this.damageSources().indirectMagic(this, host), roll.damage());

@@ -20,6 +20,8 @@
 
 ## Hostile target and feedback audit
 
+**部分已撤销**：下段将独立 `LegacyShipHostilePlayerTargetGoal` 与统一RangeTarget视为等价的认可已撤销，见[AI移动批次](../2026-11-22-parity-fix-ai-movement/decision.md)。保留当时审计语境；玩家反馈隔离结论不受此撤销影响。
+
 旧版 `BasicEntityShipHostile` 通过 `EntityAIShipRangeTarget` 执行每 8 tick 的范围扫描，范围使用整数化 `attackRange`，并以 `TargetHelper.SelectorForHostile` 排除 creative/invulnerable 玩家、敌对舰和不可见目标，默认 `ConfigHandler.mobAttackPlayer=true`。现代 `LegacyShipHostilePlayerTargetGoal`、`LegacyShipRangeTargetGoal`、`LegacyShipBehaviorCatalog` 与 `LegacyShipEntity.canEngage` 已保留这些边界：相同范围盒、8 tick 节奏、最近/前三随机选择、creative/无敌/观察者排除、敌对舰互斥和敌方不可见目标排除。
 
 敌方飞机起飞/命中反应通过现有 combat reaction packet bus；`ClientboundCombatReactPacket.allowsPlayerActionbar` 要求玩家参与者且攻击者不是 hostile ship/summon。因此该问题本批结论为 `LOCKED / no change`，不是把追击距离或玩家提示再改一遍。

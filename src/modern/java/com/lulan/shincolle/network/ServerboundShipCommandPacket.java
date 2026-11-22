@@ -51,12 +51,9 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
         return new ServerboundShipCommandPacket(ShipCommandAction.TOGGLE_RING_EFFECT, 0, shipId, shipUid, NO_ENTITY, null, 0);
     }
 
-    public static ServerboundShipCommandPacket setAiFlags(int shipId, int shipUid, int flags) {
-        return new ServerboundShipCommandPacket(ShipCommandAction.SET_AI_FLAGS, 0, shipId, shipUid, NO_ENTITY, null, flags);
-    }
-
-    public static ServerboundShipCommandPacket setFollowRange(int shipId, int shipUid, int followRange) {
-        return new ServerboundShipCommandPacket(ShipCommandAction.SET_FOLLOW_RANGE, 0, shipId, shipUid, NO_ENTITY, null, followRange);
+    /** Legacy C2SGUIPackets PID.ShipBtn: {@code button} is a {@link ShipGuiButton} id. */
+    public static ServerboundShipCommandPacket guiButton(int shipId, int shipUid, int button, int value) {
+        return new ServerboundShipCommandPacket(ShipCommandAction.SHIP_GUI_BUTTON, button, shipId, shipUid, NO_ENTITY, null, value);
     }
 
     public static ServerboundShipCommandPacket setWaypointStay(int shipId, int shipUid, int stayMode) {

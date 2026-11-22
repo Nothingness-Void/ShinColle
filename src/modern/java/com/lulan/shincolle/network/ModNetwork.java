@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class ModNetwork {
 
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -79,6 +79,12 @@ public final class ModNetwork {
             return;
         }
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ClientboundGameplayStatePacket(payload));
+    }
+
+    public static void sendToPlayer(ServerPlayer player, Object packet) {
+        if (player.connection != null) {
+            CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        }
     }
 
     public static void sendToTrackingAndSelf(Entity entity, Object packet) {

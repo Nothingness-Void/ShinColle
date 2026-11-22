@@ -33,6 +33,8 @@ An exact match must still be recorded so the next batch does not reread the same
 
 ## Facts established
 
+**后续取代（AI部分）**：本节及Code changes对跟随/守卫的阶段性匹配说明不再作为完整等价证据；旧现代跟随门槛、固定半径/每tick moveTo已撤销，见[AI移动批次](../2026-11-22-parity-fix-ai-movement/decision.md)。命令距离与路点权限等独立结论保留。
+
 - `FormationHelper.applyTeam*` uses a strict commander-to-ship distance below 64 blocks. The modern command service now uses the same boundary for individual commands and filters group members using that boundary.
 - Legacy move coordinates are not rejected because they are far from the player. Legacy guard and attack command entry points also do not add a player-to-target distance wall; target type, alive state, ownership/team rules, and ship engagement rules remain separate checks.
 - Formation mode preserves the old all-member gate: if any current-team ship is not commandable, the formation move/guard call does not partially apply.

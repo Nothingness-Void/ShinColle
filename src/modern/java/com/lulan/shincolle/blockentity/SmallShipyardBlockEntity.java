@@ -1,5 +1,10 @@
 package com.lulan.shincolle.blockentity;
 
+import net.minecraft.world.level.material.Fluids;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
+import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.block.SmallShipyardBlock;
 import com.lulan.shincolle.crafting.SmallShipyardRecipes;
 import com.lulan.shincolle.crafting.ShipyardBuildTypes;
@@ -43,10 +48,10 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     private static final String POWER_GOAL_TAG = "GoalPower";
     private static final String BUILD_TYPE_TAG = "BuildType";
     private static final String BUILD_RECORD_TAG = "BuildRecord";
-    public static final int POWER_MAX = 460800;
-    public static final int BUILD_SPEED = 48;
-    public static final float FUEL_MAGNIFICATION = 1.0F;
-    public static final int POWER_INSTANT = BUILD_SPEED * 2400;
+    public static int powerMax() { return (int) ShinColleConfig.tileShipyardSmall()[0]; }
+    public static int buildSpeed() { return (int) ShinColleConfig.tileShipyardSmall()[1]; }
+    public static float fuelMagnification() { return (float) ShinColleConfig.tileShipyardSmall()[2]; }
+    public static int powerInstant() { return buildSpeed() * 2400; }
 
     @Nullable
     private PlayerOwnerData owner;
@@ -85,6 +90,15 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return 4;
         }
     };
+    private final FluidTank lavaTank = new FluidTank(2000, fluid -> fluid.getFluid().isSame(Fluids.LAVA)) {
+        @Override
+        public FluidStack drain(int amount, IFluidHandler.FluidAction action) { return FluidStack.EMPTY; }
+        @Override
+        public FluidStack drain(FluidStack stack, IFluidHandler.FluidAction action) { return FluidStack.EMPTY; }
+        @Override
+        protected void onContentsChanged() { SmallShipyardBlockEntity.this.setChanged(); }
+    };
+    private LazyOptional<IFluidHandler> fluidHandler = LazyOptional.empty();
     private LazyOptional<IItemHandler> itemHandler = LazyOptional.empty();
     private int powerConsumed;
     private int powerRemained;
@@ -100,16 +114,19 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     public void onLoad() {
         super.onLoad();
         this.itemHandler = LazyOptional.of(() -> this.items);
+        this.fluidHandler = LazyOptional.of(() -> this.lavaTank);
     }
 
     @Override
     public void invalidateCaps() {
         super.invalidateCaps();
         this.itemHandler.invalidate();
+        this.fluidHandler.invalidate();
     }
 
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable net.minecraft.core.Direction side) {
+        if (capability == ForgeCapabilities.FLUID_HANDLER) return this.fluidHandler.cast();
         if (capability == ForgeCapabilities.ITEM_HANDLER) {
             return this.itemHandler.cast();
         }
@@ -120,6 +137,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
+        this.lavaTank.readFromNBT(tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (tag.contains(INVENTORY_TAG)) {
             this.items.deserializeNBT(tag.getCompound(INVENTORY_TAG));
@@ -137,6 +155,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
+        this.lavaTank.writeToNBT(tag);
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         }
@@ -182,6 +201,12 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         this.markUpdated();
     }
 
+    public boolean canDestroy(Player player) {
+        return player.isCreative() || player.hasPermissions(2)
+                || (this.owner != null && (this.owner.uuid() != null ? this.owner.uuid().equals(player.getUUID())
+                : this.owner.uid() == com.lulan.shincolle.teitoku.TeitokuHelper.getPlayerUid(player)));
+    }
+
     public boolean canEdit(Player player) {
         return this.owner == null || this.owner.canEdit(player);
     }
@@ -213,11 +238,11 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     }
 
     public boolean hasRemainedPower() {
-        return this.powerRemained > BUILD_SPEED;
+        return this.powerRemained > buildSpeed();
     }
 
     public int getPowerRemainingScaled(int height) {
-        return Mth.floor((this.powerRemained * (double) height) / POWER_MAX);
+        return Mth.floor((this.powerRemained * (double) height) / powerMax());
     }
 
     public String getBuildTimeString() {
@@ -225,7 +250,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return "00:00";
         }
 
-        int remainingSeconds = Math.max(0, (int) (((this.powerGoal - this.powerConsumed) / (float) BUILD_SPEED) * 0.05F));
+        int remainingSeconds = Math.max(0, (int) (((this.powerGoal - this.powerConsumed) / (float) buildSpeed()) * 0.05F));
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
@@ -301,11 +326,16 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
 
         this.calcPowerGoal();
         changed |= this.refuelFromFuelSlot();
+        if (powerMax() - this.powerRemained >= 800 && this.lavaTank.getFluidAmount() >= 40) {
+            this.lavaTank.getFluid().shrink(40);
+            this.powerRemained += (int) (800 * fuelMagnification());
+            changed = true;
+        }
 
         if (this.isBuilding()) {
             changed |= this.consumeInstantConstruction();
-            this.powerRemained -= BUILD_SPEED;
-            this.powerConsumed += BUILD_SPEED;
+            this.powerRemained -= buildSpeed();
+            this.powerConsumed += buildSpeed();
             changed = true;
 
             if (this.powerConsumed >= this.powerGoal) {
@@ -341,7 +371,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
 
     private boolean refuelFromFuelSlot() {
         ItemStack fuelStack = this.items.getStackInSlot(SmallShipyardRecipes.SLOT_FUEL);
-        if (fuelStack.isEmpty() || fuelStack.is(ModItems.INSTANTCONMAT.get()) || this.powerRemained >= POWER_MAX) {
+        if (fuelStack.isEmpty() || fuelStack.is(ModItems.INSTANTCONMAT.get()) || this.powerRemained >= powerMax()) {
             return false;
         }
 
@@ -350,8 +380,8 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
             return false;
         }
 
-        int fuelValue = Math.round(fuelUse.get().power() * FUEL_MAGNIFICATION);
-        if (fuelValue <= 0 || fuelValue + this.powerRemained > POWER_MAX) {
+        int fuelValue = (int) (fuelUse.get().power() * fuelMagnification());
+        if (fuelValue <= 0 || fuelValue + this.powerRemained >= powerMax()) {
             return false;
         }
 
@@ -368,7 +398,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         }
 
         fuelStack.shrink(1);
-        this.powerConsumed += POWER_INSTANT;
+        this.powerConsumed += powerInstant();
         if (fuelStack.isEmpty()) {
             this.items.setStackInSlot(SmallShipyardRecipes.SLOT_FUEL, ItemStack.EMPTY);
         }

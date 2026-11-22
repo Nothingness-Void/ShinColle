@@ -1,59 +1,45 @@
-# Decision Record: 2026-11-16-b1-gui-parity
+# B1 界面对齐历史决定
 
-## 1. Context
-Milestone M2: B1-GUI-PARITY requires auditing and aligning all 10 legacy 1.12.2 `Gui*` classes and 9 `Container*` classes against modern 1.20.1 Forge screens and container menus, ensuring strict behavioral fidelity while adhering to the minimal change principle.
+## 说明
+这是 2026-11-16 的历史记录，保留当时证据；不把旧“完全等价”解释为当前完整一致性。
+撤销依据统一为 [D-016](../../MIGRATION-DECISIONS.md#d-016客户端行为严格还原撤销历史简化等价声明)，替代结论见 [客户端还原](../2026-11-22-parity-fix-client/decision.md)。
 
-## 2. Audit Findings & Alignment Decisions
+## 2. 当时审计与决定
 
-### 2.1 LargeShipyard Menu & Screen
-- **Legacy Truth**:
-  - In `ContainerLargeShipyard.java:44-47`, slot 0 is output at `(168, 51)`. Slots 1..9 are tray slots along y=116 at `(7 + i * 18, 116)` for `i = 1..9` (x = 25, 43, 61, 79, 97, 115, 133, 151, 169).
-  - In `GuiLargeShipyard.png`, the gauge at `(9, 83)` is a vertical progress bar for fuel, NOT an item slot.
-  - In `GuiLargeShipyard.java`:
-    - `BUTTON_INVENTORY_MODE` is at `(23, 93, 25, 20)`; when `invMode == 1` (output mode), overlay UV `(208, 82, 25, 20)` is rendered at `(23, 92)`.
-    - Selected material frame is rendered at `(27, 14 + selectMat * 19)` with UV `(208, 64, 18, 18)`.
-    - Material adjustment panel is rendered at `(50, 8 + selectMat * 19)` with UV `(0, 223, 48, 30)` containing 8 buttons (+/- 1000, 100, 10, 1).
-    - Stock quantities `matStock0..3` are rendered centered at `x=125, y=20, 39, 58, 77` in yellow `0xE0C54E`.
-    - Build quantities `matBuild0..3` are rendered centered at `x=73, y=20, 39, 58, 77` with threshold colors (<100: red, ==1000: yellow, else: white).
-- **Decision & Fix**:
-  - Removed the slot at `(9, 83)` in `LargeShipyardMenu.java`. Added all 9 tray slots along y=116 from x=25 to 169.
-  - In `LargeShipyardScreen.java`, wired mouse click hitboxes for inventory mode toggle, material selection rows, and the 8 adjust buttons (+/-).
-  - Implemented rendering in `LargeShipyardScreen.java` for the output mode overlay, material frame, adjustment panel, and yellow stock labels at x=125.
+### 2.1 大型船坞
+旧 ContainerLargeShipyard:44–47 输出槽 (168,51)，九托盘 (7+i×18,116)，i=1..9；
+(9,83) 是燃料条而非物品槽。旧切换按钮 (23,93,25,20)，输出覆盖 (23,92) / UV(208,82,25,20)；
+选材框 (27,14+19×selectMat) / UV(208,64,18,18)；
+调量面板 (50,8+19×selectMat) / UV(0,223,48,30)，八按钮 ±1000/100/10/1。
+库存 x125、y20/39/58/77 黄色；建造数 x73，<100 红、==1000 黄、其它白。
+当时据此调整 LargeShipyardMenu/Screen 的槽位、点击与绘制。
 
-### 2.2 VolCore / LegacyCore Menu & Screen
-- **Legacy Truth**:
-  - In `ContainerVolCore.java:33-41`, the 3x3 fuel grid is located at `(62 + col * 18, 19 + row * 18)`. Player inventory is at `(8 + col * 18, 84 + row * 18)`, and hotbar is at `(8 + hotbarSlot * 18, 142)`.
-  - In `GuiVolCore.java`:
-    - The power toggle button is at `(7, 6, 13, 13)`; when active, overlay UV `(12, 166, 13, 13)` is rendered.
-    - Fuel progress bar is scaled to 31px and rendered at `(38, 59 - chargeBar)` with UV `(0, 197 - chargeBar, 12, chargeBar)`.
-    - GUI height is 166.
-- **Decision & Fix**:
-  - In `LegacyCoreMenu.java`, realigned 3x3 slots from `(18, 22)` to `(62 + col * 18, 19 + row * 18)`, player inv to `(8 + col * 18, 84 + row * 18)`, and hotbar to `(8 + hotbarSlot * 18, 142)`.
-  - In `LegacyCoreScreen.java`, updated `imageHeight = 166`, charge bar scale to 31px at `(38, 59 - chargeBar, 12, chargeBar)`, added power button click and active overlay UV `(12, 166, 13, 13)`.
+### 2.2 核心
+旧 ContainerVolCore:33–41 的 3×3 格为 (62+18×col,19+18×row)，玩家背包 (8+18×col,84+18×row)，热栏 y142。
+旧电源按钮 (7,6,13,13)、活动 UV(12,166,13,13)；
+燃料条高 31，(38,59-chargeBar) / UV(0,197-chargeBar,12,chargeBar)，界面高166。
+当时据此调整 LegacyCoreMenu/Screen。
 
-### 2.3 Crane Terminal Menu & Screen
-- **Legacy Truth**:
-  - In `GuiCrane.java:289-293`, power button is at `(7, 6, 13, 13)` with active overlay UV `(176, 0, 13, 13)`.
-  - In `GuiCrane.java:395-407`, left-clicking wait mode button increments mode; right-clicking decrements mode.
-- **Decision & Fix**:
-  - In `CraneBlockEntity.java`, added `active` state tracking, `isActive()`, `toggleActive()`, and directional `cycleWaitMode(boolean forward)`.
-  - In `CraneTerminalMenu.java`, added `BUTTON_POWER = 9` and `BUTTON_WAIT_MODE_DECR = 10`.
-  - In `CraneTerminalScreen.java`, added power overlay rendering, power toggle click handler at `(7, 6, 13, 13)`, right-click decrement in wait mode click handler, and power status tooltip.
+### 2.3 吊车
+**电源绘制/提示等价声明已撤销（见 D-016）**：旧源码注释掉的内容不得绘制。
+当时记录 GuiCrane:289–293 的电源坐标 (7,6,13,13)、UV(176,0,13,13)，并新增电源覆盖与提示；
+这部分显示决定已撤销。左右键等待增减及服务端物品传输并不因此一并撤销，后续严格生命周期结论见新批次。
 
-### 2.4 Desk Reference Screen Multiplayer Safety
-- **Legacy Truth**:
-  - Guide book reading and radar contact scan.
-- **Decision & Fix**:
-  - Verified and confirmed that client queries accessing server state (such as `getWorldBlockedClasses` and `collectFacilityContacts`) in `DeskReferenceScreen.java` safely guard `this.minecraft.getSingleplayerServer()` against `null`, preventing NPEs on dedicated multiplayer servers.
+### 2.4 桌面参考界面
+**作为旧桌面完整等价入口的声明已撤销（见 D-016）**。
+当时仅核对 DeskReferenceScreen 对 getSingleplayerServer 的 null 保护，避免多人 NPE；
+它不能证明旧雷达/图鉴内容完整，现已由统一 DeskScreen 替代。
 
-### 2.5 Confirmed No-Change Items (Full Parity Already Verified)
-1. `GuiSmallShipyard` & `ContainerSmallShipyard` -> `SmallShipyardScreen` & `SmallShipyardMenu`: 100% parity verified.
-2. `GuiRecipePaper` & `ContainerRecipePaper` -> `RecipePaperScreen` & `RecipePaperMenu`: 100% parity verified (ghost slots and NBT recipe sync).
-3. `GuiShipInventory` & `ContainerShipInventory` -> `ShipInventoryScreen` & `ShipInventoryMenu`: Slot coordinates 100% identical; AI keybinds aligned.
-4. `GuiFormation` & `ContainerFormation` -> `FormationScreen` & `FormationMenu`: 100% functional parity with modernized Forge widgets.
-5. `GuiMorphInventory` & `ContainerMorphInventory` -> `MorphInventoryScreen` & `MorphInventoryMenu`: 100% functional parity.
-6. `GuiDesk` -> `DeskTerminalScreen` & `DeskReferenceScreen` & `WaypointTerminalScreen`: 100% functional parity.
+### 2.5 当时宣称无需改动的条目
+1. GuiSmallShipyard/ContainerSmallShipyard → SmallShipyardScreen/Menu：原记录称完全一致；本次未重新审计该项。
+2. GuiRecipePaper/ContainerRecipePaper → RecipePaperScreen/Menu：原记录称幽灵槽/NBT 同步完全一致；本次未重新审计该项。
+3. **已撤销（见 D-016）**：GuiShipInventory/ContainerShipInventory → ShipInventoryScreen/Menu 的“槽位100%相同、AI快捷键对齐”声明；替代为旧货舱页、控制与热区，不保留自创快捷键。
+4. **已撤销（见 D-016）**：GuiFormation/ContainerFormation → FormationScreen/Menu 的“现代控件完全功能等价”声明。
+5. **已撤销（见 D-016）**：GuiMorphInventory/ContainerMorphInventory → MorphInventoryScreen/Menu 的“完全功能等价”声明。
+6. **已撤销（见 D-016）**：GuiDesk → DeskTerminalScreen/DeskReferenceScreen/WaypointTerminalScreen 的“完全功能等价”声明；尤其航点不是自创终端。
 
-## 3. Verification Evidence
-- `./gradlew compileJava`: PASSED (0 errors, 0 warnings that block build).
-- `./gradlew runGameTestServer`: PASSED (276/276 required tests passed, 0 failures, 0 regressions).
+获取/选择与空值语义同时受 [D-018](../../MIGRATION-DECISIONS.md#d-018) 约束；不恢复 D-016 已删除的简化界面。
+
+## 3. 历史证据
+当时 compileJava 和 runGameTestServer 通过，276/276，未有阻止构建的错误。
+这只是当时运行记录，不证明上述撤销项的完整视觉/行为一致性；不改写当时通过数。

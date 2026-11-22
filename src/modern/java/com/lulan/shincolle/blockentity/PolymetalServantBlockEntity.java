@@ -16,7 +16,7 @@ import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
-public class PolymetalServantBlockEntity extends BlockEntity implements RouteEnergyAccess {
+public class PolymetalServantBlockEntity extends BlockEntity {
 
     private static final String MASTER_POS_TAG = "MasterPos";
 
@@ -125,27 +125,5 @@ public class PolymetalServantBlockEntity extends BlockEntity implements RouteEne
         return this.level.getBlockEntity(resolved) instanceof HeavyGrudgeBlockEntity heavy ? heavy : null;
     }
 
-    @Override
-    public int getRouteEnergyStored() {
-        HeavyGrudgeBlockEntity master = this.getMaster();
-        return master == null ? 0 : master.getRouteEnergyStored();
-    }
 
-    @Override
-    public int getRouteEnergyCapacity() {
-        HeavyGrudgeBlockEntity master = this.getMaster();
-        return master == null ? 0 : master.getRouteEnergyCapacity();
-    }
-
-    @Override
-    public int extractRouteEnergy(int amount, boolean simulate) {
-        HeavyGrudgeBlockEntity master = this.getMaster();
-        return master == null ? 0 : master.extractRouteEnergy(amount, simulate);
-    }
-
-    @Override
-    public int receiveRouteEnergy(int amount, boolean simulate) {
-        HeavyGrudgeBlockEntity master = this.getMaster();
-        return master == null ? 0 : master.receiveRouteEnergy(amount, simulate);
-    }
 }

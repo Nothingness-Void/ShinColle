@@ -4,6 +4,8 @@
 - 影响矩阵：M0、M1、M2、M3、M4、M5、M6、M8、M9
 - 关联模块：Commands, Dynamic Light, Config/SystemSync/polyAsMn, Inter-mod & UI Polish
 
+> **修订：部分已撤销（[D-018](../../MIGRATION-DECISIONS.md#d-018)）**。保留原生替代外置 Metamorph；撤销其被解释为允许自创 Morph 行为、以及默认Morph HP“经核对保持不变”的结论。技能配置仅约束旧版对应Morph技能路径，不得全局阻断普通坐骑/乘客宿主。
+
 ## Facts established
 
 - 1.12.2 `CommandHandler` 注册的 9 条 `/ship*` 指令及其别名、35 项 `EMO_ALIASES`、`ShipAttrs` 近代化上限、全球 AI 冻结（`stopAI`）与 `ShipCache` 增删回忆已在 1.20.1 通过 Brigadier 与 `RegisterCommandsEvent` 完整闭环。
@@ -23,7 +25,7 @@
 
 ## No-change audits
 
-- 静态 `src/modern/resources/data/forge/tags/items/` 与 `morph` 默认 HP 缩放公式、`ShipInventoryMenu#stillValid` 远程 Desk 兼容逻辑经核对保持不变；Metamorph / IC2 / 40 个 `ID.java` 历史名称按设计边界收口，不引入外部强依赖或虚构实体。
+- 静态 `src/modern/resources/data/forge/tags/items/` 与 ~~`morph` 默认 HP 缩放公式~~（此项**已撤销**，D-018）、`ShipInventoryMenu#stillValid` 远程 Desk 兼容逻辑经核对保持不变；Metamorph / IC2 / 40 个 `ID.java` 历史名称按设计边界收口，不引入外部强依赖或虚构实体。
 
 ## Follow-up
 

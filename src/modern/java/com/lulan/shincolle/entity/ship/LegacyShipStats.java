@@ -1,5 +1,7 @@
 package com.lulan.shincolle.entity.ship;
 
+import com.lulan.shincolle.config.ShinColleConfig;
+
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
@@ -115,7 +117,9 @@ public final class LegacyShipStats {
                 : buildFriendlyRaw(legacyClassId, resolvedLevel, healthBonus, attackBonus, defenseBonus, attackSpeedBonus, moveBonus, rangeBonus, night);
         float[] equip = equipmentProfile.toArray();
         float[] marriage = LegacyShipStatTables.copyMarriageStats(married);
-        float[] morale = LegacyShipStatTables.copyMoraleStats(moraleValue);
+        float[] morale = hostileVariant
+                ? LegacyShipStatTables.copyResetMorale()
+                : LegacyShipStatTables.copyMoraleStats(moraleValue);
         float[] potion = buildPotionStats(activeEffects);
         float[] formation = hostileVariant
                 ? LegacyShipStatTables.copyResetFormation()
@@ -139,34 +143,34 @@ public final class LegacyShipStats {
         raw[LegacyShipStatTables.Attr.HP] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.HP]
                         + (healthBonus + 1F) * level * base[LegacyShipStatTables.BaseAttr.MOD_HP])
-                        * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HP]);
+                        * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.HP]);
         raw[LegacyShipStatTables.Attr.DEF] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.DEF]
                         + (defenseBonus + 1F) * level * 0.00133F * base[LegacyShipStatTables.BaseAttr.MOD_DEF])
-                        * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.DEF]);
+                        * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.DEF]);
         raw[LegacyShipStatTables.Attr.SPD] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.SPD]
                         + (attackSpeedBonus + 1F) * level * 0.004F * base[LegacyShipStatTables.BaseAttr.MOD_SPD])
-                        * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.SPD]);
+                        * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.SPD]);
         raw[LegacyShipStatTables.Attr.MOV] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.MOV]
                         + (moveBonus + 1F) * level * 0.002F * base[LegacyShipStatTables.BaseAttr.MOD_MOV])
-                        * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV]);
+                        * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.MOV]);
         raw[LegacyShipStatTables.Attr.HIT] =
                 (float) ((base[LegacyShipStatTables.BaseAttr.HIT]
                         + (rangeBonus + 1F) * level * 0.02F * base[LegacyShipStatTables.BaseAttr.MOD_HIT])
-                        * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HIT]);
+                        * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.HIT]);
 
         float baseAttack = base[LegacyShipStatTables.BaseAttr.ATK]
                 + (attackBonus + 1F) * level * 0.133F * base[LegacyShipStatTables.BaseAttr.MOD_ATK];
         raw[LegacyShipStatTables.Attr.ATK_L] =
-                (float) (baseAttack * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]);
+                (float) (baseAttack * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]);
         raw[LegacyShipStatTables.Attr.ATK_H] =
-                (float) (baseAttack * 3F * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]);
+                (float) (baseAttack * 3F * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]);
         raw[LegacyShipStatTables.Attr.ATK_AL] =
-                (float) (baseAttack * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]);
+                (float) (baseAttack * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]);
         raw[LegacyShipStatTables.Attr.ATK_AH] =
-                (float) (baseAttack * 3F * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]);
+                (float) (baseAttack * 3F * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]);
         raw[LegacyShipStatTables.Attr.XP] = 1F;
         raw[LegacyShipStatTables.Attr.GRUDGE] = 1F;
         raw[LegacyShipStatTables.Attr.AMMO] = 1F;
@@ -301,10 +305,10 @@ public final class LegacyShipStats {
 
         int id = LegacyShipStatTables.Attr.HP;
         buffed[id] = raw[id] + equip[id] + marriage[id]
-                + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HP];
+                + (morale[id] + potion[id] + formation[id]) * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.HP];
         id = LegacyShipStatTables.Attr.HIT;
         buffed[id] = raw[id] + equip[id] + marriage[id]
-                + (morale[id] + potion[id] + formation[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.HIT];
+                + (morale[id] + potion[id] + formation[id]) * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.HIT];
         id = LegacyShipStatTables.Attr.DODGE;
         buffed[id] = raw[id] + equip[id] + marriage[id] + morale[id] + potion[id] + formation[id];
         id = LegacyShipStatTables.Attr.XP;
@@ -320,18 +324,18 @@ public final class LegacyShipStats {
 
         id = LegacyShipStatTables.Attr.MOV;
         buffed[id] = raw[id] + equip[id] + marriage[id]
-                + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV];
+                + (morale[id] + potion[id]) * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.MOV];
 
         id = LegacyShipStatTables.Attr.ATK_L;
-        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_H;
-        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_AL;
-        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.ATK_AH;
-        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * 3F * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.ATK]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.SPD;
-        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.SPD]) * morale[id] * formation[id];
+        buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id] * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.SPD]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.CRI;
         buffed[id] = (raw[id] + equip[id] + marriage[id] + potion[id]) * morale[id] * formation[id];
         id = LegacyShipStatTables.Attr.DHIT;
@@ -347,7 +351,7 @@ public final class LegacyShipStats {
 
         id = LegacyShipStatTables.Attr.DEF;
         buffed[id] = (raw[id] + equip[id] + marriage[id]
-                + (morale[id] + potion[id]) * (float) LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.DEF]) * formation[id];
+                + (morale[id] + potion[id]) * (float) ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.DEF]) * formation[id];
 
         return buffed;
     }
@@ -449,5 +453,16 @@ public final class LegacyShipStats {
 
     public float[] copyEquip() {
         return Arrays.copyOf(this.equip, this.equip.length);
+    }
+
+    public float[] copyWithoutFormation() {
+        float[] result = calcBuffed(this.raw, this.equip, this.marriage, this.morale, this.potion,
+                LegacyShipStatTables.copyResetFormation());
+        LegacyShipStatTables.clamp(result);
+        return result;
+    }
+
+    public float moraleStat(int attrId) {
+        return this.morale[attrId];
     }
 }

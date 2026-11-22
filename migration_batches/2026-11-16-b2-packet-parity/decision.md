@@ -3,6 +3,8 @@
 - 结论：`COMPLETED`（11 项单人/核心 PID 按 1.12.2 真源补齐；56 项已有或原生等价；17 项明确归属 `B3`/`B6` 后续专题并留档）
 - 影响矩阵：M3、M7、M8
 
+> **修订：部分已撤销（[D-018](../../MIGRATION-DECISIONS.md#d-018)）**。第4项中 Morph 专属 LegacyMountEntity 的存续/入口已撤销；普通舰娘坐骑和舰娘乘客仍保留，不能扩展为“玩家骑舰娘”或“变身+专属坐骑”技能宿主。删除专属命令枚举后，第1项旧序号兼容性不再是本批跨版本互通保证；两端须同步更新。
+
 ## 1. Facts established（全 84 有效 PID 核对分布）
 
 - `C2SGUIPackets`（30 有效 PID + 1 unused `NO_USE=34`）：`22 MATCHED`、`6 IMPLEMENTED_HERE`（`24, 31, 35, 36, 50, 77`）、`2 PARTIAL_DEFERRED`（`ShipBtn(0)` 与 `MorphBtn(2)` 的罕用/调试子开关）。
@@ -19,7 +21,7 @@
 3. **OP 权限门控**：对照 `C2SGUIPackets.java#L677`，为 `OPTOOL_TOGGLE_UNATTACKABLE` 恢复 `player.hasPermissions(2)` 服务端校验及 3 语种拒绝提示。
 4. **Ship Mount 与 Passenger Rider 技能/交互闭环**：
    - `PlayerSkillHostResolver` 与 `MorphHelper.resolveHostMode`/`performPlayerSkill` 现统一解析骑乘 `LegacyShipMountEntity`（`MOUNT` -> 宿主舰娘）与肩扛/背负 `LegacyShipEntity`（`RIDER` -> 乘客舰娘）。
-   - `MorphClientEvents` 在骑乘或背负舰娘时监听原版背包键触发 `OPEN_MOUNT_SHIP_INVENTORY`，并在骑乘 `LegacyShipMountEntity` / `LegacyMountEntity` 时采集 WASD+Jump 掩码发送 `MOUNT_MOVE`，不干扰普通玩家按 `E` 开背包。
+   - `MorphClientEvents` 在骑乘或背负舰娘时监听原版背包键触发 `OPEN_MOUNT_SHIP_INVENTORY`，并在骑乘 `LegacyShipMountEntity` / ~~`LegacyMountEntity`~~（后者部分**已撤销**，D-018） 时采集 WASD+Jump 掩码发送 `MOUNT_MOVE`，不干扰普通玩家按 `E` 开背包。
 5. **ShipEntitySpecs 敌友边界保留与 `heavyCruisersKeepLegacyNightEffectsAndNePush` 批序去竞争**：
    - 经 `ShipEntitySpecs` 确认 `eggMeta 22`（`EntityCarrierHime`）保持 `hostile=true`，而 `eggMeta 35`（`EntityCarrierWDemon`）为 `hostile=false` 且具备 `CARRIER_WD_MOUNT`；因此 `LegacyShipMountEntity` 骑乘校验继续严格要求 `!host.isHostileVariant()`。
    - 新增 `b2*` 测试改变 GameTest 默认分批顺序后，暴露原测试 `heavyCruisersKeepLegacyNightEffectsAndNePush` 仅调用 `setDayTime(18000L)` 未刷新 `skyDarken` 导致 `level().isDay()` 受前序白天测试残留影响的夹具隐患，在测试内补一行 `helper.getLevel().updateSkyBrightness()` 解决，零改动生产战斗逻辑。
@@ -34,7 +36,7 @@
 - [DeskBlockEntity.java](../../src/modern/java/com/lulan/shincolle/blockentity/DeskBlockEntity.java)
 - [PlayerSkillHostResolver.java](../../src/modern/java/com/lulan/shincolle/playerskill/PlayerSkillHostResolver.java)
 - [MorphHelper.java](../../src/modern/java/com/lulan/shincolle/morph/MorphHelper.java)
-- [LegacyMountEntity.java](../../src/modern/java/com/lulan/shincolle/entity/mount/LegacyMountEntity.java)
+- ~~`LegacyMountEntity.java`~~（旧修改清单；本批已删除，D-018）
 - [LegacyShipMountEntity.java](../../src/modern/java/com/lulan/shincolle/entity/mount/LegacyShipMountEntity.java)
 - [LegacyShipEntity.java](../../src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java)
 - [FormationScreen.java](../../src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java)

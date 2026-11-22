@@ -14,6 +14,9 @@ import com.lulan.shincolle.item.HeavyGrudgeBlockItem;
 import com.lulan.shincolle.item.WaypointBlockItem;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.BlockItem;
+import net.minecraftforge.client.extensions.common.IClientItemExtensions;
+import com.lulan.shincolle.client.renderer.LegacyBlockItemRenderer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DropExperienceBlock;
 import net.minecraft.world.level.block.FallingBlock;
@@ -52,7 +55,9 @@ public final class ModBlocks {
                     .mapColor(MapColor.WOOD)
                     .strength(1.0F, 60.0F)
                     .requiresCorrectToolForDrops()
-                    .sound(SoundType.WOOD)));
+                    .sound(SoundType.WOOD)
+                    .noOcclusion()),
+            block -> legacyRenderedBlockItem(block.get()));
 
     public static final RegistryObject<Block> BLOCK_FRAME = register("blockframe",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -140,7 +145,8 @@ public final class ModBlocks {
                     .requiresCorrectToolForDrops()
                     .lightLevel(state -> 4)
                     .sound(SoundType.STONE)
-                    .noOcclusion()));
+                    .noOcclusion()),
+            block -> legacyRenderedBlockItem(block.get()));
 
     public static final RegistryObject<Block> BLOCK_VOL_BLOCK = register("blockvolblock",
             () -> new Block(BlockBehaviour.Properties.of()
@@ -169,6 +175,15 @@ public final class ModBlocks {
             block -> new WaypointBlockItem(block.get(), new Item.Properties()));
 
     private ModBlocks() {
+    }
+
+    private static Item legacyRenderedBlockItem(Block block) {
+        return new BlockItem(block, new Item.Properties()) {
+            @Override
+            public void initializeClient(java.util.function.Consumer<IClientItemExtensions> consumer) {
+                LegacyBlockItemRenderer.initializeClient(consumer);
+            }
+        };
     }
 
     private static <T extends Block> RegistryObject<T> register(String name, Supplier<T> supplier) {

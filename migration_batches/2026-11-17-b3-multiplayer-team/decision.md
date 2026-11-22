@@ -1,5 +1,7 @@
 # Decision Record: B3-MULTIPLAYER-TEAM
 
+- **已撤销**：本批中将创造模式玩家排除于 `friendlyFire` 免伤门禁之外，以及仅按“友好舰船”而非主人归属判断 `dmgSvS` 条件的决定；其他结论不变。复核与落实见 [战斗与投射物批次](../2026-11-22-parity-fix-combat-projectile/decision.md)。
+
 - 结论：`COMPLETED`（Part 1 与 Part 2 全部收口，全套 `286/286` GameTest 全绿通过）
 - 影响矩阵：M2、M3、M4、M6、M7、M8
 
@@ -11,6 +13,7 @@
 - `ServerProxy` 队伍广播不限制同维度；`TeamHelper#checkIsAlly` / `checkIsBanned` 跨队比较时要求双侧活跃队伍对象均存在；`TeamHelper#isUsableByPlayer` 放行所有者、同盟与 level-2+ OP。
 
 ### Part 2
+- **已撤销（仅主人联动Goal）**：下方两个OwnerHurt目标Goal的保留/接线认可已撤销，文件已删除；事件复仇路径保留。见[AI移动批次](../2026-11-22-parity-fix-ai-movement/decision.md)，其余B3结论不因该删除整体撤销。
 - `AttackHandler.java#L215-222` 中 `ConfigHandler.dmgSvS` 为百分比缩放（`amount * dmgSvS * 0.01F`）且仅在攻击方为友好舰船/召唤物/坐骑时生效；同时 `BasicEntityShip` / `BasicEntitySummon` 在 `!friendlyFire` 时免疫非主人非创造玩家及同盟伤害，反伤效果不触发于同盟。
 - `TargetHelper.Selector#L123-145` 定义 `shipAttackPlayer` `0..3`（0: 不打玩家；1: 仅敌对/拉黑队伍；2: 敌对+中立即 `!isAlly`；3: 除主人外所有玩家含同盟），`SelectorForHostile#L359` 遵循 `mobAttackPlayer`；而 `RevengeSelector` 与 `C2SGUIPackets.AttackTarget` 允许复仇及指挥攻击中立非同盟目标。
 - `InteractHelper.java#L200-346` 与 `ShipCalc.getKaitaiItems` 定义：潜行右键 `KaitaiHammer` 触发 `emotion 8`/10 格内邻舰 `emotion 6` 与分舰种 4 格解体材料掉落（大型敌对/姬级受 `easyMode` 缩减，Raiden/驱逐/SS 按配置计数）；左键一击回收生成蛋；`OwnerPaper` 移交触发 `T_T`（`emotion 2`）与 `MARRY` 音效。
@@ -28,7 +31,7 @@
 - [LegacyShipBehaviorCatalog.java](../../src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java)：新增 `isLegacyFriendlyFireAllowed`（接入 `isLegacyProjectileDamageAllowed`）与 `createLegacyKaitaiDrops`。
 - [LegacyShipRensouhouEntity.java](../../src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipRensouhouEntity.java) & [LegacyShipAircraftEntity.java](../../src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java)：`hurt` 加入所有者放行、非主人 `!friendlyFire` 与同盟免疫。
 - [LegacyShipProjectileEntity.java](../../src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipProjectileEntity.java)：`isLegacyContactTarget` 增加 `!ship.isAlliedTo(candidate)`。
-- [LegacyShipOwnerHurtByTargetGoal.java](../../src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtByTargetGoal.java)、[LegacyShipOwnerHurtTargetGoal.java](../../src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipOwnerHurtTargetGoal.java) & [ShipCommandService.java](../../src/modern/java/com/lulan/shincolle/network/ShipCommandService.java)：切换为 `canCommandOrRevengeEngage`。
+- [LegacyShipOwnerHurtByTargetGoal.java](../2026-11-22-parity-fix-ai-movement/decision.md)、[LegacyShipOwnerHurtTargetGoal.java](../2026-11-22-parity-fix-ai-movement/decision.md) & [ShipCommandService.java](../../src/modern/java/com/lulan/shincolle/network/ShipCommandService.java)：切换为 `canCommandOrRevengeEngage`。
 - [KaitaiHammerItem.java](../../src/modern/java/com/lulan/shincolle/item/KaitaiHammerItem.java) & [OwnerPaperItem.java](../../src/modern/java/com/lulan/shincolle/item/OwnerPaperItem.java)：左键调用 `performKaitaiKill`；`resolveTransferTarget` 在 `PlayerList.getPlayers()` 后追加 `getAllLevels() -> players()` 回退查询。
 - [GameplayCommandType.java](../../src/modern/java/com/lulan/shincolle/network/GameplayCommandType.java)、[GameplayCommandHandler.java](../../src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java)、[TeitokuHelper.java](../../src/modern/java/com/lulan/shincolle/teitoku/TeitokuHelper.java) & [DeskReferenceScreen.java](../../src/modern/java/com/lulan/shincolle/client/screen/DeskReferenceScreen.java)：补齐 `REQUEST_DESK_RADAR`、局部缓存保护与多人雷达/世界规则同步合并。
 - [GameplayParityGameTests.java](../../src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java)：新增 `b3Part2FriendlyFirePvpModesAndCommandRevengeTargeting` 与 `b3Part2OwnerPaperKaitaiHammerAndDeskRadarSync`。

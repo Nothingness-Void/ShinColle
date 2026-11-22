@@ -1,6 +1,48 @@
 # Migration Test Matrix
 
-本文件只定义测试触发条件和批末策略，不记录某次运行的当前结果。具体结果写入批次 `results/`。
+## PR11 client ownership review
+
+- `MorphAndTeamParityGameTests.pointerClientOwnershipUsesSyncedUuidWithoutNumericOwnerCache`: numeric owner cache 0 with synchronized owner UUID and ship UID retained; normal owned ship/mount and teammate sneak consumption, non-team fall-through. Restore numeric field before server cleanup. Existing foreign/null/non-ship/sneak+sprint/long-ray dispatch cases remain required.
+- Run both full build/GameTest commands documented below; pass requires all required tests. This fixture represents client data availability, not an actual LocalPlayer packet replay. [Exact results](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md).
+
+## Recovery / PR11 / empty-buffer crane follow-up
+
+- `LegacyKilledShipPersistenceGameTests` retains actual creative-player `/tp` into initially unloaded Nether then `/ship get`; verifies destination manager registration and explicitly advances ENTITY_TICKING readiness before the unchanged identity, both-live/age>200, survivor-cache, exact200/dead/reverse-age and kill/disk persistence assertions. Visibility blocker resolved; see [latest evidence](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md).
+- `LegacyAircraftBlockCollisionGameTests.elevatedGuardRoutesClearWallTopForReportedMountsAndFortress`: five actual guarded profiles (eggs32/22/23/35/33), eligible target five blocks higher, whole-bbox solid exclusion every tick and complete wall passage; dedicated 48x32x48 template. Existing finite-wall/all-eight-mount/empty-path coverage retained unchanged.
+- `MorphAndTeamParityGameTests.pointerTargetConsumptionRetainsLegacyModifierFallthrough`: own normal/mount, foreign/empty/non-ship, sneak outside/current-team, sneak+sprint clear-team eligibility; shared predicate coverage, not a client input/visual replay. Existing long-ray/crane-dispatch cases retained.
+- `CraneFluidWaitGameTests.emptyCraneTankDoesNotBypassLegacyContainerWaits`: production ending-dispatch full/empty modes with empty crane tank; empty bucket, partial ship tank, filled bucket, non-container, empty inventory. Existing nonempty-buffer transfer/cycle coverage retained. Client full-route replay outstanding.
+- JDK17 Forge `bash ./gradlew --no-daemon -I /home/ubuntu/shincolle-curios-forge.init.gradle build runGameTestServer`; JDK21 Neo `bash ./gradlew --no-daemon -I /home/ubuntu/shincolle-queue-gametest.init.gradle build runGameTestServer`. The isolated Neo init must align both gameDirectory and syncGameTestStructures destination. Pass criterion: ALL required tests; final outputs in latest evidence, not earlier partial gates.
+
+## Reported GUI/audio regressions
+
+JDK17 `bash ./gradlew --no-daemon build` and `runGameTestServer`: 345/345.
+`python3 src/modern/scripts/check_gui_audio_parity.py` checks the unchanged radar
+body, restored shipyard text policy and historical frozen-hour clock behavior.
+The new GameTest checks 72 menu-message combinations. NeoForge JDK21 passes
+the same Gradle tasks with 353/353 GameTests; final scale-8 GUI/audio evidence is
+in the [batch record](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md).
+
+## Forge rendering backport and Hime land legs
+
+- JDK17：`bash ./gradlew --no-daemon build`，`bash ./gradlew --no-daemon runGameTestServer`（原 wrapper 无执行位，等价调用；不改构建配置）。
+- `python3 src/modern/scripts/check_render_resources.py`；JDK17 `python3 src/modern/scripts/check_ship_pose_parity.py --csv migration_batches/rendering-backport-1.20.1/ship-pose-audit.csv`。
+- 保留四项渲染 GameTests：运行时尺寸/眼高、办公桌非遮光、方块/物品模型与纹理完整性、Destroyer Hime 默认与显式 leg bit 的陆/水视觉策略及存储不变。全部 344 项通过；45 模型源码、1536 姿态 CPU 检查及实际客户端烟测范围见 [证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。
+
+本文件定义测试触发条件、覆盖范围和批末策略，并提供批次结果摘要；精确执行证据写入批次 `results/`。
+
+## 2026-11-22 方块与物品纠偏覆盖及结果
+
+- 批次：[方块与物品旧版行为纠偏](migration_batches/2026-11-22-parity-fix-items-blocks/)；命令与原始输出摘录见 [执行证据](migration_batches/2026-11-22-parity-fix-items-blocks/results/)。
+- `bash ./gradlew compileJava` 通过；`bash ./gradlew runGameTestServer` 最终 **301／302 通过**，任务因一项必需测试失败而返回非零，不能称为全绿。
+- 唯一失败 `passiveaistopsautomaticrangetargeting` 在用户独立确认的未改动 `origin/codex/mc-1.20.1` 基线中同样失败；基线为 298 项、2 失败。基线另一失败 `round2hurtimmunitiesvoidrescuegoddessandresistancematchlegacy` 本次通过，疑似不稳定，未定位原因。
+- `shipyardLiquidFuelAndRuntimeConfig` 及大型造船测试：运行时配置、小型罐容量、拒绝水／禁止外抽、40mB 换能倍率、缺燃料保留进度。
+- `craneCycleTransfersShipTankLavaThroughInternalBuffer`、`craneRouteTransfersFilteredItemsBetweenChestAndShip`：warmup、16 tick 边界、内部液体中转、船侧速率及过滤装卸。
+- `craneCycleWaitsForInventoryThenCompletesEmptyWork`：缺配对不结束、空工作结束、无 IC2、状态／计时、红石和下一路标；最终回归也覆盖完成后跟随距离保留 2。
+- `morphSupportItemsKeepLegacyLimitsAndAircraft`：默认堆叠、配置现代化上限／满额拒绝、未婚 100 级训练／150 级不消耗、读档、修复补机、满血和无变身拒绝、口粮倍率。
+- `feedingUsesBuffedResourcesAndRestoresCarrierAircraft`、`kaitaiRespectsDamageRejectionAndCreativeDismantleDropsNothing` 及转让／口粮相关断言：资源倍率、补机与饱食拒绝、伤害拒绝不强杀、创造无拆船掉落、非主人签名转让、创造消耗与 T_T 情绪、不同主人仍被吸引。
+- 新增 `finalItemProtectionRingAndOpToolMatchLegacy`、`finalShipTankMachineTargetAndWrenchMemoryMatchLegacy`、`finalShipEggPermissionsAndCollisionMatchLegacy`：回收蛋伤害保护与重载、婚戒旧键、OPTool 无右键及排除目标、ShipTank 实际自身目标、扳手共享内存不写 NBT 与配对消息、水面权限和无额外碰撞拒绝。
+- 删除四项自创路线能量测试及相关显示缓存断言，不再为已删除机制维持测试契约。
+- 本批 T3 客户端／视觉门未执行；T1-M 独立模型检查也未执行。服务端测试不证明客户端点选、渲染或 Dust 粒子视觉等价，也不证明变身舰载机计数已接入航空攻击生命周期。
 
 ## 固定门
 
@@ -13,6 +55,32 @@
 | T2 | 行为、网络、存档、资源或共享 helper 变化 | `runGameTestServer` 和批次专用断言 |
 | T3 | renderer、model、particle、screen、sound 或客户端资源变化 | dev client 启动、资源 reload、进世界烟测 |
 | T4 | V0 收口 | 单人世界完整人工流程并记录结果 |
+
+## 舰娘核心回归
+
+### 舰种个体行为回归
+
+- `hostileBossDropsOnlyItsLegacyEgg` 通过实际击杀核对规模 3 的敌舰只掉一枚基础舰娘蛋。`hostileScaleUsesSpawnAndSaveDataWithLegacyExperience` 验证通用部署默认值、旧档回读、已撤销字段清理和四级规模经验公式。
+- `hostileEncounterSpawnInitializesRuntime` 验证显式遭遇规模、固定等级和无士气。`specialCombatHooksApplyHeavyCooldowns` 精确比较重炮冷却。`morphSpecialDispatchUsesLegacyClassIds` 和 `morphSpecialPreviewCooldownUsesBehaviorCatalog` 验证 class ID 58–63 及敌对镜像无专属技能与对应冷却。
+- `progressionAdvancementsLoadAndFriendlyShipTriggerAwards` 核对海上 Boss 进度只接受规模 2 和 3 的敌舰。
+- JDK 17 运行 `bash ./gradlew compileJava --no-daemon`，通过后运行 `bash ./gradlew runGameTestServer --no-daemon`。要求全量必过项全部通过，运行记录归 [批次证据](migration_batches/2026-11-22-parity-fix-ship-variants/STATUS.md)。
+
+### AI移动与目标回归
+
+- 完整服务端套件规模为 **319项GameTest**（本批次代码完成时的覆盖规模，不是文档整理重跑结果）；历史实测输出归 [AI批次STATUS](migration_batches/2026-11-22-parity-fix-ai-movement/STATUS.md)。
+- 状态/跟随/传送：独立FollowMin/Max默认、范围、NBT与同步；Min/Max加宽度与PickItem距离，32tick缓存/寻路，严格传送冷却、精确Y+0.75、未加载区块拒绝及正常/缺失主人。
+- 阵型/守卫/路线：安全扫描成功与无落脚点回退、无效槽位、实体阵型位置、min/max迟滞、GuardType存档、仅移动且type>0攻击、旧瞄准公式、维度取消、路点/起重机16/32/128tick调度和距离边界。
+- 目标/杂项：Selector正常/空/失效目标与显式攻击入口分离；一船一玩家的确定候选和超过2候选时最近3随机（64种子）；碰撞宽²×16与冷却；游荡1/180、友10/5敌12/1及状态禁用；守卫/有目标时可拾取和旧音量配置。
+- 真实3D移动新增：`shipNavigatorMovesUpThroughWater`、`shipNavigatorMovesDownThroughWater`、`shipNavigatorFliesWithoutGravity`、`shipNavigatorRejectsUnavailablePathsAndClearsStoppedPaths`。要求生成包含垂直边的水面/水下路径并实际接近目标，canFly静止不受重力且实际飞向高处；null/empty/blocked路径与坐下清除有显式断言。不能只凭“路径非空”声称移动验证通过。
+- 行为/共享helper修改触发T1/T2：JDK17下 `bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`，全部required通过且失败0。仅文档移动/链接更新不触发GameTest重跑；执行T0与相对链接/旧路径残留检查。
+- 319项服务端回归不覆盖飞机/坐骑3D接线、debug路径粒子和客户端视觉；边界见 [批次决定](migration_batches/2026-11-22-parity-fix-ai-movement/decision.md)。
+
+### 战斗、投射物与资源回归
+
+- 战斗与投射物：`launchMissStillResolvesAreaDamage` 覆盖脱靶/正常/空范围撞击，`invisibilityAndGlowingDoNotChangeCombatRolls` 覆盖隐身发光和装备冷却，`potionDamageUsesMaxHealthAndLevelWithoutDefense` 覆盖药水/药水云及 HARM 等级 0/1/2；已有友伤、伤害倍率、照明和弹道断言同步恢复旧版语义。JDK 17 运行 `./gradlew compileJava`、`./gradlew runGameTestServer`（脚本无执行位时用 `bash ./gradlew`），证据见 [战斗批次](migration_batches/2026-11-22-parity-fix-combat-projectile/protocol.md)。
+
+- `shipCoreRestoresLegacyNoFuelAndConfiguredSupplies`：零资源起点、资源不封顶、二级饥饿耗怨念五倍、断粮归零、配置补给及单件消耗。
+- 既有资源存档、炮击与航空消耗、128 刻士气和菜单用例按 1.12.2 行为断言。运行 JDK 17 的 `./gradlew compileJava` 与 `./gradlew runGameTestServer`；结果归档到 [舰娘核心批次](migration_batches/2026-11-22-parity-fix-ship-core/STATUS.md)。
 
 ## 按改动追加
 
@@ -158,11 +226,32 @@
 - `b6SystemConfigPolyAsMnShipKillsAndRaidenLabel`：验证 `TeitokuHelper.buildGameplayStateTag` → `applyClientState` `SystemConfig` 同步与 `DeskTerminalMenu.stillValid` 使用 `closeGuiDist`、`PolyAsMnCondition`（`shincolle:poly_as_mn`）与 `LegacyItemMatchHelper.matchesTag` 开关、舰娘及 `LegacyShipRensouhouEntity` 的 `ShipKills` 累加和 `Ikazuchi` `Raiden` 角色标签（`gui.shincolle.ship_inventory.role.raiden`）。
 - 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 289 required tests passed :)`**（`289 passed / 0 failed / 0 skipped`），证据见 [B6-INTERMOD-DETAILS results](migration_batches/2026-11-17-b6-intermod-details/results/b6-closeout.json)。
 
+## PARITY-FIX-MENU-NETWORK-COMMAND focused coverage
+
+- `shipGuiButtonsAndInventoryPagingMirrorLegacy`：验证旧版 `PID.ShipBtn` 按钮写入（攻击开关、PassiveAI/PVPFirst/OnSight/AntiAir/AntiSS、FollowMin/FollowMax 默认 3/12 与联动、FleeHP、ModelState 异或、InvPage 0..2 与非法值归零、DrumState 解锁）、分页货仓映射与 `0aad501` Shift 点击顺序。
+- `b6SlashShipCommandsParity` 改为断言旧版 `checkOP`（创造即 OP、非 OP 生存玩家与控制台被拒）与 `/shipcleardrop` 只清除 `BasicEntityItem` 语义掉落。
+- 证据见 [PARITY-FIX-MENU-NETWORK-COMMAND results](migration_batches/2026-11-22-parity-fix-menu-network-command/results/README.md)。
+
 ## FULL-SHIP-BEHAVIOR-REAUDIT focused coverage
 
 - Round 1（4 项综合 `@GameTest`）：`abyssalHimeBaseSpecsAreFriendlyTamedPickupAndAuraEnabled`、`submarineHimeStealthAndShooterDistanceDodgeMatchLegacy`、`baseShipLifecycleRepairMoraleRegenAndFleeGoalMatchLegacy`、`shipSpecificHooksMountOrientationAndModelCatalogsMatchLegacy`。
 - Round 2（5 项综合 `@GameTest`）：`round2HurtImmunitiesVoidRescueGoddessAndResistanceMatchLegacy`、`round2SlotFormationBuffsMinMovAndEnchantScalingMatchLegacy`、`round2FishingCraneAndPointerTargetingMatchLegacy`、`round2AircraftCooldownShootableTorpedoAndRensouhouMatchLegacy`、`round2DeathRecoveryEggXpCostAndHeldCombatRationMatchLegacy`。
 - 最终全量验证（JDK `17.0.3.1`）：`.\gradlew.bat build verifyItemModelCoverage runGameTestServer --no-daemon` 通过，**`All 298 required tests passed :)`**（`298 passed / 0 failed / 0 skipped`），证据见 [FULL-SHIP-BEHAVIOR-REAUDIT results](migration_batches/2026-11-18-full-ship-behavior-reaudit/results/reaudit-closeout.json)。
+
+<a id="parity-fix-teitoku-morph-skill310310"></a>
+## PARITY-FIX-TEITOKU-MORPH-SKILL（310/310）
+
+- 批次：[STATUS](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/STATUS.md)；[13项结论与旧版依据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/decision.md)；[精确运行记录](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/verification.json)。
+- `GameplayParityGameTests.uidRegistryUsesLegacyStartAndRecovery` / `periodicPlayerUidAndPointerRefreshMatchLegacy`：UID初值/低值/损坏保护、玩家周期、SID与当前队伍刷新。
+- `ringScanAndLiquidDigMatchLegacy` / `ringFireAndMountDamageMatchLegacy`：扫描/NBT/持戒转换、挖掘数值、火伤与普通坐骑伤害。雾视觉不由服务端测试覆盖。
+- `ShipChunkLoaderGameTests`（2项）：罗盘/在线主人/票据范围、离线保票、撤装/移动/卸载释放及 Wrong location 下坐骑/removed恢复。真实关服重启 validation 不在覆盖内。
+- `MorphParityGameTests`（3项）：HP缩放/属性清理、登录/维度解除、空资源不自动解除、伤害早返/倍率/DEF/闪避/buff/女神消耗与计时、获取/owner与宿主顺序。
+- `MorphAndTeamParityGameTests`（4项）：Destroyer I获取与选择/激活；重复/负值/未知选择、旧零哨兵/正值/空字段迁移；当前队伍开关/空位/满员六槽游标/force/null/非本人拒绝/跨队伍保留；Pointer和网络对应调用、生命周期不全队清理、周期清理边界；新增64格ray选择TransportWa→实际crane RouteNode、空/遮挡/外人/越距伪包与mount-host focus。`LegacyAircraftBlockCollisionGameTests.allEightMountsActuallyTickPastIntermediateWaypoints`新增8种真实host/passenger/mount.tick有限墙路由/open/orphan边界；见[E3/D4结果](migration_batches/2026-11-22-riding-aircraft-formation/followup-result.md)。
+- 最终命令：`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 bash ./gradlew compileJava runGameTestServer`；JDK `17.0.20.1`。wrapper原无执行权限，使用bash等价调用，未更改权限。
+- 通过门槛：编译成功且全部required测试通过。最后生产/测试编辑后的结果：`All 310 required tests passed :)`；`BUILD SUCCESSFUL in 3m 19s`；退出码0。
+- 原始日志保存在外部：`/home/ubuntu/shincolle-zero-team-check.log`；SHA-256见 results/verification.json，不提交完整日志。本轮仅文档收口，不对未变的构建输入重复运行。
+- 静态门：`git diff --check`、暂存文件清单与 `src/main/**` 零修改检查；禁止加入日志、临时文件和秘密。
+- 先前 clean baseline 298、UID302、chunk304、Morph307与夹具调整证据见 [results](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/README.md)，不把全量310解释为客户端视觉、真实Curios联机、真实旧世界迁移或关服重启验证。
 
 ## 批末命令
 
@@ -178,3 +267,52 @@ git diff --check
 ```
 
 不要在每个小改动后重复启动游戏；一个批次完成后统一执行所需门，并在 `results/` 记录命令、JDK、退出状态、测试计数和日志路径。
+
+## 客户端还原收尾门禁
+
+本次验收套件规模为 **301** 项；具体通过数、失败及退出码只记于
+[客户端还原结果](migration_batches/2026-11-22-parity-fix-client/results/README.md)。
+旧章节中的解析模型/简版界面测试属于历史覆盖，不能证明 D-016 所要求的完整视觉一致性。
+
+| 入口/辅助断言 | 覆盖 |
+| --- | --- |
+| `phaseFourMenusMutateServerStateAndExposeData` | 航点正数 PlayerUID/严格 owner、非主人/潜行分支及菜单基本状态；不放宽生产权限 |
+| `craneWorkingShipAndElapsedTimeMatchLegacy` | 唯一作业舰/等待舰、累计/完成清零、实体 ID 与 CraneTime 高低位菜单同步及格式边界 |
+| `LegacyShipModelMappingGameTests` | 每个 spec 模型映射、攻击粒子计时、本地情绪、持物分类及配置正常/空/无效值、Position_HUD；不是顶点画面验收 |
+| `FormationParityGameTests` | 六阵型/九分队热区、60/40 GUI 等待、重复行语义、属性/阵位/预览同步；以实际注册入口为准 |
+| `ro500LightAttackLaunchesLegacyMissile` | 实际 launch/target 的总距离/水平距离条件期望，导弹算法不变 |
+| `ShipInventoryParityGameTests.check`（并入既有菜单测试） | 三页容量门槛、十二页热区/空预留、独立滑块、旧按钮服务端语义、快照与编队悬停格式 |
+| `DeskParityGameTests.check`（并入既有菜单测试） | 四页开关/便携模式、七章边界、同行再点、地图无点击、空/无效选择、class 0、冷却和图文资源 |
+| `morphInventoryLegacySupportButtonsMutateSelectedProfile → MorphInventoryParityGameTests.check` | 三页、NoFuel/Sit/表情0..8与0/4/模型位/供应旧包、存档/同步、旧/空档案、无效按钮、敌对元数据；不保留自创激活/循环断言 |
+
+最终必须执行：
+```bash
+git diff --check
+bash ./gradlew compileJava --no-daemon
+bash ./gradlew runGameTestServer --no-daemon
+git diff origin/devin/parity-fix-menu-network-command --stat -- src/main
+```
+
+通过条件：两个 Gradle 命令退出 0，全部 301 必需测试通过、无失败名；最后一条无输出。
+本次收尾仅文档，不重复启动客户端。任何后续 UI/模型变更按 T3 针对旧画面验证，不能用编译或模型映射代替。
+
+专用静态/无头检查（相关输入变化时执行）：
+- `python3 src/modern/scripts/port_desk.py /home/ubuntu/legacy0aad --check` 与 `port_desk_screen.py` 同参：数据、方法、翻译和原图字节。
+- `python3 src/modern/scripts/port_ship_inventory.py /home/ubuntu/legacy0aad --check`：背包目录、控件、展示、画面方法。
+- `python3 src/modern/scripts/port_morph_inventory.py /home/ubuntu/legacy0aad --check`：变身方法/控件和贴图。
+- `python3 src/modern/scripts/check_particle_parity.py LEGACY_ROOT OUTPUT_DIRECTORY`：表情/文字状态方法的 API 桩及纹理；不是客户端渲染。
+
+## PARITY-FIX-CRAFTING-WORLD-CONFIG（2026-11-22）
+
+- 命令：`bash ./gradlew compileJava --no-daemon`、`bash ./gradlew runGameTestServer --no-daemon`（JDK 17）。
+- 专题分支历史结果：`compileJava` 通过；GameTest `297` 项中 `296` 通过，`passiveAiStopsAutomaticRangeTargeting` 失败（基线 `8f1d2fd` 同样失败）。删除 `progressionAdvancementsLoadAndFriendlyShipTriggerAwards`；`chestLootInjectorUsesLegacyConfigLootDefaults` 改为断言跳过 `shincolle:Torpedo` 与整数 rolls；`worldgenResourcesKeepLegacyPolymetalPlacement` 改为断言 `shincolle:polymetal_gravel` feature 与 `Polymetal_Gravel*` 默认值。证据见 [verification](migration_batches/2026-11-22-parity-fix-crafting-world-config/results/verification.md)。
+
+- integration 合并验证：`All 328 required tests passed :)`；新增 `machineConfigListsKeepLegacyKeysAndFallbacks`（键名/配置值/空与无效列表）、`hostileEggUsesLegacyConfiguredLifetime`（默认、0、-1），补充燃料恰满边界；敌舰掉落保留全局怨念事件，起重机与雷电夹具清理/隔离。当前完整证据见同一 verification 的 integration-merge 段。
+
+## 九批 parity integration 最终门禁
+
+- 分支：`devin/parity-fix-integration`；JDK 17；构建入口为 `bash ./gradlew`（wrapper 无执行位）。
+- 命令：`bash ./gradlew compileJava --no-daemon`，然后 `bash ./gradlew runGameTestServer --no-daemon`。
+- 通过条件：两条退出 0、全部必需测试通过，无冲突标记/未合并路径；`git diff --stat origin/codex/mc-1.20.1 -- src/main` 无输出。
+- 最终记录：`All 340 required tests passed :)`；包括原 328 项及新增 Morph/编队/UID/戒指/伤害/票据覆盖。获取仅解锁、classId=0、空值 -1、重复/无效选择、当前队列增删、跨队伍同舰、修复桶舰载机计数、正常/无宿主路径均保留回归。
+- 实际输出、日志校验和与验证边界见 [最终集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)。没有运行客户端视觉、真实 Curios 或真实服务器重启清票据验收；服务端全绿不替代这些门禁。

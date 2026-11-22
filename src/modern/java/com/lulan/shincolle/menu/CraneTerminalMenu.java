@@ -1,7 +1,7 @@
 package com.lulan.shincolle.menu;
 
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
-import com.lulan.shincolle.blockentity.RouteEnergyAccess;
+import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.registry.ModMenus;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
@@ -12,6 +12,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.ItemStackHandler;
@@ -36,11 +38,35 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
 
     private final Inventory inventory;
     private final BlockPos cranePos;
+    private final ContainerData craneData;
 
     public CraneTerminalMenu(int containerId, Inventory inventory, BlockPos cranePos) {
+        this(containerId, inventory, cranePos, null);
+    }
+
+    public CraneTerminalMenu(int containerId, Inventory inventory, BlockPos cranePos, @Nullable ContainerData craneData) {
         super(ModMenus.CRANE_TERMINAL.get(), containerId);
         this.inventory = inventory;
         this.cranePos = cranePos.immutable();
+        this.craneData = craneData != null ? craneData : new ContainerData() {
+            @Override
+            public int get(int index) {
+                CraneBlockEntity crane = getCrane();
+                LegacyShipEntity ship = crane == null ? null : crane.getShip();
+                int value = ship == null ? 0 : index < 2 ? ship.getId() : ship.getCraneTime();
+                return (value >>> ((index & 1) * 16)) & 0xFFFF;
+            }
+
+            @Override
+            public void set(int index, int value) {
+            }
+
+            @Override
+            public int getCount() {
+                return 4;
+            }
+        };
+        this.addDataSlots(this.craneData);
 
         ItemStackHandler filterItems = this.getCrane() != null ? this.getCrane().getFilterItems() : new ItemStackHandler(CraneBlockEntity.FILTER_SLOT_COUNT);
         for (int i = 0; i < 9; i++) {
@@ -63,7 +89,7 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
     }
 
     public static CraneTerminalMenu fromNetwork(int containerId, Inventory inventory, FriendlyByteBuf buffer) {
-        return new CraneTerminalMenu(containerId, inventory, buffer.readBlockPos());
+        return new CraneTerminalMenu(containerId, inventory, buffer.readBlockPos(), new SimpleContainerData(4));
     }
 
     public BlockPos getCranePos() {
@@ -79,9 +105,25 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
         return crane != null && crane.canEdit(this.inventory.player);
     }
 
-    public Component getOwnerLabel() {
-        CraneBlockEntity crane = this.getCrane();
-        return crane != null ? crane.getOwnerLabel() : Component.translatable("gui.shincolle.waypoint.owner.unassigned");
+    public int getShipId() {
+        return (this.craneData.get(0) & 0xFFFF) | ((this.craneData.get(1) & 0xFFFF) << 16);
+    }
+
+    public @Nullable LegacyShipEntity getShip() {
+        return this.inventory.player.level().getEntity(this.getShipId()) instanceof LegacyShipEntity ship ? ship : null;
+    }
+
+    public int getCraneTime() {
+        return (this.craneData.get(2) & 0xFFFF) | ((this.craneData.get(3) & 0xFFFF) << 16);
+    }
+
+    public static String formatCraneTime(int ticks) {
+        int seconds = (int) (ticks * 0.05F);
+        return twoDigits(seconds / 3600) + ":" + twoDigits((seconds % 3600) / 60) + ":" + twoDigits(seconds % 60);
+    }
+
+    private static String twoDigits(int value) {
+        return value < 10 ? "0" + value : Integer.toString(value);
     }
 
     public Component getWaitModeLabel() {
@@ -167,25 +209,6 @@ public class CraneTerminalMenu extends AbstractContainerMenu {
     public @Nullable BlockPos getPairedChest() {
         CraneBlockEntity crane = this.getCrane();
         return crane != null ? crane.getPairedChest() : null;
-    }
-
-    public Component getEnergyStatusLabel() {
-        RouteEnergyAccess access = this.getPairedEnergyAccess();
-        if (access == null) {
-            return Component.translatable("gui.shincolle.crane.energy_status.none");
-        }
-
-        return Component.translatable("gui.shincolle.crane.energy_status.value",
-                access.getRouteEnergyStored(), access.getRouteEnergyCapacity());
-    }
-
-    private @Nullable RouteEnergyAccess getPairedEnergyAccess() {
-        BlockPos paired = this.getPairedChest();
-        if (paired == null) {
-            return null;
-        }
-
-        return this.inventory.player.level().getBlockEntity(paired) instanceof RouteEnergyAccess access ? access : null;
     }
 
     public ItemStack getFilterStack(int slot) {

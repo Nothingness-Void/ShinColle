@@ -1,5 +1,9 @@
 # Batch Decision
 
+- **已撤销**：下方对敌舰规模默认推导、通用 Boss Runtime 以及特殊攻击独有冷却的等价认可。见 [D-014](../../MIGRATION-DECISIONS.md#d-014舰种个体行为的现代偏离已撤销)。
+
+- **已撤销**：下表与实现记录中将“非伤害 miss”及投射物 miss 伤害边界视为旧版一致的部分；其他弹道、坐标和目标排除结论不变。更正见 [D-006](../../MIGRATION-DECISIONS.md#d-006投射物-miss-语义不可丢失)。
+
 - 结论：`COMPLETE (SP submarine/Yamato/Kaga boundary)`
 - 影响矩阵：class `38`、`39`、`44`、`46`、`47`
 - 关联模块：M2、M4、M5、M6、M7、M8
@@ -19,6 +23,9 @@
 | 47 | `EntityCarrierKaga` | `MATCHED`: Zero/T inventory、capacity/recovery 和 hostile owner 边界保持既有 CV 管线 | `MATCHED`: aircraft selection、hostile scale 和 resource/cooldown 入口保持 | `CHANGED`: Kaga source、showEquip bits 和 scale-level 运行时变换补齐 | `CHANGED` |
 
 ## Code changes
+
+
+> **已撤销（见 D-016）**：本条旧解析模型/目录作为完整动画、死亡、情绪和发光等价实现的口径已撤销；原数值/部件审计仅留作历史证据。替代实现与边界见 [客户端还原决定](../2026-11-22-parity-fix-client/decision.md)。
 
 - 新增 `LegacyShipModelTransformCatalog`，只投影冻结旧版模型中已确认的 scale/offset 分支，不替换模型架构。
 - `LegacyModelSourceParser` 支持旧版 `scale * number` 参数形式；`LegacyShipModel` 将已确认的 scale-level/offset 应用于 bake 后渲染。
