@@ -606,14 +606,13 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     private boolean fluidContainersDone(IItemHandler inventory, boolean full) {
-        if (this.tank.isEmpty()) return true;
         for (int slot = 0; slot < inventory.getSlots(); slot++) {
             var handler = FluidUtil.getFluidHandler(inventory.getStackInSlot(slot)).resolve();
             if (handler.isEmpty()) continue;
             for (int i = 0; i < handler.get().getTanks(); i++) {
                 FluidStack fluid = handler.get().getFluidInTank(i);
-                if (full ? fluid.isEmpty() || (fluid.isFluidEqual(this.tank.getFluid())
-                        && handler.get().fill(this.tank.getFluid(), IFluidHandler.FluidAction.SIMULATE) > 0)
+                if (full ? fluid.isEmpty() || ((this.tank.isEmpty() || fluid.isFluidEqual(this.tank.getFluid()))
+                        && handler.get().fill(this.tank.isEmpty() ? fluid : this.tank.getFluid(), IFluidHandler.FluidAction.SIMULATE) > 0)
                         : !handler.get().drain(Integer.MAX_VALUE, IFluidHandler.FluidAction.SIMULATE).isEmpty()) return false;
             }
         }
