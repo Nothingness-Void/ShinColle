@@ -1663,7 +1663,24 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             this.setTarget(null);
             this.setNoAi(true);
             this.cacheShipState(true);
+        }
+    }
+
+    @Override
+    protected void tickDeath() {
+        if (!this.isHostileVariant()) {
+            super.tickDeath();
+            return;
+        }
+        ++this.deathTime;
+        int deathMaxTick = ShinColleConfig.deathMaxTick();
+        if (this.deathTime == deathMaxTick && !this.level().isClientSide()
+                && this.level().getGameRules().getBoolean(GameRules.RULE_DOMOBLOOT)) {
             this.dropHostileEgg();
+        }
+        if (this.deathTime >= deathMaxTick && !this.level().isClientSide() && !this.isRemoved()) {
+            this.level().broadcastEntityEvent(this, (byte) 60);
+            this.remove(Entity.RemovalReason.KILLED);
         }
     }
 

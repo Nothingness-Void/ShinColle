@@ -187,6 +187,10 @@ public final class ShinColleConfig {
         return getInt("despawnEgg", COMMON_SPEC, COMMON.despawnEgg, 12000);
     }
 
+    public static int deathMaxTick() {
+        return getInt("deathMaxTick", COMMON_SPEC, COMMON.deathMaxTick, 400);
+    }
+
     /** 1.12.2 Polymetal_Gravel: polymetallic gravel clusters in one chunk. */
     public static int polyGravelBaseRate() {
         return getInt("polyGravelBaseRate", COMMON_SPEC, COMMON.polyGravelBaseRate, 4);
@@ -461,6 +465,7 @@ public final class ShinColleConfig {
         public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
         public final ForgeConfigSpec.DoubleValue dropGrudge;
         public final ForgeConfigSpec.IntValue despawnEgg;
+        public final ForgeConfigSpec.IntValue deathMaxTick;
         public final ForgeConfigSpec.IntValue polyGravelBaseRate;
         public final ForgeConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
         public final ForgeConfigSpec.BooleanValue checkRing;
@@ -549,6 +554,9 @@ public final class ShinColleConfig {
             this.despawnEgg = builder
                     .comment("Despawn time of spawn egg of ship mob, -1 = do NOT despawn (Despawn_Egg)")
                     .defineInRange("Despawn_Egg", 12000, -1, 1728000);
+            this.deathMaxTick = builder
+                    .comment("Ship death animation time (Death_Time)")
+                    .defineInRange("Death_Time", 400, 0, 3600);
             this.dropGrudge = builder
                     .comment("Grudge drop rate (ex: 0.5 = 50% drop 1 grudge, 5.5 = drop 5 grudge + 50% drop 1 grudge) (DropRate_Grudge)")
                     .defineInRange("DropRate_Grudge", 1.0D, 0.0D, 64.0D);

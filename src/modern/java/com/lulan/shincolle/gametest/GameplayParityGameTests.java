@@ -6054,7 +6054,12 @@ public final class GameplayParityGameTests {
                 ship.initializeHostileRuntime(false, 3);
                 ship.setCanDropItem(true);
                 helper.getLevel().addFreshEntity(ship);
+                ship.setHealth(0.0F);
                 ship.die(ship.damageSources().genericKill());
+                helper.assertTrue(helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                                ship.getBoundingBox().inflate(1), entity -> entity.getItem().getItem() instanceof LegacyShipSpawnEggItem).isEmpty(),
+                        "hostile egg must not drop before the death-animation deadline");
+                for (int tick = 0; tick < ShinColleConfig.deathMaxTick(); tick++) ship.tick();
                 List<ItemEntity> eggs = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                         ship.getBoundingBox().inflate(1), entity -> entity.getItem().getItem() instanceof LegacyShipSpawnEggItem);
                 if (eggs.size() != 1 || eggs.get(0).lifespan != lifetime + 1 || ship.canDropItem()) {
