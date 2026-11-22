@@ -1,5 +1,14 @@
 # Broad wall, recovery, normal audio and queued PR11 review
 
+Continuation authorization: latest user explicitly forbids a LivingEntity port;
+leave own-mount LEVITATION as a documented gap. Inspect actual NF07/08/02/01
+versus NF10 start/goal/speed/path/index/replan before changing production. For
+recovery, section-manager registration/ENTITY_TICKING fixture readiness may be
+made explicit, but original identity and reconciliation assertions stay intact.
+Add a dedicated elevated-route template if the new geometry exceeds the old
+fixture; existing route assertions and locations stay unchanged. Results:
+[section-readiness-profile-result](section-readiness-profile-result.md).
+
 RingFly decision: retain legacy state. Forge push hold remains. Current source
 baselines Forge3730e83 and Neo77bd8ba. Read only existing mount/path protocol and
 F3 recovery/audio protocol dependencies, plus direct paths discovered therein.
