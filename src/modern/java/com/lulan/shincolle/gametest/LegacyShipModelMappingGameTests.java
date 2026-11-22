@@ -28,18 +28,27 @@ public final class LegacyShipModelMappingGameTests {
 
     @GameTest(template = "gameplayparitygametests.empty")
     public static void minecartPassengersRetainLegacyFeetAnchorInBothPoses(GameTestHelper helper) {
+        helper.assertTrue(LegacyShipBehaviorCatalog.myRidingOffsetFor(null) == 0.0D,
+                "missing ship must not inherit an animal passenger offset");
         var cart = net.minecraft.world.entity.EntityType.MINECART.create(helper.getLevel());
         var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         var pos = helper.absolutePos(new net.minecraft.core.BlockPos(1, 2, 1));
         cart.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
         for (var spec : ShipEntitySpecs.values()) {
             ship.setVariantEggMeta(spec.eggMeta());
+            double legacyOffset = switch (spec.eggMeta()) {
+                case 12 -> 0.3D;
+                case 33, 74 -> 0.25D;
+                default -> spec.hostile() ? 0.0D : 0.14D;
+            };
+            helper.assertTrue(Math.abs(ship.getMyRidingOffset() - legacyOffset) < 1.0E-6D,
+                    "passenger offset must retain inherited EntityAnimal0.14, EntityMob0 and explicit overrides");
             helper.assertTrue(ship.startRiding(cart, true), "ship must actually ride the cart");
             for (int emotion : new int[] {0, 4}) {
                 ship.setEmotion(emotion);
                 cart.positionRider(ship);
                 helper.assertTrue(ship.isPassenger()
-                                && Math.abs(ship.getY() - cart.getY() - ship.getMyRidingOffset()) < 1.0E-6D
+                                && Math.abs(ship.getY() - cart.getY() - legacyOffset) < 1.0E-6D
                                 && ship.getX() == cart.getX() && ship.getZ() == cart.getZ(),
                         "legacy cart anchor must be zero before the ship offset: egg " + spec.eggMeta()
                                 + ", emotion " + emotion);

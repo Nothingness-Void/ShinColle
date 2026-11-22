@@ -13684,7 +13684,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void legacyPassengerRidingOffsetsMatchLegacyOverrides(GameTestHelper helper) {
         int[] eggMetas = {12, 33, 74, 53};
-        double[] expectedOffsets = {0.3D, 0.25D, 0.25D, 0.0D};
+        double[] expectedOffsets = {0.3D, 0.25D, 0.25D, 0.14D};
         for (int index = 0; index < eggMetas.length; index++) {
             LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
             if (ship == null) {
@@ -13751,13 +13751,13 @@ public final class GameplayParityGameTests {
         akatsuki.positionRider(ikazuchi);
         if (inazuma.getEmotion() != 4
                 || Math.abs(hibiki.getX() - (hostX + 0.2D)) > 1.0E-6D
-                || Math.abs(hibiki.getY() - (hostY + 0.23D)) > 1.0E-6D
+                || Math.abs(hibiki.getY() - (hostY + 0.37D)) > 1.0E-6D
                 || Math.abs(hibiki.getZ() - hostZ) > 1.0E-6D
                 || Math.abs(inazuma.getX() - (hostX + 0.48D)) > 1.0E-6D
-                || Math.abs(inazuma.getY() - (hostY + 0.78D)) > 1.0E-6D
+                || Math.abs(inazuma.getY() - (hostY + 0.92D)) > 1.0E-6D
                 || Math.abs(inazuma.getZ() - hostZ) > 1.0E-6D
                 || Math.abs(ikazuchi.getX() - (hostX + 0.68D)) > 1.0E-6D
-                || Math.abs(ikazuchi.getY() - (hostY + 1.18D)) > 1.0E-6D
+                || Math.abs(ikazuchi.getY() - (hostY + 1.32D)) > 1.0E-6D
                 || Math.abs(ikazuchi.getZ() - hostZ) > 1.0E-6D) {
             helper.fail("Akatsuki riders should use the legacy rotated offsets and emotion-dependent height: "
                     + "hibiki=" + hibiki.position() + ", inazuma=" + inazuma.position()
@@ -13781,7 +13781,7 @@ public final class GameplayParityGameTests {
         raidenHost.setYHeadRot(90.0F);
         raidenHost.positionRider(raidenRider);
         if (Math.abs(raidenRider.getX() - (hostX + 0.2D)) > 1.0E-6D
-                || Math.abs(raidenRider.getY() - (hostY + 0.23D)) > 1.0E-6D
+                || Math.abs(raidenRider.getY() - (hostY + 0.37D)) > 1.0E-6D
                 || Math.abs(raidenRider.getZ() - hostZ) > 1.0E-6D) {
             helper.fail("Inazuma Raiden rider should use the legacy rotated offset");
             return;
