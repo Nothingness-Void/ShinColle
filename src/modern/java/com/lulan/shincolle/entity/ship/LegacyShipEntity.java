@@ -110,6 +110,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.lulan.shincolle.item.LegacyPotionData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -1665,7 +1666,24 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             this.setTarget(null);
             this.setNoAi(true);
             this.cacheShipState(true);
+        }
+    }
+
+    @Override
+    protected void tickDeath() {
+        if (!this.isHostileVariant()) {
+            super.tickDeath();
+            return;
+        }
+        ++this.deathTime;
+        int deathMaxTick = ShinColleConfig.deathMaxTick();
+        if (this.deathTime == deathMaxTick && !this.level().isClientSide()
+                && this.level().getGameRules().getBoolean(GameRules.RULE_DOMOBLOOT)) {
             this.dropHostileEgg();
+        }
+        if (this.deathTime >= deathMaxTick && !this.level().isClientSide() && !this.isRemoved()) {
+            this.level().broadcastEntityEvent(this, (byte) 60);
+            this.remove(Entity.RemovalReason.KILLED);
         }
     }
 

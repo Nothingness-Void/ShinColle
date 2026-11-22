@@ -187,6 +187,10 @@ public final class ShinColleConfig {
         return getInt("despawnEgg", COMMON_SPEC, COMMON.despawnEgg, 12000);
     }
 
+    public static int deathMaxTick() {
+        return getInt("deathMaxTick", COMMON_SPEC, COMMON.deathMaxTick, 400);
+    }
+
     /** 1.12.2 Polymetal_Gravel: polymetallic gravel clusters in one chunk. */
     public static int polyGravelBaseRate() {
         return getInt("polyGravelBaseRate", COMMON_SPEC, COMMON.polyGravelBaseRate, 4);
@@ -461,6 +465,7 @@ public final class ShinColleConfig {
         public final ModConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
         public final ModConfigSpec.DoubleValue dropGrudge;
         public final ModConfigSpec.IntValue despawnEgg;
+        public final ModConfigSpec.IntValue deathMaxTick;
         public final ModConfigSpec.IntValue polyGravelBaseRate;
         public final ModConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
         public final ModConfigSpec.BooleanValue checkRing;
@@ -469,6 +474,46 @@ public final class ShinColleConfig {
         public final ModConfigSpec.DoubleValue expGainPlayerSkill;
         public final ModConfigSpec.DoubleValue morphHpRatio;
         public final ModConfigSpec.DoubleValue morphDmgTakenRatio;
+||||||| 4f86ea4
+        public final ForgeConfigSpec.BooleanValue canTeleport;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> shipTeleport;
+        public final ForgeConfigSpec.BooleanValue friendlyFire;
+        public final ForgeConfigSpec.IntValue shipAttackPlayer;
+        public final ForgeConfigSpec.BooleanValue mobAttackPlayer;
+        public final ForgeConfigSpec.IntValue dmgSvS;
+        public final ForgeConfigSpec.BooleanValue easyMode;
+        public final ForgeConfigSpec.IntValue kaitaiAmountSmall;
+        public final ForgeConfigSpec.IntValue kaitaiAmountLarge;
+        public final ForgeConfigSpec.BooleanValue polyAsMn;
+        public final ForgeConfigSpec.IntValue radarUpdate;
+        public final ForgeConfigSpec.IntValue chunkloaderMode;
+        public final ForgeConfigSpec.IntValue closeGuiDist;
+        public final ForgeConfigSpec.IntValue bossCooldown;
+        public final ForgeConfigSpec.IntValue teamCooldown;
+        public final ForgeConfigSpec.IntValue shipNumPerPage;
+        public final ForgeConfigSpec.IntValue pairDistChest;
+        public final ForgeConfigSpec.IntValue pairDistWp;
+        public final ForgeConfigSpec.IntValue spawnBossNum;
+        public final ForgeConfigSpec.IntValue spawnMobNum;
+        public final ForgeConfigSpec.IntValue despawnBoss;
+        public final ForgeConfigSpec.IntValue despawnMinion;
+        public final ForgeConfigSpec.IntValue baseCaressMorale;
+        public final ForgeConfigSpec.IntValue itemGrudge;
+        public final ForgeConfigSpec.IntValue itemLightAmmo;
+        public final ForgeConfigSpec.IntValue itemHeavyAmmo;
+        public final ForgeConfigSpec.IntValue modernLimit;
+        public final ForgeConfigSpec.IntValue maxDmgOnPlayer;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
+        public final ForgeConfigSpec.DoubleValue dropGrudge;
+        public final ForgeConfigSpec.IntValue despawnEgg;
+        public final ForgeConfigSpec.IntValue polyGravelBaseRate;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
+        public final ForgeConfigSpec.BooleanValue checkRing;
+        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> mobSpawn;
+        public final ForgeConfigSpec.BooleanValue enableMetamorphSkill;
+        public final ForgeConfigSpec.DoubleValue expGainPlayerSkill;
+        public final ForgeConfigSpec.DoubleValue morphHpRatio;
+        public final ForgeConfigSpec.DoubleValue morphDmgTakenRatio;
 
         public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
         public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
@@ -549,6 +594,9 @@ public final class ShinColleConfig {
             this.despawnEgg = builder
                     .comment("Despawn time of spawn egg of ship mob, -1 = do NOT despawn (Despawn_Egg)")
                     .defineInRange("Despawn_Egg", 12000, -1, 1728000);
+            this.deathMaxTick = builder
+                    .comment("Ship death animation time (Death_Time)")
+                    .defineInRange("Death_Time", 400, 0, 3600);
             this.dropGrudge = builder
                     .comment("Grudge drop rate (ex: 0.5 = 50% drop 1 grudge, 5.5 = drop 5 grudge + 50% drop 1 grudge) (DropRate_Grudge)")
                     .defineInRange("DropRate_Grudge", 1.0D, 0.0D, 64.0D);
