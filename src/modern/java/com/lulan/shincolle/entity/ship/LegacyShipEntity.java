@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.ship;
 
+import com.lulan.shincolle.registry.ModCapabilities;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
@@ -107,7 +108,7 @@ import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import com.lulan.shincolle.item.LegacyPotionData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -120,12 +121,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.network.NetworkHooks;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -661,62 +661,62 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(DATA_VARIANT_EGG_META, ShipEntitySpecs.DEFAULT.eggMeta());
-        this.entityData.define(DATA_HOSTILE_SCALE, 0);
-        this.entityData.define(DATA_OWNER_UUID, Optional.empty());
-        this.entityData.define(DATA_OWNER_NAME, "");
-        this.entityData.define(DATA_ORDERED_TO_SIT, false);
-        this.entityData.define(DATA_LEVEL, DEFAULT_LEVEL);
-        this.entityData.define(DATA_EXPERIENCE, 0);
-        this.entityData.define(DATA_MORALE, DEFAULT_MORALE);
-        this.entityData.define(DATA_COMBAT_RATION_LEVEL, DEFAULT_COMBAT_RATION_LEVEL);
-        this.entityData.define(DATA_FLEE_HP, DEFAULT_FLEE_HP);
-        this.entityData.define(DATA_FOOD_SATURATION, 0);
-        this.entityData.define(DATA_LIGHT_AMMO, DEFAULT_LIGHT_AMMO);
-        this.entityData.define(DATA_HEAVY_AMMO, DEFAULT_HEAVY_AMMO);
-        this.entityData.define(DATA_AIRCRAFT_LIGHT, 0);
-        this.entityData.define(DATA_AIRCRAFT_HEAVY, 0);
-        this.entityData.define(DATA_GRUDGE, DEFAULT_GRUDGE);
-        this.entityData.define(DATA_MARRIED, false);
-        this.entityData.define(DATA_RING_EFFECT, true);
-        this.entityData.define(DATA_TIME_KEEPER, true);
-        this.entityData.define(DATA_AUTO_PUMP, false);
-        this.entityData.define(DATA_MODERNIZATION_TOTAL, 0);
-        this.entityData.define(DATA_FORMATION_ID, TeitokuData.DEFAULT_FORMATION_ID);
-        this.entityData.define(DATA_AI_FLAGS, GameplayCommandHandler.AI_FLAG_AUTO_TARGET
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_VARIANT_EGG_META, ShipEntitySpecs.DEFAULT.eggMeta());
+        builder.define(DATA_HOSTILE_SCALE, 0);
+        builder.define(DATA_OWNER_UUID, Optional.empty());
+        builder.define(DATA_OWNER_NAME, "");
+        builder.define(DATA_ORDERED_TO_SIT, false);
+        builder.define(DATA_LEVEL, DEFAULT_LEVEL);
+        builder.define(DATA_EXPERIENCE, 0);
+        builder.define(DATA_MORALE, DEFAULT_MORALE);
+        builder.define(DATA_COMBAT_RATION_LEVEL, DEFAULT_COMBAT_RATION_LEVEL);
+        builder.define(DATA_FLEE_HP, DEFAULT_FLEE_HP);
+        builder.define(DATA_FOOD_SATURATION, 0);
+        builder.define(DATA_LIGHT_AMMO, DEFAULT_LIGHT_AMMO);
+        builder.define(DATA_HEAVY_AMMO, DEFAULT_HEAVY_AMMO);
+        builder.define(DATA_AIRCRAFT_LIGHT, 0);
+        builder.define(DATA_AIRCRAFT_HEAVY, 0);
+        builder.define(DATA_GRUDGE, DEFAULT_GRUDGE);
+        builder.define(DATA_MARRIED, false);
+        builder.define(DATA_RING_EFFECT, true);
+        builder.define(DATA_TIME_KEEPER, true);
+        builder.define(DATA_AUTO_PUMP, false);
+        builder.define(DATA_MODERNIZATION_TOTAL, 0);
+        builder.define(DATA_FORMATION_ID, TeitokuData.DEFAULT_FORMATION_ID);
+        builder.define(DATA_AI_FLAGS, GameplayCommandHandler.AI_FLAG_AUTO_TARGET
                 | GameplayCommandHandler.AI_FLAG_PICK_ITEM);
-        this.entityData.define(DATA_INVENTORY_PAGE, 0);
-        this.entityData.define(DATA_FOLLOW_MIN, DEFAULT_FOLLOW_MIN);
-        this.entityData.define(DATA_FOLLOW_MAX, DEFAULT_FOLLOW_MAX);
-        this.entityData.define(DATA_WP_STAY_MODE, DEFAULT_WP_STAY_MODE);
-        this.entityData.define(DATA_TASK, DEFAULT_TASK);
-        this.entityData.define(DATA_TASK_SIDE, DEFAULT_TASK_SIDE);
-        this.entityData.define(DATA_MODEL_STATE, DEFAULT_MODEL_STATE);
-        this.entityData.define(DATA_MODEL_SHIP_UID, 0);
-        this.entityData.define(DATA_HP_STATE, DEFAULT_HP_STATE);
-        this.entityData.define(DATA_EMOTION, DEFAULT_EMOTION);
-        this.entityData.define(DATA_EMOTION2, DEFAULT_EMOTION2);
-        this.entityData.define(DATA_EMOTION4, DEFAULT_EMOTION4);
-        this.entityData.define(DATA_DISPLAY_PHASE, DEFAULT_DISPLAY_PHASE);
-        this.entityData.define(DATA_RENSOUHOU_COUNT, 0);
-        this.entityData.define(DATA_USE_MELEE, DEFAULT_USE_MELEE);
-        this.entityData.define(DATA_USE_LIGHT, DEFAULT_USE_LIGHT);
-        this.entityData.define(DATA_USE_HEAVY, DEFAULT_USE_HEAVY);
-        this.entityData.define(DATA_USE_AIR_LIGHT, DEFAULT_USE_AIR_LIGHT);
-        this.entityData.define(DATA_USE_AIR_HEAVY, DEFAULT_USE_AIR_HEAVY);
-        this.entityData.define(DATA_ON_SIGHT_CHASE, DEFAULT_AI_ON_SIGHT_CHASE);
-        this.entityData.define(DATA_PVP_FIRST, DEFAULT_AI_PVP_FIRST);
-        this.entityData.define(DATA_ANTI_AIR, DEFAULT_AI_ANTI_AIR);
-        this.entityData.define(DATA_ANTI_SUB, DEFAULT_AI_ANTI_SUB);
-        this.entityData.define(DATA_CAN_FLOAT_UP, DEFAULT_CAN_FLOAT_UP);
-        this.entityData.define(DATA_CAN_FOLLOW, DEFAULT_CAN_FOLLOW);
-        this.entityData.define(DATA_SHOW_HELD_ITEM, DEFAULT_SHOW_HELD_ITEM);
-        this.entityData.define(DATA_LEGACY_RIDER_TYPE, 0);
-        this.entityData.define(DATA_LEGACY_RIDING_STATE, 0);
-        this.entityData.define(DATA_LEGACY_RAIDEN, false);
-        this.entityData.define(DATA_SHIP_KILLS, 0);
+        builder.define(DATA_INVENTORY_PAGE, 0);
+        builder.define(DATA_FOLLOW_MIN, DEFAULT_FOLLOW_MIN);
+        builder.define(DATA_FOLLOW_MAX, DEFAULT_FOLLOW_MAX);
+        builder.define(DATA_WP_STAY_MODE, DEFAULT_WP_STAY_MODE);
+        builder.define(DATA_TASK, DEFAULT_TASK);
+        builder.define(DATA_TASK_SIDE, DEFAULT_TASK_SIDE);
+        builder.define(DATA_MODEL_STATE, DEFAULT_MODEL_STATE);
+        builder.define(DATA_MODEL_SHIP_UID, 0);
+        builder.define(DATA_HP_STATE, DEFAULT_HP_STATE);
+        builder.define(DATA_EMOTION, DEFAULT_EMOTION);
+        builder.define(DATA_EMOTION2, DEFAULT_EMOTION2);
+        builder.define(DATA_EMOTION4, DEFAULT_EMOTION4);
+        builder.define(DATA_DISPLAY_PHASE, DEFAULT_DISPLAY_PHASE);
+        builder.define(DATA_RENSOUHOU_COUNT, 0);
+        builder.define(DATA_USE_MELEE, DEFAULT_USE_MELEE);
+        builder.define(DATA_USE_LIGHT, DEFAULT_USE_LIGHT);
+        builder.define(DATA_USE_HEAVY, DEFAULT_USE_HEAVY);
+        builder.define(DATA_USE_AIR_LIGHT, DEFAULT_USE_AIR_LIGHT);
+        builder.define(DATA_USE_AIR_HEAVY, DEFAULT_USE_AIR_HEAVY);
+        builder.define(DATA_ON_SIGHT_CHASE, DEFAULT_AI_ON_SIGHT_CHASE);
+        builder.define(DATA_PVP_FIRST, DEFAULT_AI_PVP_FIRST);
+        builder.define(DATA_ANTI_AIR, DEFAULT_AI_ANTI_AIR);
+        builder.define(DATA_ANTI_SUB, DEFAULT_AI_ANTI_SUB);
+        builder.define(DATA_CAN_FLOAT_UP, DEFAULT_CAN_FLOAT_UP);
+        builder.define(DATA_CAN_FOLLOW, DEFAULT_CAN_FOLLOW);
+        builder.define(DATA_SHOW_HELD_ITEM, DEFAULT_SHOW_HELD_ITEM);
+        builder.define(DATA_LEGACY_RIDER_TYPE, 0);
+        builder.define(DATA_LEGACY_RIDING_STATE, 0);
+        builder.define(DATA_LEGACY_RAIDEN, false);
+        builder.define(DATA_SHIP_KILLS, 0);
     }
 
     @Override
@@ -762,9 +762,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     @Override
     public @Nullable SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
-                                                  MobSpawnType spawnType, @Nullable SpawnGroupData spawnData,
-                                                  @Nullable CompoundTag dataTag) {
-        SpawnGroupData result = super.finalizeSpawn(level, difficulty, spawnType, spawnData, dataTag);
+                                                  MobSpawnType spawnType, @Nullable SpawnGroupData spawnData) {
+        SpawnGroupData result = super.finalizeSpawn(level, difficulty, spawnType, spawnData);
         this.refreshFromVariant(false);
         return result;
     }
@@ -1247,21 +1246,16 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     @Override
-    public EntityDimensions getDimensions(Pose pose) {
-        return LegacyShipBehaviorCatalog.dimensionsFor(this.getSpec(), this.getLegacyHostileScaleLevel());
+    public EntityDimensions getDefaultDimensions(Pose pose) {
+        EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(this.getSpec(), this.getLegacyHostileScaleLevel());
+        return dimensions.withEyeHeight(LegacyShipBehaviorCatalog.eyeHeightFor(this, dimensions));
     }
 
-    @Override
-    protected float getStandingEyeHeight(Pose pose, EntityDimensions dimensions) {
-        return LegacyShipBehaviorCatalog.eyeHeightFor(this, dimensions);
-    }
 
-    @Override
     public double getPassengersRidingOffset() {
         return LegacyShipBehaviorCatalog.passengerRidingOffsetFor(this);
     }
 
-    @Override
     public double getMyRidingOffset() {
         return LegacyShipBehaviorCatalog.myRidingOffsetFor(this);
     }
@@ -1269,8 +1263,16 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     @Override
     protected void positionRider(Entity passenger, MoveFunction moveFunction) {
         if (!LegacyShipBehaviorCatalog.positionLegacyRider(this, passenger, moveFunction)) {
-            super.positionRider(passenger, moveFunction);
+            if (this.hasPassenger(passenger)) {
+                moveFunction.accept(passenger, this.getX(), this.getY() + this.getPassengersRidingOffset()
+                        + com.lulan.shincolle.entity.LegacyRiding.offset(passenger), this.getZ());
+            }
         }
+    }
+
+    @Override
+    public Vec3 getVehicleAttachmentPoint(Entity vehicle) {
+        return com.lulan.shincolle.entity.LegacyRiding.vehicleAttachment(this, vehicle);
     }
 
     @Override
@@ -1279,8 +1281,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     @Override
-    public boolean canBreatheUnderwater() {
-        return true;
+    public boolean canDrownInFluidType(net.neoforged.neoforge.fluids.FluidType type) {
+        return false;
     }
 
     @Override
@@ -1470,11 +1472,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         if (potionDamage) {
             List<MobEffectInstance> effects;
             if (directEntity instanceof ThrownPotion potion) {
-                effects = PotionUtils.getMobEffects(potion.getItem());
+                effects = LegacyPotionData.getMobEffects(potion.getItem());
             } else {
                 CompoundTag cloudTag = new CompoundTag();
                 directEntity.saveWithoutId(cloudTag);
-                effects = PotionUtils.getAllEffects(cloudTag);
+                effects = LegacyPotionData.getAllEffects(directEntity);
             }
             int potionLevel = 0;
             for (MobEffectInstance effect : effects) {
@@ -1642,7 +1644,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     @Override
-    protected void dropCustomDeathLoot(DamageSource damageSource, int looting, boolean recentlyHit) {
+    protected void dropCustomDeathLoot(net.minecraft.server.level.ServerLevel serverLevel, DamageSource damageSource, boolean recentlyHit) {
         if (!this.isHostileVariant()) {
             if (!this.level().isClientSide()) {
                 ItemStack recoveredEgg = ItemStack.EMPTY;
@@ -1691,9 +1693,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     @Override
-    public int getExperienceReward() {
+    public int getBaseExperienceReward() {
         if (!this.isHostileVariant()) {
-            return super.getExperienceReward();
+            return super.getBaseExperienceReward();
         }
         int scaleBonus = this.getLegacyHostileScaleLevel() * 30;
         return 10 + scaleBonus + this.random.nextInt(1 + scaleBonus);
@@ -3602,7 +3604,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 return true;
             }
 
-            if (ItemStack.isSameItemSameTags(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
+            if (ItemStack.isSameItemSameComponents(current, sourceStack) && current.getCount() < current.getMaxStackSize()) {
                 current.grow(1);
                 this.shipInventory.setItem(slot, current);
                 return true;
@@ -3620,7 +3622,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.hurt(player.damageSources().playerAttack(player), this.getMaxHealth() * 1.1F);
 
         if (!player.getAbilities().instabuild) {
-            hammer.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(InteractionHand.MAIN_HAND));
+            hammer.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
         }
 
         return true;
@@ -3632,7 +3634,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         }
 
         if (!player.getAbilities().instabuild) {
-            hammer.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(InteractionHand.MAIN_HAND));
+            hammer.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
         }
 
         if (!player.getAbilities().instabuild) {
@@ -3666,7 +3668,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 this.wanderPriority = priority;
             }
         }
-        this.setMaxUpStep(LegacyShipBehaviorCatalog.stepHeightFor(spec));
+        this.getAttribute(Attributes.STEP_HEIGHT).setBaseValue(LegacyShipBehaviorCatalog.stepHeightFor(spec));
         this.attackProfile = LegacyShipBehaviorCatalog.attackProfile(spec);
         this.equipmentBehaviorState = LegacyShipBehaviorCatalog.equipmentBehaviorFor(
                 spec,
@@ -4460,7 +4462,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         return true;
     }
 
-    private void applyBaseValue(Attribute attribute, double value) {
+    private void applyBaseValue(net.minecraft.core.Holder<Attribute> attribute, double value) {
         AttributeInstance instance = this.getAttribute(attribute);
 
         if (instance != null) {
@@ -4939,7 +4941,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
         for (int slot = EQUIPMENT_SLOT_COUNT; slot < this.getInventorySizePaged() && remaining > 0; slot++) {
             ItemStack current = this.shipInventory.getItem(slot);
-            if (current.isEmpty() || !ItemStack.isSameItemSameTags(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
+            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, sourceStack) || current.getCount() >= current.getMaxStackSize()) {
                 continue;
             }
 
@@ -4977,7 +4979,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             return null;
         }
 
-        return stack.copyWithCount(1).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).resolve().orElse(null);
+        return ModCapabilities.get(stack.copyWithCount(1), Capabilities.FluidHandler.ITEM).orElse(null);
     }
 
     private void tickAutoPump() {
@@ -5363,8 +5365,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.getShipNavigate().clearPathEntity();
         if (noFuel) {
             this.setMorale(0);
-            this.goalSelector.getRunningGoals().forEach(goal -> goal.stop());
-            this.targetSelector.getRunningGoals().forEach(goal -> goal.stop());
+            this.goalSelector.getAvailableGoals().stream().filter(net.minecraft.world.entity.ai.goal.WrappedGoal::isRunning).forEach(goal -> goal.stop());
+            this.targetSelector.getAvailableGoals().stream().filter(net.minecraft.world.entity.ai.goal.WrappedGoal::isRunning).forEach(goal -> goal.stop());
             this.goalSelector.removeAllGoals(goal -> true);
             this.targetSelector.removeAllGoals(goal -> true);
             if (this.supplyEmoteDelay <= 0) {
@@ -5484,7 +5486,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         int signature = 1;
 
         for (MobEffectInstance effect : this.getActiveEffects()) {
-            signature = 31 * signature + BuiltInRegistries.MOB_EFFECT.getId(effect.getEffect());
+            signature = 31 * signature + BuiltInRegistries.MOB_EFFECT.getId(effect.getEffect().value());
             signature = 31 * signature + effect.getAmplifier();
             signature = 31 * signature + effect.getDuration();
         }
@@ -5615,11 +5617,11 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     /** Legacy marriage auras use TeamHelper.checkSameOwner, not the ally relation. */
-    void applyAlliedRingAura(MobEffect effect, int durationTicks, int amplifier) {
+    void applyAlliedRingAura(net.minecraft.core.Holder<MobEffect> effect, int durationTicks, int amplifier) {
         this.applySameOwnerShipRingAura(effect, durationTicks, amplifier);
     }
 
-    void applySameOwnerShipRingAura(MobEffect effect, int durationTicks, int amplifier) {
+    void applySameOwnerShipRingAura(net.minecraft.core.Holder<MobEffect> effect, int durationTicks, int amplifier) {
         Optional<UUID> ownerUuid = this.getOwnerUuid();
         if (ownerUuid.isEmpty()) {
             return;
@@ -5633,14 +5635,14 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         }
     }
 
-    void applyOwnerRingEffect(MobEffect effect, int durationTicks, int amplifier) {
+    void applyOwnerRingEffect(net.minecraft.core.Holder<MobEffect> effect, int durationTicks, int amplifier) {
         Player owner = this.getOwnerPlayer();
         if (owner != null && this.distanceToSqr(owner) < 256.0D) {
             this.applyLegacyRingEffect(owner, effect, durationTicks, amplifier);
         }
     }
 
-    void applyLegacyRingEffect(LivingEntity target, MobEffect effect, int durationTicks, int amplifier) {
+    void applyLegacyRingEffect(LivingEntity target, net.minecraft.core.Holder<MobEffect> effect, int durationTicks, int amplifier) {
         target.addEffect(new MobEffectInstance(effect, durationTicks, amplifier, false, false));
     }
 
@@ -5959,7 +5961,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         } else if (stack.is(Items.POTION)) {
             moraleGain = -100;
             grudgeGain = 300;
-            for (MobEffectInstance effect : PotionUtils.getMobEffects(stack)) {
+            for (MobEffectInstance effect : LegacyPotionData.getMobEffects(stack)) {
                 this.applySupportEffect(new MobEffectInstance(effect));
             }
             consumed = true;
@@ -5969,9 +5971,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 return false;
             }
 
-            float nutrition = Math.max(1.0F, foodProperties.getNutrition());
+            float nutrition = Math.max(1.0F, foodProperties.nutrition());
             moraleGain = Math.max(1, Math.round((nutrition + this.random.nextInt((int) nutrition + 5))
-                    * foodProperties.getSaturationModifier() * 20.0F));
+                    * (foodProperties.saturation() / Math.max(1.0F, foodProperties.nutrition()) / 2.0F) * 20.0F));
             grudgeGain = moraleGain;
             consumed = true;
         }
@@ -6002,9 +6004,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     private void applySupportEffect(MobEffectInstance effect) {
-        MobEffect mobEffect = effect.getEffect();
-        if (mobEffect.isInstantenous()) {
-            mobEffect.applyInstantenousEffect(null, null, this, effect.getAmplifier(), 1.0D);
+        net.minecraft.core.Holder<MobEffect> mobEffect = effect.getEffect();
+        if (mobEffect.value().isInstantenous()) {
+            mobEffect.value().applyInstantenousEffect(null, null, this, effect.getAmplifier(), 1.0D);
             return;
         }
 
@@ -6012,22 +6014,21 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     }
 
     private void clearNegativeEffects() {
-        List<MobEffect> harmfulEffects = new ArrayList<>();
+        List<net.minecraft.core.Holder<MobEffect>> harmfulEffects = new ArrayList<>();
 
         for (MobEffectInstance effect : this.getActiveEffects()) {
-            if (effect.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
+            if (effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
                 harmfulEffects.add(effect.getEffect());
             }
         }
 
-        for (MobEffect effect : harmfulEffects) {
+        for (net.minecraft.core.Holder<MobEffect> effect : harmfulEffects) {
             this.removeEffect(effect);
         }
     }
 
     private void openInventory(ServerPlayer player) {
-        NetworkHooks.openScreen(player,
-                new SimpleMenuProvider(
+        player.openMenu(new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, this.getId(), this.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", this.getName())),
                 buffer -> {
@@ -6166,7 +6167,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             int slot = stackTag.getByte(SHIP_INVENTORY_SLOT_TAG) & 255;
 
             if (slot >= 0 && slot < this.shipInventory.getContainerSize()) {
-                this.shipInventory.setItem(slot, ItemStack.of(stackTag));
+                this.shipInventory.setItem(slot, com.lulan.shincolle.item.LegacyItemData.parse(this.registryAccess(), stackTag));
             }
         }
 
@@ -6184,7 +6185,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
             CompoundTag stackTag = new CompoundTag();
             stackTag.putByte(SHIP_INVENTORY_SLOT_TAG, (byte) slot);
-            stack.save(stackTag);
+            com.lulan.shincolle.item.LegacyItemData.save(stack, this.registryAccess(), stackTag);
             inventoryEntries.add(stackTag);
         }
 

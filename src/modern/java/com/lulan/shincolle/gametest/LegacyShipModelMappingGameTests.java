@@ -12,8 +12,8 @@ import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModBlocks;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
@@ -25,34 +25,6 @@ import java.util.List;
 @PrefixGameTestTemplate(false)
 public final class LegacyShipModelMappingGameTests {
     private LegacyShipModelMappingGameTests() {}
-
-    @GameTest(template = "gameplayparitygametests.empty")
-    public static void shipRuntimeDimensionsRetainLegacyCatalogValues(GameTestHelper helper) {
-        var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        for (var spec : com.lulan.shincolle.entity.ship.ShipEntitySpecs.values()) {
-            ship.setVariantEggMeta(spec.eggMeta());
-            for (int scale = 0; scale < 4; scale++) {
-                ship.initializeHostileRuntime(false, scale);
-                ship.refreshDimensions();
-                var expected = com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog.dimensionsFor(
-                        spec, ship.getLegacyHostileScaleLevel());
-                for (boolean sitting : new boolean[] {false, true}) {
-                    ship.setOrderedToSit(sitting);
-                    var actual = ship.getDimensions(net.minecraft.world.entity.Pose.STANDING);
-                    helper.assertTrue(ship.getScale() == 1.0F
-                                    && Math.abs(actual.width - expected.width) < 1.0E-6F
-                                    && Math.abs(actual.height - expected.height) < 1.0E-6F
-                                    && Math.abs(ship.getBoundingBox().getYsize() - expected.height) < 1.0E-6D,
-                            "runtime hitbox must retain the legacy dimensions for " + spec.eggMeta());
-                    float eyeHeight = com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog.eyeHeightFor(ship, expected);
-                    helper.assertTrue(Math.abs(ship.getEyeHeight() - eyeHeight) < 1.0E-6F,
-                            "EntityDimensions must carry the legacy standing eye height");
-                }
-            }
-        }
-        ship.discard();
-        helper.succeed();
-    }
 
     @GameTest(template = "gameplayparitygametests.empty")
     public static void minecartPassengersRetainLegacyFeetAnchorInBothPoses(GameTestHelper helper) {

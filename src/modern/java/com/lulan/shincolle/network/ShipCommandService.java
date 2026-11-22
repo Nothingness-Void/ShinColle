@@ -14,7 +14,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -389,8 +388,7 @@ public final class ShipCommandService {
         }
 
         if (serverPlayer.connection != null) {
-            NetworkHooks.openScreen(serverPlayer,
-                new SimpleMenuProvider(
+            serverPlayer.openMenu(new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new ShipInventoryMenu(containerId, inventory, ship.getId(), ship.getShipUid()),
                         Component.translatable("gui.shincolle.ship_inventory.title", ship.getName())),
                 buffer -> {

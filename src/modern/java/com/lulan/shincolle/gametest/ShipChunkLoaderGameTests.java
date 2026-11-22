@@ -22,11 +22,11 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ForcedChunksSavedData;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.event.entity.EntityEvent;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.EntityEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -40,7 +40,7 @@ public final class ShipChunkLoaderGameTests {
     public static void compassTicketsRequireOnlineOwnerAndReleaseWithoutEquipment(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer owner = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "ChunkOwner"));
-        TeitokuHelper.get(owner).resolve().orElseThrow().setPlayerUid(98201);
+        TeitokuHelper.get(owner).orElseThrow().setPlayerUid(98201);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(level);
         BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
         ship.setPos(pos.getX(), pos.getY(), pos.getZ());
@@ -101,14 +101,14 @@ public final class ShipChunkLoaderGameTests {
         ship.setPos(-0.5D, 64.0D, -16.5D);
         ship.startRiding(boat, true);
         long correct = SectionPos.asLong(-1, 4, -2);
-        MinecraftForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(-1, 5, -2)));
+        NeoForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(-1, 5, -2)));
         helper.assertTrue(ship.isPassenger(), "vertical section changes are not chunk transitions");
-        MinecraftForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, SectionPos.asLong(0, 4, -2), correct));
+        NeoForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, SectionPos.asLong(0, 4, -2), correct));
         helper.assertTrue(ship.isPassenger(), "correct negative chunk coordinates do not dismount");
-        MinecraftForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(0, 4, -2)));
+        NeoForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(0, 4, -2)));
         helper.assertTrue(!ship.isPassenger(), "wrong location dismounts the ship");
         ship.remove(Entity.RemovalReason.DISCARDED);
-        MinecraftForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(0, 4, -2)));
+        NeoForge.EVENT_BUS.post(new EntityEvent.EnteringSection(ship, correct, SectionPos.asLong(0, 4, -2)));
         helper.assertTrue(!ship.isRemoved(), "wrong location clears the removed flag");
         ship.discard();
         boat.discard();
@@ -127,12 +127,12 @@ public final class ShipChunkLoaderGameTests {
 
     private static Set<Long> forcedChunks(LegacyShipEntity ship) {
         ForcedChunksSavedData data = ((ServerLevel) ship.level()).getDataStorage()
-                .computeIfAbsent(ForcedChunksSavedData::load, ForcedChunksSavedData::new, "chunks");
-        ListTag mods = data.save(new CompoundTag()).getList("ForgeForced", Tag.TAG_COMPOUND);
+                .computeIfAbsent(ForcedChunksSavedData.factory(), "chunks");
+        ListTag mods = data.save(new CompoundTag(), ship.registryAccess()).getList("ModForced", Tag.TAG_COMPOUND);
         Set<Long> result = new HashSet<>();
         for (int i = 0; i < mods.size(); i++) {
             CompoundTag mod = mods.getCompound(i);
-            if (!ShinColle.MOD_ID.equals(mod.getString("Mod"))) {
+            if (!(ShinColle.MOD_ID + ":ships").equals(mod.getString("Controller"))) {
                 continue;
             }
             ListTag chunks = mod.getList("ModForced", Tag.TAG_COMPOUND);

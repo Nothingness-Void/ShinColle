@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "a": {
+      "item": "shincolle:abyssmetal"
+    },
+    "o": {
+      "tag": "c:obsidians/normal"
+    }
+  },
+  "pattern": [
+    "a a",
+    " o ",
+    "a a"
+  ],
+  "result": {
+    "count": 16,
+    "id": "shincolle:blockframe"
+  }
+}

@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.registry.ModCapabilities;
 import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -26,14 +27,13 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.fluids.FluidActionResult;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
-import net.minecraftforge.fluids.capability.templates.FluidHandlerItemStack;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidActionResult;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.fluids.capability.templates.FluidHandlerItemStack;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -48,21 +48,19 @@ public class ShipTankItem extends Item {
         this.tier = tier;
     }
 
-    @Override
-    public @Nullable ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-        return new FluidHandlerItemStack(stack, ShinColleConfig.shipTankCapacity(this.tier)) {
+    public IFluidHandlerItem createFluidHandler(ItemStack stack) {
+        LegacyItemData.importFluid(stack);
+        return new FluidHandlerItemStack(com.lulan.shincolle.registry.ModDataComponents.FLUID_CONTENTS, stack, ShinColleConfig.shipTankCapacity(this.tier)) {
             @Override
             public int getTankCapacity(int tank) { return ShinColleConfig.shipTankCapacity(ShipTankItem.this.tier); }
             @Override
-            public int fill(FluidStack resource, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction action) {
+            public int fill(FluidStack resource, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction action) {
                 this.capacity = ShinColleConfig.shipTankCapacity(ShipTankItem.this.tier);
                 return super.fill(resource, action);
             }
             @Override
             protected void setContainerToEmpty() {
-                if (this.container.hasTag()) {
-                    this.container.getTag().remove(FLUID_NBT_KEY);
-                }
+                this.container.remove(com.lulan.shincolle.registry.ModDataComponents.FLUID_CONTENTS);
             }
         };
     }
@@ -101,9 +99,8 @@ public class ShipTankItem extends Item {
 
         BlockEntity blockEntity = level.getBlockEntity(clickedPos);
         if (blockEntity != null) {
-            boolean hasFluidHandler = blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, clickedFace).isPresent();
-            IFluidHandler blockHandler = stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM)
-                    .resolve()
+            boolean hasFluidHandler = ModCapabilities.get(blockEntity, Capabilities.FluidHandler.BLOCK, clickedFace).isPresent();
+            IFluidHandler blockHandler = ModCapabilities.get(stack, Capabilities.FluidHandler.ITEM)
                     .orElse(null);
             if (hasFluidHandler) {
                 return blockHandler != null && transferFluid(player, context.getHand(), stack, blockHandler)
@@ -142,7 +139,8 @@ public class ShipTankItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.shiptank").withStyle(ChatFormatting.GRAY));
 
         Optional<FluidStack> containedFluid = FluidUtil.getFluidContained(stack);
@@ -163,7 +161,7 @@ public class ShipTankItem extends Item {
     }
 
     private static boolean transferFluid(Player player, InteractionHand hand, ItemStack stack, IFluidHandler blockHandler) {
-        IFluidHandlerItem itemHandler = stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).resolve().orElse(null);
+        IFluidHandlerItem itemHandler = ModCapabilities.get(stack, Capabilities.FluidHandler.ITEM).orElse(null);
         if (itemHandler == null) {
             return false;
         }
@@ -180,7 +178,7 @@ public class ShipTankItem extends Item {
     }
 
     private static boolean tryPlaceContainedLiquid(@Nullable Player player, Level level, BlockPos pos, ItemStack stack) {
-        IFluidHandlerItem itemHandler = stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).resolve().orElse(null);
+        IFluidHandlerItem itemHandler = ModCapabilities.get(stack, Capabilities.FluidHandler.ITEM).orElse(null);
         if (itemHandler == null) {
             return false;
         }

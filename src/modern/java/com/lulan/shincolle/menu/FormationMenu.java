@@ -90,7 +90,7 @@ public class FormationMenu extends AbstractContainerMenu {
                 entry.putInt("Slot", slot);
                 entry.putInt("Uid", ship.getShipUid());
                 entry.putInt("EntityId", ship.getId());
-                entry.putString("Name", Component.Serializer.toJson(ship.getName()));
+                entry.putString("Name", Component.Serializer.toJson(ship.getName(), ship.registryAccess()));
                 entry.putInt("Level", ship.getShipLevel());
                 entry.putInt("Morale", ship.getMorale());
                 entry.putFloat("Health", ship.getHealth());
@@ -167,7 +167,7 @@ public class FormationMenu extends AbstractContainerMenu {
             if (slot < 0 || slot >= 6 || entry.getIntArray("Buffed").length != LegacyShipStatTables.ATTR_COUNT) continue;
             if (this.inventory.player.level().getEntity(entry.getInt("EntityId")) instanceof LegacyShipEntity entity
                     && entity.getShipUid() == entry.getInt("Uid") && !entity.isRemoved()) {
-                ships[slot] = new ShipView(entry);
+                ships[slot] = new ShipView(entry, this.inventory.player.registryAccess());
             }
         }
         return ships;
@@ -175,17 +175,19 @@ public class FormationMenu extends AbstractContainerMenu {
 
     public static final class ShipView {
         private final CompoundTag data;
+        private final net.minecraft.core.HolderLookup.Provider registries;
         private final float[] formation;
         private final float[] buffed;
 
-        private ShipView(CompoundTag data) {
+        private ShipView(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
             this.data = data.copy();
+            this.registries = registries;
             this.formation = readFloats(data, "Formation");
             this.buffed = readFloats(data, "Buffed");
         }
 
         public String getName() {
-            Component name = Component.Serializer.fromJson(this.data.getString("Name"));
+            Component name = Component.Serializer.fromJson(this.data.getString("Name"), this.registries);
             return name == null ? "" : name.getString();
         }
         public int getUid() { return this.data.getInt("Uid"); }

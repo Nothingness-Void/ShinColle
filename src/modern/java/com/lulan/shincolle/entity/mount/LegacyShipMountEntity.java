@@ -78,9 +78,9 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_MOUNT_STYLE, LegacyMountControls.STYLE_BATTLESHIP);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_HOST_ID, -1);
+        builder.define(DATA_MOUNT_STYLE, LegacyMountControls.STYLE_BATTLESHIP);
     }
 
     @Override
@@ -355,11 +355,10 @@ public final class LegacyShipMountEntity extends Entity {
         double worldX = seatLateral * cos - seatForward * sin;
         moveFunction.accept(passenger,
                 this.getX() + worldX,
-                this.getY() + seatY + passenger.getMyRidingOffset(),
+                this.getY() + seatY + com.lulan.shincolle.entity.LegacyRiding.offset(passenger),
                 this.getZ() + worldZ);
     }
 
-    @Override
     public double getPassengersRidingOffset() {
         LegacyShipBehaviorCatalog.ShipMountProfile profile =
                 LegacyShipBehaviorCatalog.shipMountProfileFor(this.getHostShip() == null
@@ -410,7 +409,7 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     @Override
-    public boolean canChangeDimensions() {
+    public boolean canChangeDimensions(net.minecraft.world.level.Level from, net.minecraft.world.level.Level to) {
         return false;
     }
 

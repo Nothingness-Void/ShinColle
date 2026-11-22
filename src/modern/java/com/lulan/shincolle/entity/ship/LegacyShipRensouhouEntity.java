@@ -161,14 +161,14 @@ public class LegacyShipRensouhouEntity extends PathfinderMob implements ShipNavi
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_TARGET_ID, -1);
-        this.entityData.define(DATA_INTERNAL_AMMO, DEFAULT_INTERNAL_AMMO);
-        this.entityData.define(DATA_LARGE_MODEL, false);
-        this.entityData.define(DATA_HOSTILE_SCALE_LEVEL, 0);
-        this.entityData.define(DATA_HOSTILE, false);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_HOST_ID, -1);
+        builder.define(DATA_TARGET_ID, -1);
+        builder.define(DATA_INTERNAL_AMMO, DEFAULT_INTERNAL_AMMO);
+        builder.define(DATA_LARGE_MODEL, false);
+        builder.define(DATA_HOSTILE_SCALE_LEVEL, 0);
+        builder.define(DATA_HOSTILE, false);
     }
 
     @Override
@@ -349,7 +349,7 @@ public class LegacyShipRensouhouEntity extends PathfinderMob implements ShipNavi
     }
 
     @Override
-    public EntityDimensions getDimensions(Pose pose) {
+    public EntityDimensions getDefaultDimensions(Pose pose) {
         if (this.isHostileVariant()) {
             return switch (this.getHostileScaleLevel()) {
                 case 3 -> EntityDimensions.scalable(1.5F, 2.8F);
@@ -442,8 +442,8 @@ public class LegacyShipRensouhouEntity extends PathfinderMob implements ShipNavi
     }
 
     @Override
-    public boolean canBreatheUnderwater() {
-        return true;
+    public boolean canDrownInFluidType(net.neoforged.neoforge.fluids.FluidType type) {
+        return false;
     }
 
     @Override

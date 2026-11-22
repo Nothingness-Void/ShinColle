@@ -1,9 +1,9 @@
 package com.lulan.shincolle.blockentity;
 
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.block.SmallShipyardBlock;
 import com.lulan.shincolle.crafting.SmallShipyardRecipes;
@@ -28,11 +28,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import java.util.Optional;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -98,8 +98,6 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         @Override
         protected void onContentsChanged() { SmallShipyardBlockEntity.this.setChanged(); }
     };
-    private LazyOptional<IFluidHandler> fluidHandler = LazyOptional.empty();
-    private LazyOptional<IItemHandler> itemHandler = LazyOptional.empty();
     private int powerConsumed;
     private int powerRemained;
     private int powerGoal;
@@ -110,37 +108,29 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         super(ModBlockEntities.SMALL_SHIPYARD.get(), pos, state);
     }
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        this.itemHandler = LazyOptional.of(() -> this.items);
-        this.fluidHandler = LazyOptional.of(() -> this.lavaTank);
+
+
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability) {
+        return getCapability(capability, null);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        this.itemHandler.invalidate();
-        this.fluidHandler.invalidate();
-    }
-
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable net.minecraft.core.Direction side) {
-        if (capability == ForgeCapabilities.FLUID_HANDLER) return this.fluidHandler.cast();
-        if (capability == ForgeCapabilities.ITEM_HANDLER) {
-            return this.itemHandler.cast();
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability, @Nullable net.minecraft.core.Direction side) {
+        if (capability == Capabilities.FluidHandler.BLOCK) return Optional.of(capability.typeClass().cast(this.lavaTank));
+        if (capability == Capabilities.ItemHandler.BLOCK) {
+            return Optional.of(capability.typeClass().cast(this.items));
         }
 
-        return super.getCapability(capability, side);
+        return Optional.empty();
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
-        this.lavaTank.readFromNBT(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
+        this.lavaTank.readFromNBT(registries, com.lulan.shincolle.item.LegacyFluidData.upgradeTank(registries, tag));
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         if (tag.contains(INVENTORY_TAG)) {
-            this.items.deserializeNBT(tag.getCompound(INVENTORY_TAG));
+            this.items.deserializeNBT(registries, tag.getCompound(INVENTORY_TAG));
         }
         this.powerConsumed = tag.getInt(POWER_CONSUMED_TAG);
         this.powerRemained = tag.getInt(POWER_REMAINED_TAG);
@@ -153,14 +143,14 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        this.lavaTank.writeToNBT(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        this.lavaTank.writeToNBT(registries, tag);
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         }
 
-        tag.put(INVENTORY_TAG, this.items.serializeNBT());
+        tag.put(INVENTORY_TAG, this.items.serializeNBT(registries));
         tag.putInt(POWER_CONSUMED_TAG, this.powerConsumed);
         tag.putInt(POWER_REMAINED_TAG, this.powerRemained);
         tag.putInt(POWER_GOAL_TAG, this.powerGoal);
@@ -169,8 +159,8 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(this.level.registryAccess());
     }
 
     @Override
@@ -425,7 +415,7 @@ public class SmallShipyardBlockEntity extends BlockEntity implements MenuProvide
         }
 
         RandomSource random = this.level != null ? this.level.getRandom() : RandomSource.create();
-        ItemStack result = SmallShipyardRecipes.createBuildResult(this.buildType, materials, random);
+        ItemStack result = SmallShipyardRecipes.createBuildResult(this.buildType, materials, random, this.level.registryAccess());
         this.items.setStackInSlot(SmallShipyardRecipes.SLOT_OUTPUT, result);
     }
 

@@ -14,15 +14,14 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class LegacyAircraftBlockCollisionGameTests {
     private LegacyAircraftBlockCollisionGameTests() {
     }
-
     @GameTest(template = "legacyaircraftblockcollisiongametests.elevated_flight_space")
     public static void elevatedGuardRoutesClearWallTopForReportedMountsAndFortress(GameTestHelper helper) {
         BlockPos start = helper.absolutePos(new BlockPos(14, 6, 14));

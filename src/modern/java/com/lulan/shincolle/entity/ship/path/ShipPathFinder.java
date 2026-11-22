@@ -289,7 +289,7 @@ public class ShipPathFinder
                         else
                         {
                             if (block instanceof WaterlilyBlock ||
-                                !state.isPathfindable(entity.level(), pos, net.minecraft.world.level.pathfinder.PathComputationType.LAND))
+                                !state.isPathfindable(net.minecraft.world.level.pathfinder.PathComputationType.LAND))
                             {
                                 return EnumPathType.BLOCKED;
                             }

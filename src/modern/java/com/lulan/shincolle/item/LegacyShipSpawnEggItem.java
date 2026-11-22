@@ -34,7 +34,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -57,7 +58,7 @@ public class LegacyShipSpawnEggItem extends Item {
 
     public static ItemStack createRecoveredShipStack(LegacyShipEntity ship) {
         ResourceLocation itemId = ResourceLocation.fromNamespaceAndPath("shincolle", "shipegg" + ship.getVariantEggMeta());
-        Item item = ForgeRegistries.ITEMS.getValue(itemId);
+        Item item = BuiltInRegistries.ITEM.get(itemId);
         if (item == null) {
             item = BuiltInRegistries.ITEM.get(itemId);
         }
@@ -66,7 +67,7 @@ public class LegacyShipSpawnEggItem extends Item {
         }
 
         ItemStack stack = new ItemStack(item);
-        CompoundTag stackTag = stack.getOrCreateTag();
+        CompoundTag stackTag = LegacyItemData.copyTag(stack);
         stackTag.putInt(VARIANT_EGG_META_TAG, ship.getVariantEggMeta());
 
         CompoundTag shipTag = new CompoundTag();
@@ -78,16 +79,17 @@ public class LegacyShipSpawnEggItem extends Item {
         shipTag.remove("DeathTime");
         shipTag.remove("NoAI");
         stackTag.put(RECOVERED_SHIP_TAG, shipTag);
+        LegacyItemData.setTag(stack, stackTag);
         return stack;
     }
 
     public static boolean isRecoveredShipStack(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         return tag != null && tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND);
     }
 
     public static @Nullable CompoundTag getRecoveredShipData(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         return tag != null && tag.contains(RECOVERED_SHIP_TAG, Tag.TAG_COMPOUND)
                 ? tag.getCompound(RECOVERED_SHIP_TAG).copy()
                 : null;
@@ -174,11 +176,12 @@ public class LegacyShipSpawnEggItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return stack.hasTag();
+        return LegacyItemData.hasTag(stack);
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         String itemPath = BuiltInRegistries.ITEM.getKey(this).getPath();
         tooltip.add(Component.translatable("gui.shincolle.spawn_egg.use").withStyle(ChatFormatting.GRAY));
 
@@ -254,7 +257,7 @@ public class LegacyShipSpawnEggItem extends Item {
 
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
         ship.setVariantEggMeta(spec.eggMeta());
-        ship.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(pos), MobSpawnType.SPAWN_EGG, null, null);
+        ship.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(pos), MobSpawnType.SPAWN_EGG, null);
         if (recoveredShipData != null) {
             ship.readAdditionalSaveData(recoveredShipData);
             ship.restoreRecoveredDeployment(player);
@@ -264,7 +267,7 @@ public class LegacyShipSpawnEggItem extends Item {
                 ship.initializeHostileRuntime(false, player.getRandom().nextInt(4));
             }
         }
-        if (stack.hasCustomHoverName()) {
+        if (stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)) {
             ship.setCustomName(stack.getHoverName());
         }
         ship.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, Mth.wrapDegrees(player.getYRot()), 0.0F);
@@ -293,7 +296,7 @@ public class LegacyShipSpawnEggItem extends Item {
     }
 
     private ShipEntitySpec resolveSpec(ItemStack stack, String itemPath, @Nullable Level level) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         RandomSource random = level != null ? level.getRandom() : RandomSource.create();
 
         if (tag != null) {

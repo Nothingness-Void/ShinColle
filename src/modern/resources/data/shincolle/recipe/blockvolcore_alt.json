@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_upgrade",
+  "key": {
+    "g": {
+      "item": "shincolle:blockvolblock"
+    },
+    "l": {
+      "item": "shincolle:blockgrudgeheavy"
+    },
+    "o": {
+      "tag": "c:obsidians/normal"
+    }
+  },
+  "pattern": [
+    "ogo",
+    "glg",
+    "ogo"
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:blockvolcore"
+  }
+}

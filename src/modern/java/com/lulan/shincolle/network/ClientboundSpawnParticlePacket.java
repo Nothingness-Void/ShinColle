@@ -2,14 +2,29 @@ package com.lulan.shincolle.network;
 
 import com.lulan.shincolle.client.GameplayClientEffects;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Supplier;
 
 public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
                                              double x, double y, double z,
                                              double velocityX, double velocityY, double velocityZ,
-                                             int variant, int entityId) {
+                                             int variant, int entityId) implements CustomPacketPayload {
+
+    public static final Type<ClientboundSpawnParticlePacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("shincolle", "clientbound_spawn_particle_packet"));
+    public static final StreamCodec<FriendlyByteBuf, ClientboundSpawnParticlePacket> STREAM_CODEC = StreamCodec.of(ClientboundSpawnParticlePacket::encodeBuffer, ClientboundSpawnParticlePacket::decode);
+
+    private static void encodeBuffer(FriendlyByteBuf buffer, ClientboundSpawnParticlePacket packet) {
+        encode(packet, buffer);
+    }
+
+    @Override
+    public Type<ClientboundSpawnParticlePacket> type() {
+        return TYPE;
+    }
 
     public ClientboundSpawnParticlePacket(GameplayParticleType particleType,
                                            double x, double y, double z,
@@ -48,9 +63,7 @@ public record ClientboundSpawnParticlePacket(GameplayParticleType particleType,
         return new ClientboundSpawnParticlePacket(type, x, y, z, velocityX, velocityY, velocityZ, variant, entityId);
     }
 
-    public static void handle(ClientboundSpawnParticlePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(ClientboundSpawnParticlePacket packet, IPayloadContext context) {
         context.enqueueWork(() -> GameplayClientEffects.handleParticle(packet));
-        context.setPacketHandled(true);
     }
 }

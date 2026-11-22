@@ -20,13 +20,15 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import javax.annotation.Nullable;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class HostileEncounterSpawner {
 
     private static final int MOB_SPAWN_CHECK_MASK = 127;
@@ -39,11 +41,11 @@ public final class HostileEncounterSpawner {
     }
 
     @SubscribeEvent
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide()) {
+    public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (event.getEntity().level().isClientSide()) {
             return;
         }
-        if (!(event.player instanceof ServerPlayer player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
 
@@ -52,7 +54,7 @@ public final class HostileEncounterSpawner {
             return;
         }
 
-        TeitokuData teitokuData = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData teitokuData = TeitokuHelper.get(player).orElse(null);
         if ((player.tickCount & MOB_SPAWN_CHECK_MASK) == 0) {
             attemptMobEncounterSpawn(player, level, teitokuData);
         }
@@ -151,7 +153,7 @@ public final class HostileEncounterSpawner {
         BlockPos spawnPos = anchor.offset(random.nextInt(3), 0, random.nextInt(3));
         LegacyShipEntity ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), level);
         ship.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY() + 0.5D, spawnPos.getZ() + 0.5D, random.nextFloat() * 360.0F, 0.0F);
-        ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null, null);
+        ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null);
         ship.applySpawnSpec(spec, null);
         ship.initializeHostileRuntime(true, profile.elite(), profile.boss());
         ship.setTarget(targetPlayer);

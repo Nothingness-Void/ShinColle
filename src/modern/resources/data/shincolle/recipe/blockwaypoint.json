@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "shincolle_growth_entry",
+  "key": {
+    "g": {
+      "item": "shincolle:grudge"
+    },
+    "s": {
+      "tag": "c:rods/wooden"
+    }
+  },
+  "pattern": [
+    "g",
+    "s"
+  ],
+  "result": {
+    "count": 16,
+    "id": "shincolle:blockwaypoint"
+  }
+}

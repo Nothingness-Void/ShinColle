@@ -7,27 +7,31 @@ import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraftforge.common.world.ForgeChunkManager;
-import net.minecraftforge.event.entity.EntityEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.common.world.chunk.TicketController;
+import net.neoforged.neoforge.event.entity.EntityEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.HashSet;
 import java.util.Set;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class ShipChunkLoader {
+
+    private static final TicketController CONTROLLER = new TicketController(
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "ships"), (level, tickets) -> {
+                tickets.getEntityTickets().keySet().forEach(tickets::removeAllTickets);
+                tickets.getBlockTickets().keySet().forEach(tickets::removeAllTickets);
+            });
 
     private final Set<ChunkPos> chunks = new HashSet<>();
     private ServerLevel ticketLevel;
     private boolean initialized;
 
-    public static void register() {
-        ForgeChunkManager.setForcedChunkLoadingCallback(ShinColle.MOD_ID, (level, tickets) -> {
-            tickets.getEntityTickets().keySet().forEach(tickets::removeAllTickets);
-            tickets.getBlockTickets().keySet().forEach(tickets::removeAllTickets);
-        });
+    public static void register(net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent event) {
+        event.register(CONTROLLER);
     }
 
     @SubscribeEvent
@@ -84,13 +88,13 @@ public final class ShipChunkLoader {
         }
         for (ChunkPos chunk : Set.copyOf(this.chunks)) {
             if (!nextChunks.contains(chunk)) {
-                ForgeChunkManager.forceChunk(level, ShinColle.MOD_ID, ship.getUUID(), chunk.x, chunk.z, false, true);
+                CONTROLLER.forceChunk(level, ship.getUUID(), chunk.x, chunk.z, false, true);
                 this.chunks.remove(chunk);
             }
         }
         for (ChunkPos chunk : nextChunks) {
             if (!this.chunks.contains(chunk)
-                    && ForgeChunkManager.forceChunk(level, ShinColle.MOD_ID, ship.getUUID(), chunk.x, chunk.z, true, true)) {
+                    && CONTROLLER.forceChunk(level, ship.getUUID(), chunk.x, chunk.z, true, true)) {
                 this.chunks.add(chunk);
             }
         }
@@ -99,7 +103,7 @@ public final class ShipChunkLoader {
     public void clear(LegacyShipEntity ship) {
         if (this.ticketLevel != null) {
             for (ChunkPos chunk : this.chunks) {
-                ForgeChunkManager.forceChunk(this.ticketLevel, ShinColle.MOD_ID, ship.getUUID(), chunk.x, chunk.z, false, true);
+                CONTROLLER.forceChunk(this.ticketLevel, ship.getUUID(), chunk.x, chunk.z, false, true);
             }
         }
         this.chunks.clear();

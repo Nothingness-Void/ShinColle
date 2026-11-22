@@ -17,7 +17,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -39,8 +38,7 @@ public class RecipePaperItem extends Item {
         if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
             ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-            NetworkHooks.openScreen(serverPlayer,
-                    new SimpleMenuProvider(
+            serverPlayer.openMenu(new SimpleMenuProvider(
                             (containerId, inventory, menuPlayer) -> new RecipePaperMenu(containerId, inventory, hand),
                             stack.getHoverName()),
                     buffer -> buffer.writeBoolean(true));
@@ -50,7 +48,8 @@ public class RecipePaperItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         ListTag recipeEntries = getRecipeEntries(stack);
 
         if (recipeEntries.isEmpty()) {
@@ -68,7 +67,7 @@ public class RecipePaperItem extends Item {
             int slot = itemTag.getInt(RecipePaperMenu.SLOT_KEY);
 
             if (slot >= 0 && slot < recipeStacks.length) {
-                recipeStacks[slot] = ItemStack.of(itemTag);
+                recipeStacks[slot] = context.registries() == null ? ItemStack.EMPTY : LegacyItemData.parse(context.registries(), itemTag);
             }
         }
 
@@ -94,7 +93,7 @@ public class RecipePaperItem extends Item {
     }
 
     private static ListTag getRecipeEntries(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
 
         if (tag == null || !tag.contains(RecipePaperMenu.RECIPE_TAG, Tag.TAG_LIST)) {
             return new ListTag();

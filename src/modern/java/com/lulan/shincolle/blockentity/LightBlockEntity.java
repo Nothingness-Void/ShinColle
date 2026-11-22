@@ -55,16 +55,17 @@ public class LightBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         tag.putInt(LIFE_TAG, this.lifeTicks);
         tag.putInt(WATER_TYPE_TAG, this.waterType);
         tag.putInt(FLUID_LEVEL_TAG, this.fluidLevel);
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.lifeTicks = tag.contains(LIFE_TAG) ? Math.max(1, tag.getInt(LIFE_TAG)) : DEFAULT_LIFE_TICKS;
         this.waterType = tag.getInt(WATER_TYPE_TAG);
         this.fluidLevel = tag.getInt(FLUID_LEVEL_TAG);

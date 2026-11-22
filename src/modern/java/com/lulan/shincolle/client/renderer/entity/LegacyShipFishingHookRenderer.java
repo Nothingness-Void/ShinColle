@@ -34,22 +34,22 @@ public final class LegacyShipFishingHookRenderer extends EntityRenderer<LegacySh
 
         VertexConsumer quad = buffer.getBuffer(RenderType.entityCutoutNoCull(FISH_PARTICLES));
         PoseStack.Pose pose = poseStack.last();
-        quad.vertex(pose.pose(), -0.5F, -0.5F, 0.0F)
-                .color(255, 255, 255, 255).uv(0.0625F, 0.1875F)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
-        quad.vertex(pose.pose(), 0.5F, -0.5F, 0.0F)
-                .color(255, 255, 255, 255).uv(0.125F, 0.1875F)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
-        quad.vertex(pose.pose(), 0.5F, 0.5F, 0.0F)
-                .color(255, 255, 255, 255).uv(0.125F, 0.125F)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
-        quad.vertex(pose.pose(), -0.5F, 0.5F, 0.0F)
-                .color(255, 255, 255, 255).uv(0.0625F, 0.125F)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(pose.normal(), 0.0F, 1.0F, 0.0F).endVertex();
+        quad.addVertex(pose.pose(), -0.5F, -0.5F, 0.0F)
+                .setColor(255, 255, 255, 255).setUv(0.0625F, 0.1875F)
+                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        quad.addVertex(pose.pose(), 0.5F, -0.5F, 0.0F)
+                .setColor(255, 255, 255, 255).setUv(0.125F, 0.1875F)
+                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        quad.addVertex(pose.pose(), 0.5F, 0.5F, 0.0F)
+                .setColor(255, 255, 255, 255).setUv(0.125F, 0.125F)
+                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        quad.addVertex(pose.pose(), -0.5F, 0.5F, 0.0F)
+                .setColor(255, 255, 255, 255).setUv(0.0625F, 0.125F)
+                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(packedLight)
+                .setNormal(pose, 0.0F, 1.0F, 0.0F);
         poseStack.popPose();
 
         LegacyShipEntity host = entity.getHostShip();
@@ -71,10 +71,10 @@ public final class LegacyShipFishingHookRenderer extends EntityRenderer<LegacySh
         for (int segment = 0; segment <= 16; segment++) {
             float t = segment / 16.0F;
             float curve = t * t * 0.5F + t * 0.5F;
-            line.vertex(pose.pose(), (float) (dx * t), (float) (dy * curve), (float) (dz * t))
-                    .color(200, 200, 200, 255)
-                    .normal(pose.normal(), 0.0F, 1.0F, 0.0F)
-                    .endVertex();
+            line.addVertex(pose.pose(), (float) (dx * t), (float) (dy * curve), (float) (dz * t))
+                    .setColor(200, 200, 200, 255)
+                    .setNormal(pose, 0.0F, 1.0F, 0.0F)
+                    ;
         }
     }
 

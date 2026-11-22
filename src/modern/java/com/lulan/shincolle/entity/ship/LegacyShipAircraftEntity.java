@@ -151,16 +151,16 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_ATTACK_KIND, LegacyShipAttackKind.AIR_LIGHT.ordinal());
-        this.entityData.define(DATA_PROJECTILE_VISUAL, LegacyShipProjectileVisual.AIRPLANE.ordinal());
-        this.entityData.define(DATA_LAUNCH_PARTICLE, GameplayParticleType.AIRCRAFT_LAUNCH.ordinal());
-        this.entityData.define(DATA_TRAIL_PARTICLE, GameplayParticleType.AIRCRAFT_TRAIL.ordinal());
-        this.entityData.define(DATA_HIT_PARTICLE, GameplayParticleType.AIRCRAFT_IMPACT.ordinal());
-        this.entityData.define(DATA_EFFECT_FLAGS, 0);
-        this.entityData.define(DATA_OWNER_ID, -1);
-        this.entityData.define(DATA_TARGET_ID, -1);
-        this.entityData.define(DATA_RETURNING, false);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_ATTACK_KIND, LegacyShipAttackKind.AIR_LIGHT.ordinal());
+        builder.define(DATA_PROJECTILE_VISUAL, LegacyShipProjectileVisual.AIRPLANE.ordinal());
+        builder.define(DATA_LAUNCH_PARTICLE, GameplayParticleType.AIRCRAFT_LAUNCH.ordinal());
+        builder.define(DATA_TRAIL_PARTICLE, GameplayParticleType.AIRCRAFT_TRAIL.ordinal());
+        builder.define(DATA_HIT_PARTICLE, GameplayParticleType.AIRCRAFT_IMPACT.ordinal());
+        builder.define(DATA_EFFECT_FLAGS, 0);
+        builder.define(DATA_OWNER_ID, -1);
+        builder.define(DATA_TARGET_ID, -1);
+        builder.define(DATA_RETURNING, false);
     }
 
     @Override

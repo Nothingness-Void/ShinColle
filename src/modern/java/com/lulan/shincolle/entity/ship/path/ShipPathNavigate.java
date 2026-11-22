@@ -419,7 +419,7 @@ public class ShipPathNavigate
             if (d0 * vecX + d1 * vecZ >= 0D)
             {
                 Block block = this.world.getBlockState(blockpos).getBlock();
-                if (!this.world.getBlockState(blockpos).isPathfindable(this.world, blockpos, net.minecraft.world.level.pathfinder.PathComputationType.LAND))
+                if (!this.world.getBlockState(blockpos).isPathfindable(net.minecraft.world.level.pathfinder.PathComputationType.LAND))
                 {
                     return false;
                 }

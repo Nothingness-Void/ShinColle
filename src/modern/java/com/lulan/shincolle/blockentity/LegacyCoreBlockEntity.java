@@ -24,11 +24,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import java.util.Optional;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 
@@ -65,7 +65,6 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     private int syncTick;
     private boolean canWork;
     private boolean volCoreWet;
-    private LazyOptional<IItemHandler> itemHandler = LazyOptional.empty();
     private final ContainerData coreData = new ContainerData() {
         @Override
         public int get(int index) {
@@ -104,54 +103,48 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         return new LegacyCoreBlockEntity(ModBlockEntities.VOL_CORE.get(), pos, state, "block.shincolle.blockvolcore");
     }
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        this.itemHandler = LazyOptional.of(() -> this.fuelItems);
+
+
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability) {
+        return getCapability(capability, null);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        this.itemHandler.invalidate();
-    }
-
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable net.minecraft.core.Direction side) {
-        if (capability == ForgeCapabilities.ITEM_HANDLER) {
-            return this.itemHandler.cast();
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability, @Nullable net.minecraft.core.Direction side) {
+        if (capability == Capabilities.ItemHandler.BLOCK) {
+            return Optional.of(capability.typeClass().cast(this.fuelItems));
         }
 
-        return super.getCapability(capability, side);
+        return Optional.empty();
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         this.mode = tag.contains(ACTIVE_TAG)
                 ? (tag.getBoolean(ACTIVE_TAG) ? MODE_ACTIVE : MODE_IDLE)
                 : Mth.clamp(tag.getInt(MODE_TAG), MODE_IDLE, MAX_MODE);
         this.storedCharge = Mth.clamp(tag.contains(POWER_TAG) ? tag.getInt(POWER_TAG) : tag.getInt(CHARGE_TAG), 0, this.maxCharge());
         if (tag.contains(FUEL_ITEMS_TAG)) {
-            this.fuelItems.deserializeNBT(tag.getCompound(FUEL_ITEMS_TAG));
+            this.fuelItems.deserializeNBT(registries, tag.getCompound(FUEL_ITEMS_TAG));
         }
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         }
         tag.putBoolean(ACTIVE_TAG, this.mode == MODE_ACTIVE);
         tag.putInt(POWER_TAG, this.storedCharge);
-        tag.put(FUEL_ITEMS_TAG, this.fuelItems.serializeNBT());
+        tag.put(FUEL_ITEMS_TAG, this.fuelItems.serializeNBT(registries));
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(this.level.registryAccess());
     }
 
     @Override
@@ -266,7 +259,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
 
         for (int slot = 0; slot < this.fuelItems.getSlots() && remaining > 0; slot++) {
             net.minecraft.world.item.ItemStack current = this.fuelItems.getStackInSlot(slot);
-            if (!current.isEmpty() && (!net.minecraft.world.item.ItemStack.isSameItemSameTags(current, stack)
+            if (!current.isEmpty() && (!net.minecraft.world.item.ItemStack.isSameItemSameComponents(current, stack)
                     || current.getCount() >= current.getMaxStackSize())) {
                 continue;
             }
@@ -403,7 +396,7 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
                 continue;
             }
 
-            entity.setSecondsOnFire(2);
+            entity.igniteForSeconds(2);
             entity.hurt(level.damageSources().inFire(), 4.0F);
             affected = true;
         }

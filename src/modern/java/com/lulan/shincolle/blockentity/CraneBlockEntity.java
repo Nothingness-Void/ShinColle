@@ -1,5 +1,6 @@
 package com.lulan.shincolle.blockentity;
 
+import com.lulan.shincolle.registry.ModCapabilities;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipArchetype;
 import com.lulan.shincolle.item.equipment.LegacyEquipmentItem;
@@ -7,19 +8,19 @@ import com.lulan.shincolle.item.equipment.LegacyEquipmentFamily;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModSoundEvents;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.items.wrapper.InvWrapper;
-import net.minecraftforge.items.wrapper.RangedWrapper;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.items.wrapper.RangedWrapper;
 import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.core.Direction;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import java.util.Optional;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import com.lulan.shincolle.crafting.LegacyItemMatchHelper;
 import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
@@ -35,7 +36,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.Locale;
@@ -69,24 +70,16 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         @Override
         protected void onContentsChanged() { CraneBlockEntity.this.setChanged(); }
     };
-    private LazyOptional<IFluidHandler> fluidHandler = LazyOptional.empty();
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        this.fluidHandler = LazyOptional.of(() -> this.tank);
+
+
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability) {
+        return getCapability(capability, null);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        this.fluidHandler.invalidate();
-    }
-
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capability, @Nullable Direction side) {
-        if (capability == ForgeCapabilities.FLUID_HANDLER && side != Direction.DOWN) return this.fluidHandler.cast();
-        return super.getCapability(capability, side);
+    public <T> Optional<T> getCapability(BlockCapability<T, net.minecraft.core.Direction> capability, @Nullable Direction side) {
+        if (capability == Capabilities.FluidHandler.BLOCK && side != Direction.DOWN) return Optional.of(capability.typeClass().cast(this.tank));
+        return Optional.empty();
     }
 
     @Nullable
@@ -123,9 +116,10 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
-        this.tank.readFromNBT(tag);
+    protected void loadAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        com.lulan.shincolle.item.LegacyItemData.upgradeNested(registries, tag);
+        this.tank.readFromNBT(registries, com.lulan.shincolle.item.LegacyFluidData.upgradeTank(registries, tag));
         this.owner = PlayerOwnerData.load(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
         this.lastWaypoint = readOptionalPos(tag, LAST_WAYPOINT_TAG);
         this.nextWaypoint = readOptionalPos(tag, NEXT_WAYPOINT_TAG);
@@ -138,7 +132,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         this.liquidMode = Mth.clamp(tag.getInt(LIQUID_MODE_TAG), 0, MAX_THREE_STATE_MODE);
         this.energyMode = Mth.clamp(tag.getInt(ENERGY_MODE_TAG), 0, MAX_THREE_STATE_MODE);
         if (tag.contains(FILTER_ITEMS_TAG, Tag.TAG_COMPOUND)) {
-            this.filterItems.deserializeNBT(tag.getCompound(FILTER_ITEMS_TAG));
+            this.filterItems.deserializeNBT(registries, tag.getCompound(FILTER_ITEMS_TAG));
         }
         this.filterModeMask = tag.getInt(FILTER_MODE_MASK_TAG);
         this.checkMetadata = tag.getBoolean(CHECK_METADATA_TAG);
@@ -147,9 +141,9 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        this.tank.writeToNBT(tag);
+    protected void saveAdditional(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        this.tank.writeToNBT(registries, tag);
 
         if (this.owner != null) {
             this.owner.save(tag, OWNER_UUID_TAG, OWNER_NAME_TAG, OWNER_UID_TAG);
@@ -165,7 +159,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
         tag.putInt(REDSTONE_MODE_TAG, this.redstoneMode);
         tag.putInt(LIQUID_MODE_TAG, this.liquidMode);
         tag.putInt(ENERGY_MODE_TAG, this.energyMode);
-        tag.put(FILTER_ITEMS_TAG, this.filterItems.serializeNBT());
+        tag.put(FILTER_ITEMS_TAG, this.filterItems.serializeNBT(registries));
         tag.putInt(FILTER_MODE_MASK_TAG, this.filterModeMask);
         tag.putBoolean(CHECK_METADATA_TAG, this.checkMetadata);
         tag.putBoolean(CHECK_OREDICT_TAG, this.checkOredict);
@@ -173,8 +167,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(this.level.registryAccess());
     }
 
     @Override
@@ -421,7 +415,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
                     block, tile.getBlockState(), this.level, this.pairedChest, true);
             return inventory == null ? null : new InvWrapper(inventory);
         }
-        IItemHandler handler = tile.getCapability(ForgeCapabilities.ITEM_HANDLER).resolve().orElse(null);
+        IItemHandler handler = ModCapabilities.get(tile, Capabilities.ItemHandler.BLOCK).orElse(null);
         if (handler != null) return handler;
         return tile instanceof net.minecraft.world.Container inventory ? new InvWrapper(inventory) : null;
     }
@@ -452,8 +446,8 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
             if (stack.getItem() instanceof LegacyEquipmentItem equipment
                     && equipment.family() == LegacyEquipmentFamily.DRUM && equipment.variantIndex() == 1) {
                 pumps++;
-                for (int i = 0; i < stack.getEnchantmentTags().size(); i++) {
-                    enchantments += stack.getEnchantmentTags().getCompound(i).getInt("lvl");
+                for (var enchantment : stack.getEnchantments().entrySet()) {
+                    enchantments += enchantment.getIntValue();
                 }
             }
         }
@@ -522,7 +516,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     private int transferFluidContainer(IItemHandler inventory, int slot, boolean toCrane, int limit) {
         ItemStack stack = inventory.getStackInSlot(slot);
         if (stack.isEmpty() || stack.getCount() != 1) return 0;
-        var optional = FluidUtil.getFluidHandler(stack.copy()).resolve();
+        var optional = FluidUtil.getFluidHandler(stack.copy());
         if (optional.isEmpty()) return 0;
         var container = optional.get();
         FluidTank preview = new FluidTank(this.tank.getCapacity());
@@ -607,7 +601,7 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
 
     private boolean fluidContainersDone(IItemHandler inventory, boolean full) {
         for (int slot = 0; slot < inventory.getSlots(); slot++) {
-            var handler = FluidUtil.getFluidHandler(inventory.getStackInSlot(slot)).resolve();
+            var handler = FluidUtil.getFluidHandler(inventory.getStackInSlot(slot));
             if (handler.isEmpty()) continue;
             for (int i = 0; i < handler.get().getTanks(); i++) {
                 FluidStack fluid = handler.get().getFluidInTank(i);
@@ -806,11 +800,11 @@ public class CraneBlockEntity extends BlockEntity implements RouteNode {
     }
 
     private static @Nullable BlockPos readOptionalPos(CompoundTag tag, String key) {
-        if (!tag.contains(key, Tag.TAG_COMPOUND)) {
-            return null;
+        if (tag.contains(key, Tag.TAG_COMPOUND)) {
+            CompoundTag pos = tag.getCompound(key);
+            return new BlockPos(pos.getInt("X"), pos.getInt("Y"), pos.getInt("Z"));
         }
-
-        return NbtUtils.readBlockPos(tag.getCompound(key));
+        return NbtUtils.readBlockPos(tag, key).orElse(null);
     }
 
     private static void writeOptionalPos(CompoundTag tag, String key, @Nullable BlockPos pos) {

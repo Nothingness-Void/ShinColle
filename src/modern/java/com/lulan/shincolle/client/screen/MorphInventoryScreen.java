@@ -896,7 +896,7 @@ private void drawAttributes()
         this.graphics = graphics;
         this.menu.getPresentation();
         updatePreview();
-        renderBackground(graphics);
+        renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
         renderTooltip(graphics, mouseX, mouseY);
         this.xMouse = mouseX; this.yMouse = mouseY;

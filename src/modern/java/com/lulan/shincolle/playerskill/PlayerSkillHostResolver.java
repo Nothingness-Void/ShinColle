@@ -33,7 +33,7 @@ public final class PlayerSkillHostResolver {
                     : PlayerSkillHostContext.none();
         }
 
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         MorphProfile profile = data != null && data.hasActiveMorph() ? data.getSelectedMorphProfile() : null;
         if (profile != null && ShinColleConfig.enableMetamorphSkill()) {
             return new PlayerSkillHostContext(MorphHostMode.MORPH, null, profile);

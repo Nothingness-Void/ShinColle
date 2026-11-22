@@ -30,7 +30,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -52,13 +51,12 @@ public final class MorphHelper {
 
     public static @Nullable MorphProfile getSelectedProfile(Player player) {
         return TeitokuHelper.get(player)
-                .resolve()
                 .map(TeitokuData::getSelectedMorphProfile)
                 .orElse(null);
     }
 
     public static @Nullable MorphProfile getActiveProfile(Player player) {
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         return data != null && data.hasActiveMorph() ? data.getSelectedMorphProfile() : null;
     }
 
@@ -73,8 +71,7 @@ public final class MorphHelper {
     }
 
     public static void openMorphScreen(ServerPlayer player) {
-        NetworkHooks.openScreen(player,
-                new SimpleMenuProvider(
+        player.openMenu(new SimpleMenuProvider(
                         (containerId, inventory, menuPlayer) -> new MorphInventoryMenu(containerId, inventory),
                         Component.translatable("gui.shincolle.morph_inventory.title")),
                 buffer -> buffer.writeVarInt(resolveSelectedClassId(player)));
@@ -168,7 +165,7 @@ public final class MorphHelper {
             return false;
         }
 
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data == null) {
             sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
             return false;
@@ -228,7 +225,7 @@ public final class MorphHelper {
             return false;
         }
 
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data == null) {
             sendSkillFailure(player, "chat.shincolle.skill.reason.no_host");
             return false;
@@ -627,13 +624,13 @@ public final class MorphHelper {
         }
     }
 
-    private static void applyModifier(ServerPlayer player, Attribute attribute, UUID id, String name, double amount) {
+    private static void applyModifier(ServerPlayer player, net.minecraft.core.Holder<Attribute> attribute, UUID id, String name, double amount) {
         AttributeInstance instance = player.getAttribute(attribute);
         if (instance == null) {
             return;
         }
 
-        AttributeModifier previous = instance.getModifier(id);
+        AttributeModifier previous = instance.getModifier(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("shincolle", id.toString()));
         if (previous != null) {
             instance.removeModifier(previous);
         }
@@ -642,16 +639,16 @@ public final class MorphHelper {
             return;
         }
 
-        instance.addTransientModifier(new AttributeModifier(id, name, amount, AttributeModifier.Operation.ADDITION));
+        instance.addTransientModifier(new AttributeModifier(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("shincolle", id.toString()), amount, AttributeModifier.Operation.ADD_VALUE));
     }
 
-    private static void clearModifier(ServerPlayer player, Attribute attribute, UUID id) {
+    private static void clearModifier(ServerPlayer player, net.minecraft.core.Holder<Attribute> attribute, UUID id) {
         AttributeInstance instance = player.getAttribute(attribute);
         if (instance == null) {
             return;
         }
 
-        AttributeModifier previous = instance.getModifier(id);
+        AttributeModifier previous = instance.getModifier(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("shincolle", id.toString()));
         if (previous != null) {
             instance.removeModifier(previous);
         }

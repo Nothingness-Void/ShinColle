@@ -64,11 +64,11 @@ public final class LegacyShipStaticEffectEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DATA_HOST_ID, -1);
-        this.entityData.define(DATA_LIFE_TICKS, 20);
-        this.entityData.define(DATA_PULL_FORCE, 0.12F);
-        this.entityData.define(DATA_RANGE, 4.0F);
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+        builder.define(DATA_HOST_ID, -1);
+        builder.define(DATA_LIFE_TICKS, 20);
+        builder.define(DATA_PULL_FORCE, 0.12F);
+        builder.define(DATA_RANGE, 4.0F);
     }
 
     @Override

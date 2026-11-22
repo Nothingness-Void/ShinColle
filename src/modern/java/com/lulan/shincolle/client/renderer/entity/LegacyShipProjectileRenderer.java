@@ -48,7 +48,7 @@ public class LegacyShipProjectileRenderer extends EntityRenderer<LegacyShipProje
         poseStack.scale(visual.renderScale(), visual.renderScale(), visual.renderScale());
 
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(this.getTextureLocation(entity)));
-        model.renderToBuffer(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
+        model.renderToBuffer(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, -1);
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }
@@ -161,8 +161,8 @@ public class LegacyShipProjectileRenderer extends EntityRenderer<LegacyShipProje
 
         @Override
         public void renderToBuffer(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay,
-                                   float red, float green, float blue, float alpha) {
-            this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
+                                   int color) {
+            this.root.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
         }
     }
 }

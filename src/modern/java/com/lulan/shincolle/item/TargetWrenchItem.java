@@ -1,5 +1,6 @@
 package com.lulan.shincolle.item;
 
+import com.lulan.shincolle.registry.ModCapabilities;
 import com.lulan.shincolle.blockentity.RouteNode;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
@@ -28,7 +29,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.neoforged.neoforge.capabilities.Capabilities;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -151,7 +152,8 @@ public class TargetWrenchItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.wrench.selection", describeSelection(stack)).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("gui.shincolle.wrench3").withStyle(ChatFormatting.GRAY));
     }
@@ -260,7 +262,7 @@ public class TargetWrenchItem extends Item {
             }
 
             if (blockEntity instanceof Container
-                    || (blockEntity != null && blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent())) {
+                    || (blockEntity != null && ModCapabilities.get(blockEntity, Capabilities.FluidHandler.BLOCK).isPresent())) {
                 return CONTAINER;
             }
 

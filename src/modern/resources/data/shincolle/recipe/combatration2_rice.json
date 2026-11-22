@@ -1,0 +1,46 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:not",
+      "value": {
+        "type": "neoforge:tag_empty",
+        "tag": "c:foods/cooked_rice"
+      }
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "food",
+  "group": "shincolle_rations",
+  "ingredients": [
+    {
+      "tag": "c:foods/cooked_rice"
+    },
+    [
+      {
+        "tag": "shincolle:cooked_meat"
+      },
+      {
+        "item": "minecraft:cod"
+      },
+      {
+        "item": "minecraft:salmon"
+      },
+      {
+        "item": "minecraft:pufferfish"
+      },
+      {
+        "item": "minecraft:tropical_fish"
+      }
+    ],
+    {
+      "item": "shincolle:grudge"
+    },
+    {
+      "item": "minecraft:golden_carrot"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "shincolle:combatration2"
+  }
+}

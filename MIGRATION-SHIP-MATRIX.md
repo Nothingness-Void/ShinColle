@@ -46,7 +46,7 @@ GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migrati
 | 20 | `EntityCarrierHime` | `EntityCarrierHime` | melee missile、mount、aura/heal、damage、air selection/capacity/recovery、launch height | LOCKED | boss runtime edge cases |
 | 21 | `EntityAirfieldHime` | `EntityAirfieldHime` | mount、heal、air attack、damage、legacy model source/bake、model state bit 1、0.7F launch height、实际mount waypoint/Pointer host选择GT | LOCKED | boss/runtime edge cases / independent LEVITATION API |
 | 26 | `EntityBattleshipHime` | `EntityBattleshipHime` | cluster heavy、mount、resistance aura、damage、legacy model source/bake、cluster projectile family | LOCKED | boss/runtime edge cases |
-| 27 | `EntityDestroyerHime` | `EntityDestroyerHime` | mount、blindness effect、damage、legacy model source/bake、model state bits 0-5 | LOCKED | boss/runtime edge cases；[获批陆上开腿，水中保留旧 bit4](migration_batches/rendering-backport-1.20.1/decision.md) |
+| 27 | `EntityDestroyerHime` | `EntityDestroyerHime` | mount、blindness effect、damage、legacy model source/bake、model state bits 0-5 | LOCKED | boss/runtime edge cases；[获批陆上开腿，水中保留旧 bit4](migration_batches/neoforge-1.21.1/decision.md) |
 | 28 | `EntityHarbourHime` | `EntityHarbourHime` | railgun、mount、heal/attack effect、damage、legacy model source/bake、0.7F launch height、railgun particle | LOCKED | boss/runtime edge cases |
 | 29 | `EntityIsolatedHime` | `EntityIsolatedHime` | black-hole effect、mount、dual attack effect、legacy model source/bake、model state bit 6 inverse rule | LOCKED | boss/runtime edge cases |
 | 30 | `EntityMidwayHime` | `EntityMidwayHime` | mount、air height、heal/absorption、special runtime、model source/state | LOCKED | full parity backlog |

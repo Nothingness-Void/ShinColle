@@ -24,10 +24,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.UUID;
 
@@ -37,7 +37,7 @@ public final class MorphAndTeamParityGameTests {
 
     private static ServerPlayer player(GameTestHelper helper) {
         ServerPlayer player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "ZeroTeamParity"));
-        TeitokuHelper.get(player).resolve().orElseThrow().setPlayerUid(98401);
+        TeitokuHelper.get(player).orElseThrow().setPlayerUid(98401);
         return player;
     }
 
@@ -56,7 +56,7 @@ public final class MorphAndTeamParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void pointerClientOwnershipUsesSyncedUuidWithoutNumericOwnerCache(GameTestHelper helper) throws Exception {
         ServerPlayer player = player(helper);
-        var data = TeitokuHelper.get(player).resolve().orElseThrow();
+        var data = TeitokuHelper.get(player).orElseThrow();
         data.clearCurrentTeam();
         var owned = ship(helper, player);
         owned.setVariantEggMeta(23);
@@ -97,7 +97,7 @@ public final class MorphAndTeamParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void pointerTargetConsumptionRetainsLegacyModifierFallthrough(GameTestHelper helper) {
         ServerPlayer player = player(helper);
-        var data = TeitokuHelper.get(player).resolve().orElseThrow();
+        var data = TeitokuHelper.get(player).orElseThrow();
         data.clearCurrentTeam();
         var owned = ship(helper, player);
         helper.getLevel().addFreshEntity(owned);
@@ -157,7 +157,7 @@ public final class MorphAndTeamParityGameTests {
         player.setXRot((float) Math.toDegrees(Math.atan2(
                 player.getEyeY() - transport.getY() - transport.getBbHeight() * 0.5D, 20.0D)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.POINTERITEM.get()));
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.clearCurrentTeam();
         BlockPos crane = origin.offset(4, 0, 0);
         helper.getLevel().setBlockAndUpdate(crane, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
@@ -229,7 +229,7 @@ public final class MorphAndTeamParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void zeroAcquisitionSelectionAndMigration(GameTestHelper helper) {
         ServerPlayer player = player(helper);
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         LegacyShipEntity ship = ship(helper, player);
         helper.assertTrue(ship.getShipClassId() == 0, "Destroyer I has class zero");
         ItemStack wrench = new ItemStack(ModItems.TARGETWRENCH.get());
@@ -273,7 +273,7 @@ public final class MorphAndTeamParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void currentTeamToggleHolesCursorAndOwnership(GameTestHelper helper) {
         ServerPlayer player = player(helper);
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         LegacyShipEntity[] ships = new LegacyShipEntity[8];
         for (int i = 0; i < ships.length; i++) {
             ships[i] = ship(helper, player);
@@ -321,7 +321,7 @@ public final class MorphAndTeamParityGameTests {
     @GameTest(template = "gameplayparitygametests.empty")
     public static void pointerAndNetworkUseCurrentTeamSemantics(GameTestHelper helper) {
         ServerPlayer player = player(helper);
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         LegacyShipEntity ship = ship(helper, player);
         LegacyShipEntity foreign = ship(helper, player);
         foreign.setOwner(UUID.randomUUID(), "Foreign", 98402);

@@ -252,7 +252,8 @@ public class PointerItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.pointer.current_mode", getModeName(getMode(stack))).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("gui.shincolle.pointer3").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("gui.shincolle.pointer.targetclass_note").withStyle(ChatFormatting.GRAY));
@@ -265,7 +266,7 @@ public class PointerItem extends Item {
     }
 
     public static int getMode(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         if (tag == null) {
             return 0;
         }
@@ -300,7 +301,7 @@ public class PointerItem extends Item {
     }
 
     public static void setMode(ItemStack stack, int mode) {
-        stack.getOrCreateTag().putInt(MODE_TAG, Math.max(0, Math.min(MAX_MODE, mode)));
+        LegacyItemData.update(stack, tag -> tag.putInt(MODE_TAG, Math.max(0, Math.min(MAX_MODE, mode))));
     }
 
     public static Component getModeName(int mode) {

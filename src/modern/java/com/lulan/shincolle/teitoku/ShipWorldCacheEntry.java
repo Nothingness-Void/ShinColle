@@ -203,7 +203,7 @@ public record ShipWorldCacheEntry(
             String serialized = this.entityTag.getString(CUSTOM_NAME_TAG);
             if (!serialized.isBlank()) {
                 try {
-                    Component component = Component.Serializer.fromJson(serialized);
+                    Component component = Component.Serializer.fromJson(serialized, net.minecraft.core.RegistryAccess.EMPTY);
                     if (component != null) {
                         return component;
                     }

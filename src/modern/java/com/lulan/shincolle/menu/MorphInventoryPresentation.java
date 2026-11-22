@@ -20,13 +20,14 @@ public final class MorphInventoryPresentation {
 
     public void refresh(Player player, MorphProfile profile) {
         this.player = player;
+        this.view.withRegistries(player.registryAccess());
         this.profile = profile;
         CompoundTag tag = new CompoundTag();
         if (profile != null) {
             ShipEntitySpec metadataSpec = profile.getSpec().hostile()
                     ? ShipEntitySpecs.friendlyCounterpart(profile.getSpec()) : profile.getSpec();
             tag.putInt("Egg", metadataSpec.eggMeta());
-            tag.putString("Name", Component.Serializer.toJson(profile.getSpec().displayName()));
+            tag.putString("Name", Component.Serializer.toJson(profile.getSpec().displayName(), player.registryAccess()));
             tag.putInt("Morale", profile.getMorale());
             tag.putFloat("Invisible", LegacyShipBehaviorCatalog.invisibleLevelFor(profile.getSpec()));
             tag.putBoolean("Nausea", player.hasEffect(MobEffects.CONFUSION));

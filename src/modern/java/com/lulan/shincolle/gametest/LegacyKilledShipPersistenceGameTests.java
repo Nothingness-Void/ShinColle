@@ -7,9 +7,9 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.mojang.authlib.GameProfile;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
@@ -19,14 +19,17 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.storage.EntityStorage;
+import net.minecraft.world.level.chunk.storage.SimpleRegionStorage;
+import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
 import net.minecraft.world.level.entity.ChunkEntities;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -66,12 +69,12 @@ public final class LegacyKilledShipPersistenceGameTests {
             if (event.getLevel() == nether && event.getEntity() instanceof LegacyShipEntity transferred
                     && transferred.getShipUid() == uid) destination.set(transferred);
         };
-        MinecraftForge.EVENT_BUS.addListener(listener);
+        NeoForge.EVENT_BUS.addListener(listener);
         try {
             source.getServer().getCommands().performPrefixedCommand(commandSource,
                     "execute in minecraft:the_nether run tp " + uuid + " " + x + " 100 " + z);
         } finally {
-            MinecraftForge.EVENT_BUS.unregister(listener);
+            NeoForge.EVENT_BUS.unregister(listener);
         }
         helper.assertTrue(ship.isRemoved(), "actual cross-dimension teleport must replace the source entity");
         helper.assertTrue(destination.get() != null, "teleport must join an actual destination ship with the original UID");
@@ -163,9 +166,10 @@ public final class LegacyKilledShipPersistenceGameTests {
                 helper.getLevel().addFreshEntity(ship);
                 ship.getRandom().setSeed(0L);
                 helper.getLevel().getServer().getCommands().performPrefixedCommand(
-                        helper.getLevel().getServer().createCommandSourceStack().withSuppressedOutput(),
+                        helper.getLevel().getServer().createCommandSourceStack(),
                         "kill " + ship.getStringUUID());
-                helper.assertTrue(!ship.isAlive() && ship.getHealth() == 0, "actual /kill must leave zero health");
+                helper.assertTrue(!ship.isAlive() && ship.getHealth() == 0, "actual /kill must leave zero health: " + egg + "/" + elapsed
+                        + " hp=" + ship.getHealth() + " tracked=" + (helper.getLevel().getEntity(ship.getUUID()) == ship));
                 for (int tick = 0; tick < elapsed; tick++) ship.tick();
                 helper.assertTrue(!ship.isRemoved(), "save fixture must be a pending corpse, not an already removed entity");
                 int savedDeathTime = ship.deathTime;
@@ -270,6 +274,8 @@ public final class LegacyKilledShipPersistenceGameTests {
     }
 
     private static EntityStorage storage(ServerLevel level, Path directory) {
-        return new EntityStorage(level, directory, DataFixers.getDataFixer(), false, Runnable::run);
+        return new EntityStorage(new SimpleRegionStorage(
+                new RegionStorageInfo("shincolle-kill-test", level.dimension(), "entities"),
+                directory, DataFixers.getDataFixer(), false, DataFixTypes.ENTITY_CHUNK), level, Runnable::run);
     }
 }

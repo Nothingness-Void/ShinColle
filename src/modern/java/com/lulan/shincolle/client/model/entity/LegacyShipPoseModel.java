@@ -15,8 +15,6 @@ import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -51,14 +49,17 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
 
     @Override
     public void renderToBuffer(PoseStack poses, VertexConsumer vertices, int light, int overlay,
-                               float red, float green, float blue, float alpha) {
+                               int color) {
+        float red = (color >> 16 & 255) / 255.0F;
+        float green = (color >> 8 & 255) / 255.0F;
+        float blue = (color & 255) / 255.0F;
+        float alpha = (color >>> 24) / 255.0F;
         ModelBase model = getLegacyModel(entity);
         model.swingProgress = attackTime;
         model.isRiding = riding;
         model.isChild = young;
         Entity legacyEntity = Entity.wrap(entity);
-        Matrix4f miscPose = model instanceof ModelMidwayHime ? new Matrix4f(poses.last().pose()) : null;
-        Matrix3f miscNormal = model instanceof ModelMidwayHime ? new Matrix3f(poses.last().normal()) : null;
+        PoseStack.Pose miscPose = model instanceof ModelMidwayHime ? poses.last().copy() : null;
         LegacyRenderContext.begin(poses, vertices, light, overlay, red, green, blue, alpha);
         try {
             // RenderLivingBase applied the pose before render(), which also applies its own scaled pose.
@@ -76,8 +77,8 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
             Entity tako = midway.miscModelList.get(0).entity;
             poses.pushPose();
             try {
-                poses.last().pose().set(miscPose);
-                poses.last().normal().set(miscNormal);
+                poses.last().pose().set(miscPose.pose());
+                poses.last().normal().set(miscPose.normal());
                 poses.translate(0D, 1.501D, 0D);
                 poses.scale(-1F, -1F, 1F);
                 poses.translate(tako.posX, tako.posY, tako.posZ);

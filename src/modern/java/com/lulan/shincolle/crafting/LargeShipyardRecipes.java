@@ -1,5 +1,6 @@
 package com.lulan.shincolle.crafting;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
@@ -12,7 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -137,8 +138,8 @@ public final class LargeShipyardRecipes {
 
         if (stack.is(ModBlocks.BLOCK_GRUDGE_HEAVY.get().asItem())) {
             int[] values = new int[]{81, 0, 0, 0};
-            if (stack.hasTag()) {
-                int[] mats = stack.getTag().getIntArray("mats");
+            if (LegacyItemData.hasTag(stack)) {
+                int[] mats = LegacyItemData.getTag(stack).getIntArray("mats");
                 for (int i = 0; i < values.length && i < mats.length; i++) {
                     values[i] += mats[i];
                 }
@@ -201,7 +202,7 @@ public final class LargeShipyardRecipes {
             drops = legacyEggKaitaiDrops(90, random);
         } else {
             int eggMeta;
-            CompoundTag tag = stack.getTag();
+            CompoundTag tag = LegacyItemData.getTag(stack);
             if (tag != null && tag.contains(LegacyShipSpawnEggItem.VARIANT_EGG_META_TAG)) {
                 eggMeta = tag.getInt(LegacyShipSpawnEggItem.VARIANT_EGG_META_TAG);
             } else if (path.startsWith("shipegg")) {
@@ -315,7 +316,7 @@ public final class LargeShipyardRecipes {
                 return true;
             }
 
-            if (ItemStack.isSameItemSameTags(current, output) && current.getCount() < current.getMaxStackSize()) {
+            if (ItemStack.isSameItemSameComponents(current, output) && current.getCount() < current.getMaxStackSize()) {
                 current.grow(1);
                 items.setStackInSlot(slot, current);
                 return true;
@@ -433,13 +434,13 @@ public final class LargeShipyardRecipes {
         }
     }
 
-    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random) {
+    public static ItemStack createBuildResult(int buildType, int[] materialAmounts, RandomSource random, net.minecraft.core.HolderLookup.Provider registries) {
         if (ShipyardBuildTypes.isShipMode(buildType)) {
             return createShipEgg(materialAmounts);
         }
 
         if (ShipyardBuildTypes.isEquipMode(buildType)) {
-            return LegacyEquipmentBuildHelper.buildLargeResult(materialAmounts, random);
+            return LegacyEquipmentBuildHelper.buildLargeResult(materialAmounts, random, registries);
         }
 
         return ItemStack.EMPTY;
@@ -449,7 +450,7 @@ public final class LargeShipyardRecipes {
         ItemStack egg = new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get());
         CompoundTag tag = new CompoundTag();
         LegacyShipConstructionHelper.writeMaterialAmounts(tag, materialAmounts);
-        egg.setTag(tag);
+        LegacyItemData.setTag(egg, tag);
         return egg;
     }
 }

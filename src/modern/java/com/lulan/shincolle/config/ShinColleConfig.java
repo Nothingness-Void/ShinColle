@@ -1,6 +1,6 @@
 package com.lulan.shincolle.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.Arrays;
 import java.util.List;
@@ -8,24 +8,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 1.12.2 ConfigHandler parity backed by ForgeConfigSpec (COMMON + CLIENT),
+ * 1.12.2 ConfigHandler parity backed by ModConfigSpec (COMMON + CLIENT),
  * with safe pre-load fallbacks and deterministic GameTest overrides.
  */
 public final class ShinColleConfig {
 
-    public static final ForgeConfigSpec COMMON_SPEC;
-    public static final ForgeConfigSpec CLIENT_SPEC;
+    public static final ModConfigSpec COMMON_SPEC;
+    public static final ModConfigSpec CLIENT_SPEC;
     public static final Common COMMON;
     public static final Client CLIENT;
 
     private static final Map<String, Object> TEST_OVERRIDES = new ConcurrentHashMap<>();
 
     static {
-        ForgeConfigSpec.Builder commonBuilder = new ForgeConfigSpec.Builder();
+        ModConfigSpec.Builder commonBuilder = new ModConfigSpec.Builder();
         COMMON = new Common(commonBuilder);
         COMMON_SPEC = commonBuilder.build();
 
-        ForgeConfigSpec.Builder clientBuilder = new ForgeConfigSpec.Builder();
+        ModConfigSpec.Builder clientBuilder = new ModConfigSpec.Builder();
         CLIENT = new Client(clientBuilder);
         CLIENT_SPEC = clientBuilder.build();
     }
@@ -62,7 +62,7 @@ public final class ShinColleConfig {
     public static double[] tileCrane() { return numericList("tileCrane", COMMON.tileCrane, 2048000, 160000000); }
     public static int shipTankCapacity(int tier) { return (int) numericList("itemShipTank", COMMON.itemShipTank, 32000, 128000, 512000, 2048000)[tier]; }
 
-    private static double[] numericList(String key, ForgeConfigSpec.ConfigValue<List<? extends Number>> value, double... fallback) {
+    private static double[] numericList(String key, ModConfigSpec.ConfigValue<List<? extends Number>> value, double... fallback) {
         Object loaded = TEST_OVERRIDES.get(key);
         if (loaded instanceof int[] ints && ints.length == fallback.length) {
             return Arrays.stream(ints).asDoubleStream().toArray();
@@ -235,7 +235,7 @@ public final class ShinColleConfig {
         return intArray("mobSpawn", COMMON.mobSpawn, new int[]{50, 10, 1, 1, 1});
     }
 
-    static int[] intArray(String key, ForgeConfigSpec.ConfigValue<List<? extends Number>> value, int[] fallback) {
+    static int[] intArray(String key, ModConfigSpec.ConfigValue<List<? extends Number>> value, int[] fallback) {
         Object override = TEST_OVERRIDES.get(key);
         if (override instanceof int[] ints && ints.length >= fallback.length) {
             return Arrays.copyOf(ints, fallback.length);
@@ -396,7 +396,7 @@ public final class ShinColleConfig {
         return value instanceof List<?> list && list.size() == 4 && list.stream().allMatch(Number.class::isInstance);
     }
 
-    private static boolean getBoolean(String key, ForgeConfigSpec spec, ForgeConfigSpec.BooleanValue value, boolean fallback) {
+    private static boolean getBoolean(String key, ModConfigSpec spec, ModConfigSpec.BooleanValue value, boolean fallback) {
         Object override = TEST_OVERRIDES.get(key);
         if (override instanceof Boolean bool) {
             return bool;
@@ -410,7 +410,7 @@ public final class ShinColleConfig {
         return fallback;
     }
 
-    private static int getInt(String key, ForgeConfigSpec spec, ForgeConfigSpec.IntValue value, int fallback) {
+    private static int getInt(String key, ModConfigSpec spec, ModConfigSpec.IntValue value, int fallback) {
         Object override = TEST_OVERRIDES.get(key);
         if (override instanceof Number num) {
             return num.intValue();
@@ -424,7 +424,7 @@ public final class ShinColleConfig {
         return fallback;
     }
 
-    private static double getDouble(String key, ForgeConfigSpec spec, ForgeConfigSpec.DoubleValue value, double fallback) {
+    private static double getDouble(String key, ModConfigSpec spec, ModConfigSpec.DoubleValue value, double fallback) {
         Object override = TEST_OVERRIDES.get(key);
         if (override instanceof Number num) {
             return num.doubleValue();
@@ -440,61 +440,61 @@ public final class ShinColleConfig {
 
     public static final class Common {
 
-        public final ForgeConfigSpec.BooleanValue canTeleport;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> shipTeleport;
-        public final ForgeConfigSpec.BooleanValue friendlyFire;
-        public final ForgeConfigSpec.IntValue shipAttackPlayer;
-        public final ForgeConfigSpec.BooleanValue mobAttackPlayer;
-        public final ForgeConfigSpec.IntValue dmgSvS;
-        public final ForgeConfigSpec.BooleanValue easyMode;
-        public final ForgeConfigSpec.IntValue kaitaiAmountSmall;
-        public final ForgeConfigSpec.IntValue kaitaiAmountLarge;
-        public final ForgeConfigSpec.BooleanValue polyAsMn;
-        public final ForgeConfigSpec.IntValue radarUpdate;
-        public final ForgeConfigSpec.IntValue chunkloaderMode;
-        public final ForgeConfigSpec.IntValue closeGuiDist;
-        public final ForgeConfigSpec.IntValue bossCooldown;
-        public final ForgeConfigSpec.IntValue teamCooldown;
-        public final ForgeConfigSpec.IntValue shipNumPerPage;
-        public final ForgeConfigSpec.IntValue pairDistChest;
-        public final ForgeConfigSpec.IntValue pairDistWp;
-        public final ForgeConfigSpec.IntValue spawnBossNum;
-        public final ForgeConfigSpec.IntValue spawnMobNum;
-        public final ForgeConfigSpec.IntValue despawnBoss;
-        public final ForgeConfigSpec.IntValue despawnMinion;
-        public final ForgeConfigSpec.IntValue baseCaressMorale;
-        public final ForgeConfigSpec.IntValue itemGrudge;
-        public final ForgeConfigSpec.IntValue itemLightAmmo;
-        public final ForgeConfigSpec.IntValue itemHeavyAmmo;
-        public final ForgeConfigSpec.IntValue modernLimit;
-        public final ForgeConfigSpec.IntValue maxDmgOnPlayer;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
-        public final ForgeConfigSpec.DoubleValue dropGrudge;
-        public final ForgeConfigSpec.IntValue despawnEgg;
-        public final ForgeConfigSpec.IntValue deathMaxTick;
-        public final ForgeConfigSpec.IntValue polyGravelBaseRate;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
-        public final ForgeConfigSpec.BooleanValue checkRing;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> mobSpawn;
-        public final ForgeConfigSpec.BooleanValue enableMetamorphSkill;
-        public final ForgeConfigSpec.DoubleValue expGainPlayerSkill;
-        public final ForgeConfigSpec.DoubleValue morphHpRatio;
-        public final ForgeConfigSpec.DoubleValue morphDmgTakenRatio;
+        public final ModConfigSpec.BooleanValue canTeleport;
+        public final ModConfigSpec.ConfigValue<List<? extends Integer>> shipTeleport;
+        public final ModConfigSpec.BooleanValue friendlyFire;
+        public final ModConfigSpec.IntValue shipAttackPlayer;
+        public final ModConfigSpec.BooleanValue mobAttackPlayer;
+        public final ModConfigSpec.IntValue dmgSvS;
+        public final ModConfigSpec.BooleanValue easyMode;
+        public final ModConfigSpec.IntValue kaitaiAmountSmall;
+        public final ModConfigSpec.IntValue kaitaiAmountLarge;
+        public final ModConfigSpec.BooleanValue polyAsMn;
+        public final ModConfigSpec.IntValue radarUpdate;
+        public final ModConfigSpec.IntValue chunkloaderMode;
+        public final ModConfigSpec.IntValue closeGuiDist;
+        public final ModConfigSpec.IntValue bossCooldown;
+        public final ModConfigSpec.IntValue teamCooldown;
+        public final ModConfigSpec.IntValue shipNumPerPage;
+        public final ModConfigSpec.IntValue pairDistChest;
+        public final ModConfigSpec.IntValue pairDistWp;
+        public final ModConfigSpec.IntValue spawnBossNum;
+        public final ModConfigSpec.IntValue spawnMobNum;
+        public final ModConfigSpec.IntValue despawnBoss;
+        public final ModConfigSpec.IntValue despawnMinion;
+        public final ModConfigSpec.IntValue baseCaressMorale;
+        public final ModConfigSpec.IntValue itemGrudge;
+        public final ModConfigSpec.IntValue itemLightAmmo;
+        public final ModConfigSpec.IntValue itemHeavyAmmo;
+        public final ModConfigSpec.IntValue modernLimit;
+        public final ModConfigSpec.IntValue maxDmgOnPlayer;
+        public final ModConfigSpec.ConfigValue<List<? extends Integer>> ringAbility;
+        public final ModConfigSpec.DoubleValue dropGrudge;
+        public final ModConfigSpec.IntValue despawnEgg;
+        public final ModConfigSpec.IntValue deathMaxTick;
+        public final ModConfigSpec.IntValue polyGravelBaseRate;
+        public final ModConfigSpec.ConfigValue<List<? extends Boolean>> polyGravelBaseBlock;
+        public final ModConfigSpec.BooleanValue checkRing;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> mobSpawn;
+        public final ModConfigSpec.BooleanValue enableMetamorphSkill;
+        public final ModConfigSpec.DoubleValue expGainPlayerSkill;
+        public final ModConfigSpec.DoubleValue morphHpRatio;
+        public final ModConfigSpec.DoubleValue morphDmgTakenRatio;
 
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> attrsScale;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallMob;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeMob;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallBoss;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeBoss;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileVolCore;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> tileCrane;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> drumLiquid;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> expGain;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Number>> itemShipTank;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsScale;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallMob;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeMob;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallBoss;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeBoss;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> tileVolCore;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> tileCrane;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> drumLiquid;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> expGain;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> itemShipTank;
 
-        private Common(ForgeConfigSpec.Builder builder) {
+        private Common(ModConfigSpec.Builder builder) {
             builder.push("general");
             this.attrsScale = builder.defineList("Attrs_Scale", List.of(1D, 1D, 1D, 1D, 1D, 1D), entry -> entry instanceof Number);
             this.attrsHostileSmallMob = builder.defineList("Attrs_Hostile_SmallMob", List.of(250D, 25D, 0.15D, 0.7D, 0.45D, 12D), entry -> entry instanceof Number);
@@ -639,20 +639,20 @@ public final class ShinColleConfig {
 
     public static final class Client {
 
-        public final ForgeConfigSpec.BooleanValue canFlare;
-        public final ForgeConfigSpec.BooleanValue canSearchlight;
-        public final ForgeConfigSpec.BooleanValue timeKeeping;
-        public final ForgeConfigSpec.BooleanValue useWakamoto;
-        public final ForgeConfigSpec.BooleanValue showTag;
-        public final ForgeConfigSpec.IntValue nameTagDist;
-        public final ForgeConfigSpec.BooleanValue alwaysShowTeamParticle;
-        public final ForgeConfigSpec.DoubleValue volumeTimekeep;
-        public final ForgeConfigSpec.DoubleValue volumeShip;
-        public final ForgeConfigSpec.DoubleValue volumeFire;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Double>> scaleHeldItem;
-        public final ForgeConfigSpec.ConfigValue<List<? extends Double>> posHUD;
+        public final ModConfigSpec.BooleanValue canFlare;
+        public final ModConfigSpec.BooleanValue canSearchlight;
+        public final ModConfigSpec.BooleanValue timeKeeping;
+        public final ModConfigSpec.BooleanValue useWakamoto;
+        public final ModConfigSpec.BooleanValue showTag;
+        public final ModConfigSpec.IntValue nameTagDist;
+        public final ModConfigSpec.BooleanValue alwaysShowTeamParticle;
+        public final ModConfigSpec.DoubleValue volumeTimekeep;
+        public final ModConfigSpec.DoubleValue volumeShip;
+        public final ModConfigSpec.DoubleValue volumeFire;
+        public final ModConfigSpec.ConfigValue<List<? extends Double>> scaleHeldItem;
+        public final ModConfigSpec.ConfigValue<List<? extends Double>> posHUD;
 
-        private Client(ForgeConfigSpec.Builder builder) {
+        private Client(ModConfigSpec.Builder builder) {
             builder.push("client");
             this.canFlare = builder.define("canFlare", true);
             this.canSearchlight = builder.define("canSearchlight", true);

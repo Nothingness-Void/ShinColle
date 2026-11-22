@@ -82,7 +82,7 @@ public class ShipInventoryMenu extends AbstractContainerMenu {
         this.shipUid = shipUid > 0 ? shipUid : resolveInitialShipUid(playerInventory, shipId);
         this.ship = resolveShip(playerInventory, shipId, this.shipUid);
         this.shipInventory = this.ship != null ? this.ship.getShipInventory() : new SimpleContainer(LegacyShipEntity.SHIP_INVENTORY_SIZE);
-        this.presentation.apply(ShipInventoryPresentation.capture(this.ship));
+        this.presentation.withRegistries(playerInventory.player.registryAccess()).apply(ShipInventoryPresentation.capture(this.ship));
 
         checkContainerSize(this.shipInventory, LegacyShipEntity.SHIP_SLOT_COUNT);
         this.shipInventory.startOpen(playerInventory.player);

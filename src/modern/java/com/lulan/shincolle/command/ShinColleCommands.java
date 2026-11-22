@@ -34,7 +34,7 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -345,7 +345,7 @@ public final class ShinColleCommands {
 
         spawned.setVariantEggMeta(spec.eggMeta());
         spawned.moveTo(senderPos.x, senderPos.y + 0.5D, senderPos.z, 0.0F, 0.0F);
-        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(senderPos)), MobSpawnType.COMMAND, null, null);
+        spawned.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(senderPos)), MobSpawnType.COMMAND, null);
         // Legacy EntityHelper.createShipEntity: full health first, then the saved NBT restores stored HP.
         spawned.setHealth(spawned.getMaxHealth());
         if (!entry.entityTag().isEmpty()) {

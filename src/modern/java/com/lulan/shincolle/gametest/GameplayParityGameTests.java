@@ -1,5 +1,7 @@
 package com.lulan.shincolle.gametest;
 
+import com.lulan.shincolle.registry.ModCapabilities;
+import com.lulan.shincolle.item.LegacyItemData;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -117,7 +119,7 @@ import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import com.lulan.shincolle.item.LegacyPotionData;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -130,16 +132,17 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -201,11 +204,19 @@ import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition;
+import net.neoforged.neoforge.common.crafting.CraftingHelper;
+import net.neoforged.neoforge.common.conditions.ICondition;
 
 @GameTestHolder(ShinColle.MOD_ID)
 public final class GameplayParityGameTests {
+
+    private static int executeCommand(net.minecraft.commands.Commands commands, CommandSourceStack source, String input) {
+        try {
+            return commands.getDispatcher().execute(input, source);
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
+            return 0;
+        }
+    }
 
     private GameplayParityGameTests() {
     }
@@ -217,11 +228,11 @@ public final class GameplayParityGameTests {
         UUID shipId = UUID.randomUUID();
         helper.assertTrue(fresh.getOrCreateUid(playerId, "First") == 100, "player UID starts at 100");
         helper.assertTrue(fresh.getOrCreateShipUid(shipId) == 100, "ship UID starts at 100");
-        TeitokuSavedData loaded = TeitokuSavedData.load(fresh.save(new CompoundTag()));
+        TeitokuSavedData loaded = TeitokuSavedData.load(fresh.save(new CompoundTag(), helper.getLevel().registryAccess()));
         helper.assertTrue(loaded.getOrCreateUid(playerId, "First") == 100, "known player keeps UID");
         helper.assertTrue(loaded.getOrCreateUid(UUID.randomUUID(), "Second") == 101, "healthy counter is not shifted");
         helper.assertTrue(loaded.getOrCreateShipUid(UUID.randomUUID()) == 101, "healthy ship counter is not shifted");
-        CompoundTag damaged = fresh.save(new CompoundTag());
+        CompoundTag damaged = fresh.save(new CompoundTag(), helper.getLevel().registryAccess());
         damaged.putInt("NextPlayerUID", 100);
         damaged.putInt("NextShipUID", 0);
         TeitokuSavedData recovered = TeitokuSavedData.load(damaged);
@@ -236,7 +247,7 @@ public final class GameplayParityGameTests {
                 "UID below 100 is invalid and reassigned");
         helper.assertTrue(invalid.getOrCreateShipUid(shipId) == 100, "invalid ship UID is reassigned");
         ServerPlayer player = makeServerBackedPlayer(helper, "LostRegistry");
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.setPlayerUid(700);
         TeitokuSavedData lost = new TeitokuSavedData();
         helper.assertTrue(lost.getOrCreateUid(player) == 700, "player capability survives lost registry");
@@ -251,20 +262,18 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void periodicPlayerUidAndPointerRefreshMatchLegacy(GameTestHelper helper) {
         ServerPlayer player = makeServerBackedPlayer(helper, "PeriodicUID");
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.setPlayerUid(99);
         data.setShipIdsInitialized(false);
         player.tickCount = 31;
-        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                net.minecraftforge.event.TickEvent.Phase.START, player));
+        TeitokuEvents.onPeriodicPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
         helper.assertTrue(data.getPlayerUid() == 99 && !data.areShipIdsInitialized(), "no periodic work on tick 31");
         player.tickCount = 32;
-        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                net.minecraftforge.event.TickEvent.Phase.START, player));
+        TeitokuEvents.onPeriodicPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
         helper.assertTrue(data.getPlayerUid() >= 100 && data.areShipIdsInitialized(), "32 tick UID check and first 16 tick SID init");
         BlockPos pos = helper.absolutePos(new BlockPos(2, 2, 2));
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, pos.getX(), pos.getY(), pos.getZ());
-        LegacyShipEntity other = createOwnedShip(helper, helper.makeMockPlayer(), 58, pos.getX() + 2, pos.getY(), pos.getZ());
+        LegacyShipEntity other = createOwnedShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 58, pos.getX() + 2, pos.getY(), pos.getZ());
         TeitokuHelper.refreshShipCache(ship, false);
         TeitokuHelper.refreshShipCache(other, false);
         data.setShipUid(0, 0, ship.getShipUid());
@@ -273,19 +282,16 @@ public final class GameplayParityGameTests {
         data.setShipUid(0, 2, 999999);
         data.setCurrentTeamId(0);
         player.tickCount = 64;
-        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                net.minecraftforge.event.TickEvent.Phase.START, player));
+        TeitokuEvents.onPeriodicPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
         helper.assertTrue(data.getShipUid(0, 0) == ship.getShipUid() && data.getShipUid(0, 1) == -1
                         && data.getShipUid(0, 2) == 999999,
                 "tick 64 keeps owned and unloaded slots, removes loaded foreign ship");
         data.setShipUid(0, 1, other.getShipUid());
         player.tickCount = 128;
-        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                net.minecraftforge.event.TickEvent.Phase.START, player));
+        TeitokuEvents.onPeriodicPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
         helper.assertTrue(data.getShipUid(0, 1) == other.getShipUid(), "128 tick name sync does not refresh team");
         player.tickCount = 256;
-        TeitokuEvents.onPeriodicPlayerTick(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                net.minecraftforge.event.TickEvent.Phase.START, player));
+        TeitokuEvents.onPeriodicPlayerTick(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
         helper.assertTrue(data.getShipUid(0, 1) == -1, "256 tick refresh removes foreign ship");
         ship.discard();
         other.discard();
@@ -295,7 +301,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void ringScanAndLiquidDigMatchLegacy(GameTestHelper helper) {
         ServerPlayer player = makeServerBackedPlayer(helper, "RingScan");
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         player.getInventory().clearContent();
         player.setPos(helper.absolutePos(new BlockPos(1, 2, 1)).getX() + 0.5D,
                 helper.absolutePos(new BlockPos(1, 2, 1)).getY(),
@@ -303,26 +309,24 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlockAndUpdate(player.blockPosition(), Blocks.WATER.defaultBlockState());
         player.tickCount = 16;
         ItemStack inactive = new ItemStack(ModItems.MARRIAGERING.get());
-        inactive.getOrCreateTag().putBoolean("isActive", false);
+        LegacyItemData.update(inactive, tag -> tag.putBoolean("isActive", false));
         ItemStack active = new ItemStack(ModItems.MARRIAGERING.get());
-        active.getOrCreateTag().putBoolean("isActive", true);
+        LegacyItemData.update(active, tag -> tag.putBoolean("isActive", true));
         player.getInventory().setItem(0, inactive);
         player.getInventory().setItem(1, active);
         data.setMarriageNum(40);
         try {
             ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
-            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                    net.minecraftforge.event.TickEvent.Phase.START, player));
+            TeitokuEvents.onRingScan(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
             helper.assertTrue(data.hasRing() && !data.isRingActive(), "first inventory ring wins even if inactive");
             player.getInventory().setItem(0, active);
-            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                    net.minecraftforge.event.TickEvent.Phase.START, player));
-            var speed = new net.minecraftforge.event.entity.player.PlayerEvent.BreakSpeed(
+            TeitokuEvents.onRingScan(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
+            var speed = new net.neoforged.neoforge.event.entity.player.PlayerEvent.BreakSpeed(
                     player, Blocks.STONE.defaultBlockState(), 2.0F, player.blockPosition());
             TeitokuEvents.onBreakSpeed(speed);
             helper.assertTrue(speed.getNewSpeed() == 70.0F, "dig boost uses original speed, factor five and capped marriages");
             ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 0, 20, 12});
-            var disabled = new net.minecraftforge.event.entity.player.PlayerEvent.BreakSpeed(
+            var disabled = new net.neoforged.neoforge.event.entity.player.PlayerEvent.BreakSpeed(
                     player, Blocks.STONE.defaultBlockState(), 2.0F, player.blockPosition());
             TeitokuEvents.onBreakSpeed(disabled);
             helper.assertTrue(disabled.getNewSpeed() == 2.0F, "zero dig cap disables boost");
@@ -330,8 +334,7 @@ public final class GameplayParityGameTests {
             player.getAbilities().flying = true;
             player.getAbilities().mayfly = true;
             data.setRingFlying(true);
-            TeitokuEvents.onRingScan(new net.minecraftforge.event.TickEvent.PlayerTickEvent(
-                    net.minecraftforge.event.TickEvent.Phase.START, player));
+            TeitokuEvents.onRingScan(new net.neoforged.neoforge.event.tick.PlayerTickEvent.Pre(player));
             helper.assertTrue(!data.hasRing() && !player.getAbilities().flying
                     && player.getAbilities().mayfly && data.isRingFlying(), "ring loss clears only isFlying as in legacy");
             TeitokuHelper.markRingState(player, false);
@@ -347,9 +350,9 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void ringWaterFlightNeverGrantsCreativeFlightPermission(GameTestHelper helper) {
         ServerPlayer player = makeServerBackedPlayer(helper, "RingWaterFlight");
-        var data = TeitokuHelper.get(player).resolve().orElseThrow();
+        var data = TeitokuHelper.get(player).orElseThrow();
         var ring = new ItemStack(ModItems.MARRIAGERING.get());
-        ring.getOrCreateTag().putBoolean("isActive", true);
+        LegacyItemData.update(ring, tag -> tag.putBoolean("isActive", true));
         player.getInventory().setItem(player.getInventory().selected, ring);
         data.setHasRing(true);
         data.setRingActive(true);
@@ -376,7 +379,7 @@ public final class GameplayParityGameTests {
             helper.assertTrue(!player.getAbilities().flying && !data.isRingFlying()
                             && !player.getAbilities().mayfly,
                     "disabling the ring cannot leave double-jump flight permission");
-            ring.getOrCreateTag().putBoolean("isActive", true);
+            LegacyItemData.update(ring, tag -> tag.putBoolean("isActive", true));
             data.setRingActive(true);
             MarriageRingItem.tickActiveRingEffects(player, ring);
             player.setPos(wet.getX() + 3.5D, wet.getY() + 0.1D, wet.getZ() + 0.5D);
@@ -408,31 +411,31 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void ringFireAndMountDamageMatchLegacy(GameTestHelper helper) {
-        ServerPlayer player = makeServerBackedPlayer(helper, "RingDamage");
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        ServerPlayer player = makeRidingPlayer(helper, "RingDamage");
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.setHasRing(true);
         data.setRingActive(true);
         data.setMarriageNum(12);
         try {
             ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
-            player.setSecondsOnFire(20);
-            var fire = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            player.igniteForSeconds(20);
+            var fire = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().lava(), 4));
             TeitokuEvents.onLivingAttack(fire);
             helper.assertTrue(fire.isCanceled() && !player.isOnFire(), "ring cancels fire and extinguishes at threshold");
             data.setMarriageNum(11);
-            var below = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            var below = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().lava(), 4));
             TeitokuEvents.onLivingAttack(below);
             helper.assertTrue(!below.isCanceled(), "below threshold fire remains");
             data.setHasRing(false);
-            var absent = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().lava(), 4);
+            var absent = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().lava(), 4));
             TeitokuEvents.onLivingAttack(absent);
             helper.assertTrue(!absent.isCanceled(), "missing ring cannot block fire");
             for (Entity mount : new Entity[] {
                     ModEntityTypes.LEGACY_SHIP_MOUNT.get().create(helper.getLevel())}) {
                 player.startRiding(mount, true);
-                var fall = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().fall(), 4);
-                var wall = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().inWall(), 4);
-                var other = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().generic(), 4);
+                var fall = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().fall(), 4));
+                var wall = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().inWall(), 4));
+                var other = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().generic(), 4));
                 TeitokuEvents.onLivingAttack(fall);
                 TeitokuEvents.onLivingAttack(wall);
                 TeitokuEvents.onLivingAttack(other);
@@ -440,7 +443,7 @@ public final class GameplayParityGameTests {
                 player.stopRiding();
                 mount.discard();
             }
-            var unmounted = new net.minecraftforge.event.entity.living.LivingAttackEvent(player, player.damageSources().fall(), 4);
+            var unmounted = new net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent(player, new net.neoforged.neoforge.common.damagesource.DamageContainer(player.damageSources().fall(), 4));
             TeitokuEvents.onLivingAttack(unmounted);
             helper.assertTrue(!unmounted.isCanceled(), "unmounted player retains fall damage");
         } finally {
@@ -599,7 +602,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void deskMenuProjectsLegacyTeamAndTargetData(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         int playerUid = 8121;
 
         if (!configureTeitoku(helper, player, data -> {
@@ -879,7 +882,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipRingEffectToggleSuppressesLegacyMarriagePassiveAndPersists(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         player.setPos(2.0D, 2.0D, 2.0D);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8104))) {
             return;
@@ -987,7 +990,7 @@ public final class GameplayParityGameTests {
             helper.fail("untagged rings must be inactive");
             return;
         }
-        ring.getOrCreateTag().putBoolean("isActive", true);
+        LegacyItemData.update(ring, tag -> tag.putBoolean("isActive", true));
         if (!com.lulan.shincolle.item.MarriageRingItem.isActive(ring)) {
             helper.fail("legacy isActive ring NBT must be recognized");
             return;
@@ -1015,8 +1018,7 @@ public final class GameplayParityGameTests {
         ServerPlayer player = makeServerBackedPlayer(helper, "FinalTankWrench");
         BlockPos machinePos = helper.absolutePos(new BlockPos(2, 2, 2));
         helper.getLevel().setBlock(machinePos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), 3);
-        var machine = helper.getLevel().getBlockEntity(machinePos)
-                .getCapability(ForgeCapabilities.FLUID_HANDLER, Direction.UP).orElseThrow(IllegalStateException::new);
+        var machine = java.util.Optional.ofNullable(helper.getLevel().getCapability(Capabilities.FluidHandler.BLOCK, machinePos, Direction.UP)).orElseThrow(IllegalStateException::new);
         ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
         var tankHandler = FluidUtil.getFluidHandler(tank).orElseThrow(IllegalStateException::new);
         tankHandler.fill(new FluidStack(Fluids.LAVA, 1000), IFluidHandler.FluidAction.EXECUTE);
@@ -1044,7 +1046,7 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), 3);
         player.setItemInHand(InteractionHand.MAIN_HAND, first);
         wrench.selectTarget(helper.getLevel(), player, cranePos);
-        if (first.hasTag()) {
+        if (LegacyItemData.hasTag(first)) {
             helper.fail("wrench selection must not be persisted in stack NBT");
             return;
         }
@@ -1323,7 +1325,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void inactiveMorphRightClickFallsThroughWithoutError(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.SHIPSPAWNEGG_ITEMS.get(20).get()));
 
         if (MorphHelper.getSelectedProfile(player) != null || MorphHelper.getActiveProfile(player) != null) {
@@ -1336,7 +1338,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void friendlyShipDeathDropsOwnerLockedRecoveryEgg(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (ship == null) {
             helper.fail("legacy ship entity should be creatable for death-state coverage");
@@ -1383,7 +1385,7 @@ public final class GameplayParityGameTests {
             if (!nearbyItems.isEmpty()) {
                 nearbyItems.append(", ");
             }
-            nearbyItems.append(stack.getItem()).append(" x").append(stack.getCount()).append(" tag=").append(stack.hasTag());
+            nearbyItems.append(stack.getItem()).append(" x").append(stack.getCount()).append(" tag=").append(LegacyItemData.hasTag(stack));
             if (LegacyShipSpawnEggItem.isRecoveredShipStack(stack)) {
                 recoveryEgg = itemEntity;
             }
@@ -1440,7 +1442,7 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(60);
         ship.finalizeSpawn(helper.getLevel(), helper.getLevel().getCurrentDifficultyAt(BlockPos.ZERO),
-                net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null, null);
+                net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null);
         ship.setOwner(owner.getUUID(), owner.getGameProfile().getName(), 7101);
         ItemStack recoveredStack = LegacyShipSpawnEggItem.createRecoveredShipStack(ship);
         if (recoveredStack.isEmpty()) {
@@ -1458,16 +1460,16 @@ public final class GameplayParityGameTests {
         }
 
         ItemEntity droppedEgg = new ItemEntity(helper.getLevel(), 1.5D, 2.0D, 1.5D, recoveredStack.copy());
-        EntityItemPickupEvent blockedPickup = new EntityItemPickupEvent(intruder, droppedEgg);
+        ItemEntityPickupEvent.Pre blockedPickup = new ItemEntityPickupEvent.Pre(intruder, droppedEgg);
         TeitokuEvents.onRecoveredShipEggPickup(blockedPickup);
-        if (!blockedPickup.isCanceled()) {
+        if (!(blockedPickup.canPickup() == net.neoforged.neoforge.common.util.TriState.FALSE)) {
             helper.fail("non-owner pickup event should be canceled for recovered ship eggs");
             return;
         }
 
-        EntityItemPickupEvent ownerPickup = new EntityItemPickupEvent(owner, droppedEgg);
+        ItemEntityPickupEvent.Pre ownerPickup = new ItemEntityPickupEvent.Pre(owner, droppedEgg);
         TeitokuEvents.onRecoveredShipEggPickup(ownerPickup);
-        if (ownerPickup.isCanceled()) {
+        if ((ownerPickup.canPickup() == net.neoforged.neoforge.common.util.TriState.FALSE)) {
             helper.fail("owner pickup event should remain allowed for recovered ship eggs");
             return;
         }
@@ -1501,7 +1503,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void shipyardFuelConsumesShipTankLavaByBucket(GameTestHelper helper) {
         ItemStack tank = new ItemStack(ModItems.SHIPTANK.get());
-        var handler = FluidUtil.getFluidHandler(tank).resolve();
+        var handler = FluidUtil.getFluidHandler(tank);
         if (handler.isEmpty()) {
             helper.fail("ship tank should expose a fluid handler for lava fuel tests");
             return;
@@ -1588,7 +1590,7 @@ public final class GameplayParityGameTests {
 
         crane.onLoad();
         ItemStack sourceTank = new ItemStack(ModItems.SHIPTANK.get());
-        var sourceHandler = FluidUtil.getFluidHandler(sourceTank).resolve();
+        var sourceHandler = FluidUtil.getFluidHandler(sourceTank);
         if (sourceHandler.isEmpty()) {
             helper.fail("ship tank should expose a fluid handler for crane transfer tests");
             return;
@@ -1632,7 +1634,7 @@ public final class GameplayParityGameTests {
             return;
         }
         CraneBlockEntity.serverTick(helper.getLevel(), cranePos, helper.getLevel().getBlockState(cranePos), crane);
-        int buffered = crane.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new)
+        int buffered = crane.getCapability(Capabilities.FluidHandler.BLOCK).orElseThrow(IllegalStateException::new)
                 .getFluidInTank(0).getAmount();
 
         int shipTankAmount = FluidUtil.getFluidContained(ship.getShipInventory().getItem(shipTankSlot))
@@ -1796,7 +1798,7 @@ public final class GameplayParityGameTests {
             helper.fail("crane block entity should exist for working ship coverage");
             return;
         }
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         CraneTerminalMenu menu = new CraneTerminalMenu(1, player.getInventory(), pos);
         if (menu.getShip() != null || menu.getCraneTime() != 0
                 || !CraneTerminalMenu.formatCraneTime(0).equals("00:00:00")
@@ -1981,7 +1983,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipRouteAndGuardCommandsClearCombatTarget(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         if (ship == null) {
             return;
@@ -2151,7 +2153,7 @@ public final class GameplayParityGameTests {
         var waypointState = helper.getLevel().getBlockState(waypointPos);
         var waypointHit = new BlockHitResult(Vec3.atCenterOf(waypointPos), Direction.UP, waypointPos, false);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+        if (waypointState.useItemOn(player.getMainHandItem(), helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit).result() != InteractionResult.PASS
                 || waypoint.getStayMode() != 0 || player.containerMenu != player.inventoryMenu) {
             helper.fail("empty-handed waypoint use should pass without opening a menu or changing stay time");
             return;
@@ -2163,21 +2165,21 @@ public final class GameplayParityGameTests {
         }
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.TARGETWRENCH.get()));
         player.setShiftKeyDown(true);
-        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+        if (waypointState.useItemOn(player.getMainHandItem(), helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit).result() != InteractionResult.PASS
                 || waypoint.getStayMode() != 0) {
             helper.fail("sneaking waypoint use should not change stay time");
             return;
         }
         player.setShiftKeyDown(false);
-        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.SUCCESS
+        if (waypointState.useItemOn(player.getMainHandItem(), helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit).result() != InteractionResult.SUCCESS
                 || waypoint.getStayMode() != 1) {
             helper.fail("owner target wrench use should cycle waypoint stay time");
             return;
         }
-        CompoundTag otherOwner = waypoint.saveWithoutMetadata();
+        CompoundTag otherOwner = waypoint.saveWithoutMetadata(helper.getLevel().registryAccess());
         otherOwner.putInt("OwnerUID", waypoint.getOwnerUid() + 1);
-        waypoint.load(otherOwner);
-        if (waypointState.use(helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit) != InteractionResult.PASS
+        waypoint.loadWithComponents(otherOwner, helper.getLevel().registryAccess());
+        if (waypointState.useItemOn(player.getMainHandItem(), helper.getLevel(), player, InteractionHand.MAIN_HAND, waypointHit).result() != InteractionResult.PASS
                 || waypoint.getStayMode() != 1) {
             helper.fail("non-owner target wrench use should pass without changing waypoint stay time");
             return;
@@ -2314,7 +2316,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipCommandServiceReportsFailureReasons(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8109))) {
             return;
         }
@@ -2364,7 +2366,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void legacyAndTypedShipCommandsShareServerBehavior(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8101))) {
             return;
         }
@@ -2427,7 +2429,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipCommandServiceRejectsUnauthorizedFarAndDeadShips(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8102))) {
             return;
         }
@@ -2476,7 +2478,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void singleShipCommandLoopMovesGuardsAttacksAndStops(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8103))) {
             return;
         }
@@ -2529,7 +2531,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void formationModeCommandsGateGroupMovesAndOffsetFollowers(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8104);
             data.setCurrentTeamId(0);
@@ -2737,10 +2739,10 @@ public final class GameplayParityGameTests {
             helper.getLevel().setBlock(pos, ModBlocks.BLOCK_SMALL_SHIPYARD.get().defaultBlockState(), Block.UPDATE_ALL);
             var tile = (com.lulan.shincolle.blockentity.SmallShipyardBlockEntity) helper.getLevel().getBlockEntity(pos);
             tile.onLoad();
-            var tank = tile.getCapability(ForgeCapabilities.FLUID_HANDLER).orElseThrow(IllegalStateException::new);
+            var tank = ModCapabilities.get(tile, Capabilities.FluidHandler.BLOCK).orElseThrow(IllegalStateException::new);
             if (tank.getTankCapacity(0) != 2000
-                    || tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 40),
-                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE) != 0) {
+                    || tank.fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 40),
+                    net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE) != 0) {
                 helper.fail("small shipyard must reject water and hold 2000 mB");
                 return;
             }
@@ -2749,15 +2751,15 @@ public final class GameplayParityGameTests {
                 helper.fail("empty tank must not generate fuel");
                 return;
             }
-            tank.fill(new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.LAVA, 80),
-                    net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+            tank.fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.LAVA, 80),
+                    net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
             com.lulan.shincolle.blockentity.SmallShipyardBlockEntity.serverTick(helper.getLevel(), pos, helper.getLevel().getBlockState(pos), tile);
             if (tile.getContainerData().get(2) != 1600 || tank.getFluidInTank(0).getAmount() != 40
-                    || !tank.drain(40, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE).isEmpty()) {
+                    || !tank.drain(40, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE).isEmpty()) {
                 helper.fail("one tick must burn 40 mB for 800 times fuel multiplier, with no external drain");
                 return;
             }
-            var drum = new ItemStack(ModItems.SHIPTANK3.get()).getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).orElseThrow(IllegalStateException::new);
+            var drum = ModCapabilities.get(new ItemStack(ModItems.SHIPTANK3.get()), Capabilities.FluidHandler.ITEM).orElseThrow(IllegalStateException::new);
             if (drum.getTankCapacity(0) != 4000) {
                 helper.fail("fluid drum must use configured tier capacity");
                 return;
@@ -2786,10 +2788,10 @@ public final class GameplayParityGameTests {
         dropSource.getContainerData().set(2, 456);
         ItemStack dropped = dropSource.createDroppedBlockStack();
         if (!dropped.is(ModBlocks.BLOCK_GRUDGE_HEAVY.get().asItem())
-                || !dropped.hasTag()
-                || dropped.getTag().getIntArray("mats")[0] != 19
-                || dropped.getTag().getIntArray("mats")[1] != 3
-                || dropped.getTag().getInt("fuel") != 456) {
+                || !LegacyItemData.hasTag(dropped)
+                || LegacyItemData.getTag(dropped).getIntArray("mats")[0] != 19
+                || LegacyItemData.getTag(dropped).getIntArray("mats")[1] != 3
+                || LegacyItemData.getTag(dropped).getInt("fuel") != 456) {
             helper.fail("heavy grudge block break should preserve matsBuild + matsStock and fuel in item NBT");
             return;
         }
@@ -2811,7 +2813,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        if (heavy.getCapability(ForgeCapabilities.ITEM_HANDLER).isPresent()) {
+        if (heavy.getCapability(Capabilities.ItemHandler.BLOCK).isPresent()) {
             helper.fail("unformed heavy grudge must not act as an independent energy core or expose machine inventory");
             return;
         }
@@ -2859,7 +2861,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        IItemHandler itemHandler = servant.getCapability(ForgeCapabilities.ITEM_HANDLER).orElse(null);
+        IItemHandler itemHandler = servant.getCapability(Capabilities.ItemHandler.BLOCK).orElse(null);
         if (itemHandler == null) {
             helper.fail("formed polymetal servant should expose the master inventory capability");
             return;
@@ -3077,7 +3079,7 @@ public final class GameplayParityGameTests {
     public static void worldgenResourcesKeepLegacyPolymetalPlacement(GameTestHelper helper) {
         JsonObject orePlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_ore.json");
         JsonObject oceanBonusPlaced = loadJsonResource("data/shincolle/worldgen/placed_feature/polymetal_ore_ocean_bonus.json");
-        JsonObject oceanBonusModifier = loadJsonResource("data/shincolle/forge/biome_modifier/add_polymetal_ore_ocean_bonus.json");
+        JsonObject oceanBonusModifier = loadJsonResource("data/shincolle/neoforge/biome_modifier/add_polymetal_ore_ocean_bonus.json");
         JsonObject gravelConfigured = loadJsonResource("data/shincolle/worldgen/configured_feature/polymetal_gravel.json");
         if (orePlaced == null || oceanBonusPlaced == null || oceanBonusModifier == null || gravelConfigured == null) {
             helper.fail("expected polymetal worldgen resources to be packaged");
@@ -3128,29 +3130,29 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void forgeTagsMirrorLegacyOreDictionaryDefaults(GameTestHelper helper) {
         String[][] expectedTagValues = {
-                {"data/forge/tags/items/ingots/abyssium.json", "shincolle:abyssmetal"},
-                {"data/forge/tags/items/nuggets/abyssium.json", "shincolle:abyssnugget"},
-                {"data/forge/tags/items/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
-                {"data/forge/tags/blocks/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
-                {"data/forge/tags/items/ingots/polymetal.json", "shincolle:abyssmetal1"},
-                {"data/forge/tags/items/nuggets/polymetal.json", "shincolle:abyssnugget1"},
-                {"data/forge/tags/items/ores/polymetal.json", "shincolle:blockpolymetalore"},
-                {"data/forge/tags/blocks/ores/polymetal.json", "shincolle:blockpolymetalore"},
-                {"data/forge/tags/items/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
-                {"data/forge/tags/blocks/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
-                {"data/forge/tags/items/grudge.json", "shincolle:grudge"},
-                {"data/forge/tags/items/grudge.json", "shincolle:grudge1"},
-                {"data/forge/tags/items/storage_blocks/grudge.json", "shincolle:blockgrudge"},
-                {"data/forge/tags/blocks/storage_blocks/grudge.json", "shincolle:blockgrudge"},
-                {"data/forge/tags/items/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
-                {"data/forge/tags/blocks/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration1"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration2"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration3"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration4"},
-                {"data/forge/tags/items/foods/combat_ration.json", "shincolle:combatration5"},
-                {"data/forge/tags/items/paper.json", "minecraft:paper"}
+                {"data/c/tags/item/ingots/abyssium.json", "shincolle:abyssmetal"},
+                {"data/c/tags/item/nuggets/abyssium.json", "shincolle:abyssnugget"},
+                {"data/c/tags/item/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
+                {"data/c/tags/block/storage_blocks/abyssium.json", "shincolle:blockabyssium"},
+                {"data/c/tags/item/ingots/polymetal.json", "shincolle:abyssmetal1"},
+                {"data/c/tags/item/nuggets/polymetal.json", "shincolle:abyssnugget1"},
+                {"data/c/tags/item/ores/polymetal.json", "shincolle:blockpolymetalore"},
+                {"data/c/tags/block/ores/polymetal.json", "shincolle:blockpolymetalore"},
+                {"data/c/tags/item/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
+                {"data/c/tags/block/storage_blocks/polymetal.json", "shincolle:blockpolymetal"},
+                {"data/c/tags/item/grudge.json", "shincolle:grudge"},
+                {"data/c/tags/item/grudge.json", "shincolle:grudge1"},
+                {"data/c/tags/item/storage_blocks/grudge.json", "shincolle:blockgrudge"},
+                {"data/c/tags/block/storage_blocks/grudge.json", "shincolle:blockgrudge"},
+                {"data/c/tags/item/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
+                {"data/c/tags/block/storage_blocks/heavy_grudge.json", "shincolle:blockgrudgeheavy"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration1"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration2"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration3"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration4"},
+                {"data/c/tags/item/foods/combat_ration.json", "shincolle:combatration5"},
+                {"data/c/tags/item/paper.json", "minecraft:paper"}
         };
 
         for (String[] expectation : expectedTagValues) {
@@ -3166,9 +3168,9 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void registeredPhaseOneResourcesResolve(GameTestHelper helper) {
         ResourceLocation removedLargeShipyardId = ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "blocklarge" + "shipyard");
-        if (ForgeRegistries.BLOCKS.containsKey(removedLargeShipyardId)
-                || ForgeRegistries.ITEMS.containsKey(removedLargeShipyardId)
-                || ForgeRegistries.BLOCK_ENTITY_TYPES.containsKey(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "large_shipyard"))) {
+        if (BuiltInRegistries.BLOCK.containsKey(removedLargeShipyardId)
+                || BuiltInRegistries.ITEM.containsKey(removedLargeShipyardId)
+                || BuiltInRegistries.BLOCK_ENTITY_TYPE.containsKey(ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "large_shipyard"))) {
             helper.fail("strict 1.12 parity should not register standalone " + removedLargeShipyardId);
             return;
         }
@@ -3179,8 +3181,8 @@ public final class GameplayParityGameTests {
                 "assets/shincolle/models/block/" + removedLargeShipyardPath + ".json",
                 "assets/shincolle/models/block/" + removedLargeShipyardPath + "_on.json",
                 "assets/shincolle/models/item/" + removedLargeShipyardPath + ".json",
-                "data/shincolle/loot_tables/blocks/" + removedLargeShipyardPath + ".json",
-                "data/shincolle/recipes/" + removedLargeShipyardPath + ".json"
+                "data/shincolle/loot_table/blocks/" + removedLargeShipyardPath + ".json",
+                "data/shincolle/recipe/" + removedLargeShipyardPath + ".json"
         };
         for (String resource : removedLargeShipyardResources) {
             if (loadJsonResource(resource) != null) {
@@ -3217,7 +3219,7 @@ public final class GameplayParityGameTests {
                 return;
             }
 
-            String blockLootPath = "data/" + id.getNamespace() + "/loot_tables/blocks/" + id.getPath() + ".json";
+            String blockLootPath = "data/" + id.getNamespace() + "/loot_table/blocks/" + id.getPath() + ".json";
             JsonObject blockLootTable = loadJsonResource(blockLootPath);
             if (noDropBlockLootTables.contains(id)) {
                 if (blockLootTable != null) {
@@ -3327,7 +3329,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipInventoryMenuReadsCachedStateByShipUid(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8110);
             data.setCurrentTeamId(0);
@@ -3410,7 +3412,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipGuiButtonsAndInventoryPagingMirrorLegacy(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8113);
             data.setCurrentTeamId(0);
@@ -3509,7 +3511,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipCommandsRefreshDetachedInventoryCacheState(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8111);
             data.setCurrentTeamId(0);
@@ -3585,7 +3587,7 @@ public final class GameplayParityGameTests {
         }
 
         data.updateFromShip(ship, true);
-        CompoundTag saved = data.save(new CompoundTag());
+        CompoundTag saved = data.save(new CompoundTag(), helper.getLevel().registryAccess());
         ShipCacheSavedData loaded = ShipCacheSavedData.load(saved);
         ShipWorldCacheEntry deadEntry = loaded.getShip(ship.getShipUid());
 
@@ -3604,7 +3606,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipWorldCacheMarksUnloadedShipsOffline(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8112))) {
             return;
         }
@@ -3637,8 +3639,8 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void gameplayStatePayloadSyncsOfflineShipCacheAndRuntimeSlices(GameTestHelper helper) {
-        Player source = helper.makeMockPlayer();
-        Player clientMirror = helper.makeMockPlayer();
+        Player source = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
+        Player clientMirror = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         String worldRuleKey = "shincolle:test_phase6_world_rule";
 
         int playerUid = 8113;
@@ -3945,7 +3947,7 @@ public final class GameplayParityGameTests {
         boolean onlyLegacyDrops = drops.size() == 2
                 && drops.stream().allMatch(item -> item.getItem().getCount() == 1)
                 && drops.stream().anyMatch(item -> item.getItem().is(ModItems.GRUDGE.get()))
-                && drops.stream().anyMatch(item -> item.getItem().is(ForgeRegistries.ITEMS.getValue(
+                && drops.stream().anyMatch(item -> item.getItem().is(BuiltInRegistries.ITEM.get(
                         ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "shipegg38"))));
         String dropSummary = drops.stream().map(item -> item.getItem().toString()).toList().toString();
         drops.forEach(ItemEntity::discard);
@@ -4030,7 +4032,7 @@ public final class GameplayParityGameTests {
             ship.getRandom().setSeed(42L);
             int bonus = scale * 30;
             for (int sample = 0; sample < 16; sample++) {
-                if (ship.getExperienceReward() != 10 + bonus + expectedRandom.nextInt(1 + bonus)) {
+                if (ship.getBaseExperienceReward() != 10 + bonus + expectedRandom.nextInt(1 + bonus)) {
                     helper.fail("经验应按规模使用旧版公式：" + scale);
                     return;
                 }
@@ -4256,7 +4258,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipRuntimeSuppliesGatePersistAndRestoreLegacySupportValues(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
         if (ship == null || target == null) {
@@ -4464,7 +4466,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void repairGoddessCargoRescueRestoresLegacyRuntimeAndTooltip(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         if (ship == null) {
             return;
@@ -4507,7 +4509,7 @@ public final class GameplayParityGameTests {
 
         ItemStack goddess = new ItemStack(ModItems.REPAIRGODDESS.get());
         List<Component> tooltip = new ArrayList<>();
-        goddess.getItem().appendHoverText(goddess, helper.getLevel(), tooltip, TooltipFlag.Default.NORMAL);
+        goddess.getItem().appendHoverText(goddess, net.minecraft.world.item.Item.TooltipContext.of(helper.getLevel()), tooltip, TooltipFlag.Default.NORMAL);
         if (!goddess.getItem().isFoil(goddess)) {
             helper.fail("repair goddess item should retain the legacy foil effect");
             return;
@@ -4648,7 +4650,7 @@ public final class GameplayParityGameTests {
                 stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT),
                 stack(Items.BEEF), stack(Items.GOLDEN_CARROT), stack(ModItems.GRUDGE.get()),
                 stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT));
-        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, rawBeefInput, helper.getLevel()).isPresent()) {
+        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, rawBeefInput.asCraftInput(), helper.getLevel()).isPresent()) {
             helper.fail("combatration2 should reject raw meat inputs");
             return;
         }
@@ -4703,7 +4705,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipCommandSupportBossAndCombatFlowUsesLegacyBossState(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         player.setPos(2.0D, 2.0D, 2.0D);
         if (!configureTeitoku(helper, player, data -> {
             data.setPlayerUid(8601);
@@ -4871,7 +4873,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void hostileBossUsesLegacyPlayerTargetRules(GameTestHelper helper) {
-        Player creativePlayer = helper.makeMockPlayer();
+        Player creativePlayer = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         ServerPlayer player = makeServerBackedPlayer(helper, "HostileBossTarget");
         LegacyShipEntity boss = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (boss == null) {
@@ -4955,7 +4957,7 @@ public final class GameplayParityGameTests {
                 stack(ModItems.SHIPSPAWNEGG_ITEMS.get(0).get()), stack(ModItems.KAITAIHAMMER.get()));
         assertCrafts(helper, "instantconmat64", new ItemStack(ModItems.INSTANTCONMAT.get(), 64),
                 stack(ModItems.SHIPSPAWNEGG_ITEMS.get(1).get()), stack(ModItems.KAITAIHAMMER.get()));
-        String removedLargeShipyardRecipePath = "data/shincolle/recipes/blocklarge" + "shipyard.json";
+        String removedLargeShipyardRecipePath = "data/shincolle/recipe/blocklarge" + "shipyard.json";
         if (loadJsonResource(removedLargeShipyardRecipePath) != null) {
             helper.fail("strict 1.12 parity must not expose a standalone blocklargeshipyard recipe");
             return;
@@ -5421,6 +5423,27 @@ public final class GameplayParityGameTests {
         return FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), name));
     }
 
+    private static ServerPlayer makeRidingPlayer(GameTestHelper helper, String name) {
+        var server = helper.getLevel().getServer();
+        GameProfile profile = new GameProfile(UUID.randomUUID(), name);
+        ServerPlayer player = new ServerPlayer(server, helper.getLevel(), profile, net.minecraft.server.level.ClientInformation.createDefault());
+        player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(server,
+                new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND) {
+                    private final io.netty.channel.embedded.EmbeddedChannel channel = new io.netty.channel.embedded.EmbeddedChannel();
+
+                    @Override
+                    public io.netty.channel.Channel channel() {
+                        return this.channel;
+                    }
+                }, player,
+                net.minecraft.server.network.CommonListenerCookie.createInitial(profile, false)) {
+            @Override
+            public void send(net.minecraft.network.protocol.Packet<?> packet) {
+            }
+        };
+        return player;
+    }
+
     private static LegacyShipEntity createOwnedShip(GameTestHelper helper,
                                                     Player player,
                                                     int eggMeta,
@@ -5559,9 +5582,16 @@ public final class GameplayParityGameTests {
                         stack(Items.OBSIDIAN), ItemStack.EMPTY, stack(Items.OBSIDIAN)},
                 {stack(ModBlocks.BLOCK_GRUDGE_XP.get())}
         };
+        var cryingDesk = craftingGrid(
+                stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.BLACK_WOOL),
+                stack(Items.CRYING_OBSIDIAN), stack(Items.CRYING_OBSIDIAN), stack(Items.CRYING_OBSIDIAN),
+                stack(Items.CRYING_OBSIDIAN), ItemStack.EMPTY, stack(Items.CRYING_OBSIDIAN));
+        helper.assertTrue(helper.getLevel().getRecipeManager().getRecipeFor(
+                        RecipeType.CRAFTING, cryingDesk.asCraftInput(), helper.getLevel()).isEmpty(),
+                "NeoForge's broad obsidians tag must not add crying obsidian to the legacy desk recipe");
         for (var input : invalid) {
             helper.assertTrue(helper.getLevel().getRecipeManager().getRecipeFor(
-                    RecipeType.CRAFTING, craftingGrid(input), helper.getLevel()).isEmpty(),
+                    RecipeType.CRAFTING, craftingGrid(input).asCraftInput(), helper.getLevel()).isEmpty(),
                     "empty, six-ingot wrench, white-wool desk and invented XP unpacking must not craft");
         }
         helper.succeed();
@@ -5570,38 +5600,38 @@ public final class GameplayParityGameTests {
     private static void assertCrafts(GameTestHelper helper, String recipePath, ItemStack expected, ItemStack... inputs) {
         TransientCraftingContainer grid = craftingGrid(inputs);
         ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, recipePath);
-        var recipe = helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, grid, helper.getLevel());
+        var recipe = helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, grid.asCraftInput(), helper.getLevel());
         if (recipe.isEmpty()) {
             helper.fail("expected recipe to resolve: " + recipeId);
             return;
         }
-        if (!recipe.get().getId().equals(recipeId)) {
-            helper.fail("resolved wrong recipe for " + recipeId + ": " + recipe.get().getId());
+        if (!recipe.get().id().equals(recipeId)) {
+            helper.fail("resolved wrong recipe for " + recipeId + ": " + recipe.get().id());
             return;
         }
 
-        ItemStack result = recipe.get().assemble(grid, helper.getLevel().registryAccess());
-        if (!ItemStack.isSameItemSameTags(result, expected) || result.getCount() != expected.getCount()) {
+        ItemStack result = recipe.get().value().assemble(grid.asCraftInput(), helper.getLevel().registryAccess());
+        if (!ItemStack.isSameItemSameComponents(result, expected) || result.getCount() != expected.getCount()) {
             helper.fail("recipe " + recipeId + " returned " + result + " instead of " + expected);
         }
     }
 
     @GameTest(template = "empty")
     public static void b5OreTagResourcesAndConditionalRecipesParity(GameTestHelper helper) {
-        if (!tagResourceContains("data/forge/tags/items/paper.json", "minecraft:paper")) {
+        if (!tagResourceContains("data/c/tags/item/paper.json", "minecraft:paper")) {
             helper.fail("forge paper tag resource should expose minecraft:paper");
             return;
         }
 
         String[] emptyCompatTagPaths = {
-                "data/forge/tags/items/flour.json",
-                "data/forge/tags/items/cooked_rice.json",
-                "data/forge/tags/items/ingots/tin.json",
-                "data/forge/tags/items/ingots/bronze.json",
-                "data/forge/tags/items/ingots/lead.json",
-                "data/forge/tags/items/ingots/steel.json",
-                "data/forge/tags/items/ingots/silver.json",
-                "data/forge/tags/items/ingots/uranium.json"
+                "data/c/tags/item/flours.json",
+                "data/c/tags/item/foods/cooked_rice.json",
+                "data/c/tags/item/ingots/tin.json",
+                "data/c/tags/item/ingots/bronze.json",
+                "data/c/tags/item/ingots/lead.json",
+                "data/c/tags/item/ingots/steel.json",
+                "data/c/tags/item/ingots/silver.json",
+                "data/c/tags/item/ingots/uranium.json"
         };
         for (String tagPath : emptyCompatTagPaths) {
             JsonObject json = loadJsonResource(tagPath);
@@ -5612,22 +5642,22 @@ public final class GameplayParityGameTests {
             }
         }
 
-        if (!new ItemStack(Items.IRON_INGOT).is(itemTag("forge", "ingots/iron"))
-                || !new ItemStack(Items.GOLD_INGOT).is(itemTag("forge", "ingots/gold"))
-                || !new ItemStack(Items.COPPER_INGOT).is(itemTag("forge", "ingots/copper"))
-                || !new ItemStack(Items.DIAMOND).is(itemTag("forge", "gems/diamond"))
-                || !new ItemStack(Items.LAPIS_LAZULI).is(itemTag("forge", "gems/lapis"))
-                || !new ItemStack(Items.BLUE_DYE).is(itemTag("forge", "dyes/blue"))
-                || !new ItemStack(Items.GUNPOWDER).is(itemTag("forge", "gunpowder"))
-                || !new ItemStack(Items.OBSIDIAN).is(itemTag("forge", "obsidian"))
-                || !new ItemStack(Items.STICK).is(itemTag("forge", "rods/wooden"))
-                || !new ItemStack(Items.WHEAT).is(itemTag("forge", "crops/wheat"))
-                || !new ItemStack(Items.NETHER_STAR).is(itemTag("forge", "nether_stars"))
-                || !new ItemStack(Items.DIAMOND_BLOCK).is(itemTag("forge", "storage_blocks/diamond"))
-                || !new ItemStack(Items.PAPER).is(itemTag("forge", "paper"))
-                || !new ItemStack(ModItems.GRUDGE.get()).is(itemTag("forge", "grudge"))
-                || !new ItemStack(ModItems.GRUDGE1.get()).is(itemTag("forge", "grudge"))
-                || new ItemStack(ModItems.ABYSSMETAL1.get()).is(itemTag("forge", "ingots/manganese"))) {
+        if (!new ItemStack(Items.IRON_INGOT).is(itemTag("c", "ingots/iron"))
+                || !new ItemStack(Items.GOLD_INGOT).is(itemTag("c", "ingots/gold"))
+                || !new ItemStack(Items.COPPER_INGOT).is(itemTag("c", "ingots/copper"))
+                || !new ItemStack(Items.DIAMOND).is(itemTag("c", "gems/diamond"))
+                || !new ItemStack(Items.LAPIS_LAZULI).is(itemTag("c", "gems/lapis"))
+                || !new ItemStack(Items.BLUE_DYE).is(itemTag("c", "dyes/blue"))
+                || !new ItemStack(Items.GUNPOWDER).is(itemTag("c", "gunpowders"))
+                || !new ItemStack(Items.OBSIDIAN).is(itemTag("c", "obsidians"))
+                || !new ItemStack(Items.STICK).is(itemTag("c", "rods/wooden"))
+                || !new ItemStack(Items.WHEAT).is(itemTag("c", "crops/wheat"))
+                || !new ItemStack(Items.NETHER_STAR).is(itemTag("c", "nether_stars"))
+                || !new ItemStack(Items.DIAMOND_BLOCK).is(itemTag("c", "storage_blocks/diamond"))
+                || !new ItemStack(Items.PAPER).is(itemTag("c", "paper"))
+                || !new ItemStack(ModItems.GRUDGE.get()).is(itemTag("c", "grudge"))
+                || !new ItemStack(ModItems.GRUDGE1.get()).is(itemTag("c", "grudge"))
+                || new ItemStack(ModItems.ABYSSMETAL1.get()).is(itemTag("c", "ingots/manganese"))) {
             helper.fail("runtime Forge item tags should match 1.12 OreDictionary defaults including polyAsMn=false");
             return;
         }
@@ -5734,7 +5764,7 @@ public final class GameplayParityGameTests {
 
         TransientCraftingContainer horizontalWaypoint = craftingGrid(
                 stack(ModItems.GRUDGE.get()), stack(Items.STICK));
-        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, horizontalWaypoint, helper.getLevel()).isPresent()) {
+        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, horizontalWaypoint.asCraftInput(), helper.getLevel()).isPresent()) {
             helper.fail("blockwaypoint should require the 1.12 vertical shaped pattern");
             return;
         }
@@ -5746,7 +5776,7 @@ public final class GameplayParityGameTests {
                 stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT),
                 stack(Items.BREAD), stack(ModItems.GRUDGE.get()), stack(Items.GOLDEN_CARROT),
                 stack(Items.WHEAT), stack(Items.WHEAT), stack(Items.WHEAT));
-        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, threeRowRation, helper.getLevel()).isPresent()) {
+        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, threeRowRation.asCraftInput(), helper.getLevel()).isPresent()) {
             helper.fail("combatration should require the 1.12 two-row pattern");
             return;
         }
@@ -5768,7 +5798,7 @@ public final class GameplayParityGameTests {
                 ItemStack.EMPTY, stack(Items.NETHER_STAR), ItemStack.EMPTY,
                 stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()),
                 ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY);
-        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, ingotMarriageRing, helper.getLevel()).isPresent()) {
+        if (helper.getLevel().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, ingotMarriageRing.asCraftInput(), helper.getLevel()).isPresent()) {
             helper.fail("marriagering should require AbyssNugget instead of AbyssMetal ingots");
             return;
         }
@@ -5793,7 +5823,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void b5CraneAndTaskOreTagFilterMatchingParity(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos cranePos = helper.absolutePos(new BlockPos(1, 2, 1));
         player.setPos(cranePos.getX() + 0.5D, cranePos.getY() + 0.5D, cranePos.getZ() + 0.5D);
         helper.getLevel().setBlock(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState(), Block.UPDATE_ALL);
@@ -5818,14 +5848,14 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        CompoundTag saved = crane.saveWithFullMetadata();
+        CompoundTag saved = crane.saveWithFullMetadata(helper.getLevel().registryAccess());
         if (!saved.getBoolean("meta") || !saved.getBoolean("dict") || !saved.getBoolean("nbt")) {
             helper.fail("crane should persist legacy meta/dict/nbt NBT keys");
             return;
         }
 
         CraneBlockEntity reloaded = new CraneBlockEntity(cranePos, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
-        reloaded.load(saved);
+        reloaded.loadWithComponents(saved, helper.getLevel().registryAccess());
         if (!reloaded.isCheckMetadata() || !reloaded.isCheckOredict() || !reloaded.isCheckNbt()) {
             helper.fail("crane should restore meta/dict/nbt flags from NBT");
             return;
@@ -5861,13 +5891,13 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        damagedSword.getOrCreateTag().putInt("CustomTag", 1);
+        LegacyItemData.update(damagedSword, tag -> tag.putInt("CustomTag", 1));
         if (LegacyShipBehaviorCatalog.matchesLegacyTaskItem(damagedSword, undamagedSword, false, false, true)) {
             helper.fail("task item matching should reject mismatched non-damage NBT when checkNbt is true");
             return;
         }
 
-        undamagedSword.getOrCreateTag().putInt("CustomTag", 1);
+        LegacyItemData.update(undamagedSword, tag -> tag.putInt("CustomTag", 1));
         if (!LegacyShipBehaviorCatalog.matchesLegacyTaskItem(damagedSword, undamagedSword, false, false, true)
                 || !LegacyShipBehaviorCatalog.matchesLegacyTaskItem(new ItemStack(ModItems.GRUDGE1.get()), new ItemStack(ModItems.GRUDGE.get()), false, true, false)
                 || LegacyShipBehaviorCatalog.matchesLegacyTaskItem(new ItemStack(ModItems.GRUDGE1.get()), new ItemStack(ModItems.GRUDGE.get()), false, false, false)) {
@@ -6027,7 +6057,7 @@ public final class GameplayParityGameTests {
         WaypointBlockEntity waypoint = new WaypointBlockEntity(
                 helper.absolutePos(new BlockPos(1, 2, 1)),
                 ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState());
-        waypoint.load(legacyTag);
+        waypoint.loadWithComponents(legacyTag, helper.getLevel().registryAccess());
 
         if (waypoint.getStayMode() != 6
                 || waypoint.getOwnerUid() != 8121
@@ -6038,8 +6068,8 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        Player matchingOwner = helper.makeMockPlayer();
-        Player otherPlayer = helper.makeMockPlayer();
+        Player matchingOwner = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
+        Player otherPlayer = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, matchingOwner, data -> data.setPlayerUid(8121))
                 || !configureTeitoku(helper, otherPlayer, data -> data.setPlayerUid(8122))
                 || !waypoint.canEdit(matchingOwner)
@@ -6089,7 +6119,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipCanDropMigratesAndSuppressesDuplicateRecoveryEgg(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity migrated = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (migrated == null) {
             helper.fail("legacy ship should be creatable for CanDrop migration coverage");
@@ -6163,7 +6193,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void invalidGuardTargetRestoresIdleState(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
@@ -6186,7 +6216,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void explicitMoveCommandWinsOverAutonomousCombat(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
@@ -6228,7 +6258,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void passiveAiStopsAutomaticRangeTargeting(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         Vec3 shipPos = helper.absoluteVec(new Vec3(2.5D, 2.0D, 2.5D));
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, shipPos.x, shipPos.y, shipPos.z);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
@@ -6260,7 +6290,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "guard", batch = "guard_local_combat")
     public static void guardGoalKeepsLocalCombatInsideGuardCommand(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
         GuardTestShip ship = new GuardTestShip(helper, player, 53, Vec3.atBottomCenterOf(origin));
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
@@ -6356,7 +6386,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "guard", batch = "guard_cannon_delay")
     public static void guardGoalKeepsIndependentCannonDelay(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
         GuardTestShip ship = new GuardTestShip(helper, player, 53, Vec3.atBottomCenterOf(origin));
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
@@ -6421,7 +6451,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "guard", batch = "guard_aircraft_delay")
     public static void guardGoalKeepsIndependentAircraftDelay(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
         GuardTestShip carrier = new GuardTestShip(helper, player, 49, Vec3.atBottomCenterOf(origin));
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
@@ -6493,7 +6523,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void ship02CommandBoundariesCoverFiveLegacyVariants(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!configureTeitoku(helper, player, data -> data.setPlayerUid(8122))) {
             return;
         }
@@ -6602,7 +6632,7 @@ public final class GameplayParityGameTests {
         owner.setPos(2.0D, 2.0D, 2.0D);
 
         int[] eggMetas = {2, 3, 4, 5};
-        MobEffect[] effects = {
+        net.minecraft.core.Holder<MobEffect>[] effects = new net.minecraft.core.Holder[] {
                 MobEffects.MOVEMENT_SPEED,
                 MobEffects.DIG_SPEED,
                 MobEffects.JUMP,
@@ -7425,8 +7455,8 @@ public final class GameplayParityGameTests {
             if (spec.legacyClassId() != classIds[index]
                     || LegacyShipBehaviorCatalog.equipmentTypeFor(spec) != equipmentTypes[index]
                     || LegacyShipBehaviorCatalog.foodSaturationMaxFor(spec) != foodMaxima[index]
-                    || Math.abs(entityDimensions.width - dimensions[index][0]) > 1.0E-6F
-                    || Math.abs(entityDimensions.height - dimensions[index][1]) > 1.0E-6F
+                    || Math.abs(entityDimensions.width() - dimensions[index][0]) > 1.0E-6F
+                    || Math.abs(entityDimensions.height() - dimensions[index][1]) > 1.0E-6F
                     || profile.light() != attackChannels[index][0]
                     || profile.heavy() != attackChannels[index][1]
                     || profile.hasAirAttack() != attackChannels[index][2]
@@ -8340,8 +8370,8 @@ public final class GameplayParityGameTests {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(spec, 0);
             if (spec.hostile()
                     || spec.legacyClassId() != expectedClassIds[index]
-                    || Math.abs(dimensions.width - 0.6F) > 1.0E-6F
-                    || Math.abs(dimensions.height - (index < 3 ? 1.8F : 1.4F)) > 1.0E-6F
+                    || Math.abs(dimensions.width() - 0.6F) > 1.0E-6F
+                    || Math.abs(dimensions.height() - (index < 3 ? 1.8F : 1.4F)) > 1.0E-6F
                     || !LegacyShipBehaviorCatalog.supportsItemPickup(spec)) {
                 helper.fail("the five friendly submarine classes should preserve their legacy role and dimensions");
                 return;
@@ -8387,8 +8417,8 @@ public final class GameplayParityGameTests {
             for (int eggMeta : new int[] {2040, 2041}) {
                 EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                         ShipEntitySpecs.getByEggMeta(eggMeta), scale);
-                if (Math.abs(dimensions.width - expectedWidths[scale]) > 1.0E-6F
-                        || Math.abs(dimensions.height - expectedHeights[scale]) > 1.0E-6F) {
+                if (Math.abs(dimensions.width() - expectedWidths[scale]) > 1.0E-6F
+                        || Math.abs(dimensions.height() - expectedHeights[scale]) > 1.0E-6F) {
                     helper.fail("hostile U-511/Ro-500 scale dimensions should match the legacy four bands: egg="
                             + eggMeta + ", scale=" + scale);
                     return;
@@ -8426,8 +8456,8 @@ public final class GameplayParityGameTests {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(spec, 0);
             if (spec.hostile()
                     || spec.legacyClassId() != expectedClassIds[index]
-                    || Math.abs(dimensions.width - 0.5F) > 1.0E-6F
-                    || Math.abs(dimensions.height - 1.5F) > 1.0E-6F) {
+                    || Math.abs(dimensions.width() - 0.5F) > 1.0E-6F
+                    || Math.abs(dimensions.height() - 1.5F) > 1.0E-6F) {
                 helper.fail("the four friendly six-destroyer variants should keep the legacy 0.5 x 1.5 hitbox");
                 return;
             }
@@ -8447,8 +8477,8 @@ public final class GameplayParityGameTests {
             for (int eggMeta : new int[] {2053, 2054, 2055, 2056}) {
                 EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                         ShipEntitySpecs.getByEggMeta(eggMeta), scale);
-                if (Math.abs(dimensions.width - expectedWidths[scale]) > 1.0E-6F
-                        || Math.abs(dimensions.height - expectedHeights[scale]) > 1.0E-6F) {
+                if (Math.abs(dimensions.width() - expectedWidths[scale]) > 1.0E-6F
+                        || Math.abs(dimensions.height() - expectedHeights[scale]) > 1.0E-6F) {
                     helper.fail("hostile six-destroyer scale dimensions should match the legacy four bands: egg="
                             + eggMeta + ", scale=" + scale);
                     return;
@@ -8461,8 +8491,8 @@ public final class GameplayParityGameTests {
         EntityDimensions carrierDimensions = LegacyShipBehaviorCatalog.dimensionsFor(carrierWd, 0);
         if (carrierWd.hostile()
                 || carrierWd.legacyClassId() != 33
-                || Math.abs(carrierDimensions.width - 0.7F) > 1.0E-6F
-                || Math.abs(carrierDimensions.height - 1.9F) > 1.0E-6F
+                || Math.abs(carrierDimensions.width() - 0.7F) > 1.0E-6F
+                || Math.abs(carrierDimensions.height() - 1.9F) > 1.0E-6F
                 || LegacyShipBehaviorCatalog.equipmentTypeFor(carrierWd) != 3
                 || LegacyShipBehaviorCatalog.foodSaturationMaxFor(carrierWd) != 30
                 || carrierProfile.heavy()
@@ -8890,8 +8920,8 @@ public final class GameplayParityGameTests {
         for (int index = 0; index < eggMetas.length; index++) {
             ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(eggMetas[index]);
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(spec, 3);
-            if (Math.abs(dimensions.width - widths[index]) > 1.0E-6F
-                    || Math.abs(dimensions.height - heights[index]) > 1.0E-6F) {
+            if (Math.abs(dimensions.width() - widths[index]) > 1.0E-6F
+                    || Math.abs(dimensions.height() - heights[index]) > 1.0E-6F) {
                 helper.fail("ordinary deep-sea constructor dimensions changed for egg meta " + eggMetas[index]);
                 return;
             }
@@ -9110,7 +9140,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        BlockPos origin = helper.absolutePos(new BlockPos(8, 2, 8));
+        BlockPos origin = helper.absolutePos(new BlockPos(2, 2, 4));
         for (int x = -2; x <= 6; x++) {
             for (int z = -1; z <= 1; z++) {
                 helper.getLevel().setBlock(origin.offset(x, -1, z), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
@@ -9214,7 +9244,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "empty")
     public static void kongouClassMarriageAurasMatchLegacyClasses(GameTestHelper helper) {
         int[] eggMetas = {62, 63, 64, 65};
-        MobEffect[] effects = {
+        net.minecraft.core.Holder<MobEffect>[] effects = new net.minecraft.core.Holder[] {
                 MobEffects.HEALTH_BOOST,
                 MobEffects.SATURATION,
                 MobEffects.LUCK,
@@ -9554,11 +9584,11 @@ public final class GameplayParityGameTests {
                 Entity direct;
                 if (cloud) {
                     AreaEffectCloud area = new AreaEffectCloud(helper.getLevel(), ship.getX(), ship.getY(), ship.getZ());
-                    area.setPotion(level == 0 ? Potions.WATER : level == 1 ? Potions.HARMING : Potions.STRONG_HARMING);
+                    area.setPotionContents(new net.minecraft.world.item.alchemy.PotionContents(level == 0 ? Potions.WATER : level == 1 ? Potions.HARMING : Potions.STRONG_HARMING));
                     direct = area;
                 } else {
                     ThrownPotion potion = new ThrownPotion(EntityType.POTION, helper.getLevel());
-                    potion.setItem(PotionUtils.setPotion(new ItemStack(Items.SPLASH_POTION),
+                    potion.setItem(LegacyPotionData.setPotion(new ItemStack(Items.SPLASH_POTION),
                             level == 0 ? Potions.WATER : level == 1 ? Potions.HARMING : Potions.STRONG_HARMING));
                     direct = potion;
                 }
@@ -10819,8 +10849,8 @@ public final class GameplayParityGameTests {
         for (int scale = 0; scale < hostileWidths.length; scale++) {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                     ShipEntitySpecs.getByEggMeta(2038), scale);
-            if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                    || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+            if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                    || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                 helper.fail("hostile Shimakaze scale should keep the legacy constructor dimensions: scale=" + scale);
                 return;
             }
@@ -10861,8 +10891,8 @@ public final class GameplayParityGameTests {
         for (int scale = 0; scale < hostileWidths.length; scale++) {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                     ShipEntitySpecs.getByEggMeta(2039), scale);
-            if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                    || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+            if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                    || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                 helper.fail("hostile Nagato scale should keep the legacy constructor dimensions: scale=" + scale);
                 return;
             }
@@ -10903,8 +10933,8 @@ public final class GameplayParityGameTests {
         for (int scale = 0; scale < hostileWidths.length; scale++) {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                     ShipEntitySpecs.getByEggMeta(2048), scale);
-            if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                    || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+            if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                    || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                 helper.fail("hostile Yamato scale should keep the legacy constructor dimensions: scale=" + scale);
                 return;
             }
@@ -10949,8 +10979,8 @@ public final class GameplayParityGameTests {
         for (int scale = 0; scale < hostileWidths.length; scale++) {
             EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                     ShipEntitySpecs.getByEggMeta(2049), scale);
-            if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                    || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+            if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                    || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                 helper.fail("hostile Kaga scale should keep the legacy constructor dimensions: scale=" + scale);
                 return;
             }
@@ -10989,8 +11019,8 @@ public final class GameplayParityGameTests {
             for (int scale = 0; scale < hostileWidths.length; scale++) {
                 EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                         ShipEntitySpecs.getByEggMeta(hostileEggMeta), scale);
-                if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                        || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+                if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                        || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                     helper.fail("hostile Atago/Takao scale should keep the legacy constructor dimensions: eggMeta="
                             + hostileEggMeta + ", scale=" + scale);
                     return;
@@ -11041,8 +11071,8 @@ public final class GameplayParityGameTests {
             for (int scale = 0; scale < hostileWidths.length; scale++) {
                 EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                         ShipEntitySpecs.getByEggMeta(hostileEggMeta), scale);
-                if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                        || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+                if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                        || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                     helper.fail("hostile Kongou-class scale should keep the legacy constructor dimensions: eggMeta="
                             + hostileEggMeta + ", scale=" + scale);
                     return;
@@ -11127,8 +11157,8 @@ public final class GameplayParityGameTests {
             for (int scale = 0; scale < hostileWidths.length; scale++) {
                 EntityDimensions dimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                         ShipEntitySpecs.getByEggMeta(hostileEggMeta), scale);
-                if (Math.abs(dimensions.width - hostileWidths[scale]) > 1.0E-6F
-                        || Math.abs(dimensions.height - hostileHeights[scale]) > 1.0E-6F) {
+                if (Math.abs(dimensions.width() - hostileWidths[scale]) > 1.0E-6F
+                        || Math.abs(dimensions.height() - hostileHeights[scale]) > 1.0E-6F) {
                     helper.fail("hostile Tenryuu/Tatsuta scale should keep the legacy constructor dimensions: eggMeta="
                             + hostileEggMeta + ", scale=" + scale);
                     return;
@@ -11387,8 +11417,8 @@ public final class GameplayParityGameTests {
                     || !ShipEntitySpecs.primaryPool().contains(spec)
                     || LegacyShipBehaviorCatalog.invisibleLevelFor(spec) != invisibleLevels[index]
                     || LegacyShipBehaviorCatalog.floatingDepthFor(spec) != 1.0D
-                    || Math.abs(LegacyShipBehaviorCatalog.dimensionsFor(spec, 0).width - 0.6F) > 1.0E-6F
-                    || Math.abs(LegacyShipBehaviorCatalog.dimensionsFor(spec, 0).height - 1.8F) > 1.0E-6F
+                    || Math.abs(LegacyShipBehaviorCatalog.dimensionsFor(spec, 0).width() - 0.6F) > 1.0E-6F
+                    || Math.abs(LegacyShipBehaviorCatalog.dimensionsFor(spec, 0).height() - 1.8F) > 1.0E-6F
                     || !LegacyShipBehaviorCatalog.supportsItemPickup(spec)) {
                 helper.fail("legacy submarine egg " + eggMetas[index]
                         + " should remain a friendly small-build ship with its 1.12 behavior values");
@@ -11766,7 +11796,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
         if (ship == null || target == null) {
@@ -11812,7 +11842,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity carrier = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         Zombie target = EntityType.ZOMBIE.create(helper.getLevel());
         if (carrier == null || target == null) {
@@ -12375,10 +12405,10 @@ public final class GameplayParityGameTests {
                 submarineHime.getSpec(), submarineHime.getLegacyHostileScaleLevel());
         EntityDimensions ssnhDimensions = LegacyShipBehaviorCatalog.dimensionsFor(
                 ssnh.getSpec(), ssnh.getLegacyHostileScaleLevel());
-        if (Math.abs(submarineDimensions.width - 0.7F) > 1.0E-6F
-                || Math.abs(submarineDimensions.height - 1.85F) > 1.0E-6F
-                || Math.abs(ssnhDimensions.width - 0.5F) > 1.0E-6F
-                || Math.abs(ssnhDimensions.height - 0.9F) > 1.0E-6F) {
+        if (Math.abs(submarineDimensions.width() - 0.7F) > 1.0E-6F
+                || Math.abs(submarineDimensions.height() - 1.85F) > 1.0E-6F
+                || Math.abs(ssnhDimensions.width() - 0.5F) > 1.0E-6F
+                || Math.abs(ssnhDimensions.height() - 0.9F) > 1.0E-6F) {
             helper.fail("hime submarine dimensions should mirror EntitySubmHime and EntitySSNH");
             return;
         }
@@ -12446,8 +12476,8 @@ public final class GameplayParityGameTests {
         for (int index = 0; index < eggMetas.length; index++) {
             ShipEntitySpec spec = ShipEntitySpecs.getByEggMeta(eggMetas[index]);
             EntityDimensions actual = LegacyShipBehaviorCatalog.dimensionsFor(spec, 3);
-            if (Math.abs(actual.width - dimensions[index][0]) > 1.0E-6F
-                    || Math.abs(actual.height - dimensions[index][1]) > 1.0E-6F) {
+            if (Math.abs(actual.width() - dimensions[index][0]) > 1.0E-6F
+                    || Math.abs(actual.height() - dimensions[index][1]) > 1.0E-6F) {
                 helper.fail("hime egg " + eggMetas[index] + " should keep its fixed legacy dimensions");
                 return;
             }
@@ -12565,7 +12595,7 @@ public final class GameplayParityGameTests {
         LegacyShipEntity battleshipHime = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity escort = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity isolatedHime = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        Player target = helper.makeMockPlayer();
+        Player target = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (battleshipHime == null || escort == null || isolatedHime == null) {
             helper.fail("hime passive effect entities should be creatable");
             return;
@@ -12635,7 +12665,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void himeHealingKeepsLegacyFormulasAndFeedbackGate(GameTestHelper helper) {
-        Player owner = helper.makeMockPlayer();
+        Player owner = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         if (!helper.getLevel().addFreshEntity(owner)) {
             helper.fail("mock player should be indexed in the test level for hime healing queries");
             return;
@@ -14000,7 +14030,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         if (ship == null) {
@@ -14121,10 +14151,10 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void hostileBossDropsInvalidTargetBeforeNavigation(GameTestHelper helper) {
-        Player creativePlayer = helper.makeMockPlayer();
+        Player creativePlayer = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity creativeBoss = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity distantBoss = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
-        Player distantPlayer = helper.makeMockSurvivalPlayer();
+        Player distantPlayer = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         if (creativeBoss == null || distantBoss == null) {
             helper.fail("hostile bosses should be creatable for stale target navigation tests");
             return;
@@ -14177,7 +14207,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void fiveHimeBossesKeepLegacyInvisibleTargetBoundary(GameTestHelper helper) {
-        Player player = helper.makeMockSurvivalPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         LegacyShipEntity friendlyTarget = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         LegacyShipEntity hostileTarget = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (friendlyTarget == null || hostileTarget == null) {
@@ -14234,7 +14264,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void hostileCombatReactDoesNotAllowPlayerActionbar(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity boss = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         if (boss == null) {
             helper.fail("legacy ship entities should be creatable for combat feedback tests");
@@ -15569,15 +15599,15 @@ public final class GameplayParityGameTests {
         ListTag recipeEntries = new ListTag();
         CompoundTag coalEntry = new CompoundTag();
         coalEntry.putInt("Slot", 1);
-        new ItemStack(Items.COAL).save(coalEntry);
+        com.lulan.shincolle.item.LegacyItemData.save(new ItemStack(Items.COAL), helper.getLevel().registryAccess(), coalEntry);
         recipeEntries.add(coalEntry);
         CompoundTag stickEntry = new CompoundTag();
         stickEntry.putInt("Slot", 4);
-        new ItemStack(Items.STICK).save(stickEntry);
+        com.lulan.shincolle.item.LegacyItemData.save(new ItemStack(Items.STICK), helper.getLevel().registryAccess(), stickEntry);
         recipeEntries.add(stickEntry);
         paperTag.put("Recipe", recipeEntries);
         ItemStack paper = new ItemStack(ModItems.RECIPEPAPER.get());
-        paper.setTag(paperTag);
+        LegacyItemData.setTag(paper, paperTag);
 
         ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
         ship.setTask(4);
@@ -16152,7 +16182,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty", batch = "guard_bounds_isolation")
     public static void guardTargetUsesLegacyGuardingBounds(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos origin = helper.absolutePos(new BlockPos(1, 2, 1));
         LegacyShipEntity ship = createOwnedShip(helper, player, 53,
                 origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
@@ -16194,7 +16224,7 @@ public final class GameplayParityGameTests {
     public static void guardMovementUsesLegacyThresholdsAndPathCadence(GameTestHelper helper) {
         BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
         Vec3 center = Vec3.atCenterOf(guard);
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center);
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, center);
         ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
         LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
         double max = ship.getFollowMax() + ship.getBbWidth() * 0.75F;
@@ -16265,7 +16295,7 @@ public final class GameplayParityGameTests {
     public static void guardTeleportUsesIdleAndDistanceCounters(GameTestHelper helper) {
         BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
         Vec3 center = Vec3.atCenterOf(guard);
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center.add(10.0D, 0.0D, 0.0D));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, center.add(10.0D, 0.0D, 0.0D));
         ship.setFollowMin(1);
         ship.setFollowMax(2);
         ship.commandGuardBlock(guard, helper.getLevel().dimension().location().toString());
@@ -16313,7 +16343,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "guard", batch = "guard_invalid")
     public static void guardInvalidTargetsCancelAndRestoreFollow(GameTestHelper helper) {
         BlockPos guard = helper.absolutePos(new BlockPos(2, 160, 2));
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, Vec3.atCenterOf(guard).add(24.0D, 0.0D, 0.0D));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, Vec3.atCenterOf(guard).add(24.0D, 0.0D, 0.0D));
         LegacyShipGuardGoal goal = new LegacyShipGuardGoal(ship);
         ship.commandGuardBlock(guard, "minecraft:the_nether");
         if (goal.canUse() || ship.hasActiveCommandState() || !ship.canFollow()) {
@@ -16357,7 +16387,7 @@ public final class GameplayParityGameTests {
         for (BlockPos pos : BlockPos.betweenClosed(ground.offset(-10, -1, -10), ground.offset(10, -1, 10))) {
             helper.getLevel().setBlockAndUpdate(pos, Blocks.STONE.defaultBlockState());
         }
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, center.add(20.0D, 0.0D, 0.0D));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, center.add(20.0D, 0.0D, 0.0D));
         ship.formationId = 1;
         ship.formationSlot = 1;
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
@@ -16409,7 +16439,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "guard", batch = "guard_force_move")
     public static void guardTypeZeroMovesWithoutAttacking(GameTestHelper helper) {
         BlockPos origin = helper.absolutePos(new BlockPos(1, 160, 1));
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, Vec3.atBottomCenterOf(origin));
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, Vec3.atBottomCenterOf(origin));
         Zombie target = new Zombie(EntityType.ZOMBIE, helper.getLevel());
         target.setNoAi(true);
         target.setPos(ship.position().add(1.5D, 0.0D, 0.0D));
@@ -16465,7 +16495,7 @@ public final class GameplayParityGameTests {
         helper.getLevel().setBlockAndUpdate(node, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState());
         WaypointBlockEntity waypoint = (WaypointBlockEntity) helper.getLevel().getBlockEntity(node);
         waypoint.setNextWaypoint(next);
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53,
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53,
                 new Vec3(node.getX() + 3.4D, node.getY(), node.getZ() + 0.5D));
         ship.commandMoveTo(node, "");
         for (int tick = 1; tick <= 15; tick++) {
@@ -16751,7 +16781,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void shipFeedingUsesLegacyFoodSaturationCap(GameTestHelper helper) {
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         LegacyShipEntity ship = createOwnedShip(helper, player, 58, 2.5D, 2.0D, 2.5D);
         if (ship == null) {
             return;
@@ -16783,9 +16813,10 @@ public final class GameplayParityGameTests {
         ServerPlayer owner = makeServerBackedPlayer(helper, "AutoPumpSource");
         helper.getLevel().players().add(owner);
         owner.getAbilities().mayBuild = true;
-        owner.setPos(4.5D, 20.0D, 4.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(4, 0, 4)).atY(20);
+        owner.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
 
-        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, 4.5D, 20.0D, 4.5D);
+        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, owner.getX(), owner.getY(), owner.getZ());
         if (ship == null) {
             return;
         }
@@ -16817,9 +16848,10 @@ public final class GameplayParityGameTests {
         ServerPlayer owner = makeServerBackedPlayer(helper, "AutoPumpDepth");
         helper.getLevel().players().add(owner);
         owner.getAbilities().mayBuild = true;
-        owner.setPos(4.5D, 20.0D, 4.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(4, 0, 4)).atY(20);
+        owner.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
 
-        LegacyShipEntity wrongDrumShip = createOwnedShip(helper, owner, 58, 4.5D, 20.0D, 4.5D);
+        LegacyShipEntity wrongDrumShip = createOwnedShip(helper, owner, 58, owner.getX(), owner.getY(), owner.getZ());
         if (wrongDrumShip == null) {
             return;
         }
@@ -16838,7 +16870,7 @@ public final class GameplayParityGameTests {
             return;
         }
 
-        LegacyShipEntity deepShip = createOwnedShip(helper, owner, 58, 14.5D, 20.0D, 4.5D);
+        LegacyShipEntity deepShip = createOwnedShip(helper, owner, 58, owner.getX() + 10.0D, owner.getY(), owner.getZ());
         if (deepShip == null) {
             return;
         }
@@ -16874,9 +16906,10 @@ public final class GameplayParityGameTests {
         ServerPlayer owner = makeServerBackedPlayer(helper, "AutoPumpExperience");
         helper.getLevel().players().add(owner);
         owner.getAbilities().mayBuild = true;
-        owner.setPos(4.5D, 20.0D, 4.5D);
+        BlockPos origin = helper.absolutePos(new BlockPos(4, 0, 4)).atY(20);
+        owner.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
 
-        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, 4.5D, 20.0D, 4.5D);
+        LegacyShipEntity ship = createOwnedShip(helper, owner, 58, owner.getX(), owner.getY(), owner.getZ());
         if (ship == null) {
             return;
         }
@@ -17440,10 +17473,10 @@ public final class GameplayParityGameTests {
             EntityDimensions friendlyDimensions = LegacyShipBehaviorCatalog.dimensionsFor(friendly, 0);
             EntityDimensions hostileDimensions = LegacyShipBehaviorCatalog.dimensionsFor(hostile, 3);
             LegacyShipAttackProfile profile = LegacyShipBehaviorCatalog.attackProfile(friendly);
-            if (Math.abs(friendlyDimensions.width - 0.6F) > 1.0E-6F
-                    || Math.abs(friendlyDimensions.height - 1.875F) > 1.0E-6F
-                    || Math.abs(hostileDimensions.width - 2.4F) > 1.0E-6F
-                    || Math.abs(hostileDimensions.height - 7.5F) > 1.0E-6F
+            if (Math.abs(friendlyDimensions.width() - 0.6F) > 1.0E-6F
+                    || Math.abs(friendlyDimensions.height() - 1.875F) > 1.0E-6F
+                    || Math.abs(hostileDimensions.width() - 2.4F) > 1.0E-6F
+                    || Math.abs(hostileDimensions.height() - 7.5F) > 1.0E-6F
                     || profile.hasAirAttack()
                     || !profile.heavy()
                     || !profile.projectileProfile(LegacyShipAttackKind.HEAVY).isPresent()) {
@@ -17564,7 +17597,7 @@ public final class GameplayParityGameTests {
     private static boolean attackEffectMatches(int eggMeta,
                                                int level,
                                                int hostileScaleLevel,
-                                               MobEffect expectedEffect,
+                                               net.minecraft.core.Holder<MobEffect> expectedEffect,
                                                int expectedAmplifier,
                                                int expectedDuration,
                                                int expectedChance) {
@@ -17610,7 +17643,7 @@ public final class GameplayParityGameTests {
             helper.fail("owner/current-target memories must not turn neutral animals into automatic Selector targets");
             return;
         }
-        TeitokuEvents.onLivingHurt(new net.minecraftforge.event.entity.living.LivingHurtEvent(owner,
+        TeitokuEvents.onLivingHurt(new com.lulan.shincolle.event.LegacyLivingHurtEvent(owner,
                 helper.getLevel().damageSources().mobAttack(cow), 4.0F));
         if (ship.getLastHurtByMob() != cow || ship.canEngage(cow)
                 || !new LegacyShipRangedAttackGoal(ship, 1.0D).canUse()) {
@@ -17640,7 +17673,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "guard", batch = "step4_hostile_range")
     public static void hostileRangeTargetMixesPlayersAndShipsBeforeNearestThreeRoll(GameTestHelper helper) {
         Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
-        GuardTestShip hostile = new GuardTestShip(helper, helper.makeMockPlayer(), 2049, position);
+        GuardTestShip hostile = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 2049, position);
         hostile.setAiOnSightChase(false);
         helper.getLevel().getEntitiesOfClass(LegacyShipEntity.class, hostile.getHostileTargetSearchArea(),
                 ship -> ship != hostile).forEach(Entity::discard);
@@ -17649,7 +17682,7 @@ public final class GameplayParityGameTests {
         helper.getLevel().addNewPlayer(player);
         try {
             player.setPos(position.add(6.0D, 0.0D, 0.0D));
-            GuardTestShip near = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(2.0D, 0.0D, 0.0D));
+            GuardTestShip near = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, position.add(2.0D, 0.0D, 0.0D));
             fixtureShips.add(near);
             List<LivingEntity> initialCandidates = helper.getLevel().getEntitiesOfClass(
                     LivingEntity.class, hostile.getHostileTargetSearchArea(), hostile::canEngage);
@@ -17664,8 +17697,8 @@ public final class GameplayParityGameTests {
                         + hostileRangeDiagnostics(hostile, initial));
                 return;
             }
-            GuardTestShip third = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(3.0D, 0.0D, 0.0D));
-            GuardTestShip fourth = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position.add(4.0D, 0.0D, 0.0D));
+            GuardTestShip third = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, position.add(3.0D, 0.0D, 0.0D));
+            GuardTestShip fourth = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, position.add(4.0D, 0.0D, 0.0D));
             fixtureShips.addAll(List.of(third, fourth));
             player.setPos(position.add(1.0D, 0.0D, 0.0D));
             List<LivingEntity> mergedCandidates = helper.getLevel().getEntitiesOfClass(
@@ -17847,7 +17880,7 @@ public final class GameplayParityGameTests {
         private int attacks;
 
         private CollideTestShip(GameTestHelper helper, Vec3 position) {
-            super(helper, helper.makeMockPlayer(), 53, position);
+            super(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, position);
         }
 
         @Override
@@ -17860,7 +17893,7 @@ public final class GameplayParityGameTests {
     @GameTest(template = "guard", batch = "step4_wander")
     public static void wanderUsesLegacyProbabilityRangesAndStateGates(GameTestHelper helper) {
         Vec3 position = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(8, 160, 8)));
-        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(), 53, position);
+        GuardTestShip ship = new GuardTestShip(helper, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE), 53, position);
         RecordingWanderGoal goal = new RecordingWanderGoal(ship, position.add(3.0D, 0.0D, 0.0D));
         for (int seed = 0; seed < 360; seed++) {
             ship.getRandom().setSeed(seed);
@@ -18290,7 +18323,7 @@ public final class GameplayParityGameTests {
             }
         }
 
-        Player player = helper.makeMockPlayer();
+        Player player = helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE);
         BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
         List<ItemStack> oreDrops = Block.getDrops(oreState, helper.getLevel(), pos, null, player, stonePick);
         if (oreDrops.size() != 1
@@ -18385,8 +18418,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void b2WaypointAndDeskBlockEntitySyncUpdatePackets(GameTestHelper helper) {
-        ServerPlayer player = FakePlayerFactory.get(helper.getLevel(),
-                new GameProfile(UUID.randomUUID(), "B2SyncOwner"));
+        ServerPlayer player = makeRidingPlayer(helper, "B2SyncOwner");
         BlockPos waypointPos = helper.absolutePos(new BlockPos(1, 2, 1));
         BlockPos deskPos = helper.absolutePos(new BlockPos(2, 2, 1));
         helper.getLevel().setBlock(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState(), 3);
@@ -18408,7 +18440,7 @@ public final class GameplayParityGameTests {
         }
 
         WaypointBlockEntity syncedWaypoint = new WaypointBlockEntity(waypointPos, ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState());
-        syncedWaypoint.load(waypoint.getUpdateTag());
+        syncedWaypoint.loadWithComponents(waypoint.getUpdateTag(helper.getLevel().registryAccess()), helper.getLevel().registryAccess());
         if (syncedWaypoint.getStayMode() != 1
                 || !waypointPos.east(3).equals(syncedWaypoint.getNextWaypoint())
                 || !waypointPos.south(2).equals(syncedWaypoint.getPairedChest())
@@ -18438,7 +18470,7 @@ public final class GameplayParityGameTests {
         }
 
         DeskBlockEntity syncedDesk = new DeskBlockEntity(deskPos, ModBlocks.BLOCK_DESK.get().defaultBlockState());
-        syncedDesk.load(desk.getUpdateTag());
+        syncedDesk.loadWithComponents(desk.getUpdateTag(helper.getLevel().registryAccess()), helper.getLevel().registryAccess());
         if (syncedDesk.getSelectedFunction() != DeskMenu.BOOK_VARIANT
                 || syncedDesk.getRadarZoomIndex() != 2
                 || syncedDesk.getBookChapter() != 3
@@ -18459,7 +18491,7 @@ public final class GameplayParityGameTests {
         com.lulan.shincolle.item.PointerItem.setMode(pointer, 1);
         player.setItemInHand(InteractionHand.MAIN_HAND, pointer);
 
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElse(null);
+        TeitokuData data = TeitokuHelper.get(player).orElse(null);
         if (data == null) {
             helper.fail("TeitokuData capability should be attached to FakePlayer");
             return;
@@ -18577,8 +18609,7 @@ public final class GameplayParityGameTests {
 
     @GameTest(template = "empty")
     public static void b2MountMoveOpenInventorySkillAndHitZoneParity(GameTestHelper helper) {
-        ServerPlayer owner = FakePlayerFactory.get(helper.getLevel(),
-                new GameProfile(UUID.randomUUID(), "B2MountOwner"));
+        ServerPlayer owner = makeRidingPlayer(helper, "B2MountOwner");
         ServerPlayer intruder = FakePlayerFactory.get(helper.getLevel(),
                 new GameProfile(UUID.randomUUID(), "B2MountIntruder"));
         TeitokuHelper.get(owner).ifPresent(data -> data.setPlayerUid(98303));
@@ -18591,7 +18622,7 @@ public final class GameplayParityGameTests {
 
         ship.setVariantEggMeta(35);
         ship.finalizeSpawn(helper.getLevel(), helper.getLevel().getCurrentDifficultyAt(BlockPos.ZERO),
-                net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null, null);
+                net.minecraft.world.entity.MobSpawnType.SPAWN_EGG, null);
         ship.setOwner(owner);
         ship.setModelState(1);
         ship.setGrudge(1000);
@@ -18728,7 +18759,7 @@ public final class GameplayParityGameTests {
 
         ServerPlayer leader = FakePlayerFactory.get(helper.getLevel(),
                 new GameProfile(UUID.randomUUID(), "B3LifecycleLeader"));
-        TeitokuData leaderData = TeitokuHelper.get(leader).resolve().orElse(null);
+        TeitokuData leaderData = TeitokuHelper.get(leader).orElse(null);
         if (leaderData == null || leaderData.getTeamCooldown() != TeitokuData.INITIAL_TEAM_COOLDOWN) {
             helper.fail("newly attached player TeitokuData should start with initial 20-tick team cooldown");
             return;
@@ -19173,8 +19204,8 @@ public final class GameplayParityGameTests {
                     anchor.getX() + 8.5D, anchor.getY(), anchor.getZ() + 0.5D);
             if (unsignedOwnerShip == null) return;
             ItemStack thirdPartyPaper = new ItemStack(ModItems.OWNERPAPER.get());
-            thirdPartyPaper.getOrCreateTag().putInt("SignIDA", ownerBUid);
-            thirdPartyPaper.getOrCreateTag().putInt("SignIDB", ownerAUid + ownerBUid + 10000);
+            LegacyItemData.update(thirdPartyPaper, tag -> tag.putInt("SignIDA", ownerBUid));
+            LegacyItemData.update(thirdPartyPaper, tag -> tag.putInt("SignIDB", ownerAUid + ownerBUid + 10000));
             ownerA.getAbilities().instabuild = true;
             ownerA.setShiftKeyDown(true);
             ownerA.setItemInHand(InteractionHand.MAIN_HAND, thirdPartyPaper);
@@ -19339,21 +19370,21 @@ public final class GameplayParityGameTests {
                     .withRotation(new Vec2(0.0F, 0.0F));
             CommandSourceStack nonOpSource = ownerB.createCommandSourceStack().withPermission(4);
             boolean stopAiBefore = LegacyShipEntity.isStopAi();
-            if (commands.performPrefixedCommand(nonOpSource, "shipstopai") > 0
-                    || commands.performPrefixedCommand(level.getServer().createCommandSourceStack(), "shipstopai") > 0
+            if (executeCommand(commands, nonOpSource, "shipstopai") > 0
+                    || executeCommand(commands, level.getServer().createCommandSourceStack(), "shipstopai") > 0
                     || LegacyShipEntity.isStopAi() != stopAiBefore) {
                 helper.fail("legacy /ship* OP commands should reject non-OP survival players and non-player senders");
                 return;
             }
 
-            if (commands.performPrefixedCommand(opSource, "shipinfo") <= 0
-                    || commands.performPrefixedCommand(opSource, "shipemotes lol") <= 0
-                    || commands.performPrefixedCommand(opSource, "shipupdateowneruid " + ownerA.getGameProfile().getName()) <= 0) {
+            if (executeCommand(commands, opSource, "shipinfo") <= 0
+                    || executeCommand(commands, opSource, "shipemotes lol") <= 0
+                    || executeCommand(commands, opSource, "shipupdateowneruid " + ownerA.getGameProfile().getName()) <= 0) {
                 helper.fail("/shipinfo, /shipemotes, and /shipupdateowneruid should succeed on aimed owned ship");
                 return;
             }
 
-            if (commands.performPrefixedCommand(opSource, "shipattrs 50 10 10 10 10 10 10") <= 0
+            if (executeCommand(commands, opSource, "shipattrs 50 10 10 10 10 10 10") <= 0
                     || kongou.getShipLevel() != 50
                     || kongou.getModernizationDisplayCount() != 60) {
                 helper.fail("/shipattrs should set level 50 and 10 modernization steps across all 6 stats");
@@ -19377,15 +19408,15 @@ public final class GameplayParityGameTests {
             reloaded = null;
 
             boolean initialStopAi = LegacyShipEntity.isStopAi();
-            if (commands.performPrefixedCommand(opSource, "shipstopai") <= 0
+            if (executeCommand(commands, opSource, "shipstopai") <= 0
                     || LegacyShipEntity.isStopAi() == initialStopAi
-                    || commands.performPrefixedCommand(opSource, "shipstopai") <= 0
+                    || executeCommand(commands, opSource, "shipstopai") <= 0
                     || LegacyShipEntity.isStopAi() != initialStopAi) {
                 helper.fail("/shipstopai should toggle global AI freeze flag on and off");
                 return;
             }
 
-            if (commands.performPrefixedCommand(opSource, "shipchangeowner " + ownerB.getGameProfile().getName()) <= 0
+            if (executeCommand(commands, opSource, "shipchangeowner " + ownerB.getGameProfile().getName()) <= 0
                     || kongou.getOwnerUid() != uidB
                     || !ownerB.getUUID().equals(kongou.getOwnerUuid().orElse(null))) {
                 helper.fail("/shipchangeowner should transfer both owner UUID and owner UID");
@@ -19393,10 +19424,10 @@ public final class GameplayParityGameTests {
             }
 
             kongou.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 10.5D);
-            if (commands.performPrefixedCommand(opSource, "ship list") <= 0
-                    || commands.performPrefixedCommand(opSource, "ship get " + shipUid) <= 0
+            if (executeCommand(commands, opSource, "ship list") <= 0
+                    || executeCommand(commands, opSource, "ship get " + shipUid) <= 0
                     || kongou.distanceToSqr(ownerA) > 4.0D
-                    || commands.performPrefixedCommand(opSource, "ship del " + shipUid) <= 0
+                    || executeCommand(commands, opSource, "ship del " + shipUid) <= 0
                     || ShipCacheSavedData.get(level).getShip(shipUid) != null) {
                 helper.fail("/ship list|get|del should list cached ship, recall it to sender, and delete cache entry");
                 return;
@@ -19407,7 +19438,7 @@ public final class GameplayParityGameTests {
             ItemEntity legacyDrop = LegacyEntityItemMarker.mark(new ItemEntity(level,
                     origin.getX() + 2.5D, origin.getY() + 0.5D, origin.getZ() + 1.5D, new ItemStack(Items.EGG)));
             level.addFreshEntity(legacyDrop);
-            if (commands.performPrefixedCommand(opSource, "shipcleardrop 16") <= 0 || legacyDrop.isAlive() || !drop.isAlive()) {
+            if (executeCommand(commands, opSource, "shipcleardrop 16") <= 0 || legacyDrop.isAlive() || !drop.isAlive()) {
                 legacyDrop.discard();
                 helper.fail("/shipcleardrop should only remove legacy BasicEntityItem drops, not vanilla ItemEntities");
                 return;
@@ -19422,7 +19453,7 @@ public final class GameplayParityGameTests {
             hostile.setPos(origin.getX() + 3.5D, origin.getY(), origin.getZ() + 3.5D);
             level.addFreshEntity(hostile);
             int cmdClassId = (hostile.isHostileVariant() ? 2000 : 0) + hostile.getShipClassId() + 2;
-            if (commands.performPrefixedCommand(opSource, "shipkill " + cmdClassId + " 16") <= 0
+            if (executeCommand(commands, opSource, "shipkill " + cmdClassId + " 16") <= 0
                     || hostile.isAlive()
                     || !kongou.isAlive()) {
                 helper.fail("/shipkill should remove matching hostile ships while sparing Kongou");
@@ -19638,20 +19669,20 @@ public final class GameplayParityGameTests {
 
             JsonObject condJson = new JsonObject();
             condJson.addProperty("type", "shincolle:poly_as_mn");
-            ICondition polyCondition = CraftingHelper.getCondition(condJson);
+            ICondition polyCondition = ICondition.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, condJson).getOrThrow();
 
             ShinColleConfig.setTestOverride("polyAsMn", false);
             if (polyCondition.test(ICondition.IContext.EMPTY)
-                    || LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("forge", "ingots/manganese"))) {
+                    || LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("c", "ingots/manganese"))) {
                 helper.fail("PolyAsMnCondition and matchesTag should be false when polyAsMn=false");
                 return;
             }
 
             ShinColleConfig.setTestOverride("polyAsMn", true);
             if (!polyCondition.test(ICondition.IContext.EMPTY)
-                    || !LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("forge", "ingots/manganese"))
-                    || !LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("forge", "dusts/manganese"))
-                    || new ItemStack(ModItems.ABYSSMETAL1.get()).is(itemTag("forge", "ingots/manganese"))) {
+                    || !LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("c", "ingots/manganese"))
+                    || !LegacyItemMatchHelper.matchesTag(new ItemStack(ModItems.ABYSSMETAL1.get()), itemTag("c", "dusts/manganese"))
+                    || new ItemStack(ModItems.ABYSSMETAL1.get()).is(itemTag("c", "ingots/manganese"))) {
                 helper.fail("polyAsMn=true should enable condition and runtime tag match without altering static tags");
                 return;
             }
@@ -19732,7 +19763,7 @@ public final class GameplayParityGameTests {
         BlockPos groundPos = helper.absolutePos(new BlockPos(4, 1, 4));
         helper.setBlock(new BlockPos(4, 1, 4), Blocks.STONE.defaultBlockState());
 
-        ItemStack shipEgg23 = new ItemStack(ForgeRegistries.ITEMS.getValue(
+        ItemStack shipEgg23 = new ItemStack(BuiltInRegistries.ITEM.get(
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "shipegg23")));
         owner.setItemInHand(InteractionHand.MAIN_HAND, shipEgg23);
         InteractionResult hatch23 = shipEgg23.useOn(new UseOnContext(
@@ -19745,7 +19776,7 @@ public final class GameplayParityGameTests {
 
         BlockPos largePos = helper.absolutePos(new BlockPos(7, 1, 4));
         helper.setBlock(new BlockPos(7, 1, 4), Blocks.STONE.defaultBlockState());
-        ItemStack largeEgg = new ItemStack(ForgeRegistries.ITEMS.getValue(
+        ItemStack largeEgg = new ItemStack(BuiltInRegistries.ITEM.get(
                 ResourceLocation.fromNamespaceAndPath(ShinColle.MOD_ID, "largeegg")));
         owner.setItemInHand(InteractionHand.MAIN_HAND, largeEgg);
         InteractionResult hatchLarge = largeEgg.useOn(new UseOnContext(
@@ -19863,7 +19894,7 @@ public final class GameplayParityGameTests {
         farShooter.setPos(origin.getX() + 70.0D, origin.getY(), origin.getZ());
         helper.getLevel().addFreshEntity(farShooter);
 
-        Arrow pointBlankArrow = new Arrow(helper.getLevel(), farShooter);
+        Arrow pointBlankArrow = new Arrow(helper.getLevel(), farShooter, new ItemStack(Items.ARROW), null);
         pointBlankArrow.setPos(submHime.getX() + 0.5D, submHime.getY() + 0.5D, submHime.getZ());
         helper.getLevel().addFreshEntity(pointBlankArrow);
 
@@ -20330,7 +20361,7 @@ public final class GameplayParityGameTests {
 
         ItemStack plainCannon = new ItemStack(ModItems.EQUIPCANNON_ITEMS.get(0).get());
         ItemStack enchantedCannon = plainCannon.copy();
-        enchantedCannon.enchant(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS, 3);
+        enchantedCannon.enchant(helper.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS), 3);
         fleet[0].getShipInventory().setItem(0, plainCannon);
         float plainAtk = ShipEquipmentProfile.fromInventory(fleet[0].getShipInventory(), fleet[0].getSpec())
                 .stat(LegacyShipStatTables.Attr.ATK_L);

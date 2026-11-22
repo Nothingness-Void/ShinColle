@@ -22,8 +22,9 @@ public class HeavyGrudgeBlockItem extends BlockItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        CompoundTag tag = stack.getTag();
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         if (tag == null || !tag.contains(MATS_TAG)) {
             return;
         }

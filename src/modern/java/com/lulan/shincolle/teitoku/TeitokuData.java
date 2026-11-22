@@ -17,6 +17,16 @@ import java.util.Locale;
 
 public class TeitokuData {
 
+    private net.minecraft.core.HolderLookup.Provider registries = net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.registries.BuiltInRegistries.REGISTRY);
+
+    public TeitokuData withRegistries(net.minecraft.core.HolderLookup.Provider registries) {
+        this.registries = registries;
+        for (MorphProfile profile : this.morphProfiles) {
+            profile.withRegistries(registries);
+        }
+        return this;
+    }
+
     private static final String PLAYER_NAME_TAG = "PlayerName";
     private static final String LEGACY_CAPABILITY_TAG = "TeitokuExtProps";
     private static final String PLAYER_UID_TAG = "PlayerUID";
@@ -220,7 +230,7 @@ public class TeitokuData {
         this.morphProfiles.clear();
         ListTag morphProfileList = source.getList(MORPH_PROFILES_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < morphProfileList.size(); index++) {
-            MorphProfile morphProfile = new MorphProfile();
+            MorphProfile morphProfile = new MorphProfile().withRegistries(this.registries);
             morphProfile.setDirtyCallback(() -> {
             });
             morphProfile.loadFromTag(morphProfileList.getCompound(index));
@@ -259,6 +269,7 @@ public class TeitokuData {
     }
 
     public void copyFrom(TeitokuData other) {
+        this.withRegistries(other.registries);
         this.loadFromTag(other.saveToTag(new CompoundTag()));
     }
 
@@ -781,6 +792,7 @@ public class TeitokuData {
 
     private void bindMorphDirtyCallbacks() {
         for (MorphProfile morphProfile : this.morphProfiles) {
+            morphProfile.withRegistries(this.registries);
             morphProfile.setDirtyCallback(() -> {
             });
         }

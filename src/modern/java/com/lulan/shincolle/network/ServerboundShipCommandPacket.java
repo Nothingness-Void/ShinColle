@@ -3,7 +3,10 @@ package com.lulan.shincolle.network;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.util.function.Supplier;
@@ -14,7 +17,19 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
                                            int shipUid,
                                            int targetId,
                                            @Nullable BlockPos pos,
-                                           int value) {
+                                           int value) implements CustomPacketPayload {
+
+    public static final Type<ServerboundShipCommandPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("shincolle", "serverbound_ship_command_packet"));
+    public static final StreamCodec<FriendlyByteBuf, ServerboundShipCommandPacket> STREAM_CODEC = StreamCodec.of(ServerboundShipCommandPacket::encodeBuffer, ServerboundShipCommandPacket::decode);
+
+    private static void encodeBuffer(FriendlyByteBuf buffer, ServerboundShipCommandPacket packet) {
+        encode(packet, buffer);
+    }
+
+    @Override
+    public Type<ServerboundShipCommandPacket> type() {
+        return TYPE;
+    }
 
     public static final int NO_ENTITY = -1;
     public static final int NO_UID = -1;
@@ -97,14 +112,12 @@ public record ServerboundShipCommandPacket(ShipCommandAction action,
         return new ServerboundShipCommandPacket(action, mode, shipId, shipUid, targetId, pos, value);
     }
 
-    public static void handle(ServerboundShipCommandPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(ServerboundShipCommandPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
+            ServerPlayer sender = (ServerPlayer) context.player();
             if (sender != null) {
                 ShipCommandService.handle(sender, packet);
             }
         });
-        context.setPacketHandled(true);
     }
 }

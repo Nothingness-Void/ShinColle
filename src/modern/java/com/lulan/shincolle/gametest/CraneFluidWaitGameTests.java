@@ -12,13 +12,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 @GameTestHolder(ShinColle.MOD_ID)
 @PrefixGameTestTemplate(false)
@@ -43,7 +43,7 @@ public final class CraneFluidWaitGameTests {
         cargo.setStackInSlot(0, new ItemStack(Items.BUCKET));
         helper.assertTrue(!(boolean) ending.invoke(crane, null, chest, cargo, new boolean[4]),
                 "UntilFull must wait for an empty bucket even when crane tank has no fluid");
-        var partialTank = FluidUtil.getFluidHandler(new ItemStack(ModItems.SHIPTANK.get())).resolve().orElseThrow();
+        var partialTank = FluidUtil.getFluidHandler(new ItemStack(ModItems.SHIPTANK.get())).orElseThrow();
         partialTank.fill(new FluidStack(Fluids.WATER, 1000), IFluidHandler.FluidAction.EXECUTE);
         cargo.setStackInSlot(0, partialTank.getContainer());
         helper.assertTrue(!(boolean) ending.invoke(crane, null, chest, cargo, new boolean[4]),

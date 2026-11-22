@@ -130,11 +130,11 @@ public final class LegacyTeamMarkerParticle extends Particle {
 
     private void vertex(VertexConsumer consumer, float x, float y, float z,
                         float u, float v, float alpha) {
-        consumer.vertex(x, y, z)
-                .uv(u, v)
-                .color(this.rCol, this.gCol, this.bCol, alpha)
-                .uv2(FULL_BRIGHT)
-                .endVertex();
+        consumer.addVertex(x, y, z)
+                .setUv(u, v)
+                .setColor(this.rCol, this.gCol, this.bCol, alpha)
+                .setLight(FULL_BRIGHT)
+                ;
     }
 
     @Override
@@ -148,7 +148,7 @@ public final class LegacyTeamMarkerParticle extends Particle {
     }
 
     @Override
-    public boolean shouldCull() {
-        return false;
+    public net.minecraft.world.phys.AABB getRenderBoundingBox(float partialTick) {
+        return net.minecraft.world.phys.AABB.INFINITE;
     }
 }

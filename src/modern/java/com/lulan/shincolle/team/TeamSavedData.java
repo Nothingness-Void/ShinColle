@@ -19,9 +19,7 @@ public class TeamSavedData extends SavedData {
 
     public static TeamSavedData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
-                TeamSavedData::load,
-                TeamSavedData::new,
-                DATA_NAME);
+                new SavedData.Factory<>(TeamSavedData::new, (tag, registries) -> TeamSavedData.load(tag)), DATA_NAME);
     }
 
     public static TeamSavedData load(CompoundTag tag) {
@@ -174,7 +172,7 @@ public class TeamSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
         ListTag list = new ListTag();
         for (TeamData teamData : this.teamById.values()) {
             if (teamData.getTeamId() <= 0) {

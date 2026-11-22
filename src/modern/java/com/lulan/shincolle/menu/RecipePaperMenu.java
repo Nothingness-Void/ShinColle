@@ -1,5 +1,6 @@
 package com.lulan.shincolle.menu;
 
+import com.lulan.shincolle.item.LegacyItemData;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
 import net.minecraft.nbt.CompoundTag;
@@ -155,7 +156,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             return;
         }
 
-        CompoundTag tag = hostStack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(hostStack);
 
         if (tag == null || !tag.contains(RECIPE_TAG, Tag.TAG_LIST)) {
             return;
@@ -168,13 +169,13 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             int slot = itemTag.getInt(SLOT_KEY);
 
             if (slot >= 0 && slot < CRAFT_SLOT_COUNT) {
-                this.craftMatrix.setItem(slot, ItemStack.of(itemTag));
+                this.craftMatrix.setItem(slot, LegacyItemData.parse(this.player.registryAccess(), itemTag));
             }
         }
     }
 
     private void saveRecipeToStack(ItemStack hostStack) {
-        CompoundTag tag = hostStack.getOrCreateTag();
+        CompoundTag tag = LegacyItemData.copyTag(hostStack);
         ListTag recipeEntries = new ListTag();
 
         for (int i = 0; i < CRAFT_SLOT_COUNT; i++) {
@@ -183,7 +184,7 @@ public class RecipePaperMenu extends AbstractContainerMenu {
             if (!ingredient.isEmpty()) {
                 CompoundTag itemTag = new CompoundTag();
                 itemTag.putInt(SLOT_KEY, i);
-                ingredient.save(itemTag);
+                LegacyItemData.save(ingredient, this.player.registryAccess(), itemTag);
                 recipeEntries.add(itemTag);
             }
         }
@@ -193,19 +194,20 @@ public class RecipePaperMenu extends AbstractContainerMenu {
         if (!resultStack.isEmpty()) {
             CompoundTag itemTag = new CompoundTag();
             itemTag.putInt(SLOT_KEY, RESULT_STORAGE_SLOT);
-            resultStack.save(itemTag);
+            LegacyItemData.save(resultStack, this.player.registryAccess(), itemTag);
             recipeEntries.add(itemTag);
         }
 
         tag.put(RECIPE_TAG, recipeEntries);
+        LegacyItemData.setTag(hostStack, tag);
     }
 
     private void updateResult(Level level) {
         ItemStack resultStack = ItemStack.EMPTY;
-        Optional<CraftingRecipe> recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this.craftMatrix, level);
+        Optional<net.minecraft.world.item.crafting.RecipeHolder<CraftingRecipe>> recipe = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this.craftMatrix.asCraftInput(), level);
 
         if (recipe.isPresent()) {
-            resultStack = recipe.get().assemble(this.craftMatrix, level.registryAccess());
+            resultStack = recipe.get().value().assemble(this.craftMatrix.asCraftInput(), level.registryAccess());
         }
 
         this.craftResult.setItem(0, resultStack);

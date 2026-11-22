@@ -57,7 +57,7 @@ public final class LegacyFormationHelper {
                     BlockState state = level.getBlockState(candidate);
                     if (state.isAir() || !state.getFluidState().isEmpty()
                             || state.is(ModBlocks.BLOCK_WAYPOINT.get())
-                            || state.isPathfindable(level, candidate, PathComputationType.LAND)) {
+                            || state.isPathfindable( PathComputationType.LAND)) {
                         for (int below = 0; below <= Math.abs(y); below++) {
                             BlockState floor = level.getBlockState(candidate.below(below + 1));
                             if (!floor.isAir() && !floor.is(Blocks.FIRE)

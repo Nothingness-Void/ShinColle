@@ -6,8 +6,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.RegistryObject;
-import net.minecraftforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.List;
 
@@ -15,7 +15,7 @@ public final class ModCreativeModeTabs {
 
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ShinColle.MOD_ID);
 
-    public static final RegistryObject<CreativeModeTab> SHINCOLLE = TABS.register("shincolle",
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> SHINCOLLE = TABS.register("shincolle",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.shincolle"))
                     .icon(() -> new ItemStack(ModItems.GRUDGE.get()))
@@ -78,8 +78,8 @@ public final class ModCreativeModeTabs {
     private ModCreativeModeTabs() {
     }
 
-    private static void acceptAll(CreativeModeTab.Output output, List<RegistryObject<Item>> items) {
-        for (RegistryObject<Item> item : items) {
+    private static void acceptAll(CreativeModeTab.Output output, List<DeferredHolder<Item, Item>> items) {
+        for (DeferredHolder<Item, Item> item : items) {
             output.accept(item.get());
         }
     }

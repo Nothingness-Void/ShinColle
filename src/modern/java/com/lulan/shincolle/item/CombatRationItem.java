@@ -92,7 +92,7 @@ public class CombatRationItem extends Item {
     }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
+    public int getUseDuration(ItemStack stack, net.minecraft.world.entity.LivingEntity entity) {
         return 60;
     }
 
@@ -155,7 +155,8 @@ public class CombatRationItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable(this.descriptionKey).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.literal("+" + this.moraleValue + " ")
                 .append(Component.translatable("gui.shincolle.combatration"))
@@ -167,15 +168,15 @@ public class CombatRationItem extends Item {
     }
 
     private static void removeNegativeEffects(ServerPlayer player) {
-        List<MobEffect> harmfulEffects = new ArrayList<>();
+        List<net.minecraft.core.Holder<MobEffect>> harmfulEffects = new ArrayList<>();
 
         for (MobEffectInstance effect : player.getActiveEffects()) {
-            if (effect.getEffect().getCategory() == MobEffectCategory.HARMFUL) {
+            if (effect.getEffect().value().getCategory() == MobEffectCategory.HARMFUL) {
                 harmfulEffects.add(effect.getEffect());
             }
         }
 
-        for (MobEffect effect : harmfulEffects) {
+        for (net.minecraft.core.Holder<MobEffect> effect : harmfulEffects) {
             player.removeEffect(effect);
         }
     }

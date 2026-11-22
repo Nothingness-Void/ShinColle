@@ -3,18 +3,33 @@ package com.lulan.shincolle.network;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Supplier;
 
-public record ServerboundGameplayCommandPacket(GameplayCommandType type, CompoundTag payload) {
+public record ServerboundGameplayCommandPacket(GameplayCommandType commandType, CompoundTag payload) implements CustomPacketPayload {
+
+    public static final Type<ServerboundGameplayCommandPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("shincolle", "serverbound_gameplay_command_packet"));
+    public static final StreamCodec<FriendlyByteBuf, ServerboundGameplayCommandPacket> STREAM_CODEC = StreamCodec.of(ServerboundGameplayCommandPacket::encodeBuffer, ServerboundGameplayCommandPacket::decode);
+
+    private static void encodeBuffer(FriendlyByteBuf buffer, ServerboundGameplayCommandPacket packet) {
+        encode(packet, buffer);
+    }
+
+    @Override
+    public Type<ServerboundGameplayCommandPacket> type() {
+        return TYPE;
+    }
 
     public static ServerboundGameplayCommandPacket of(GameplayCommandType type, CompoundTag payload) {
         return new ServerboundGameplayCommandPacket(type, payload == null ? new CompoundTag() : payload.copy());
     }
 
     public static void encode(ServerboundGameplayCommandPacket packet, FriendlyByteBuf buffer) {
-        buffer.writeVarInt(packet.type.ordinal());
+        buffer.writeVarInt(packet.commandType.ordinal());
         buffer.writeNbt(packet.payload);
     }
 
@@ -24,15 +39,13 @@ public record ServerboundGameplayCommandPacket(GameplayCommandType type, Compoun
         return new ServerboundGameplayCommandPacket(type, payload == null ? new CompoundTag() : payload);
     }
 
-    public static void handle(ServerboundGameplayCommandPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(ServerboundGameplayCommandPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
+            ServerPlayer sender = (ServerPlayer) context.player();
             if (sender != null) {
-                GameplayCommandHandler.handle(sender, packet.type, packet.payload);
+                GameplayCommandHandler.handle(sender, packet.commandType, packet.payload);
             }
         });
-        context.setPacketHandled(true);
     }
 }
 

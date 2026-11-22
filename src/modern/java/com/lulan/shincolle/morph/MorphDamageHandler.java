@@ -27,21 +27,22 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import com.lulan.shincolle.item.LegacyPotionData;
+import com.lulan.shincolle.event.LegacyLivingHurtEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 
 import java.util.List;
 
-@Mod.EventBusSubscriber(modid = ShinColle.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = ShinColle.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
 public final class MorphDamageHandler {
 
     private MorphDamageHandler() {
     }
 
     @SubscribeEvent
-    public static void onHurt(LivingHurtEvent event) {
+    public static void onHurt(LegacyLivingHurtEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -62,8 +63,8 @@ public final class MorphDamageHandler {
         Entity direct = source.getDirectEntity();
         if (direct instanceof ThrownPotion || direct instanceof AreaEffectCloud) {
             List<MobEffectInstance> effects = direct instanceof ThrownPotion potion
-                    ? PotionUtils.getMobEffects(potion.getItem())
-                    : PotionUtils.getAllEffects(direct.saveWithoutId(new CompoundTag()));
+                    ? LegacyPotionData.getMobEffects(potion.getItem())
+                    : LegacyPotionData.getAllEffects(direct);
             int level = effects.stream().filter(effect -> effect.getEffect() == MobEffects.HARM)
                     .mapToInt(effect -> effect.getAmplifier() + 1).max().orElse(0);
             float potionDamage = (Math.max(1F, stats.get(LegacyShipStatTables.Attr.HP) * 0.01F) * 2F + 2F) * level
@@ -119,7 +120,7 @@ public final class MorphDamageHandler {
                     player.getInventory().setChanged();
                     player.setHealth(player.getMaxHealth());
                     player.invulnerableTime = 120;
-                    TeitokuHelper.get(player).resolve().orElseThrow().getMorphRuntimeState().setImmuneTicks(120);
+                    TeitokuHelper.get(player).orElseThrow().getMorphRuntimeState().setImmuneTicks(120);
                     CombatFxDispatcher.sendParticle(player, GameplayParticleType.REPAIR_GODDESS,
                             player.getX(), player.getY(), player.getZ(), 0D, 0.03D, 0D, player.getId());
                     event.setAmount(0F);

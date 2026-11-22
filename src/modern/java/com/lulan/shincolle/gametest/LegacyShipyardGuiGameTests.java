@@ -10,8 +10,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 @GameTestHolder(ShinColle.MOD_ID)
 @PrefixGameTestTemplate(false)
@@ -23,7 +23,7 @@ public final class LegacyShipyardGuiGameTests {
         BlockPos pos = helper.absolutePos(new BlockPos(1, 2, 1));
         helper.getLevel().setBlockAndUpdate(pos, ModBlocks.BLOCK_GRUDGE_HEAVY.get().defaultBlockState());
         var shipyard = (HeavyGrudgeBlockEntity) helper.getLevel().getBlockEntity(pos);
-        var menu = new LargeShipyardMenu(1, helper.makeMockPlayer().getInventory(), shipyard);
+        var menu = new LargeShipyardMenu(1, helper.makeMockPlayer(net.minecraft.world.level.GameType.CREATIVE).getInventory(), shipyard);
         var data = shipyard.getContainerData();
         for (int structure : new int[] {0, 1}) {
             data.set(4, structure);

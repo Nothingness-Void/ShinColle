@@ -103,7 +103,7 @@ public final class DeskParityGameTests {
                         "desk and single-page modes use the same menu opening protocol");
             } finally { buffer.release(); }
         }
-        CompoundTag original = desk.getUpdateTag();
+        CompoundTag original = desk.getUpdateTag(helper.getLevel().registryAccess());
         ItemStack held = player.getMainHandItem();
         boolean sneaking = player.isShiftKeyDown();
         int cooldown = com.lulan.shincolle.teitoku.TeitokuHelper.getTeamCooldown(player);
@@ -111,7 +111,7 @@ public final class DeskParityGameTests {
             for (int chapter = 0; chapter < 7; chapter++) {
                 desk.syncFunc(2, 2, chapter, Integer.MAX_VALUE);
                 DeskBlockEntity restored = new DeskBlockEntity(desk.getBlockPos(), desk.getBlockState());
-                restored.load(desk.getUpdateTag());
+                restored.loadWithComponents(desk.getUpdateTag(helper.getLevel().registryAccess()), helper.getLevel().registryAccess());
                 helper.assertTrue(restored.getBookChapter() == chapter
                         && restored.getBookPage() == LegacyDeskBookData.PAGE_LIMIT[chapter],
                         "all chapter bounds survive block-entity synchronization");
@@ -120,11 +120,10 @@ public final class DeskParityGameTests {
             player.setShiftKeyDown(true);
             var pos = desk.getBlockPos();
             BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false);
-            helper.assertTrue(ModBlocks.BLOCK_DESK.get().use(desk.getBlockState(), player.level(), pos, player,
-                    InteractionHand.MAIN_HAND, hit) == InteractionResult.PASS && desk.getSelectedFunction() == function,
+            helper.assertTrue(desk.getBlockState().useItemOn(player.getMainHandItem(), player.level(), player, InteractionHand.MAIN_HAND, hit).result() == InteractionResult.PASS && desk.getSelectedFunction() == function,
                     "sneaking neither opens a terminal nor cycles a desk mode");
             player.setShiftKeyDown(false);
-            ModBlocks.BLOCK_DESK.get().use(desk.getBlockState(), player.level(), pos, player, InteractionHand.MAIN_HAND, hit);
+            desk.getBlockState().useItemOn(player.getMainHandItem(), player.level(), player, InteractionHand.MAIN_HAND, hit);
             helper.assertTrue(player.containerMenu instanceof DeskMenu opened && opened.getDeskType() == 0,
                     "ordinary desk use opens the unified four-tab mode");
             player.containerMenu.setData(0, 7);
@@ -146,7 +145,7 @@ public final class DeskParityGameTests {
                     "the book item opens its legacy single-page mode");
         } finally {
             player.closeContainer(); player.setItemInHand(InteractionHand.MAIN_HAND, held);
-            player.setShiftKeyDown(sneaking); desk.load(original);
+            player.setShiftKeyDown(sneaking); desk.loadWithComponents(original, helper.getLevel().registryAccess());
             com.lulan.shincolle.teitoku.TeitokuHelper.get(player).ifPresent(data -> data.setTeamCooldown(cooldown));
         }
     }

@@ -11,13 +11,21 @@ line-abreast investigation boundary: [queue table and evidence](migration_batche
 
 - GUI/audio 回归复核：雷达旧行为、大船坞布局恢复、冻结整点报时溯源；[本轮记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
 
-## Forge 1.20.1 rendering backport
+## Rendering backport and approved land legs
 
-回移 NeoForge 的外层舰娘姿态、特殊方块/物品 BEWLR、旋转/透光、库存图标、大小写资源清理及渲染审计/测试；包含用户批准的 Destroyer Hime 陆上开腿视觉例外。API 与 review 适用性、344 项验收和范围见 [批次记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。
+Forge 渲染回移 `1547691`、水面判定修正 `bccd7dc`：原外层姿态、BEWLR、旋转/透光、图标、大小写清理、审计与测试全部适配，并带回用户批准的 Destroyer Hime 陆上开腿例外；[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge merge 保留其 API 适配，且不重复注册尺寸测试；[本轮结果](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
+
+## Minecraft 1.21.1 / NeoForge 21.1.267
+
+Destroyer Hime 后续反馈：新增全模型源码/CPU 顶点审计与 Leg 开关回归，确认 egg 29 默认无腿悬浮是旧版姿态而非遗漏的 renderer 分支；未改变旧版视觉。352 项验证及未决落地取舍见 [审计决定](migration_batches/neoforge-1.21.1/decision.md)。
+
+客户端反馈跟进：恢复舰娘旧版 `setRotationAngles` 外层姿态调用、办公桌/小船坞 TESR 物品路径与世界朝向/透光、起重机/航点的 3D 物品变换；删除 16 个现代资源大小写冲突路径。根因、351 项服务端测试与针对性截图见 [客户端修复记录](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。
+
+固定 1.20.1 parity 基线上的版本升级，分支 `devin/mc-1.21.1-neoforge`。构建、数据兼容、获批的护甲前 Mixin 钩子、GameTest 夹具 API 适配、最终验收与未验范围均见 [批次结果](migration_batches/neoforge-1.21.1/status.md)；当前快照见 [CURRENT_STATE.md](CURRENT_STATE.md)，后续仅见 [ROADMAP.md](ROADMAP.md)。下方九批记录保留为 1.20.1 历史，不代表新增功能已在本轮补完。
 
 ## 九批 parity 集成收尾
 
-`devin/parity-fix-integration` 的当前快照/最终 merge SHA 见 [CURRENT_STATE.md](CURRENT_STATE.md)，最终结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
+`devin/parity-fix-integration` 的历史最终 merge SHA 与结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。
 
 九个批次入口：
 [ship-core](migration_batches/2026-11-22-parity-fix-ship-core/) ·

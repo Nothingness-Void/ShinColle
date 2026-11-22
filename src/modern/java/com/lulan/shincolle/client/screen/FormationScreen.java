@@ -140,7 +140,7 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
             setFormationBuffBar(this.state.formation, this.state.selectedRow);
             updateString();
         }
-        this.renderBackground(graphics);
+        this.renderBackground(graphics, mouseX, mouseY, partialTick);
         super.render(graphics, mouseX, mouseY, partialTick);
         this.xMouse = mouseX;
         this.yMouse = mouseY;
@@ -240,7 +240,6 @@ public class FormationScreen extends AbstractContainerScreen<FormationMenu> {
     @Override
     protected void containerTick() {
         super.containerTick();
-        this.textField.tick();
     }
 
     private void setShipName() {

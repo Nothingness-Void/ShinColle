@@ -1,5 +1,6 @@
 package com.lulan.shincolle.client.renderer;
 
+import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.block.SmallShipyardBlock;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.blockentity.SmallShipyardBlockEntity;
@@ -11,11 +12,13 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-
-import java.util.function.Consumer;
-
+@EventBusSubscriber(modid = ShinColle.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public final class LegacyBlockItemRenderer extends BlockEntityWithoutLevelRenderer {
     private final DeskBlockEntity desk = new DeskBlockEntity(BlockPos.ZERO, ModBlocks.BLOCK_DESK.get().defaultBlockState());
     private final SmallShipyardBlockEntity shipyard = new SmallShipyardBlockEntity(BlockPos.ZERO,
@@ -25,8 +28,9 @@ public final class LegacyBlockItemRenderer extends BlockEntityWithoutLevelRender
         super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
     }
 
-    public static void initializeClient(Consumer<IClientItemExtensions> consumer) {
-        consumer.accept(new IClientItemExtensions() {
+    @SubscribeEvent
+    public static void registerItemExtensions(RegisterClientExtensionsEvent event) {
+        event.registerItem(new IClientItemExtensions() {
             private LegacyBlockItemRenderer renderer;
 
             @Override
@@ -34,7 +38,7 @@ public final class LegacyBlockItemRenderer extends BlockEntityWithoutLevelRender
                 if (renderer == null) renderer = new LegacyBlockItemRenderer();
                 return renderer;
             }
-        });
+        }, ModBlocks.BLOCK_DESK.get().asItem(), ModBlocks.BLOCK_SMALL_SHIPYARD.get().asItem());
     }
 
     @Override

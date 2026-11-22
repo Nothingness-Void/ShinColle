@@ -26,3 +26,9 @@ needed; indexes/tickets must not be called respawn causes without a spawn site.
 Legacy read entry is BasicEntityShip.readFromNBT (not readEntityFromNBT): it
 delegates vanilla first then CapaShipSavedValues.loadNBTData. Include that
 capability reader and its attribute refresh only as needed to compare health.
+
+Neo initial actual-kill precondition failed, then passed after only diagnostics.
+Investigate deterministic random defense: LegacyShipCombatHelper.applyDefenseReduction
+and native/NeoForge LivingEntity.hurt/actuallyHurt plus DamageContainer. Test
+seed0 before real command; inspect patched bytecode if bundled sources are vanilla.
+Do not mask an incomplete kill by directly setting HP0 or retrying the command.

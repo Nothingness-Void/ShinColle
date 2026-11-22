@@ -42,7 +42,7 @@ public class SmallShipyardBlockEntityRenderer implements BlockEntityRenderer<Sma
 
         poseStack.pushPose();
         poseStack.translate(0.5D, 1.5D, 0.5D);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(180F));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(rotationFor(facing)));
         this.model.render(poseStack, vertexConsumer, packedLight, packedOverlay);
         poseStack.popPose();

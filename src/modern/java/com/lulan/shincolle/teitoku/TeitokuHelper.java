@@ -27,10 +27,10 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.capabilities.CapabilityToken;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.attachment.AttachmentType;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -51,8 +51,11 @@ public final class TeitokuHelper {
     public static final String DESK_RADAR_PAYLOAD_TAG = "DeskRadarContacts";
     private static final String SYSTEM_CONFIG_PAYLOAD_TAG = "SystemConfig";
 
-    public static final Capability<TeitokuData> TEITOKU_CAPABILITY =
-            CapabilityManager.get(new CapabilityToken<>() {});
+    public static final DeferredRegister<AttachmentType<?>> ATTACHMENTS =
+            DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, "shincolle");
+    public static final java.util.function.Supplier<AttachmentType<TeitokuData>> TEITOKU_DATA =
+            ATTACHMENTS.register("teitoku", () -> AttachmentType.builder(TeitokuData::new)
+                    .serialize(new TeitokuDataProvider()).build());
     private static final Map<Integer, TeamData> CLIENT_TEAM_DATA = new ConcurrentHashMap<>();
     private static final Map<Integer, ShipWorldCacheEntry> CLIENT_SHIP_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> CLIENT_WORLD_UNATTACKABLE_CLASSES = ConcurrentHashMap.newKeySet();
@@ -71,8 +74,8 @@ public final class TeitokuHelper {
     private TeitokuHelper() {
     }
 
-    public static LazyOptional<TeitokuData> get(Player player) {
-        return player.getCapability(TEITOKU_CAPABILITY);
+    public static Optional<TeitokuData> get(Player player) {
+        return Optional.of(player.getData(TEITOKU_DATA).withRegistries(player.registryAccess()));
     }
 
     public static void initializeAndSync(ServerPlayer player) {

@@ -42,7 +42,7 @@ public class BucketRepairItem extends Item {
     }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
+    public int getUseDuration(ItemStack stack, net.minecraft.world.entity.LivingEntity entity) {
         return 24;
     }
 
@@ -64,7 +64,8 @@ public class BucketRepairItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
         tooltip.add(Component.translatable("gui.shincolle.bucketrepair.effect").withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("gui.shincolle.bucketrepair.use").withStyle(ChatFormatting.GRAY));
     }

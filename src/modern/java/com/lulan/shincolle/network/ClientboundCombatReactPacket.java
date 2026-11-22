@@ -7,12 +7,27 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipRensouhouEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Supplier;
 
 public record ClientboundCombatReactPacket(CombatReactType reactType, int attackerId, int targetId,
-                                           LegacyShipAttackKind attackKind, LegacyShipProjectileVisual projectileVisual) {
+                                           LegacyShipAttackKind attackKind, LegacyShipProjectileVisual projectileVisual) implements CustomPacketPayload {
+
+    public static final Type<ClientboundCombatReactPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("shincolle", "clientbound_combat_react_packet"));
+    public static final StreamCodec<FriendlyByteBuf, ClientboundCombatReactPacket> STREAM_CODEC = StreamCodec.of(ClientboundCombatReactPacket::encodeBuffer, ClientboundCombatReactPacket::decode);
+
+    private static void encodeBuffer(FriendlyByteBuf buffer, ClientboundCombatReactPacket packet) {
+        encode(packet, buffer);
+    }
+
+    @Override
+    public Type<ClientboundCombatReactPacket> type() {
+        return TYPE;
+    }
 
     public boolean involvesEntity(int entityId) {
         return entityId == this.attackerId || entityId == this.targetId;
@@ -42,10 +57,8 @@ public record ClientboundCombatReactPacket(CombatReactType reactType, int attack
         return new ClientboundCombatReactPacket(reactType, attackerId, targetId, attackKind, projectileVisual);
     }
 
-    public static void handle(ClientboundCombatReactPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+    public static void handle(ClientboundCombatReactPacket packet, IPayloadContext context) {
         context.enqueueWork(() -> GameplayClientEffects.handleCombatReact(packet));
-        context.setPacketHandled(true);
     }
 }
 

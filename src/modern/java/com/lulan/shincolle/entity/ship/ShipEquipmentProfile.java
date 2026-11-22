@@ -66,7 +66,7 @@ public record ShipEquipmentProfile(
                 continue;
             }
 
-            if (!stack.getEnchantmentTags().isEmpty()) {
+            if (!stack.getEnchantments().isEmpty()) {
                 LegacyEquipmentStatsRepository.MiscData miscData = equipmentItem.getMiscData();
                 int itemEquipType = miscData != null ? miscData.equipmentType() : 0;
                 stats = calcEquipStatWithEnchant(itemEquipType, stats, calcEnchantEffect(stack));
@@ -246,65 +246,65 @@ public record ShipEquipmentProfile(
     /** Mirrors EnchantHelper.calcEnchantEffect for 1.20.1 ItemStack enchantments. */
     private static float[] calcEnchantEffect(ItemStack stack) {
         float[] ench = new float[STAT_COUNT];
-        Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(stack);
+        var enchantments = stack.getEnchantments();
 
-        for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
-            Enchantment enchantment = entry.getKey();
-            int lv = entry.getValue();
+        for (var entry : enchantments.entrySet()) {
+            var enchantment = entry.getKey();
+            int lv = entry.getIntValue();
             if (enchantment == null || lv <= 0) {
                 continue;
             }
 
-            if (enchantment == Enchantments.BLAST_PROTECTION) {
+            if (enchantment.is(Enchantments.BLAST_PROTECTION)) {
                 ench[LegacyShipStatTables.Attr.HP] += 0.20F * lv;
                 ench[LegacyShipStatTables.Attr.KB] += 0.1F * lv;
-            } else if (enchantment == Enchantments.FIRE_PROTECTION
-                    || enchantment == Enchantments.PROJECTILE_PROTECTION) {
+            } else if (enchantment.is(Enchantments.FIRE_PROTECTION)
+                    || enchantment.is(Enchantments.PROJECTILE_PROTECTION)) {
                 ench[LegacyShipStatTables.Attr.HP] += 0.15F * lv;
-            } else if (enchantment == Enchantments.ALL_DAMAGE_PROTECTION) {
+            } else if (enchantment.is(Enchantments.PROTECTION)) {
                 ench[LegacyShipStatTables.Attr.HP] += 0.1F * lv;
-            } else if (enchantment == Enchantments.SMITE
-                    || enchantment == Enchantments.BANE_OF_ARTHROPODS) {
+            } else if (enchantment.is(Enchantments.SMITE)
+                    || enchantment.is(Enchantments.BANE_OF_ARTHROPODS)) {
                 ench[LegacyShipStatTables.Attr.ATK_L] += 0.16F * lv;
-            } else if (enchantment == Enchantments.SHARPNESS
-                    || enchantment == Enchantments.POWER_ARROWS) {
+            } else if (enchantment.is(Enchantments.SHARPNESS)
+                    || enchantment.is(Enchantments.POWER)) {
                 ench[LegacyShipStatTables.Attr.ATK_L] += 0.08F * lv;
-            } else if (enchantment == Enchantments.UNBREAKING) {
+            } else if (enchantment.is(Enchantments.UNBREAKING)) {
                 ench[LegacyShipStatTables.Attr.DEF] += 0.2F * lv;
-            } else if (enchantment == Enchantments.BLOCK_EFFICIENCY) {
+            } else if (enchantment.is(Enchantments.EFFICIENCY)) {
                 ench[LegacyShipStatTables.Attr.SPD] += 0.1F * lv;
-            } else if (enchantment == Enchantments.AQUA_AFFINITY
-                    || enchantment == Enchantments.DEPTH_STRIDER) {
+            } else if (enchantment.is(Enchantments.AQUA_AFFINITY)
+                    || enchantment.is(Enchantments.DEPTH_STRIDER)) {
                 ench[LegacyShipStatTables.Attr.MOV] += 0.05F * lv;
                 ench[LegacyShipStatTables.Attr.DODGE] += 0.25F * lv;
-            } else if (enchantment == Enchantments.FALL_PROTECTION) {
+            } else if (enchantment.is(Enchantments.FEATHER_FALLING)) {
                 ench[LegacyShipStatTables.Attr.MOV] += 0.1F * lv;
                 ench[LegacyShipStatTables.Attr.KB] -= 0.1F * lv;
-            } else if (enchantment == Enchantments.PUNCH_ARROWS
-                    || enchantment == Enchantments.KNOCKBACK) {
+            } else if (enchantment.is(Enchantments.PUNCH)
+                    || enchantment.is(Enchantments.KNOCKBACK)) {
                 ench[LegacyShipStatTables.Attr.HIT] += 0.15F * lv;
                 ench[LegacyShipStatTables.Attr.KB] += 0.05F * lv;
-            } else if (enchantment == Enchantments.FROST_WALKER) {
+            } else if (enchantment.is(Enchantments.FROST_WALKER)) {
                 ench[LegacyShipStatTables.Attr.CRI] += 0.25F * lv;
-            } else if (enchantment == Enchantments.FIRE_ASPECT
-                    || enchantment == Enchantments.FLAMING_ARROWS) {
+            } else if (enchantment.is(Enchantments.FIRE_ASPECT)
+                    || enchantment.is(Enchantments.FLAME)) {
                 ench[LegacyShipStatTables.Attr.DHIT] += 0.25F * lv;
                 ench[LegacyShipStatTables.Attr.THIT] += 0.25F * lv;
-            } else if (enchantment == Enchantments.FISHING_SPEED) {
+            } else if (enchantment.is(Enchantments.LURE)) {
                 ench[LegacyShipStatTables.Attr.MISS] += 0.25F * lv;
-            } else if (enchantment == Enchantments.THORNS) {
+            } else if (enchantment.is(Enchantments.THORNS)) {
                 ench[LegacyShipStatTables.Attr.AA] += 0.15F * lv;
-            } else if (enchantment == Enchantments.RESPIRATION) {
+            } else if (enchantment.is(Enchantments.RESPIRATION)) {
                 ench[LegacyShipStatTables.Attr.ASM] += 0.15F * lv;
-            } else if (enchantment == Enchantments.MOB_LOOTING
-                    || enchantment == Enchantments.BLOCK_FORTUNE
-                    || enchantment == Enchantments.FISHING_LUCK) {
+            } else if (enchantment.is(Enchantments.LOOTING)
+                    || enchantment.is(Enchantments.FORTUNE)
+                    || enchantment.is(Enchantments.LUCK_OF_THE_SEA)) {
                 ench[LegacyShipStatTables.Attr.XP] += 0.25F * lv;
-            } else if (enchantment == Enchantments.SILK_TOUCH) {
+            } else if (enchantment.is(Enchantments.SILK_TOUCH)) {
                 ench[LegacyShipStatTables.Attr.GRUDGE] += 0.25F * lv;
-            } else if (enchantment == Enchantments.INFINITY_ARROWS) {
+            } else if (enchantment.is(Enchantments.INFINITY)) {
                 ench[LegacyShipStatTables.Attr.AMMO] += 0.25F * lv;
-            } else if (enchantment == Enchantments.MENDING) {
+            } else if (enchantment.is(Enchantments.MENDING)) {
                 ench[LegacyShipStatTables.Attr.HPRES] += 0.5F * lv;
             } else {
                 for (int j = 0; j < ench.length; j++) {

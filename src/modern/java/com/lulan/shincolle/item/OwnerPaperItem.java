@@ -47,7 +47,7 @@ public class OwnerPaperItem extends Item {
                 return InteractionResultHolder.pass(stack);
             }
 
-            CompoundTag tag = stack.getTag();
+            CompoundTag tag = LegacyItemData.getTag(stack);
             if (tag == null) {
                 tag = new CompoundTag();
                 tag.putString(SIGN_NAME_A, player.getName().getString());
@@ -55,7 +55,7 @@ public class OwnerPaperItem extends Item {
                 tag.putInt(SIGN_ID_A, playerUid);
                 tag.putInt(SIGN_ID_B, -1);
                 tag.putBoolean(SIGN_POS, false);
-                stack.setTag(tag);
+                LegacyItemData.setTag(stack, tag);
             } else if (tag.getBoolean(SIGN_POS)) {
                 sign(tag, SIGN_NAME_A, SIGN_ID_A, serverPlayer, playerUid);
                 tag.putBoolean(SIGN_POS, false);
@@ -63,14 +63,16 @@ public class OwnerPaperItem extends Item {
                 sign(tag, SIGN_NAME_B, SIGN_ID_B, serverPlayer, playerUid);
                 tag.putBoolean(SIGN_POS, true);
             }
+            LegacyItemData.setTag(stack, tag);
         }
 
         return InteractionResultHolder.pass(stack);
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        CompoundTag tag = stack.getTag();
+    public void appendHoverText(ItemStack stack, net.minecraft.world.item.Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        Level level = context.level();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         if (tag == null) {
             return;
         }
@@ -80,7 +82,7 @@ public class OwnerPaperItem extends Item {
     }
 
     public static Optional<Signer> resolveTransferTarget(ServerLevel level, ItemStack stack, int currentOwnerUid) {
-        CompoundTag tag = stack.getTag();
+        CompoundTag tag = LegacyItemData.getTag(stack);
         if (tag == null || currentOwnerUid <= 0) {
             return Optional.empty();
         }

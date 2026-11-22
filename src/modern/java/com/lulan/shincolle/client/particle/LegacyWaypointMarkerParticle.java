@@ -52,8 +52,7 @@ public final class LegacyWaypointMarkerParticle extends LegacyBillboardParticle 
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
         RenderSystem.setShader(GameRenderer::getParticleShader);
         RenderSystem.setShaderTexture(0, TEXTURE);
-        BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
         vertex(buffer, x + HALF_SIZE, y, z + HALF_SIZE, 1F, 1F);
         vertex(buffer, x + HALF_SIZE, y, z - HALF_SIZE, 1F, 0.5F);
         vertex(buffer, x - HALF_SIZE, y, z - HALF_SIZE, 0F, 0.5F);
@@ -62,12 +61,12 @@ public final class LegacyWaypointMarkerParticle extends LegacyBillboardParticle 
         vertex(buffer, x + HALF_SIZE, y, z + HALF_SIZE, 1F, 0.5F);
         vertex(buffer, x - HALF_SIZE, y, z + HALF_SIZE, 0F, 0.5F);
         vertex(buffer, x - HALF_SIZE, y, z - HALF_SIZE, 0F, 1F);
-        Tesselator.getInstance().end();
+        com.mojang.blaze3d.vertex.BufferUploader.drawWithShader(buffer.buildOrThrow());
         RenderSystem.disableBlend();
         RenderSystem.depthMask(false);
     }
 
     private void vertex(BufferBuilder buffer, float x, float y, float z, float u, float v) {
-        buffer.vertex(x, y, z).uv(u, v).color(1F, 0F, 0F, this.alpha).uv2(240, 240).endVertex();
+        buffer.addVertex(x, y, z).setUv(u, v).setColor(1F, 0F, 0F, this.alpha).setUv2(240, 240);
     }
 }

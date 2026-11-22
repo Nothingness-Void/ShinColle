@@ -17,11 +17,18 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.Collection;
 
 public class MorphProfile {
+
+    private net.minecraft.core.HolderLookup.Provider registries = net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.registries.BuiltInRegistries.REGISTRY);
+
+    public MorphProfile withRegistries(net.minecraft.core.HolderLookup.Provider registries) {
+        this.registries = registries;
+        return this;
+    }
 
     public static final int DEFAULT_LEVEL = 1;
     public static final int DEFAULT_MORALE = 1600;
@@ -123,7 +130,7 @@ public class MorphProfile {
         tag.putBoolean(AI_AUTO_SUPPLY_TAG, this.aiAutoSupply);
         tag.putBoolean(AI_ROUTE_STAY_TAG, this.aiRouteStay);
         tag.putInt(FOLLOW_RANGE_TAG, this.followRange);
-        tag.put(EQUIPMENT_TAG, this.equipment.serializeNBT());
+        tag.put(EQUIPMENT_TAG, this.equipment.serializeNBT(this.registries));
         tag.put("MorphGui", this.guiState.copy());
         return tag;
     }
@@ -154,12 +161,14 @@ public class MorphProfile {
         this.aiRouteStay = tag.getBoolean(AI_ROUTE_STAY_TAG);
         this.followRange = Mth.clamp(tag.getInt(FOLLOW_RANGE_TAG), 4, 64);
         if (tag.contains(EQUIPMENT_TAG)) {
-            this.equipment.deserializeNBT(tag.getCompound(EQUIPMENT_TAG));
+            CompoundTag equipment = tag.getCompound(EQUIPMENT_TAG).copy();
+            com.lulan.shincolle.item.LegacyItemData.upgradeNested(this.registries, equipment);
+            this.equipment.deserializeNBT(this.registries, equipment);
         }
     }
 
     public MorphProfile copy() {
-        MorphProfile copy = new MorphProfile();
+        MorphProfile copy = new MorphProfile().withRegistries(this.registries);
         copy.loadFromTag(this.saveToTag(new CompoundTag()));
         return copy;
     }

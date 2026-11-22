@@ -10,7 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.network.NetworkHooks;
 
 public class DeskReferenceItem extends Item {
 
@@ -28,8 +27,7 @@ public class DeskReferenceItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
 
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            NetworkHooks.openScreen(serverPlayer,
-                    new SimpleMenuProvider(
+            serverPlayer.openMenu(new SimpleMenuProvider(
                             (containerId, inventory, ignoredPlayer) ->
                                     new DeskMenu(containerId, inventory, player.blockPosition(), this.variant),
                             Component.translatable(this.titleKey)),

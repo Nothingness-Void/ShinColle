@@ -8,6 +8,9 @@ verified. Private QA client remains open/frozen; do not close window56623113.
 
 ## Historical06:53 checkpoint (superseded, preserved investigation trail)
 
+> Superseded07:09: see D3-resolution.md;365/365 now pass after correcting the
+> too-small enclosed fixture, without relocating or weakening the original test.
+
 ## Current source/history
 - Forge branch devin/parity-fix-integration: d375353c06f3179b856c9fbda0e358228199743f pushed, following603a32d.
 - Neo devin/mc-1.21.1-neoforge: local merge c6fc3fd then bb8eb5882618830eb82ccb04d7acb9b5ed95d317; not pushed. Forge d375353 is an ancestor. No merge in progress.

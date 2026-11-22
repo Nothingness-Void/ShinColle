@@ -32,11 +32,15 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
 
 public class SmallShipyardBlock extends BaseEntityBlock {
+
+    @Override
+    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return simpleCodec(SmallShipyardBlock::new);
+    }
 
     public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -106,7 +110,23 @@ public class SmallShipyardBlock extends BaseEntityBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+    protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack, BlockState state, Level level,
+            BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return switch (useLegacy(state, level, pos, player, hand, hitResult)) {
+            case SUCCESS -> net.minecraft.world.ItemInteractionResult.SUCCESS;
+            case CONSUME -> net.minecraft.world.ItemInteractionResult.CONSUME;
+            case CONSUME_PARTIAL -> net.minecraft.world.ItemInteractionResult.CONSUME_PARTIAL;
+            case FAIL -> net.minecraft.world.ItemInteractionResult.FAIL;
+            default -> net.minecraft.world.ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
+        };
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        return useLegacy(state, level, pos, player, InteractionHand.MAIN_HAND, hitResult);
+    }
+
+    private InteractionResult useLegacy(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (!(level.getBlockEntity(pos) instanceof SmallShipyardBlockEntity shipyard)) {
             return InteractionResult.PASS;
         }
@@ -114,7 +134,7 @@ public class SmallShipyardBlock extends BaseEntityBlock {
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
             ShinColleSoundHelper.playForPlayer(level, player, ModSoundEvents.SHIP_BELL.get(), 0.7F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.08F));
-            NetworkHooks.openScreen(serverPlayer, shipyard, pos);
+            serverPlayer.openMenu(shipyard, pos);
 
             if (!shipyard.canEdit(player)) {
                 player.displayClientMessage(Component.translatable("chat.shincolle.shipyard.readonly"), true);
@@ -152,7 +172,7 @@ public class SmallShipyardBlock extends BaseEntityBlock {
     }
 
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
         return false;
     }
 

@@ -32,6 +32,11 @@ import javax.annotation.Nullable;
 
 public class WaypointBlock extends BaseEntityBlock {
 
+    @Override
+    protected com.mojang.serialization.MapCodec<? extends BaseEntityBlock> codec() {
+        return simpleCodec(WaypointBlock::new);
+    }
+
     private static final VoxelShape SHAPE = Shapes.or(
             Block.box(4.0D, 0.0D, 4.0D, 12.0D, 2.0D, 12.0D),
             Shapes.or(
@@ -98,7 +103,23 @@ public class WaypointBlock extends BaseEntityBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+    protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack, BlockState state, Level level,
+            BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        return switch (useLegacy(state, level, pos, player, hand, hitResult)) {
+            case SUCCESS -> net.minecraft.world.ItemInteractionResult.SUCCESS;
+            case CONSUME -> net.minecraft.world.ItemInteractionResult.CONSUME;
+            case CONSUME_PARTIAL -> net.minecraft.world.ItemInteractionResult.CONSUME_PARTIAL;
+            case FAIL -> net.minecraft.world.ItemInteractionResult.FAIL;
+            default -> net.minecraft.world.ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
+        };
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        return useLegacy(state, level, pos, player, InteractionHand.MAIN_HAND, hitResult);
+    }
+
+    private InteractionResult useLegacy(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (!(level.getBlockEntity(pos) instanceof WaypointBlockEntity waypoint)) {
             return InteractionResult.PASS;
         }
@@ -132,7 +153,7 @@ public class WaypointBlock extends BaseEntityBlock {
     }
 
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter level, BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
+    public boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType pathComputationType) {
         return true;
     }
 
