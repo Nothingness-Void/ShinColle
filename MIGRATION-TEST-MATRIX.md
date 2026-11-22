@@ -1,5 +1,10 @@
 # Migration Test Matrix
 
+## PR11 client ownership review
+
+- `MorphAndTeamParityGameTests.pointerClientOwnershipUsesSyncedUuidWithoutNumericOwnerCache`: numeric owner cache 0 with synchronized owner UUID and ship UID retained; normal owned ship/mount and teammate sneak consumption, non-team fall-through. Restore numeric field before server cleanup. Existing foreign/null/non-ship/sneak+sprint/long-ray dispatch cases remain required.
+- Run both full build/GameTest commands documented below; pass requires all required tests. This fixture represents client data availability, not an actual LocalPlayer packet replay. [Exact results](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md).
+
 ## Recovery / PR11 / empty-buffer crane follow-up
 
 - `LegacyKilledShipPersistenceGameTests` retains actual creative-player `/tp` into initially unloaded Nether then `/ship get`; verifies destination manager registration and explicitly advances ENTITY_TICKING readiness before the unchanged identity, both-live/age>200, survivor-cache, exact200/dead/reverse-age and kill/disk persistence assertions. Visibility blocker resolved; see [latest evidence](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md).
