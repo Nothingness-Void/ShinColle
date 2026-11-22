@@ -3,9 +3,11 @@ package com.lulan.shincolle.mixin;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.other.RecoveredShipItemEntity;
 import com.lulan.shincolle.item.LegacyItemData;
+import com.lulan.shincolle.item.LegacyEntityItemMarker;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,6 +21,13 @@ public abstract class LegacyEntityDataMixin {
         Entity entity = (Entity) (Object) this;
         if (entity instanceof Player || entity instanceof LegacyShipEntity || entity instanceof RecoveredShipItemEntity) {
             LegacyItemData.upgradeNested(entity.registryAccess(), tag);
+        }
+    }
+
+    @Inject(method = "load", at = @At("TAIL"))
+    private void shincolle$importForgeDropMarker(CompoundTag tag, CallbackInfo ci) {
+        if ((Object) this instanceof ItemEntity itemEntity) {
+            LegacyEntityItemMarker.importForgeData(itemEntity, tag.getCompound("ForgeData"));
         }
     }
 
