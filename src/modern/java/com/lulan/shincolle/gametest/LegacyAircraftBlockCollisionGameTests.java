@@ -23,6 +23,68 @@ public final class LegacyAircraftBlockCollisionGameTests {
     private LegacyAircraftBlockCollisionGameTests() {
     }
 
+    @GameTest(template = "legacyaircraftblockcollisiongametests.elevated_flight_space")
+    public static void elevatedGuardRoutesClearWallTopForReportedMountsAndFortress(GameTestHelper helper) {
+        BlockPos start = helper.absolutePos(new BlockPos(14, 6, 14));
+        for (int x = -10; x <= 13; x++) {
+            for (int z = -4; z <= 20; z++) {
+                helper.getLevel().setBlockAndUpdate(start.offset(x, -2, z), Blocks.STONE.defaultBlockState());
+            }
+        }
+        for (int x = -5; x <= 5; x++) {
+            for (int y = -1; y <= 8; y++) {
+                helper.getLevel().setBlockAndUpdate(start.offset(x, y, 7), Blocks.GLASS.defaultBlockState());
+            }
+        }
+        for (int egg : new int[] {32, 22, 23, 35, 33}) {
+            var host = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+            var target = net.minecraft.world.entity.EntityType.HUSK.create(helper.getLevel());
+            helper.assertTrue(host != null && target != null, "reported profiles require real hosts and targets");
+            host.setVariantEggMeta(egg);
+            host.setNoAi(true);
+            host.setNoGravity(true);
+            host.setAiOnSightChase(false);
+            host.setGrudge(50000);
+            host.setPos(start.getX(), start.getY(), start.getZ());
+            target.setNoAi(true);
+            target.setNoGravity(true);
+            target.setInvulnerable(true);
+            target.setPos(start.getX() + 2.5D, start.getY() + 5, start.getZ() + 14.5D);
+            helper.getLevel().addFreshEntity(host);
+            helper.getLevel().addFreshEntity(target);
+            Entity flyer;
+            if (egg == 33) {
+                helper.assertTrue(host.canEngage(target), "fortress target must remain valid behind the wall");
+                flyer = com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity.create(
+                        helper.getLevel(), host, target, start.getY());
+            } else {
+                host.setModelState(1);
+                host.commandGuardEntity(target.getUUID());
+                flyer = LegacyShipMountEntity.create(helper.getLevel(), host);
+            }
+            helper.assertTrue(flyer != null, "reported profile must create its actual flyer");
+            helper.getLevel().addFreshEntity(flyer);
+            if (egg != 33) helper.assertTrue(host.startRiding(flyer, true), "host must ride the actual mount");
+            flyer.setPos(start.getX(), start.getY(), start.getZ());
+            try {
+                for (int tick = 0; tick < 320 && flyer.getZ() < start.getZ() + 10; tick++) {
+                    helper.assertTrue(!flyer.isRemoved(), "elevated route must retain its flyer: " + egg);
+                    flyer.tickCount++;
+                    flyer.tick();
+                    helper.assertTrue(helper.getLevel().noCollision(flyer, flyer.getBoundingBox()),
+                            "elevated route must keep the whole profile outside solids: " + egg);
+                }
+                helper.assertTrue(flyer.getZ() >= start.getZ() + 10,
+                        "actual elevated guard route must clear wall top: " + egg + " " + flyer.position());
+            } finally {
+                flyer.discard();
+                host.discard();
+                target.discard();
+            }
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space")
     public static void allEightMountsActuallyTickPastIntermediateWaypoints(GameTestHelper helper) {
         BlockPos origin = helper.absolutePos(new BlockPos(4, 5, 4));
