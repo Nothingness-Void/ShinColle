@@ -3,6 +3,8 @@
 本文件只维护下一步顺序；当前事实见 [CURRENT_STATE.md](CURRENT_STATE.md)，历史批次只见 [批次目录](migration_batches/)。
 
 ## 当前指针
+
+本轮用户授权渲染回移和 Destroyer Hime 陆上开腿例外，完成后只同步并验证 NeoForge 分支、推送两端，然后停止；[本批边界](migration_batches/rendering-backport-1.20.1/protocol.md)。下列历史队列不自动启动。
 唯一 NEXT：**剩余自定义粒子严格移植**。九批集成收尾推送后停在这里，未获用户授权不自动开工。
 
 | 顺序 | 状态 | 工作 | 进入条件 | 退出条件 |

@@ -1,5 +1,11 @@
 # Migration Test Matrix
 
+## Forge rendering backport and Hime land legs
+
+- JDK17：`bash ./gradlew --no-daemon build`，`bash ./gradlew --no-daemon runGameTestServer`（原 wrapper 无执行位，等价调用；不改构建配置）。
+- `python3 src/modern/scripts/check_render_resources.py`；JDK17 `python3 src/modern/scripts/check_ship_pose_parity.py --csv migration_batches/rendering-backport-1.20.1/ship-pose-audit.csv`。
+- 保留四项渲染 GameTests：运行时尺寸/眼高、办公桌非遮光、方块/物品模型与纹理完整性、Destroyer Hime 默认与显式 leg bit 的陆/水视觉策略及存储不变。全部 344 项通过；45 模型源码、1536 姿态 CPU 检查及实际客户端烟测范围见 [证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。
+
 本文件定义测试触发条件、覆盖范围和批末策略，并提供批次结果摘要；精确执行证据写入批次 `results/`。
 
 ## 2026-11-22 方块与物品纠偏覆盖及结果

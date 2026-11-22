@@ -1,5 +1,9 @@
 # 迁移变更索引
 
+## Forge 1.20.1 rendering backport
+
+回移 NeoForge 的外层舰娘姿态、特殊方块/物品 BEWLR、旋转/透光、库存图标、大小写资源清理及渲染审计/测试；包含用户批准的 Destroyer Hime 陆上开腿视觉例外。API 与 review 适用性、344 项验收和范围见 [批次记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。
+
 ## 九批 parity 集成收尾
 
 `devin/parity-fix-integration` 的当前快照/最终 merge SHA 见 [CURRENT_STATE.md](CURRENT_STATE.md)，最终结果见 [集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md) 与 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)，重复实现取舍及 D-015～D-018 重编号见 [集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)。未验证项/遗留只在当前状态维护，后续只看 [ROADMAP.md](ROADMAP.md)，不以本索引复制旧专题通过数作为最终结果。

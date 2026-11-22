@@ -27,6 +27,63 @@ public final class LegacyShipModelMappingGameTests {
     private LegacyShipModelMappingGameTests() {}
 
     @GameTest(template = "gameplayparitygametests.empty")
+    public static void shipRuntimeDimensionsRetainLegacyCatalogValues(GameTestHelper helper) {
+        var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        for (var spec : com.lulan.shincolle.entity.ship.ShipEntitySpecs.values()) {
+            ship.setVariantEggMeta(spec.eggMeta());
+            for (int scale = 0; scale < 4; scale++) {
+                ship.initializeHostileRuntime(false, scale);
+                ship.refreshDimensions();
+                var expected = com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog.dimensionsFor(
+                        spec, ship.getLegacyHostileScaleLevel());
+                for (boolean sitting : new boolean[] {false, true}) {
+                    ship.setOrderedToSit(sitting);
+                    var actual = ship.getDimensions(net.minecraft.world.entity.Pose.STANDING);
+                    helper.assertTrue(ship.getScale() == 1.0F
+                                    && Math.abs(actual.width - expected.width) < 1.0E-6F
+                                    && Math.abs(actual.height - expected.height) < 1.0E-6F
+                                    && Math.abs(ship.getBoundingBox().getYsize() - expected.height) < 1.0E-6D,
+                            "runtime hitbox must retain the legacy dimensions for " + spec.eggMeta());
+                    float eyeHeight = com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog.eyeHeightFor(ship, expected);
+                    helper.assertTrue(Math.abs(ship.getEyeHeight() - eyeHeight) < 1.0E-6F,
+                            "EntityDimensions must carry the legacy standing eye height");
+                }
+            }
+        }
+        ship.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void destroyerHimeUsesRenderOnlyLandLegs(GameTestHelper helper) {
+        var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(29), null);
+        helper.assertTrue(LegacyShipModelKind.forSpec(ship.getSpec()) == LegacyShipModelKind.ModelDestroyerHime
+                        && ship.getModelState() == 0 && ship.getLegacyModelEmotion(0) == 0,
+                "Destroyer Hime must retain the legacy default model state, with leg bit 4 disabled");
+        ship.setGrudge(1000);
+        helper.assertTrue(!ship.hasNoFuel(), "the fueled ship must reach the normal model pose");
+        for (int state : new int[] {0, 1, 16, 255}) {
+            ship.setModelState(state);
+            for (boolean sitting : new boolean[] {false, true}) {
+                ship.setOrderedToSit(sitting);
+                helper.assertTrue(ship.getLegacyModelEmotion(0) == state && ship.isOrderedToSit() == sitting,
+                        "standing/sitting must not silently rewrite the legacy leg-visibility bit");
+                for (boolean water : new boolean[] {false, true}) {
+                    boolean expected = !water || (state & 16) != 0;
+                    helper.assertTrue(com.lulan.shincolle.client.model.legacy.DestroyerHimePosePolicy
+                                    .showLegs(ship.getLegacyModelEmotion(0), water) == expected,
+                            "land must show legs; water must honor the explicit leg bit");
+                    helper.assertTrue(ship.getModelState() == state,
+                            "the visual override must never rewrite saved model state");
+                }
+            }
+        }
+        ship.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void hudPositionUsesLegacyConfig(GameTestHelper helper) {
         try {
             double[] defaults = {0.5D, 0.6D};
