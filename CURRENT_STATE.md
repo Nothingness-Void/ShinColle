@@ -14,6 +14,8 @@
 
 ## 最近证据与权威入口
 
+- 本轮 GUI/audio 复核：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时先按旧版保留。[复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。本轮仅按授权同步 NeoForge、验证截图并推送，不启动历史 NEXT。
+
 - 渲染回移：JDK17 build 成功，全量 **344/344** GameTests 通过；资源零大小写冲突，45 模型源码核对（仅精确豁免获批陆上开腿）及 64 变体/1536 姿态 CPU 测量通过。源提交、API 适配、review 不适用结论与视觉边界见 [本批记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。
 
 - 最后生产/测试代码修改后：JDK 17 独立编译与全量 GameTest 均通过，`All 340 required tests passed :)`。最终集成 GameTest 首轮全绿，未重跑；详细输出、首轮编译修复与日志校验和见 [最终集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)，命令/覆盖/门禁只见 [测试矩阵](MIGRATION-TEST-MATRIX.md#九批-parity-integration-最终门禁)。

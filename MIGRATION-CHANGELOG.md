@@ -1,5 +1,7 @@
 # 迁移变更索引
 
+- GUI/audio 回归复核：雷达旧行为、大船坞布局恢复、冻结整点报时溯源；[本轮记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
+
 ## Forge 1.20.1 rendering backport
 
 回移 NeoForge 的外层舰娘姿态、特殊方块/物品 BEWLR、旋转/透光、库存图标、大小写资源清理及渲染审计/测试；包含用户批准的 Destroyer Hime 陆上开腿视觉例外。API 与 review 适用性、344 项验收和范围见 [批次记录](migration_batches/rendering-backport-1.20.1/STATUS.md)。

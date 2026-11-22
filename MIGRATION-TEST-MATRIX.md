@@ -1,5 +1,14 @@
 # Migration Test Matrix
 
+## Reported GUI/audio regressions
+
+JDK17 `bash ./gradlew --no-daemon build` and `runGameTestServer`: 345/345.
+`python3 src/modern/scripts/check_gui_audio_parity.py` checks the unchanged radar
+body, restored shipyard text policy and historical frozen-hour clock behavior.
+The new GameTest checks 72 menu-message combinations. NeoForge JDK21 uses the
+same Gradle tasks; final scale-8 GUI/audio evidence is maintained on that branch
+in the [batch record](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md).
+
 ## Forge rendering backport and Hime land legs
 
 - JDK17：`bash ./gradlew --no-daemon build`，`bash ./gradlew --no-daemon runGameTestServer`（原 wrapper 无执行位，等价调用；不改构建配置）。

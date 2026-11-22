@@ -139,16 +139,7 @@ public class LargeShipyardMenu extends AbstractContainerMenu {
     }
 
     public Component getFailureMessage() {
-        if (!this.isStructureComplete()) {
-            return Component.translatable("gui.shincolle.shipyard.structure_missing");
-        }
-        if (!this.hasBuildMode()) {
-            return Component.translatable("gui.shincolle.shipyard.select_mode");
-        }
-        if (this.isOutputBlocked()) {
-            return Component.translatable("gui.shincolle.shipyard.output_locked");
-        }
-        if (this.getPowerGoal() <= 0) {
+        if (this.getPowerGoal() <= 0 && this.hasBuildMode()) {
             return Component.translatable("gui.shincolle.shipyard.nomaterial");
         }
         if (!this.hasRemainedPower()) {
