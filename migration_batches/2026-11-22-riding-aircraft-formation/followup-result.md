@@ -61,3 +61,39 @@ Neo merge/API/gate and stationary-owner mount capture follow this source checkpo
 Unchanged ring behavior and F3 blockers: [ring decision](f3-ring-decision.md).
 Offset numeric proof: [cart result](cart-offset-result.md). Full recovery detail:
 [FOLLOWUP](FOLLOWUP.md).
+
+## Final09:17 checkpoint and visual problem
+
+Neo sourcebc5549c (ordinary mergefd271ea of Forgecd61f59, then LazyOptional.resolve
+to Optional adapter in new test) passed final build/full372/372:
+```
+========= 372 GAME TESTS COMPLETE IN 30.39 s ======================
+All 372 required tests passed :)
+BUILD SUCCESSFUL in 1m 4s
+10 actionable tasks: 4 executed, 6 up-to-date
+```
+Log:/home/ubuntu/shincolle-followup-neo-release.log. Final documentation only follows;
+no checks repeated for unchanged source. Forge remains local under push hold.
+
+Stationary-owner factory mount photo captured after checked Neo mount/path body
+hot-swap, real factory host/passenger and45 native world ticks. Screenshot:
+/home/ubuntu/screenshots/shincolle-121-factory-mount-stationary-glass.png.
+Mount bbox maxZ=208.0 exactly touches glass minZ208, no crossing. Camera fixed at
+(202,105,194). **Further220 ticks still stop at that face** (mount202.496169,
+102.496169,207.050000, maxZ208). Thus the short finite8-profile GameTest passes but
+the broader live wall still does NOT route around/over: D4 remains OPEN, not fixed
+end-to-end. Do not infer node-budget or partial-path cause without inspecting actual
+path nodes/index/repath/host goal; those links remain unverified. Wall fixture spans
+roughly41 wide and13 high, distinct from the retained finite GT. No assertion moved
+or weakened and no speculative search-budget change made.
+
+Other verified factory/cart screenshots:
+- /home/ubuntu/screenshots/shincolle-121-factory-carrier-glass.png
+- /home/ubuntu/screenshots/shincolle-121-factory-northern-fort-glass.png
+- /home/ubuntu/screenshots/shincolle-121-shimakaze-cart-normal-legacy-offset.png
+- /home/ubuntu/screenshots/shincolle-121-shimakaze-cart-bored-legacy-offset.png
+
+Cart passenger measured100.2025 vs cart100.0625 (=+0.14). Remaining mesh protrusion
+not normalized: source/math matches legacy; actual1.12 client rendering unverified.
+Akagi elevated heavy-target outcome remains OPEN: eligibility/range/LOS source
+mapped but210-tick ballistic/flight reachability was not traced, no invented fix.
