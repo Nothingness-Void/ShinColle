@@ -145,7 +145,7 @@ public final class TeitokuEvents {
             boolean hasRing = !ring.isEmpty();
             boolean active = LegacyItemData.hasTag(ring) ? MarriageRingItem.isActive(ring) : data.isRingActive();
             boolean changed = data.hasRing() != hasRing || data.isRingActive() != active;
-            if (data.hasRing() && !hasRing) {
+            if ((data.hasRing() && !hasRing) || (data.isRingFlying() && !active)) {
                 player.getAbilities().flying = false;
                 if (player instanceof ServerPlayer serverPlayer) {
                     serverPlayer.onUpdateAbilities();
@@ -308,9 +308,9 @@ public final class TeitokuEvents {
         if (hasActiveVanillaMarriageRing(serverPlayer)) {
             return;
         }
-        ItemStack ring = findCuriosMarriageRing(serverPlayer, true);
+        ItemStack ring = findCuriosMarriageRing(serverPlayer, false);
         if (!ring.isEmpty()) {
-            MarriageRingItem.tickActiveRingEffects(serverPlayer, ring);
+            ring.inventoryTick(serverPlayer.level(), serverPlayer, -1, false);
         }
     }
 
@@ -325,7 +325,8 @@ public final class TeitokuEvents {
             if (lazyOptional == null) {
                 return ItemStack.EMPTY;
             }
-            Object resolvedObj = lazyOptional.getClass().getMethod("resolve").invoke(lazyOptional);
+            Object resolvedObj = lazyOptional instanceof Optional<?> ? lazyOptional
+                    : lazyOptional.getClass().getMethod("resolve").invoke(lazyOptional);
             if (!(resolvedObj instanceof Optional<?> resolved) || resolved.isEmpty()) {
                 return ItemStack.EMPTY;
             }

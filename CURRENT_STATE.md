@@ -6,11 +6,17 @@
 ## 当前集成与任务边界
 
 - 分支：`devin/mc-1.21.1-neoforge`；Minecraft1.21.1 / NeoForge21.1.267 / JDK21。
-- 当前任务：合并 Forge 已验证 VM 回归 ca635d7/cdb3706/ee1ffba；354/354 Forge tests通过，NeoForge final build/GameTests和新VM截图待验。
-- 全队列状态及line-abreast未解边界见 [本批记录](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)。仅机械API适配，无force-push；src/main只读。
+- 当前任务：merge Forge603a32d（已push，build16s、真实Curios5.14.1下357/357）。本端上一轮362/362通过；当前新F2/D3尚未验证。仅机械API适配，无force-push，src/main只读。
+- 下一步：新GT的NeoForge事件/Optional/ItemStack组件适配、curios tag folder改单数item，然后安装Curios9.6和配置ring槽做build/fullGT，提交push；完成目标客户端截图。调查和边界见batch STATUS与round2-decision。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
+
+- **最终Forge06:38（覆盖下方WIP checkpoints）**：最新source已完成build16s、357/357 required GT，含真实Curios5.14.1 ring配置槽的全能力/禁用/移除分支，日志/home/ubuntu/shincolle-queue-forge-round2-{build,gametest}.log。isRingFlying legacy缓存flag在scan中保留，不修改旧GameplayParity断言；禁用新增清理只依据owned标记清flying，不碰mayfly。所有Forge新代码已ready，下一步显式stage/commit/push，然后Neo merge+API适配+完整门禁+最终截图。下方写setRingFlying(false)的历史尝试已撤回，不能作为最终实现。Neo尚未合入F2/D3，也未push88952bf/f63d392。
+
+- 最新checkpoint06:35：Forge此前真实Curios5.14.1配置ring槽后build19s和357/357通过；随后补充Curios关戒指仍应有legacy passive breathing/禁飞断言，发现scan只在移除时清flight。已改onRingScan也在data.isRingFlying&&!active清理owned飞行并setRingFlying(false)，不碰mayfly。optional Curios tick改为find(false)+ring.inventoryTick(...,-1,false)，与Baubles.onWornTick相同，确保关戒指仍有legacy被动呼吸。新最终build/fullGT正待工具shell，下次先读日志，不以先前357当最终。实际Curios配置在run/config/curios-common.toml slots=["id=ring;size=1"]（非跟踪文件）；先前API empty是未配置槽，随后错误是GT试图改getCurios不可变Map，现GT直接取真实ring handler保存/还原stack。规则：未装Curios或无配置槽只检查tag，不计集成；真实最终运行有ring槽，完整能力断言必执行。
+- D3 helper跳过新路径root节点后实际357全量已过，全部8mount和fort路径断言已成功。F Attrs最终生产引用审计已做，仅默认constants及GT保留SCALE_*；GT也已过。全配方脚本再次83/83、坐标360 casts audit无raw Y通过。所有新源文件仍未commit，NeoForge f63d392还没merge此WIP也没push。两端工作树独立、共享.git refs。
+- VM我们启动的客户端已经保存退出world并Alt-F4关闭，非他人window56623113不要动。stone/wrench截图已覆盖为正确稳定帧：/home/ubuntu/screenshots/shincolle-121-queue-waypoint-stone.png（石头在手无marker），...-wrench.png（wrench在手红蓝marker可见）；镜头相同，都是Neo此前362通过的源版本。其余飞机/骑乘/岛风/D3截图仍待最终Neo merge后客户端验证。Morph G/H counter-check未做；文档round2-decision完整记录源码gate，实际报告玩家NBT不可得，不能宣称已复现其具体profile选择状态。NBT fixture可用/home/ubuntu/shincolle-qa-venv/bin/python，独立worldlevel.Data.Player.neoforge:attachments.shincolle:teitoku中MorphProfiles=[]、MorphRuntime.SelectedClassId=-1；如需验证callback，离线添加LegacyClassId0 profile并selected0（仅私有复制世界）再按G/H。当前无Curios客户端，最终可copy Neo9.6 jar到私有gameDir/mods并配置槽。
 
 - WIP 最后检查：Forge JDK17 build SUCCESSFUL in 18s，日志 `/home/ubuntu/shincolle-queue-forge-build.log`。Full GT `/home/ubuntu/shincolle-queue-forge-gametest.log` 失败两项：`guardinvalidtargetscancelandrestorefollow` 仍断言 nonpositive Y invalid（应按获批 min build height 更新夹具）；`hostilebossdropsonlyitslegacyegg` 仍断言立即蛋（应验证 deadline 前无蛋、推进 Death_Time 后正确蛋）。其余新测试未报失败，勿声称全绿。新增 inventory/book source guard 在英语文本比较失败：旧 chap0 text0d0 为 are a group/现代 is a group，实际译文不同；之前全部 page placement 比较已通过，需调查 recipe 页译文，不能声称英语完全相同。diff --check 无输出。尚未 commit WIP、merge 或 push。
 

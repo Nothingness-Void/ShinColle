@@ -18,6 +18,11 @@ Final gates, commits and requested NeoForge VM screenshots pending below.
 | Mount right-click | fixed | BasicEntityMount is living/pickable and interacts to ride; modern false isPickable blocked client selection before existing interact. |
 | Shimakaze minecart | fixed 1.21 attachment; pose legacy-identical | Both normal/bored ModelDestroyerShimakaze bodies match; old/Forge cart anchor0 versus 1.21 anchor0.1875 compensated in NeoForge only. |
 | Line-abreast settling | OPEN | Formulas, thresholds4/7, pickup64, repath/stuck32, turn60 and explicit extra movement match legacy. Live oscillation cause not established; no speculative change. |
+| Curios ring slot/all effects | implemented; final gates pending | Add curios:ring; support Forge LazyOptional and Neo Optional, dispatch full legacy onUpdate-equivalent inventory tick for passive breathing even toggled off. Real optional integration GT covers active/off/remove/fire/breathing/water flight. |
+| Attrs_Scale / four hostile arrays | implemented; final gates pending | ConfigHandler113–119/395–400 exact defaults; all production friendly/buff/potion/movement and hostile-band uses read config. Tables retain default reference constants. |
+| Morph G/H | unlock-only gate legacy-identical; client counter-check pending | Old C2SInputPackets/GuiHandler require active morphEntity; modern unlock neither selects nor activates, missing selected profile closes screen. No invented activation; external bridge remains none. |
+| OpenAL Stop error | OPEN | Vanilla Channel.stop/destroy both issue this diagnostic; supplied full log missing here; no causal mod stop/loop call found. Cannot classify a single message as migration or legacy. |
+| Floating fortress + all 8 Hime mounts | implemented; full gate/visual pending | BasicEntityMount/EntityFloatingFort and ShipPathFinder keep solid collision. Remove noPhysics and share aerial obstacle route helper with aircraft. D3 GT all8 styles+fort checks swept glass, finite wall routing, clear path. Root start node skipped so partial-height entities do not try to climb into a ceiling solely from start-Y rounding. |
 
 ## Complete recipe differences
 
@@ -33,3 +38,29 @@ Final gates, commits and requested NeoForge VM screenshots pending below.
 
 Full aliases and normalized ingredient/count/output audit:
 ../2026-11-22-ring-flight-recipes/decision.md and check_recipe_parity.py.
+
+## F2 / D3 Forge gate
+
+JDK17, external init /home/ubuntu/shincolle-curios-forge.init.gradle supplies
+fg.deobf Curios5.14.1 runtime and required Mixin refmap mapping. Runtime-only QA
+config run/config/curios-common.toml has slots=["id=ring;size=1"]. This run
+exercises the real Curios branch, not the absent-mod/no-slots early success.
+No production Gradle/dependency changes. Logs in home:
+shincolle-queue-forge-round2-{build,gametest}.log.
+
+```
+BUILD SUCCESSFUL in 16s
+8 actionable tasks: 5 executed, 3 up-to-date
+========= 357 GAME TESTS COMPLETE ======================
+All 357 required tests passed :)
+BUILD SUCCESSFUL in 1m 5s
+11 actionable tasks: 3 executed, 8 up-to-date
+```
+
+All8 mount styles and fort pass swept glass collision and finite-wall routes;
+Curios active/passive/off/re-enable/remove pass. Ring scan keeps the legacy
+isRingFlying cache flag as asserted by unchanged GameplayParityGameTests, but
+also revokes ring-owned flying when toggle is off (mayfly never granted/revoked).
+NeoForge port/final gate and D3 visual evidence still pending. Latest waypoint
+stone/wrench VM screenshots: /home/ubuntu/screenshots/shincolle-121-queue-waypoint-
+{stone,wrench}.png (same camera; stone genuinely equipped, not pointer).

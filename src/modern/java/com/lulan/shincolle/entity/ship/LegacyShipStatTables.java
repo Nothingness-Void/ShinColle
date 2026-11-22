@@ -1,6 +1,7 @@
 package com.lulan.shincolle.entity.ship;
 
 import java.util.Arrays;
+import com.lulan.shincolle.config.ShinColleConfig;
 
 public final class LegacyShipStatTables {
 
@@ -218,8 +219,8 @@ public final class LegacyShipStatTables {
 
     public static double[] hostileScaleFor(ShipArchetype archetype) {
         return switch (archetype) {
-            case DESTROYER, SUBMARINE -> SCALE_MOB_SMALL;
-            default -> SCALE_MOB_LARGE;
+            case DESTROYER, SUBMARINE -> ShinColleConfig.hostileSmallMobScale();
+            default -> ShinColleConfig.hostileLargeMobScale();
         };
     }
 
@@ -228,10 +229,10 @@ public final class LegacyShipStatTables {
             return hostileScaleFor(archetype);
         }
         return switch (Math.min(3, scaleLevel)) {
-            case 1 -> SCALE_MOB_LARGE;
-            case 2 -> SCALE_BOSS_SMALL;
-            case 3 -> SCALE_BOSS_LARGE;
-            default -> SCALE_MOB_SMALL;
+            case 1 -> ShinColleConfig.hostileLargeMobScale();
+            case 2 -> ShinColleConfig.hostileSmallBossScale();
+            case 3 -> ShinColleConfig.hostileLargeBossScale();
+            default -> ShinColleConfig.hostileSmallMobScale();
         };
     }
 

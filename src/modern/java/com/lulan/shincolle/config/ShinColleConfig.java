@@ -48,6 +48,12 @@ public final class ShinColleConfig {
         TEST_OVERRIDES.remove(key);
     }
 
+    public static double[] shipScale() { return numericList("attrsScale", COMMON.attrsScale, 1, 1, 1, 1, 1, 1); }
+    public static double[] hostileSmallMobScale() { return numericList("attrsHostileSmallMob", COMMON.attrsHostileSmallMob, 250, 25, 0.15, 0.7, 0.45, 12); }
+    public static double[] hostileLargeMobScale() { return numericList("attrsHostileLargeMob", COMMON.attrsHostileLargeMob, 500, 50, 0.30, 0.9, 0.4, 15); }
+    public static double[] hostileSmallBossScale() { return numericList("attrsHostileSmallBoss", COMMON.attrsHostileSmallBoss, 1600, 120, 0.5, 1.6, 0.38, 18); }
+    public static double[] hostileLargeBossScale() { return numericList("attrsHostileLargeBoss", COMMON.attrsHostileLargeBoss, 3200, 240, 0.75, 2, 0.35, 22); }
+
     public static double[] tileShipyardSmall() { return numericList("tileShipyardSmall", COMMON.tileShipyardSmall, 460800, 48, 1); }
     public static double[] tileShipyardLarge() { return numericList("tileShipyardLarge", COMMON.tileShipyardLarge, 1382400, 48, 1); }
     public static double[] tileVolCore() { return numericList("tileVolCore", COMMON.tileVolCore, 9600, 16, 240); }
@@ -475,6 +481,11 @@ public final class ShinColleConfig {
         public final ModConfigSpec.DoubleValue morphHpRatio;
         public final ModConfigSpec.DoubleValue morphDmgTakenRatio;
 
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsScale;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallMob;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeMob;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileSmallBoss;
+        public final ModConfigSpec.ConfigValue<List<? extends Number>> attrsHostileLargeBoss;
         public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardSmall;
         public final ModConfigSpec.ConfigValue<List<? extends Number>> tileShipyardLarge;
         public final ModConfigSpec.ConfigValue<List<? extends Number>> tileVolCore;
@@ -485,6 +496,11 @@ public final class ShinColleConfig {
 
         private Common(ModConfigSpec.Builder builder) {
             builder.push("general");
+            this.attrsScale = builder.defineList("Attrs_Scale", List.of(1D, 1D, 1D, 1D, 1D, 1D), entry -> entry instanceof Number);
+            this.attrsHostileSmallMob = builder.defineList("Attrs_Hostile_SmallMob", List.of(250D, 25D, 0.15D, 0.7D, 0.45D, 12D), entry -> entry instanceof Number);
+            this.attrsHostileLargeMob = builder.defineList("Attrs_Hostile_LargeMob", List.of(500D, 50D, 0.30D, 0.9D, 0.4D, 15D), entry -> entry instanceof Number);
+            this.attrsHostileSmallBoss = builder.defineList("Attrs_Hostile_SmallBoss", List.of(1600D, 120D, 0.5D, 1.6D, 0.38D, 18D), entry -> entry instanceof Number);
+            this.attrsHostileLargeBoss = builder.defineList("Attrs_Hostile_LargeBoss", List.of(3200D, 240D, 0.75D, 2D, 0.35D, 22D), entry -> entry instanceof Number);
             this.canTeleport = builder.define("Can_Teleport", true);
             this.shipTeleport = builder.defineList("ship_teleport", List.of(200, 256), value -> value instanceof Integer);
             this.drumLiquid = builder.defineList("Drum_Liquid", List.of(40, 5), entry -> entry instanceof Number);
