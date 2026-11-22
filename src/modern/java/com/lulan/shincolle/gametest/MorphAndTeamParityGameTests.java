@@ -69,7 +69,7 @@ public final class MorphAndTeamParityGameTests {
         player.setXRot((float) Math.toDegrees(Math.atan2(
                 player.getEyeY() - transport.getY() - transport.getBbHeight() * 0.5D, 20.0D)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.POINTERITEM.get()));
-        TeitokuData data = TeitokuHelper.get(player).resolve().orElseThrow();
+        TeitokuData data = TeitokuHelper.get(player).orElseThrow();
         data.clearCurrentTeam();
         BlockPos crane = origin.offset(4, 0, 0);
         helper.getLevel().setBlockAndUpdate(crane, ModBlocks.BLOCK_CRANE.get().defaultBlockState());
