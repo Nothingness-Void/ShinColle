@@ -1,5 +1,9 @@
 # 迁移变更索引
 
+## Merged PR11 review follow-ups / 0.2.1-alpha
+
+- [Ore-category matching, ForgeData drop-marker migration/native Forge audit, tests and release evidence](migration_batches/2026-11-22-review-followups/README.md).
+
 ## VM A/B/C/D/E/F 回归收口
 
 - PR11 client ownership：消费判定使用已有 synced owner UUID，[证据](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
