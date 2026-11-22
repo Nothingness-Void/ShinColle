@@ -89,7 +89,13 @@ public final class LegacyKilledShipPersistenceGameTests {
         LegacyShipEntity younger = recovered;
         nether.setChunkForced(chunk.x, chunk.z, true);
         nether.getChunk(chunk.x, chunk.z);
-        helper.succeedWhen(() -> {
+        var managerField = ServerLevel.class.getDeclaredField("entityManager");
+        managerField.setAccessible(true);
+        var manager = (net.minecraft.world.level.entity.PersistentEntitySectionManager<?>) managerField.get(nether);
+        helper.assertTrue(manager.isLoaded(uuid), "transferred ship must be stored in the destination section manager");
+        // Headless tests must advance the destination's player-driven entity visibility.
+        manager.updateChunkStatus(chunk, net.minecraft.server.level.FullChunkStatus.ENTITY_TICKING);
+        {
             var older = destination.get();
             helper.assertTrue(nether.getEntity(older.getId()) == older,
                         "forced destination must expose transferred id=" + older.getId() + " uuid=" + older.getUUID()
@@ -110,7 +116,8 @@ public final class LegacyKilledShipPersistenceGameTests {
                 younger.discard();
                 nether.setChunkForced(chunk.x, chunk.z, false);
             }
-        });
+        }
+        helper.succeed();
     }
 
     @GameTest(template = "gameplayparitygametests.empty", batch = "kill_region_reload")

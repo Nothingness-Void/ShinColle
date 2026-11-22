@@ -34,7 +34,13 @@ public final class LegacyShipObstaclePath {
                     && entity.position().distanceToSqr(this.path.getPosition(entity)) < 0.25D) {
                 this.path.incrementPathIndex();
             }
-            if (!this.path.isFinished()) return this.path.getPosition(entity);
+            if (!this.path.isFinished()) {
+                Vec3 waypoint = this.path.getPosition(entity);
+                Vec3 raised = waypoint.add(0.0D, 0.1D, 0.0D);
+                return entity.level().getBlockCollisions(entity,
+                        entity.getBoundingBox().move(raised.subtract(entity.position()))).iterator().hasNext()
+                        ? waypoint : raised;
+            }
         }
         return destination;
     }
