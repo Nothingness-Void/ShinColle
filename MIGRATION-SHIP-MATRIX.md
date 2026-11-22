@@ -2,6 +2,8 @@
 
 更新时间：2026-11-22
 
+当前共通D3节点诊断不改变逐舰LOCKED状态：NF05/06/09/10/11由最新VM报告通过，NF07/08/02/01仍open；NF08和NF10同bbox，对照探针不能冒充实际场景。Shimakaze+0.14及残余模型穿模保持不变。见[当前详细证据](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md)。
+
 GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
 
 共通物品、补给与路线交互纠偏见 [方块与物品批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。本批不新增舰种或改变逐舰状态，不将共通修正视为逐舰重新验收。

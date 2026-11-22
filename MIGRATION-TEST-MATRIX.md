@@ -1,5 +1,12 @@
 # Migration Test Matrix
 
+## Recovery / PR11 / empty-buffer crane follow-up
+
+- `LegacyKilledShipPersistenceGameTests` now6 cases: actual creative-player `/tp` into initially unloaded Nether then `/ship get`, observed cache-origin recovery window, conditional entity-tracking wait, legacy both-live/age>200 older-copy reconciliation; exact200/dead/reverse-age cases plus existing kill/disk health persistence. Neo loaded-original visibility gate remains BLOCKED; see [current results](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md).
+- `MorphAndTeamParityGameTests.pointerTargetConsumptionRetainsLegacyModifierFallthrough`: own normal/mount, foreign/empty/non-ship, sneak outside/current-team, sneak+sprint clear-team eligibility; shared predicate coverage, not a client input/visual replay. Existing long-ray/crane-dispatch cases retained.
+- `CraneFluidWaitGameTests.emptyCraneTankDoesNotBypassLegacyContainerWaits`: production ending-dispatch full/empty modes with empty crane tank; empty bucket, partial ship tank, filled bucket, non-container, empty inventory. Existing nonempty-buffer transfer/cycle coverage retained. Client full-route replay outstanding.
+- Same documented JDK17 Forge `bash ./gradlew --no-daemon -I /home/ubuntu/shincolle-curios-forge.init.gradle build runGameTestServer` and JDK21 Neo `bash ./gradlew --no-daemon -I /home/ubuntu/shincolle-queue-gametest.init.gradle build runGameTestServer`; pass criterion remains ALL required tests. Latest exact logs/status only in the linked batch result; do not treat earlier A/B-only gate as final Neo green.
+
 ## Reported GUI/audio regressions
 
 JDK17 `bash ./gradlew --no-daemon build` and `runGameTestServer`: 345/345.
