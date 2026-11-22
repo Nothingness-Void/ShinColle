@@ -1,6 +1,9 @@
 package com.lulan.shincolle.block;
 
 import com.lulan.shincolle.blockentity.WaypointBlockEntity;
+import com.lulan.shincolle.item.PointerItem;
+import com.lulan.shincolle.item.WaypointBlockItem;
+import com.lulan.shincolle.registry.ModBlockEntities;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.core.BlockPos;
@@ -16,6 +19,8 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -56,7 +61,17 @@ public class WaypointBlock extends BaseEntityBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.INVISIBLE;
+    }
+
+    public static boolean showsMarker(ItemStack held) {
+        return held.getItem() instanceof WaypointBlockItem || held.is(ModItems.TARGETWRENCH.get())
+                || held.getItem() instanceof PointerItem && PointerItem.getMode(held) < 3;
+    }
+
+    @Override
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        return level.isClientSide() ? createTickerHelper(type, ModBlockEntities.WAYPOINT.get(), WaypointBlockEntity::clientTick) : null;
     }
 
     @Override

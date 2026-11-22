@@ -5,6 +5,11 @@ import com.google.gson.JsonParser;
 import com.lulan.shincolle.ShinColle;
 import com.lulan.shincolle.client.model.legacy.LegacyModelSourceParser;
 import com.lulan.shincolle.registry.ModBlocks;
+import com.lulan.shincolle.registry.ModItems;
+import com.lulan.shincolle.block.WaypointBlock;
+import com.lulan.shincolle.item.PointerItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.RenderShape;
@@ -70,6 +75,34 @@ public final class LegacyBlockRenderGameTests {
 
     private static JsonObject json(String path) throws IOException {
         return JsonParser.parseString(resource(path)).getAsJsonObject();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void waypointWorldIsInvisibleAndOnlyLegacyToolsRevealMarkers(GameTestHelper helper) throws IOException {
+        var state = ModBlocks.BLOCK_WAYPOINT.get().defaultBlockState();
+        helper.assertTrue(state.getRenderShape() == RenderShape.INVISIBLE,
+                "waypoints must never render their baked inventory model in the world");
+        helper.assertTrue(!WaypointBlock.showsMarker(ItemStack.EMPTY)
+                        && !WaypointBlock.showsMarker(new ItemStack(Items.STONE)),
+                "empty hands and ordinary blocks must not spawn waypoint markers");
+        helper.assertTrue(WaypointBlock.showsMarker(new ItemStack(ModBlocks.BLOCK_WAYPOINT.get()))
+                        && WaypointBlock.showsMarker(new ItemStack(ModItems.TARGETWRENCH.get())),
+                "waypoint items and the wrench reveal legacy markers");
+        var pointer = new ItemStack(ModItems.POINTERITEM.get());
+        for (int mode = 0; mode < 6; mode++) {
+            PointerItem.setMode(pointer, mode);
+            helper.assertTrue(WaypointBlock.showsMarker(pointer) == (mode < 3),
+                    "only legacy pointer command modes reveal waypoint markers: " + mode);
+        }
+        helper.assertTrue(json("models/item/blockwaypoint.json").get("parent").getAsString()
+                        .equals("shincolle:block/blockwaypoint"),
+                "invisible world geometry must not remove the held/inventory item model");
+        try (var stream = LegacyBlockRenderGameTests.class.getClassLoader()
+                .getResourceAsStream("assets/shincolle/textures/particles/particleteam.png")) {
+            helper.assertTrue(stream != null && stream.read() == 137,
+                    "legacy waypoint marker texture must be loadable with a lowercase resource location");
+        }
+        helper.succeed();
     }
 
     private static String resource(String path) throws IOException {

@@ -10,7 +10,7 @@
       "item": "shincolle:deskitembook"
     },
     "c": {
-      "tag": "minecraft:wool"
+      "item": "minecraft:black_wool"
     },
     "o": {
       "tag": "c:obsidians"
