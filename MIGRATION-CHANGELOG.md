@@ -2,6 +2,8 @@
 
 ## VM A/B/C/D/E/F 回归收口
 
+- 宽墙/真实跨维recovery/PR11A+B/crane空罐等待：[当前证据与Neo门禁阻塞](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md)。Forge本地hold，Neo未push；音频由batchF关闭。
+
 Forge-first parity fixes, book text restoration, height adapters and explicit
 line-abreast investigation boundary: [queue table and evidence](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md).
 
