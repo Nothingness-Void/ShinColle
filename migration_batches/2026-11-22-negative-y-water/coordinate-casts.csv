@@ -234,13 +234,13 @@ src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1505,
 src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,r << 16) + ((int)g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,b;,numeric/UI/animation/size narrowing; not world-position conversion
-src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,55,"numericList(""expGain"", COMMON.expGain, 2, 4, 5, 8, 10, 1, 2)[6]; }",numeric/UI/animation/size narrowing; not world-position conversion
-src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,57,"numericList(""itemShipTank"", COMMON.itemShipTank, 32000, 128000, 512000, 2048000)[tier]; }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,61,"numericList(""expGain"", COMMON.expGain, 2, 4, 5, 8, 10, 1, 2)[6]; }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,63,"numericList(""itemShipTank"", COMMON.itemShipTank, 32000, 128000, 512000, 2048000)[tier]; }",numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/crafting/LegacyEquipmentBuildHelper.java,108,(Math.abs(totalMaterials - mean) * 15.625F);,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/crafting/LegacyEquipmentBuildHelper.java,154,(totalMaterials * 15.625F) : 0;,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/crafting/LegacyShipConstructionHelper.java,118,(meanDistance * 15.625F);,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipStaticEffectEntity.java,59,(20.0D + shipLevel * 0.125D));,numeric/UI/animation/size narrowing; not world-position conversion
-src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java,282,(100.0F / aircraftSpd) + 35);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java,278,(100.0F / aircraftSpd) + 35);,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,398,ship.getCompatAttackRange());,numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,786,"(Math.max(0, movementGrudge) * 0.2F));",numeric/UI/animation/size narrowing; not world-position conversion
 src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1534,(baseDelay / attackSpeed) : baseDelay;,numeric/UI/animation/size narrowing; not world-position conversion

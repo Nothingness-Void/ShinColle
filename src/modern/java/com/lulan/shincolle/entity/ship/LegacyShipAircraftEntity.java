@@ -2,15 +2,13 @@ package com.lulan.shincolle.entity.ship;
 
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileProfile;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
-import com.lulan.shincolle.entity.ship.path.ShipPath;
-import com.lulan.shincolle.entity.ship.path.ShipPathFinder;
+import com.lulan.shincolle.entity.ship.path.LegacyShipObstaclePath;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.config.ShinColleConfig;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.BlockPos;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -98,9 +96,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
     private float maxHp = 20.0F;
     private float hp = 20.0F;
     private boolean returnedToOwner;
-    private @Nullable ShipPath obstaclePath;
-    private @Nullable BlockPos obstacleTarget;
-    private int nextObstaclePathTick;
+    private final LegacyShipObstaclePath obstaclePath = new LegacyShipObstaclePath();
 
     protected LegacyShipAircraftEntity(EntityType<? extends LegacyShipAircraftEntity> entityType, Level level) {
         super(entityType, level);
@@ -510,7 +506,7 @@ public abstract class LegacyShipAircraftEntity extends Entity {
             desiredPos = owner.position().add(owner.getLookAngle().scale(6.0D)).add(0.0D, owner.getBbHeight() + 1.0D, 0.0D);
         }
 
-        Vec3 desired = this.resolveObstacleWaypoint(desiredPos).subtract(this.position());
+        Vec3 desired = this.obstaclePath.resolve(this, desiredPos).subtract(this.position());
         if (desired.lengthSqr() < 1.0E-6D) {
             return;
         }
@@ -531,30 +527,6 @@ public abstract class LegacyShipAircraftEntity extends Entity {
 
         this.setDeltaMovement(blended);
         this.updateRotation(blended);
-    }
-
-    private Vec3 resolveObstacleWaypoint(Vec3 destination) {
-        if (this.level().clip(new ClipContext(this.position(), destination, ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, this)).getType() == HitResult.Type.MISS) {
-            this.obstaclePath = null;
-            this.obstacleTarget = null;
-            return destination;
-        }
-        BlockPos target = BlockPos.containing(destination);
-        if (this.obstaclePath == null || !target.equals(this.obstacleTarget) || this.tickCount >= this.nextObstaclePathTick) {
-            this.obstaclePath = new ShipPathFinder(this.level(), true).findPath(
-                    this, target.getX(), target.getY(), target.getZ(), 32.0F);
-            this.obstacleTarget = target;
-            this.nextObstaclePathTick = this.tickCount + 16;
-        }
-        if (this.obstaclePath != null) {
-            while (!this.obstaclePath.isFinished()
-                    && this.position().distanceToSqr(this.obstaclePath.getPosition(this)) < 0.25D) {
-                this.obstaclePath.incrementPathIndex();
-            }
-            if (!this.obstaclePath.isFinished()) return this.obstaclePath.getPosition(this);
-        }
-        return destination;
     }
 
     private static Vec3 legacyInitialStraightMovement(Vec3 origin, LivingEntity target, Vec3 fallback) {

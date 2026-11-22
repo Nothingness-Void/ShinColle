@@ -8,6 +8,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.network.CombatFxDispatcher;
 import com.lulan.shincolle.network.GameplayParticleType;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.entity.ship.path.LegacyShipObstaclePath;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -53,7 +54,6 @@ public final class LegacyShipFloatingFortEntity extends Entity {
 
     public LegacyShipFloatingFortEntity(EntityType<? extends LegacyShipFloatingFortEntity> entityType, Level level) {
         super(entityType, level);
-        this.noPhysics = true;
         this.setNoGravity(true);
         this.noCulling = true;
     }
@@ -104,6 +104,8 @@ public final class LegacyShipFloatingFortEntity extends Entity {
         tag.putFloat(MAX_HEALTH_TAG, this.maxHp);
     }
 
+    private final LegacyShipObstaclePath obstaclePath = new LegacyShipObstaclePath();
+
     @Override
     public void tick() {
         super.tick();
@@ -138,6 +140,7 @@ public final class LegacyShipFloatingFortEntity extends Entity {
             return;
         }
 
+        offset = this.obstaclePath.resolve(this, targetPosition).subtract(this.position());
         double speed = Math.max(0.18D, host.getLegacyStats().moveSpeed() * 0.1D + 0.3D);
         Vec3 movement = offset.normalize().scale(speed);
         this.setDeltaMovement(movement);

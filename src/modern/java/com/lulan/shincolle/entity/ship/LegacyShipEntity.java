@@ -2923,7 +2923,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         }
 
         double formationMov = this.legacyStats.formationStat(LegacyShipStatTables.Attr.MOV)
-                * LegacyShipStatTables.SCALE_SHIP[LegacyShipStatTables.BaseAttr.MOV];
+                * ShinColleConfig.shipScale()[LegacyShipStatTables.BaseAttr.MOV];
         return Mth.clamp(minMov + formationMov, 0.0D,
                 LegacyShipStatTables.LIMIT_SHIP_ATTRS[LegacyShipStatTables.Attr.MOV]);
     }

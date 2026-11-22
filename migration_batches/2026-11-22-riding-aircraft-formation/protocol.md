@@ -1,5 +1,11 @@
 # Batch D round2
 
+D round3 extends block-physics/pathing to FloatingFort and all eight shared Hime
+mount styles. Compare EntityFloatingFort, BasicEntityAirplane, BasicEntityMount,
+EntityHelper movement and ShipPathFinder to modern fort/mount movement. Keep
+manual steering manual; restore solids and path detours, no attack/stat/model
+changes. Add all-style swept collision and finite-wall route tests plus VM evidence.
+
 Read repro attachments/23ce2043-1d1b-4aec-bb2a-7fe43cadf620/补测报告.md.
 Aircraft: compare historical BasicEntityAirplane constructor/collision/travel and
 ShipPathFinder solid-block classification to modern LegacyShipAircraftEntity

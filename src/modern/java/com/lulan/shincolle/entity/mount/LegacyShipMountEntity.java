@@ -4,6 +4,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpec;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.entity.ship.path.LegacyShipObstaclePath;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -49,7 +50,6 @@ public final class LegacyShipMountEntity extends Entity {
 
     public LegacyShipMountEntity(EntityType<? extends LegacyShipMountEntity> entityType, Level level) {
         super(entityType, level);
-        this.noPhysics = true;
         this.setNoGravity(true);
         this.noCulling = true;
     }
@@ -95,6 +95,8 @@ public final class LegacyShipMountEntity extends Entity {
         tag.putInt(HOST_ID_TAG, this.getHostId());
         tag.putInt(MOUNT_STYLE_TAG, this.getMountStyle());
     }
+
+    private final LegacyShipObstaclePath obstaclePath = new LegacyShipObstaclePath();
 
     @Override
     public void tick() {
@@ -227,7 +229,7 @@ public final class LegacyShipMountEntity extends Entity {
     }
 
     private void moveToward(Vec3 destination, double stopDistance, LegacyShipEntity host) {
-        Vec3 offset = destination.subtract(this.position());
+        Vec3 offset = this.obstaclePath.resolve(this, destination).subtract(this.position());
         double distance = offset.length();
         if (distance <= stopDistance) {
             this.setDeltaMovement(Vec3.ZERO);
