@@ -2,6 +2,8 @@
 
 更新时间：2026-11-22
 
+Pointer client ownership 共通修复不改变逐舰 LOCKED 状态；[synced UUID 与回归证据](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
+
 共通D3墙顶缺少 legacy waypoint clearance 已修复，NF07/08/02/01/NF10 原生控制场景及双端回归通过；原 VM 场景分组仍待新包复测，不把控制场景冒充逐项验收。LEVITATION 保留明确 gap，禁止当前 LivingEntity 移植；逐舰 LOCKED 状态不变。Shimakaze +0.14 与残余穿模不变。见[当前详细证据](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md)。
 
 GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。

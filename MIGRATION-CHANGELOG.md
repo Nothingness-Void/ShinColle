@@ -2,6 +2,8 @@
 
 ## VM A/B/C/D/E/F 回归收口
 
+- PR11 client ownership：消费判定使用已有 synced owner UUID，[证据](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
+
 - section readiness / 实际五 profile / legacy waypoint clearance：[本轮证据](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md)。此前宽墙/recovery/PR11A+B/crane 见[历史记录](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md)。
 
 Forge-first parity fixes, book text restoration, height adapters and explicit
