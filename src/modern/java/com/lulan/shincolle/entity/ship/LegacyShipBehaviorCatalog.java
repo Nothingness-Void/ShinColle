@@ -1372,7 +1372,7 @@ public final class LegacyShipBehaviorCatalog {
         return switch (normalizeLegacyClassId(ship.getShipClassId())) {
             case 10 -> 0.3D;
             case 31, 72 -> 0.25D;
-            default -> 0.0D;
+            default -> ship.isHostileVariant() ? 0.0D : 0.14D;
         };
     }
 
