@@ -257,3 +257,67 @@ No new `build` or client/visual/real-world validation is claimed for this review
 | --- | --- |
 | `/home/ubuntu/shincolle-pr11-review-compile.log` | `79a61874ca296c80370fcf33395eb1dbc430656004618e2eb15399c19f036cf1` |
 | `/home/ubuntu/shincolle-pr11-review-gametest.log` | `7c4bab6fdd7e0c780b51db1d46da325ccc8e54adf31b26863c7568918f748c44` |
+
+## Client rendering follow-up: ship placement
+
+The missing legacy pre-render pose pass is reachable through the registered
+`LegacyShipRenderer` -> `LivingEntityRenderer.render` ->
+`LegacyShipPoseModel.renderToBuffer` -> `ModelBase.render` bridge. The wrapper
+called only `render`; legacy `RenderLivingBase.doRender` called
+`setRotationAngles` before `render`, and individual ship `render` methods call
+it again inside their model-local scale. Those pose methods also translate the
+matrix: for example, `ModelBattleshipRe.applyNormalPose` translates Y by 0.63,
+and its dead pose by 1.13. Omitting the outer, unscaled pass therefore raises
+the model by exactly that missing translation, independently of the entity
+position and shadow. Restoring the old call order also restores the shared
+sitting/riding pose transforms; no model-local offsets or gameplay values were
+changed. Preserve Midway's separately rendered mount at its original matrix.
+
+This is a pre-existing bridge omission, not a newly introduced 1.21 scale
+change: the wrapper and renderer/catalog match the fixed 1.20.1 branch apart
+from required API signatures. NeoForge 21.1.267 `LivingEntityRenderer` still
+flips the matrix, calls `scale`, and translates by -1.501; its new entity scale
+is 1.0 for the reproduced ships (also checked with the runtime attribute
+command). Our renderer's `scale` only adjusts shadow radius, and it does not
+override `setupRotations`. These checks disprove the proposed extra vanilla
+scale/translation explanation rather than compensating for it with a guessed
+global offset.
+
+`shipRuntimeDimensionsRetainLegacyCatalogValues` exercises every ship spec,
+all four hostile scale bands, standing and sitting: scale remains 1.0, actual
+width/height/AABB and eye height match the legacy catalog. Existing class-size
+and standing/sitting passenger/rider offset parity tests also pass unchanged.
+Debug hitboxes remain grounded while the model placement is corrected.
+
+The final source batch (including the separate block-render fix below) was
+checked on JDK 21 with `./gradlew --no-daemon compileJava`:
+
+```text
+4 warnings
+
+BUILD SUCCESSFUL in 6s
+2 actionable tasks: 1 executed, 1 up-to-date
+```
+
+Warnings are deprecated mod-bus annotations (existing and new registrations),
+not compilation errors. Full `./gradlew --no-daemon runGameTestServer`:
+
+```text
+[03:29:06] [Server thread/INFO] [minecraft/GameTestServer]: ========= 351 GAME TESTS COMPLETE IN 20.20 s ======================
+[03:29:06] [Server thread/INFO] [minecraft/GameTestServer]: All 351 required tests passed :)
+
+BUILD SUCCESSFUL in 32s
+8 actionable tasks: 2 executed, 6 up-to-date
+```
+
+351 passed / 0 failed: previous 348 plus runtime dimensions and two block
+render-resource/occlusion regressions. No existing assertions were weakened.
+Logs: `/home/ubuntu/shincolle-render-{compile,gametest}.log`; SHA-256 respectively
+`b4a5cce10a94b15851520f3968c5d13cefa15fa86ecac7ceeddacc2dc696551c`
+and `96593ffffd4c7dd3325215d7018056d3a1ccea4e70a7fe8fb9d58df8c64b57c2`.
+
+Targeted client check: Battleship Re, Isolated Island and Northern Princess,
+with hitboxes, standing and sitting. Screenshots are recorded with the block
+follow-up below. This is not a full per-variant/animation/glow/held-item visual
+acceptance, nor a visual test of every riding/misc-model combination. Riding
+offset coverage here is source comparison plus the existing full GameTests.

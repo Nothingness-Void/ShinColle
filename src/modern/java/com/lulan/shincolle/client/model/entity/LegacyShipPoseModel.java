@@ -58,18 +58,27 @@ public class LegacyShipPoseModel extends EntityModel<LegacyShipEntity> {
         model.swingProgress = attackTime;
         model.isRiding = riding;
         model.isChild = young;
+        Entity legacyEntity = Entity.wrap(entity);
+        PoseStack.Pose miscPose = model instanceof ModelMidwayHime ? poses.last().copy() : null;
         LegacyRenderContext.begin(poses, vertices, light, overlay, red, green, blue, alpha);
-        poses.pushPose();
         try {
-            model.render(Entity.wrap(entity), limbSwing, limbSwingAmount, age, yaw, pitch, 0.0625F);
+            // RenderLivingBase applied the pose before render(), which also applies its own scaled pose.
+            model.setRotationAngles(limbSwing, limbSwingAmount, age, yaw, pitch, 0.0625F, legacyEntity);
+            poses.pushPose();
+            try {
+                model.render(legacyEntity, limbSwing, limbSwingAmount, age, yaw, pitch, 0.0625F);
+            } finally {
+                poses.popPose();
+            }
         } finally {
-            poses.popPose();
             LegacyRenderContext.end();
         }
         if (model instanceof ModelMidwayHime midway && midway.shouldRenderMiscModel(0) && buffers != null) {
             Entity tako = midway.miscModelList.get(0).entity;
             poses.pushPose();
             try {
+                poses.last().pose().set(miscPose.pose());
+                poses.last().normal().set(miscPose.normal());
                 poses.translate(0D, 1.501D, 0D);
                 poses.scale(-1F, -1F, 1F);
                 poses.translate(tako.posX, tako.posY, tako.posZ);

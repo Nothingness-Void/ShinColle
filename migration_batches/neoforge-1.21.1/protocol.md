@@ -6,3 +6,11 @@
 - Goal: compileJava on JDK 21 with NeoForge 21.1.267 and ModDevGradle 2.0.148; adapt registry, events, network, components, capabilities, renderer and data APIs without changing gameplay or constants.
 - Checks: compileJava, processResources, verifyItemModelCoverage and structural resource validation. Runtime and visual validation must be reported separately from compilation.
 - Non-goals: new mechanics, parity backlog, legacy source changes, pushes.
+
+## Authorized client rendering follow-up
+
+- Restore ship model placement from `RenderLivingBase`/`RenderBasic` and the legacy ship models; compare the fixed 1.20.1 wrapper and NeoForge 21.1.267 `LivingEntityRenderer`. Keep dimension, eye-height and rider-position numbers unchanged.
+- Restore crown/crane and desk rendering, and audit waypoint, both shipyards and volcano core against their legacy block JSON, TESRs and `RenderTileEntityItem`. Remove case-colliding modern texture files without changing the lowercase runtime assets.
+- Modern entry points: `LegacyShipPoseModel`, the three block entity renderers, `ModBlocks`, item renderer registration and the corresponding block/item model JSON. `src/main/**` remains read-only.
+- Acceptance: grounded BB/FR models, legacy sitting/riding transform path, runtime hitboxes equal to the legacy catalog; lit, correctly oriented desk and 3D inventory/held block models; no case-folding collisions in modern resources. Run JDK 21 `compileJava`, full `runGameTestServer`, targeted client screenshots and resource assertions. Commit the ship and block fixes separately, then push the existing branch as requested.
+- Non-goals: new models, mechanics or gameplay values, unrelated visual backlog, or claiming complete client parity from these targeted checks.
