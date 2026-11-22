@@ -14,6 +14,8 @@
 
 ## 最近证据与权威入口
 
+- 本轮 GUI/audio 复核：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时先按旧版保留。[复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。本轮仅按授权同步 NeoForge、验证截图并推送，不启动历史 NEXT。
+
 - 最新 Destroyer Hime 取舍已获批准：仅陆上开腿，水中原样，显式 bit4 始终优先。最终使用既有模型 depth > 0（vanilla isInWater 漏掉水面悬浮薄层，已由实测排除）。Forge build 与 **344/344** GameTests、NeoForge build 与 **352/352** 均通过；两端 CPU 姿态各 1536 项，最终 VM 指定画面通过。[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)、[NeoForge 本轮记录](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
 
 - 此前渲染修复后的 JDK 21 `compileJava` 成功，全量 `runGameTestServer` **351/351 通过、0 失败**；资源检查为 0 个大小写路径冲突。舰娘站立/坐下与 hitbox、办公桌/起重机/小船坞/航点/火山核心的针对性截图与根因见 [客户端修复](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。本轮未重跑完整 `build`，以下 PR #11 的 348 项结果是历史证据。

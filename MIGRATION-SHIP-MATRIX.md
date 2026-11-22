@@ -2,6 +2,8 @@
 
 更新时间：2026-11-22
 
+GUI/audio 回归复核不改变任何舰种状态；[独立复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
+
 共通物品、补给与路线交互纠偏见 [方块与物品批次](migration_batches/2026-11-22-parity-fix-items-blocks/)。本批不新增舰种或改变逐舰状态，不将共通修正视为逐舰重新验收。
 
 这是逐舰状态的唯一事实来源。当前批次只处理标记为 `NEXT` 的行；已经有独立批次证据的域不重复阅读，除非出现回归或明确的新证据。

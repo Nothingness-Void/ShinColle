@@ -1,5 +1,7 @@
 # 迁移变更索引
 
+- GUI/audio 回归复核：雷达旧行为、大船坞布局恢复、冻结整点报时溯源；[本轮记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。
+
 ## Rendering backport and approved land legs
 
 Forge 渲染回移 `1547691`、水面判定修正 `bccd7dc`：原外层姿态、BEWLR、旋转/透光、图标、大小写清理、审计与测试全部适配，并带回用户批准的 Destroyer Hime 陆上开腿例外；[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge merge 保留其 API 适配，且不重复注册尺寸测试；[本轮结果](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。

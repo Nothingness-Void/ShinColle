@@ -4,6 +4,8 @@
 
 ## 当前指针
 
+本轮追加授权：先 Forge 再 merge NeoForge，复核并仅修 GUI/audio 迁移回归；完成双端 build/GameTests 与 scale-8 GUI 证据并推送后停止。[协议](migration_batches/2026-11-22-gui-audio-regressions/protocol.md)。历史 NEXT 不变。
+
 本轮获批：将全部渲染修复回移 Forge，并仅让 Destroyer Hime 陆上开腿落地、水中保留旧开关，绝不写存储 bit。Forge 已推送 `bccd7dc`（含水面深度判定修正）；将其 merge 到 NeoForge，验证并推送后停止。[获批视觉例外](migration_batches/neoforge-1.21.1/decision.md)。
 
 唯一 NEXT：**1.21.1 客户端与真实升级场景验证（等待授权）**。本轮版本升级的服务端/构建结果见 [批次记录](migration_batches/neoforge-1.21.1/status.md)；推送并完成文档后停止，不自动开展验证或补旧基线功能。
