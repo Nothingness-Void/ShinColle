@@ -8,11 +8,15 @@
 - 分支：`devin/parity-fix-integration`，基于 `origin/codex/mc-1.20.1`。
 - 已集成九个 parity 修复批次：ship-core、combat-projectile、ai-movement、ship-variants、menu-network-command、client、items-blocks、crafting-world-config、teitoku-morph-skill。各批次过程和历史验收从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入，不以专题历史分支/通过数覆盖当前集成状态。
 - 最终 merge：`042a3696bef65c712614ea19ba4ae76ddec3f8af`；前序物品方块 merge 为 `ba0288157aa67cbad12c65b229f1d66106328e82`，crafting/world/config merge 为 `351e3ab5ca02ccf1cc1940cc019e5e99876a2d75`。
-- 当前任务：GUI/audio 回归复核；Forge 先恢复大型船坞旧布局，再 merge NeoForge。仅修迁移差异，保留雷达长名及冻结整点报时；双端验证与截图后推送并停止，不修改 `codex/mc-1.20.1` 或 src/main。
+- 当前任务：VM A/B/C/D/E/F 回归收口，Forge-first → merge NeoForge，无 force-push。Forge代码 ca635d7/cdb3706，JDK17 build和354/354 GameTests通过；NeoForge最终合并、验证和VM截图待完成。
+- 全队列13项状态、配方完整diff及唯一未解项（line-abreast实际到位振荡，未证实迁移根因）见 [本批权威记录](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)。不以源码匹配宣称实际轨迹完全等价。
+- 唯一下一步入口 ROADMAP.md。完成NeoForge门禁和目标截图后更新结果并按Forge→NeoForge顺序推送，停止，不启动历史NEXT。
 - 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`；本轮其余改动仅迁移文档。`src/main/**` 继续只读，相对 `origin/codex/mc-1.20.1` 无差异。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
+
+- WIP 最后检查：Forge JDK17 build SUCCESSFUL in 18s，日志 `/home/ubuntu/shincolle-queue-forge-build.log`。Full GT `/home/ubuntu/shincolle-queue-forge-gametest.log` 失败两项：`guardinvalidtargetscancelandrestorefollow` 仍断言 nonpositive Y invalid（应按获批 min build height 更新夹具）；`hostilebossdropsonlyitslegacyegg` 仍断言立即蛋（应验证 deadline 前无蛋、推进 Death_Time 后正确蛋）。其余新测试未报失败，勿声称全绿。新增 inventory/book source guard 在英语文本比较失败：旧 chap0 text0d0 为 are a group/现代 is a group，实际译文不同；之前全部 page placement 比较已通过，需调查 recipe 页译文，不能声称英语完全相同。diff --check 无输出。尚未 commit WIP、merge 或 push。
 
 - 本轮 GUI/audio 复核完成：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时按旧版保留，报时 A/B 已复现。双端门禁和 scale-8 GUI 见[复核记录](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。最终同步推送后停止，不启动历史 NEXT。
 
