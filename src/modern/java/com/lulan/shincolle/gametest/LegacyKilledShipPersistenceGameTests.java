@@ -7,9 +7,9 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.teitoku.ShipCacheSavedData;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import com.mojang.authlib.GameProfile;
-import net.minecraftforge.common.util.FakePlayerFactory;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
@@ -69,12 +69,12 @@ public final class LegacyKilledShipPersistenceGameTests {
             if (event.getLevel() == nether && event.getEntity() instanceof LegacyShipEntity transferred
                     && transferred.getShipUid() == uid) destination.set(transferred);
         };
-        MinecraftForge.EVENT_BUS.addListener(listener);
+        NeoForge.EVENT_BUS.addListener(listener);
         try {
             source.getServer().getCommands().performPrefixedCommand(commandSource,
                     "execute in minecraft:the_nether run tp " + uuid + " " + x + " 100 " + z);
         } finally {
-            MinecraftForge.EVENT_BUS.unregister(listener);
+            NeoForge.EVENT_BUS.unregister(listener);
         }
         helper.assertTrue(ship.isRemoved(), "actual cross-dimension teleport must replace the source entity");
         helper.assertTrue(destination.get() != null, "teleport must join an actual destination ship with the original UID");
