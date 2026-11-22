@@ -1,5 +1,51 @@
 # NeoForge 1.21.1 migration result
 
+## Rendering backport and approved land legs
+
+Forge rendering backport 1547691 is merged as the new parity base, without
+force-push/rebase. There were no substantive behavior conflicts: overlapping
+fixes were identical, renderer/test/import conflicts only required retaining
+NeoForge APIs, and docs retained each branch's history. The existing NeoForge
+dimensions test stays in NeoForgeCompatibilityGameTests, avoiding duplicate
+registration. The new pure Hime policy and its state/land/water regression are
+shared with Forge; no assertion was weakened. See updated decision.md and
+MIGRATION-DECISIONS.md for the explicit user-approved visual deviation.
+
+After the last source edit, JDK21 `./gradlew --no-daemon build`:
+
+```text
+> Task :verifyItemModelCoverage
+> Task :check
+> Task :build
+
+BUILD SUCCESSFUL in 15s
+5 actionable tasks: 3 executed, 2 up-to-date
+```
+
+`./gradlew --no-daemon runGameTestServer`:
+
+```text
+[04:17:48] [Server thread/INFO] [minecraft/GameTestServer]: ========= 352 GAME TESTS COMPLETE IN 21.87 s ======================
+[04:17:48] [Server thread/INFO] [minecraft/GameTestServer]: All 352 required tests passed :)
+BUILD SUCCESSFUL in 34s
+8 actionable tasks: 1 executed, 7 up-to-date
+```
+
+CPU audit:
+
+```text
+All 45 model bodies match legacy after three API aliases and the approved Hime land-leg override
+Shared pose, visibility flags and outer pre-render call order verified
+Measured 1536 model/state/pose cases at shadow plane Y=0
+Vertex audit passed; CSV: migration_batches/neoforge-1.21.1/ship-pose-audit-land-water.csv
+```
+
+Logs: /home/ubuntu/shincolle-121-land-water-{build,gametest,audit}.log.
+New [land/water CSV](ship-pose-audit-land-water.csv) does not replace the old
+768-case historical investigation or the limits documented in decision.md.
+Forge evidence and review applicability are preserved in the merged
+../rendering-backport-1.20.1 batch. Client evidence follows below.
+
 The version/API port now compiles, builds, and passes the complete server
 GameTest suite. This supersedes the earlier 146-error WIP checkpoint. It does
 not establish client visual parity or validate an actual upgraded user world.

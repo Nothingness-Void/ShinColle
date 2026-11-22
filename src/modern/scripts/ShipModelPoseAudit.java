@@ -14,13 +14,14 @@ import java.util.Map;
 public final class ShipModelPoseAudit {
     private static final class Ship extends BasicEntityShip {
         final int state;
-        final boolean sitting, noFuel;
+        final boolean sitting, noFuel, water;
         final RandomSource random = RandomSource.create(0);
-        Ship(int state, boolean sitting, boolean noFuel) {
+        Ship(int state, boolean sitting, boolean noFuel, boolean water) {
             super(null);
             this.state = state;
             this.sitting = sitting;
             this.noFuel = noFuel;
+            this.water = water;
         }
         public int getStateEmotion(int id) { return id == ID.S.State ? state : 0; }
         public void setStateEmotion(int id, int value, boolean sync) {}
@@ -38,6 +39,7 @@ public final class ShipModelPoseAudit {
         public int getTickExisted() { return 100; }
         public float getSwingTime(float tick) { return 0; }
         public boolean getIsRiding() { return false; }
+        public boolean isInWater() { return water; }
         public boolean getIsSprinting() { return false; }
         public boolean getIsSitting() { return sitting; }
         public boolean getIsSneaking() { return false; }
@@ -70,6 +72,15 @@ public final class ShipModelPoseAudit {
         public VertexConsumer setUv1(int u, int v) { return this; }
         public VertexConsumer setUv2(int u, int v) { return this; }
         public VertexConsumer setNormal(float x, float y, float z) { return this; }
+        public VertexConsumer vertex(double x, double y, double z) { return addVertex((float)x, (float)y, (float)z); }
+        public VertexConsumer color(int r, int g, int b, int a) { return setColor(r, g, b, a); }
+        public VertexConsumer uv(float u, float v) { return setUv(u, v); }
+        public VertexConsumer overlayCoords(int u, int v) { return setUv1(u, v); }
+        public VertexConsumer uv2(int u, int v) { return setUv2(u, v); }
+        public VertexConsumer normal(float x, float y, float z) { return setNormal(x, y, z); }
+        public void endVertex() {}
+        public void defaultColor(int r, int g, int b, int a) {}
+        public void unsetDefaultColor() {}
     }
 
     private static void tagLegs(ModelBase model, Bounds bounds) throws ReflectiveOperationException {
@@ -96,16 +107,17 @@ public final class ShipModelPoseAudit {
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println("egg,model,state,sitting,noFuel,lowestVisibleY,lowestLegY,vertices,legVertices");
+        System.out.println("egg,model,state,sitting,noFuel,inWater,lowestVisibleY,lowestLegY,vertices,legVertices");
         int cases = 0;
         for (var spec : ShipEntitySpecs.values()) {
             var kind = LegacyShipModelKind.forSpec(spec);
             for (int state : new int[] {0, 16, 255}) {
                 for (boolean sitting : new boolean[] {false, true}) {
                     for (boolean noFuel : new boolean[] {false, true}) {
+                      for (boolean water : new boolean[] {false, true}) {
                         var model = LegacyShipModels.create(kind);
                         model.isChild = false;
-                        var ship = new Ship(state, sitting, noFuel);
+                        var ship = new Ship(state, sitting, noFuel, water);
                         var bounds = new Bounds();
                         tagLegs(model, bounds);
                         var poses = new PoseStack();
@@ -120,18 +132,19 @@ public final class ShipModelPoseAudit {
                         }
                         if (bounds.vertices == 0) throw new AssertionError("Empty model: " + kind);
                         if (kind == LegacyShipModelKind.ModelDestroyerHime && !sitting && !noFuel) {
-                            if (state == 0 && !(bounds.legVertices == 0 && bounds.minY > 0.4F && bounds.minY < 0.45F)) {
+                            if (state == 0 && water && !(bounds.legVertices == 0 && bounds.minY > 0.4F && bounds.minY < 0.45F)) {
                                 throw new AssertionError("Legacy no-leg hovering pose changed");
                             }
-                            if (state == 16 && !(bounds.legVertices > 0 && Math.abs(bounds.legY) < 0.03F)) {
-                                throw new AssertionError("Legacy visible legs no longer meet the ground");
+                            if ((!water || (state & 16) != 0) && !(bounds.legVertices > 0 && Math.abs(bounds.legY) < 0.03F)) {
+                                throw new AssertionError("Land or explicitly enabled legs no longer meet the ground");
                             }
                         }
-                        System.out.printf(Locale.ROOT, "%d,%s,%d,%s,%s,%.6f,%s,%d,%d%n", spec.eggMeta(), kind,
-                                state, sitting, noFuel, bounds.minY,
+                        System.out.printf(Locale.ROOT, "%d,%s,%d,%s,%s,%s,%.6f,%s,%d,%d%n", spec.eggMeta(), kind,
+                                state, sitting, noFuel, water, bounds.minY,
                                 bounds.legVertices == 0 ? "hidden_or_unnamed" : String.format(Locale.ROOT, "%.6f", bounds.legY),
                                 bounds.vertices, bounds.legVertices);
                         cases++;
+                      }
                     }
                 }
             }

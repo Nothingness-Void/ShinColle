@@ -1,5 +1,15 @@
 # Migration Decisions
 
+## Destroyer Hime land-leg visual override (user approved)
+
+Only Destroyer Hime (egg 29) uses visible legs on land even when saved bit 4
+is clear. In water, retain the legacy bit-4 visibility/hover behavior; an
+explicitly enabled leg bit always wins. Use the live vanilla isInWater state
+only for rendering. Never change saved state, dimensions, geometry or gameplay.
+This is an explicit user-approved exception to strict 1.12.2 visual parity on
+both Forge 1.20.1 and NeoForge 1.21.1. Existing sitting/no-fuel poses and other
+models are unchanged. [Implementation and evidence](migration_batches/rendering-backport-1.20.1/decision.md).
+
 这里只记录跨批次、会持续约束后续实现的决定。单批次结论放在对应 `migration_batches/<batch-id>/decision.md`。
 
 ## D-001：legacy 是语义真源

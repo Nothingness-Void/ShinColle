@@ -1,5 +1,9 @@
 # 迁移变更索引
 
+## Rendering backport and approved land legs
+
+Forge 渲染回移 `1547691`：原外层姿态、BEWLR、旋转/透光、图标、大小写清理、审计与测试全部适配，并带回用户批准的 Destroyer Hime 陆上开腿例外；[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge merge 保留其 API 适配，且不重复注册尺寸测试；[本轮结果](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
+
 ## Minecraft 1.21.1 / NeoForge 21.1.267
 
 Destroyer Hime 后续反馈：新增全模型源码/CPU 顶点审计与 Leg 开关回归，确认 egg 29 默认无腿悬浮是旧版姿态而非遗漏的 renderer 分支；未改变旧版视觉。352 项验证及未决落地取舍见 [审计决定](migration_batches/neoforge-1.21.1/decision.md)。

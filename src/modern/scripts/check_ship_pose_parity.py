@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import shutil
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -40,6 +41,7 @@ def method(text, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", type=Path, required=True)
+    parser.add_argument("--classpath-file", type=Path)
     args = parser.parse_args()
     kinds = re.findall(r"\bModel\w+\b", (JAVA / "entity/ship/LegacyShipModelKind.java")
                        .read_text().split(";")[1].split(";")[0])
@@ -48,7 +50,12 @@ def main():
     for kind in kinds:
         modern = JAVA / f"client/model/legacy/ship/{kind}.java"
         legacy = ROOT / f"src/main/java/com/lulan/shincolle/client/model/{kind}.java"
-        assert model_body(modern.read_text()) == model_body(legacy.read_text()), kind
+        body = model_body(modern.read_text())
+        if kind == "ModelDestroyerHime":
+            override = "DestroyerHimePosePolicy.showLegs(state,((Entity)ent).isInWater())"
+            assert body.count(override) == 2, "Both Hime visibility and pose must use the approved policy"
+            body = body.replace(override, "EmotionHelper.checkModelState(4,state)")
+        assert body == model_body(legacy.read_text()), kind
     for name, old_path, new_path in (
         ("setRotationAngles", "client/model/ShipModelBaseAdv.java", "client/model/legacy/ship/ShipModelBaseAdv.java"),
         ("checkModelState", "utility/EmotionHelper.java", "client/model/legacy/ship/EmotionHelper.java"),
@@ -57,20 +64,27 @@ def main():
         assert method(old.read_text(), name) == method((JAVA / new_path).read_text(), name), name
     bridge = method((JAVA / "client/model/entity/LegacyShipPoseModel.java").read_text(), "renderToBuffer")
     assert bridge.index("model.setRotationAngles(") < bridge.index("poses.pushPose()") < bridge.index("model.render(")
-    print(f"All {len(kinds)} registered model bodies match legacy after three API aliases", flush=True)
+    print(f"All {len(kinds)} model bodies match legacy after three API aliases and the approved Hime land-leg override", flush=True)
     print("Shared pose, visibility flags and outer pre-render call order verified", flush=True)
 
     classes = ROOT / "build/ship-pose-audit"
     classes.mkdir(exist_ok=True)
-    paths = (ROOT / "build/moddev/clientLegacyClasspath.txt").read_text().splitlines()
+    classpath_file = args.classpath_file
+    if classpath_file is None:
+        classpath_file = ROOT / "build/moddev/clientLegacyClasspath.txt"
+        if not classpath_file.exists():
+            classpath_file = ROOT / "build/classpath/runClient_minecraftClasspath.txt"
+            if not classpath_file.exists():
+                classpath_file = ROOT / "build/classpath/runGameTestServer_minecraftClasspath.txt"
+    paths = classpath_file.read_text().strip().replace(os.pathsep, "\n").splitlines()
     paths += [str(ROOT / "build/classes/java/main")]
     paths += [str(p) for p in (ROOT / "build/moddev/artifacts").glob("*.jar") if "sources" not in p.name]
     classpath = os.pathsep.join(paths)
-    java_home = Path(os.environ.get("JAVA_HOME", "/usr/lib/jvm/java-21-openjdk-amd64"))
+    java_home = Path(os.environ.get("JAVA_HOME", str(Path(shutil.which("java")).resolve().parents[1])))
     subprocess.run([str(java_home / "bin/javac"), "-proc:none", "-sourcepath", "", "-cp", classpath,
                     "-d", str(classes), str(Path(__file__).with_name("ShipModelPoseAudit.java"))], check=True)
     with args.csv.open("w") as output:
-        subprocess.run([str(java_home / "bin/java"), "-cp", str(classes) + os.pathsep + classpath,
+        subprocess.run([str(java_home / "bin/java"), "-Dterminal.jline=false", "-cp", str(classes) + os.pathsep + classpath,
                         "ShipModelPoseAudit"], stdout=output, cwd=classes, check=True)
     print(f"Vertex audit passed; CSV: {args.csv}")
 

@@ -1,4 +1,5 @@
 package com.lulan.shincolle.client.model.legacy.ship;
+import com.lulan.shincolle.client.model.legacy.DestroyerHimePosePolicy;
 
 import com.lulan.shincolle.client.model.legacy.compat.IShipEmotion;
 import com.lulan.shincolle.client.model.legacy.compat.ID;
@@ -587,7 +588,7 @@ public class ModelDestroyerHime extends ShipModelBaseAdv
 		flag = !EmotionHelper.checkModelState(3, state);	//belt
 		this.BeltBase.isHidden = flag;
 
-		flag = !EmotionHelper.checkModelState(4, state);	//leg
+		flag = !DestroyerHimePosePolicy.showLegs(state, ((Entity)ent).isInWater());	//leg
 		this.LegLeft01.isHidden = flag;
 		this.LegRight01.isHidden = flag;
 
@@ -699,7 +700,7 @@ public class ModelDestroyerHime extends ShipModelBaseAdv
   		float t2 = ent.getTickExisted() & 511;
 		int state = ent.getStateEmotion(ID.S.State);
 		boolean showCannon = EmotionHelper.checkModelState(0, state);
-		boolean showLeg = EmotionHelper.checkModelState(4, state);
+		boolean showLeg = DestroyerHimePosePolicy.showLegs(state, ((Entity)ent).isInWater());
 
   		//水上漂浮
   		if (!ent.getIsSitting() && !showLeg)

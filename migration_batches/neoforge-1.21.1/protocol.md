@@ -1,5 +1,15 @@
 # NeoForge 1.21.1 version upgrade
 
+## Approved rendering follow-up
+
+Merge Forge rendering backport 1547691 without rewriting history. Only API,
+identical-renderer and documentation merge differences may be resolved; stop
+on substantive behavior conflicts. Add the approved Hime land-leg policy and
+exact source-audit exceptions; keep saved bit 4 unchanged, explicit legs always
+visible, default hover in water, other models unchanged. Validate build, full
+GameTests and 1536 controlled cases; capture live land/water, other standing/
+sitting ships, desk/crown placed and held. Do not broaden unrelated gameplay.
+
 - Base: origin/devin/parity-fix-integration (5b95cfe).
 - Scope: build files, src/modern/java, src/modern/resources and migration documentation.
 - Reference: fixed modern implementation on the base branch; src/main remains read-only.

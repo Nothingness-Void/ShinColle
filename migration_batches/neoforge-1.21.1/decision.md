@@ -1,14 +1,21 @@
 # Residual floating report: Destroyer Hime
 
-## Decision and remaining request
+## Updated decision: user-approved land legs
 
-**Do not silently ground the legacy no-leg variant.** This investigation found
-an intentional legacy hovering pose, not another skipped model pose call.
-Production rendering, offsets, dimensions, defaults and saved state are unchanged.
-The added commit is audit/regression evidence, not a second placement fix.
-If grounding the no-leg variant is still required, obtain explicit permission
-to override the 1.12.2 visual behavior. Prefer the existing Leg model toggle
-when a grounded version is wanted; do not change everyone's saved/default state.
+The original investigation below found an intentional legacy hovering pose,
+not another skipped model call. The user subsequently approved a narrow visual
+deviation on both versions: Destroyer Hime only shows legs on land even with
+bit 4 clear. In water it retains the legacy toggle; explicitly enabled legs
+always show. Stored/default state, dimensions, geometry and gameplay stay intact.
+Existing sitting/no-fuel branches are retained, not forced into standing.
+
+The exact signal is live vanilla Entity.isInWater(), exposed by the render
+compatibility entity. Both leg visibility and normal pose call the same pure
+DestroyerHimePosePolicy. No depth approximation, saved-state write or other
+model is changed. MIGRATION-DECISIONS.md and the
+[Forge backport decision](../rendering-backport-1.20.1/decision.md) record this
+as an explicit exception to strict legacy visual parity. The 768-case CSV below
+is historical evidence; the new land/water audit measures 1536 cases.
 
 ## Identification and reachable path
 

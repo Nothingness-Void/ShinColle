@@ -5,16 +5,16 @@
 <a id="当前任务"></a>
 ## 当前集成与任务边界
 
-- 分支：`devin/mc-1.21.1-neoforge`，基于固定的 1.20.1 parity 分支 `origin/devin/parity-fix-integration`（用户指定 `5b95cfe`）。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
+- 分支：`devin/mc-1.21.1-neoforge`；原固定基线 `5b95cfe`，本轮 merge 已推送的 Forge 渲染回移 `1547691`。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
 - Minecraft **1.21.1**、NeoForge **21.1.267**、ModDevGradle **2.0.148**、Gradle **8.8**、JDK **21**；模组版本 **0.2.0-alpha**。
 - PR #11 复核末次代码提交：`3a06c51`；回收蛋旧 NBT 与宽泛附魔标签匹配已分别修复，伤害记录滞留已证实为 NeoForge 上游问题。初次完整构建及本轮证据见 [1.21.1 批次结果](migration_batches/neoforge-1.21.1/status.md#pr-11-review-follow-up)。
-- 当前任务：版本/API 与旧数据适配完成；获批的舰娘悬空和特殊方块/物品渲染修复已完成针对性客户端检查。舰娘修复为 `cae1ae9`，方块修复独立提交。推送当前分支后停止，不创建 PR 或自动开始后续批次。
+- 当前任务：回移全部渲染修复并执行用户批准的 Destroyer Hime 陆上开腿视觉例外（只读默认/存储 bit），完成双分支 build/GameTests 与本轮指定客户端画面后推送并停止；不创建 PR 或自动开始后续批次。
 - 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`，另有构建配置与迁移文档。`src/main/**` 继续只读，相对固定 parity 基线无差异。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
 
-- 最新 Destroyer Hime 反馈：确认 egg 29 的无腿模型为旧版有意悬浮姿态，未擅自添加落地偏移。已完成 45 个模型源码比对、64 变体/768 姿态 CPU 顶点测量与同 Y 的开腿/隐藏腿客户端对照；`compileJava` 成功、全量 **352/352** GameTest 通过。实际强制落地需求与旧版视觉 parity 冲突，待明确取舍；证据与范围见 [审计决定](migration_batches/neoforge-1.21.1/decision.md)。
+- 最新 Destroyer Hime 取舍已获批准：仅陆上开腿，水中原样，显式 bit4 始终优先。Forge 已 build 与 **344/344** GameTests 通过，并完成客户端烟测；[回移证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge 合并后结果见 [本轮记录](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
 
 - 此前渲染修复后的 JDK 21 `compileJava` 成功，全量 `runGameTestServer` **351/351 通过、0 失败**；资源检查为 0 个大小写路径冲突。舰娘站立/坐下与 hitbox、办公桌/起重机/小船坞/航点/火山核心的针对性截图与根因见 [客户端修复](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。本轮未重跑完整 `build`，以下 PR #11 的 348 项结果是历史证据。
 

@@ -27,7 +27,7 @@ public final class LegacyShipModelMappingGameTests {
     private LegacyShipModelMappingGameTests() {}
 
     @GameTest(template = "gameplayparitygametests.empty")
-    public static void destroyerHimeRetainsLegacyLegVisibilitySwitch(GameTestHelper helper) {
+    public static void destroyerHimeUsesRenderOnlyLandLegs(GameTestHelper helper) {
         var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(29), null);
         helper.assertTrue(LegacyShipModelKind.forSpec(ship.getSpec()) == LegacyShipModelKind.ModelDestroyerHime
@@ -35,12 +35,20 @@ public final class LegacyShipModelMappingGameTests {
                 "Destroyer Hime must retain the legacy default model state, with leg bit 4 disabled");
         ship.setGrudge(1000);
         helper.assertTrue(!ship.hasNoFuel(), "the fueled ship must reach the normal model pose");
-        for (int state : new int[] {0, 16}) {
+        for (int state : new int[] {0, 1, 16, 255}) {
             ship.setModelState(state);
             for (boolean sitting : new boolean[] {false, true}) {
                 ship.setOrderedToSit(sitting);
                 helper.assertTrue(ship.getLegacyModelEmotion(0) == state && ship.isOrderedToSit() == sitting,
                         "standing/sitting must not silently rewrite the legacy leg-visibility bit");
+                for (boolean water : new boolean[] {false, true}) {
+                    boolean expected = !water || (state & 16) != 0;
+                    helper.assertTrue(com.lulan.shincolle.client.model.legacy.DestroyerHimePosePolicy
+                                    .showLegs(ship.getLegacyModelEmotion(0), water) == expected,
+                            "land must show legs; water must honor the explicit leg bit");
+                    helper.assertTrue(ship.getModelState() == state,
+                            "the visual override must never rewrite saved model state");
+                }
             }
         }
         ship.discard();

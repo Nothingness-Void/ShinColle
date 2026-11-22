@@ -4,7 +4,7 @@
 
 ## 当前指针
 
-最新反馈的局部阻塞：Destroyer Hime egg 29 默认隐藏腿、有意悬浮，模型与 1.12.2 源码一致。若要求无腿状态也落地，需先明确允许偏离旧版视觉；推荐使用现有 Leg 模型开关。审计/352 项验证见 [决定](migration_batches/neoforge-1.21.1/decision.md)，未在本轮加入生产偏移或改默认值。
+本轮获批：将全部渲染修复回移 Forge，并仅让 Destroyer Hime 陆上开腿落地、水中保留旧开关，绝不写存储 bit。Forge 已推送 `1547691`；将其 merge 到 NeoForge，验证并推送后停止。[获批视觉例外](migration_batches/neoforge-1.21.1/decision.md)。
 
 唯一 NEXT：**1.21.1 客户端与真实升级场景验证（等待授权）**。本轮版本升级的服务端/构建结果见 [批次记录](migration_batches/neoforge-1.21.1/status.md)；推送并完成文档后停止，不自动开展验证或补旧基线功能。
 
