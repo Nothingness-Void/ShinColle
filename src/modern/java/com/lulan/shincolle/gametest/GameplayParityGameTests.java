@@ -363,6 +363,9 @@ public final class GameplayParityGameTests {
         player.getAbilities().flying = false;
         try {
             ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            helper.assertTrue(player.getAbilities().flying && !player.getAbilities().mayfly,
+                    "legacy liquid gate uses the feet block before vanilla fluid flags refresh");
             player.baseTick();
             helper.assertTrue(player.isInWaterOrBubble(), "water-flight fixture must actually enter water");
             MarriageRingItem.tickActiveRingEffects(player, ring);
@@ -377,6 +380,9 @@ public final class GameplayParityGameTests {
             data.setRingActive(true);
             MarriageRingItem.tickActiveRingEffects(player, ring);
             player.setPos(wet.getX() + 3.5D, wet.getY() + 0.1D, wet.getZ() + 0.5D);
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            helper.assertTrue(!player.getAbilities().flying && !data.isRingFlying(),
+                    "leaving the liquid feet block revokes flight before vanilla fluid flags refresh");
             player.baseTick();
             helper.assertTrue(!player.isInWaterOrBubble(), "water-exit fixture must actually be dry");
             MarriageRingItem.tickActiveRingEffects(player, ring);
