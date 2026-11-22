@@ -4,7 +4,7 @@
   "group": "shincolle_shiptank",
   "key": {
     "m": {
-      "tag": "c:obsidians"
+      "tag": "c:obsidians/normal"
     },
     "t": {
       "item": "shincolle:shiptank"

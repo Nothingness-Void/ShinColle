@@ -13,7 +13,7 @@
       "item": "minecraft:black_wool"
     },
     "o": {
-      "tag": "c:obsidians"
+      "tag": "c:obsidians/normal"
     }
   },
   "pattern": [

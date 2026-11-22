@@ -10,7 +10,7 @@
       "item": "minecraft:lava_bucket"
     },
     "o": {
-      "tag": "c:obsidians"
+      "tag": "c:obsidians/normal"
     }
   },
   "pattern": [

@@ -5564,6 +5564,13 @@ public final class GameplayParityGameTests {
                         stack(Items.OBSIDIAN), ItemStack.EMPTY, stack(Items.OBSIDIAN)},
                 {stack(ModBlocks.BLOCK_GRUDGE_XP.get())}
         };
+        var cryingDesk = craftingGrid(
+                stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.BLACK_WOOL),
+                stack(Items.CRYING_OBSIDIAN), stack(Items.CRYING_OBSIDIAN), stack(Items.CRYING_OBSIDIAN),
+                stack(Items.CRYING_OBSIDIAN), ItemStack.EMPTY, stack(Items.CRYING_OBSIDIAN));
+        helper.assertTrue(helper.getLevel().getRecipeManager().getRecipeFor(
+                        RecipeType.CRAFTING, cryingDesk.asCraftInput(), helper.getLevel()).isEmpty(),
+                "NeoForge's broad obsidians tag must not add crying obsidian to the legacy desk recipe");
         for (var input : invalid) {
             helper.assertTrue(helper.getLevel().getRecipeManager().getRecipeFor(
                     RecipeType.CRAFTING, craftingGrid(input).asCraftInput(), helper.getLevel()).isEmpty(),
