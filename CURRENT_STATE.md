@@ -1,5 +1,7 @@
 # 当前状态
 
+> 最新07:44：line-abreast动态六slot×384tick已完成，逐tick独立旧公式/4与7平方距离/continue条件/path端点记录通过，均进入旧arrival范围；原用户4.6–5.9停滞未复现，不做猜测修改。手动driver修复原生ServerLevel负责tickCount++的夹具时钟遗漏。Forge最终build19s、362/362 GT93s绿。OpenAL显式stop/custom sound audit无mod入口，vanilla/unattributed。下一步本地commit（Forge推送已被lead暂停）→Neo merge/API/gate/push→VM指定六图。详细line/openal-result在riding-aircraft-formation批次。
+
 > 最新07:30：B2第二根因已证实：/kill的MAX伤害随机放大成Infinity→Neo DamageContainer Armor的Infinity-Infinity→HP NaN（seed0原始失败日志有tracked=true/hpNaN）。公共伤害放大结果限有限MAX；普通数值/随机序列不变。加上先前保存HP恢复，Forge build20s、361/361 GT69s；Neo build18s、369/369 GT54s绿（最终seed0）。证据inventory-book-layout/round2-result.md。提交同步后唯一NEXT=line-abreast动态跟随trace，之后OpenAL→VM指定截图。旧mayfly不动。
 
 > 最新07:19：B2真实/kill+实体region磁盘重开已复现并修复：readAdditionalSaveData选variant的refresh(false)覆盖原HP，DeathTime0复活/受伤回血；最后恢复数值Health，保留DeathTime锁和缺失Health默认。新增3GT（friendly/hostile、多时刻、受伤高等级、空region、缺失/冲突Health）。Forge最终build15s、360/360 GT1m16s绿；D3 Neo9³barrier夹具根因已解，Neo2200559已push365/365，Forge已同步宽夹具。下一步提交push本端→Neo merge/API适配/门禁→动态line-abreast→OpenAL→截图。旧checkpoint不再是阻塞。详见inventory-book-layout/round2-result.md。

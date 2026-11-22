@@ -4,6 +4,8 @@
 
 ## 当前指针
 
+最新NEXT07:44：line动态trace和OpenAL审计已完成；Forge只本地commit不可push（新指令），Neo可merge/push。剩余指定客户端aircraft/fort/mount玻璃、玩家骑乘、Shimakaze矿车normal/bored截图，然后同步最终证据/报告。原始line停滞原因仍未复现，不再调参。
+
 最新NEXT07:30：B2双端新门禁361/369绿、seed0防溢出已验证；提交push/完成Neo merge后进行line-abreast-protocol.md，再OpenAL审计、VM六图、最终同步报告。旧预检失败已由seed0确定NaN链，不再是未解UUID猜测。
 
 最新NEXT07:19：B2 Forge360/360提交push，merge Neo并适配EntityStorage；随后按本轮用户顺序做动态line-abreast、OpenAL、指定VM截图，最终双端绿/push。旧存档mayfly保持不动。
