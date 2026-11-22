@@ -41,10 +41,10 @@ public final class LegacyShipModelMappingGameTests {
                 ship.setOrderedToSit(sitting);
                 helper.assertTrue(ship.getLegacyModelEmotion(0) == state && ship.isOrderedToSit() == sitting,
                         "standing/sitting must not silently rewrite the legacy leg-visibility bit");
-                for (boolean water : new boolean[] {false, true}) {
-                    boolean expected = !water || (state & 16) != 0;
+                for (double depth : new double[] {-0.1D, 0D, 0.1D, 3D}) {
+                    boolean expected = depth <= 0D || (state & 16) != 0;
                     helper.assertTrue(com.lulan.shincolle.client.model.legacy.DestroyerHimePosePolicy
-                                    .showLegs(ship.getLegacyModelEmotion(0), water) == expected,
+                                    .showLegs(ship.getLegacyModelEmotion(0), depth) == expected,
                             "land must show legs; water must honor the explicit leg bit");
                     helper.assertTrue(ship.getModelState() == state,
                             "the visual override must never rewrite saved model state");

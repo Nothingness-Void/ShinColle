@@ -9,10 +9,21 @@ bit 4 clear. In water it retains the legacy toggle; explicitly enabled legs
 always show. Stored/default state, dimensions, geometry and gameplay stay intact.
 Existing sitting/no-fuel branches are retained, not forced into standing.
 
-The exact signal is live vanilla Entity.isInWater(), exposed by the render
-compatibility entity. Both leg visibility and normal pose call the same pure
-DestroyerHimePosePolicy. No depth approximation, saved-state write or other
-model is changed. MIGRATION-DECISIONS.md and the
+The exact signal is the existing ent.getShipDepth(0) > 0, the model's own
+legacy liquid classification. A live water check disproved vanilla isInWater
+as sufficient: at the natural surface-floating Y=99.9 on a source at Y=99,
+it still showed legs; the source's fluid-height test excludes that thin strip.
+Positive legacy depth includes it. Both leg visibility and normal pose use
+the same pure DestroyerHimePosePolicy; zero/negative depth means land, positive
+depth retains the original liquid pose, and explicit bit 4 always wins.
+Reachability: LegacyShipEntity.tick calls updateLegacyWaterState before its
+client/server gate; BasicEntityShip.getShipDepth(0) forwards the resulting
+legacy depth into the model. The saved natural water-surface position remains
+Y=99.9 after the check, with stored state 0, yet the corrected renderer hides
+the legs. Thus the visual test covers the real surface case, not an artificially
+submerged/NoGravity stand-in.
+No saved-state write, gameplay depth calculation or other model changes.
+MIGRATION-DECISIONS.md and the
 [Forge backport decision](../rendering-backport-1.20.1/decision.md) record this
 as an explicit exception to strict legacy visual parity. The 768-case CSV below
 is historical evidence; the new land/water audit measures 1536 cases.

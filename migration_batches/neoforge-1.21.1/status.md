@@ -2,7 +2,8 @@
 
 ## Rendering backport and approved land legs
 
-Forge rendering backport 1547691 is merged as the new parity base, without
+Forge rendering backport 1547691 and surface-water correction bccd7dc are
+merged as the new parity base, without
 force-push/rebase. There were no substantive behavior conflicts: overlapping
 fixes were identical, renderer/test/import conflicts only required retaining
 NeoForge APIs, and docs retained each branch's history. The existing NeoForge
@@ -18,15 +19,15 @@ After the last source edit, JDK21 `./gradlew --no-daemon build`:
 > Task :check
 > Task :build
 
-BUILD SUCCESSFUL in 15s
+BUILD SUCCESSFUL in 6s
 5 actionable tasks: 3 executed, 2 up-to-date
 ```
 
 `./gradlew --no-daemon runGameTestServer`:
 
 ```text
-[04:17:48] [Server thread/INFO] [minecraft/GameTestServer]: ========= 352 GAME TESTS COMPLETE IN 21.87 s ======================
-[04:17:48] [Server thread/INFO] [minecraft/GameTestServer]: All 352 required tests passed :)
+[04:25:40] [Server thread/INFO] [minecraft/GameTestServer]: ========= 352 GAME TESTS COMPLETE IN 21.72 s ======================
+[04:25:40] [Server thread/INFO] [minecraft/GameTestServer]: All 352 required tests passed :)
 BUILD SUCCESSFUL in 34s
 8 actionable tasks: 1 executed, 7 up-to-date
 ```
@@ -43,8 +44,46 @@ Vertex audit passed; CSV: migration_batches/neoforge-1.21.1/ship-pose-audit-land
 Logs: /home/ubuntu/shincolle-121-land-water-{build,gametest,audit}.log.
 New [land/water CSV](ship-pose-audit-land-water.csv) does not replace the old
 768-case historical investigation or the limits documented in decision.md.
+The first live water check caught vanilla isInWater=false at the normal
+surface-floating Y=99.9. The final policy therefore uses the existing model
+depth > 0, including shallow surface water; it never mutates the saved bit.
+The updated CPU water fixture supplies real positive depth and retains the
+legacy water-bobbing animation; only dry-land soles assert grounding. Explicit
+legs remain asserted in both environments. Zero/negative/shallow/deep policy
+cases are covered, along with default/other-bit/explicit-bit states and sitting.
 Forge evidence and review applicability are preserved in the merged
 ../rendering-backport-1.20.1 batch. Client evidence follows below.
+
+### Targeted VM client acceptance
+
+Passed on the final depth-based source: Hime state 0 on land has visible
+grounded legs; state 0 at its normal water-surface position has the legacy
+hidden-leg hover. Four other ships (eggs 31/33, two standing/two sitting) keep
+their original silhouettes. Desk, crane and small shipyard retain their world
+models, with desk and crane held separately. The requested Chinese 深海之冠
+is blockcrane (English Abyssal Crane); blocksmallshipyard is 深海热泉, not
+the requested item. Screenshots under /home/ubuntu/screenshots/:
+
+- shincolle-121-hime-land-grounded.png
+- shincolle-121-hime-water-hover.png
+- shincolle-121-other-ships-standing-sitting.png
+- shincolle-121-desk-held-blocks-placed.png
+- shincolle-121-crane-held-blocks-placed.png
+
+Initial command reads and the saved entity-region NBT after rendering/closing
+confirm both states remain 0:
+
+```text
+landcheck saved ShipModelState = 0 Pos = [100.5, 100.0, 100.5]
+watercheck saved ShipModelState = 0 Pos = [105.5, 99.9, 100.5]
+Post-render saved-state verification passed: both Hime model-state bits unchanged at 0
+```
+
+No real old-world/Windows/multiplayer test was done. Audio emitted sound-pool
+saturation warnings during the VM session; its JDK21 environment was confirmed
+loaded, visuals were unaffected, and audio behavior was not investigated.
+The client is closed after evidence capture. This does not widen the existing
+full-animation/riding/scale, GUI/particle or world-upgrade verification claims.
 
 The version/API port now compiles, builds, and passes the complete server
 GameTest suite. This supersedes the earlier 146-error WIP checkpoint. It does

@@ -2,7 +2,7 @@
 
 ## Rendering backport and approved land legs
 
-Forge 渲染回移 `1547691`：原外层姿态、BEWLR、旋转/透光、图标、大小写清理、审计与测试全部适配，并带回用户批准的 Destroyer Hime 陆上开腿例外；[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge merge 保留其 API 适配，且不重复注册尺寸测试；[本轮结果](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
+Forge 渲染回移 `1547691`、水面判定修正 `bccd7dc`：原外层姿态、BEWLR、旋转/透光、图标、大小写清理、审计与测试全部适配，并带回用户批准的 Destroyer Hime 陆上开腿例外；[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)。NeoForge merge 保留其 API 适配，且不重复注册尺寸测试；[本轮结果](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
 
 ## Minecraft 1.21.1 / NeoForge 21.1.267
 

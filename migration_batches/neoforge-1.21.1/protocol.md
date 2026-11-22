@@ -6,7 +6,9 @@ Merge Forge rendering backport 1547691 without rewriting history. Only API,
 identical-renderer and documentation merge differences may be resolved; stop
 on substantive behavior conflicts. Add the approved Hime land-leg policy and
 exact source-audit exceptions; keep saved bit 4 unchanged, explicit legs always
-visible, default hover in water, other models unchanged. Validate build, full
+visible, default hover in water, other models unchanged. The final signal is
+existing model ship-depth > 0, including the shallow source-surface strip
+missed by vanilla isInWater. Validate build, full
 GameTests and 1536 controlled cases; capture live land/water, other standing/
 sitting ships, desk/crown placed and held. Do not broaden unrelated gameplay.
 

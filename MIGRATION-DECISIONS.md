@@ -4,8 +4,9 @@
 
 Only Destroyer Hime (egg 29) uses visible legs on land even when saved bit 4
 is clear. In water, retain the legacy bit-4 visibility/hover behavior; an
-explicitly enabled leg bit always wins. Use the live vanilla isInWater state
-only for rendering. Never change saved state, dimensions, geometry or gameplay.
+explicitly enabled leg bit always wins. Use existing model ship-depth > 0
+only for rendering, including surface-floating positions excluded by vanilla's
+isInWater fluid-height check. Never change saved state, dimensions or gameplay.
 This is an explicit user-approved exception to strict 1.12.2 visual parity on
 both Forge 1.20.1 and NeoForge 1.21.1. Existing sitting/no-fuel poses and other
 models are unchanged. [Implementation and evidence](migration_batches/rendering-backport-1.20.1/decision.md).

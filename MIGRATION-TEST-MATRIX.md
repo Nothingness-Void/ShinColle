@@ -1,5 +1,15 @@
 # Migration Test Matrix
 
+## Final NeoForge land/water policy and parity-base merge
+
+JDK21 build and full GameTests **352/352** passed after the source-water
+correction. The shared render policy tests default/other/explicit state bits,
+standing/sitting and negative/zero/shallow/deep liquid depth without rewriting
+stored state. `check_ship_pose_parity.py` checks 45 models with only the two
+approved Hime call-site exceptions, then measures 64 variants / 1536 cases.
+Targeted VM land/water, other standing/sitting ships and desk/crane placed/held
+screenshots are recorded in [final evidence](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs).
+
 ## Forge rendering backport and Hime land legs
 
 - JDK17：`bash ./gradlew --no-daemon build`，`bash ./gradlew --no-daemon runGameTestServer`（原 wrapper 无执行位，等价调用；不改构建配置）。

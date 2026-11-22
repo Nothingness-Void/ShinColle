@@ -14,16 +14,17 @@ Only src/modern and docs changed; no build/CI or src/main changes.
 > Task :check
 > Task :build
 
-BUILD SUCCESSFUL in 16s
+BUILD SUCCESSFUL in 10s
 8 actionable tasks: 5 executed, 3 up-to-date
 ```
 
 `/home/ubuntu/shincolle-120-render-gametest.log`:
 
 ```text
-[04:09:45] [Server thread/INFO] [minecraft/GameTestServer]: ========= 344 GAME TESTS COMPLETE ======================
-[04:09:45] [Server thread/INFO] [minecraft/GameTestServer]: All 344 required tests passed :)
-BUILD SUCCESSFUL in 44s
+[04:24:13] [Server thread/INFO] [minecraft/GameTestServer]: ========= 344 GAME TESTS COMPLETE ======================
+[04:24:13] [Server thread/INFO] [minecraft/GameTestServer]: All 344 required tests passed :)
+BUILD SUCCESSFUL in 42s
+11 actionable tasks: 3 executed, 8 up-to-date
 ```
 
 No weakened assertions. Two model-mapping tests and two block-rendering tests
@@ -46,6 +47,10 @@ Vertex audit passed; CSV: migration_batches/rendering-backport-1.20.1/ship-pose-
 ```
 
 Complete controlled geometry sample: [CSV](ship-pose-audit.csv).
+The final water fixture supplies positive legacy depth (0.1), not just an
+engine boolean. All dry-land sole bounds remain asserted; water asserts
+explicit-leg visibility without suppressing the legacy water-bobbing offset.
+The policy regression also checks negative/zero/shallow/deep depth values.
 Review applicability: both f6db0ec and 3a06c51 are unnecessary on the shipped
 Forge implementation/dependencies; [checked evidence and limits](decision.md).
 

@@ -39,7 +39,6 @@ public final class ShipModelPoseAudit {
         public int getTickExisted() { return 100; }
         public float getSwingTime(float tick) { return 0; }
         public boolean getIsRiding() { return false; }
-        public boolean isInWater() { return water; }
         public boolean getIsSprinting() { return false; }
         public boolean getIsSitting() { return sitting; }
         public boolean getIsSneaking() { return false; }
@@ -48,8 +47,8 @@ public final class ShipModelPoseAudit {
         public int getScaleLevel() { return 0; }
         public RandomSource getRand() { return random; }
         public RandomSource getRNG() { return random; }
-        public double getShipDepth() { return 0; }
-        public double getShipDepth(int type) { return 0; }
+        public double getShipDepth() { return water ? 0.1D : 0D; }
+        public double getShipDepth(int type) { return type == 0 ? getShipDepth() : 0D; }
         public int getBrightnessForRender() { return 15728880; }
         public int getBrightnessForRender(float tick) { return 15728880; }
     }
@@ -135,8 +134,11 @@ public final class ShipModelPoseAudit {
                             if (state == 0 && water && !(bounds.legVertices == 0 && bounds.minY > 0.4F && bounds.minY < 0.45F)) {
                                 throw new AssertionError("Legacy no-leg hovering pose changed");
                             }
-                            if ((!water || (state & 16) != 0) && !(bounds.legVertices > 0 && Math.abs(bounds.legY) < 0.03F)) {
-                                throw new AssertionError("Land or explicitly enabled legs no longer meet the ground");
+                            if (!water && !(bounds.legVertices > 0 && Math.abs(bounds.legY) < 0.03F)) {
+                                throw new AssertionError("Land legs no longer meet the ground");
+                            }
+                            if ((state & 16) != 0 && bounds.legVertices == 0) {
+                                throw new AssertionError("Explicit legs must remain visible in water and on land");
                             }
                         }
                         System.out.printf(Locale.ROOT, "%d,%s,%d,%s,%s,%s,%.6f,%s,%d,%d%n", spec.eggMeta(), kind,
