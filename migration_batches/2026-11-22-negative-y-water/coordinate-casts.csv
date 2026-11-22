@@ -1,0 +1,361 @@
+path,line,cast_operand_line,review
+src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java,66,ShinColleConfig.tileCrane()[0]) {,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java,68,ShinColleConfig.tileCrane()[0]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java,461,rates[0] * pumps + (int) rates[1] * enchantments) * 16,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java,461,rates[1] * enchantments) * 16,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/CraneBlockEntity.java,462,(ship.getShipLevel() * 0.1F) + 1);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/HeavyGrudgeBlockEntity.java,70,ShinColleConfig.tileShipyardLarge()[0]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/HeavyGrudgeBlockEntity.java,71,ShinColleConfig.tileShipyardLarge()[1]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/HeavyGrudgeBlockEntity.java,408,(fuelUse.get().power() * fuelMagnification());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/HeavyGrudgeBlockEntity.java,428,(800 * fuelMagnification());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/LegacyCoreBlockEntity.java,324,ShinColleConfig.tileVolCore()[1];,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/LegacyCoreBlockEntity.java,330,ShinColleConfig.tileVolCore()[1]);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/LegacyCoreBlockEntity.java,428,ShinColleConfig.tileVolCore()[0]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/LegacyCoreBlockEntity.java,436,ShinColleConfig.tileVolCore()[2];,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java,51,ShinColleConfig.tileShipyardSmall()[0]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java,52,ShinColleConfig.tileShipyardSmall()[1]; },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java,253,(((this.powerGoal - this.powerConsumed) / (float) buildSpeed()) * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java,331,(800 * fuelMagnification());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/blockentity/SmallShipyardBlockEntity.java,383,(fuelUse.get().power() * fuelMagnification());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/GameplayClientEffects.java,176,"packet.velocityY(), packet.variant()));",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/GameplayClientEffects.java,326,Math.ceil(distance * 5.0D)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java,142,(width * position[0]);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java,143,(height * position[1]);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/MorphClientEvents.java,163,((float)cooldown / (float)maxCooldown * 18F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/PointerClientEvents.java,77,"Math.round(relY * 100.0D), 0, 100);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/PointerClientEvents.java,101,"Math.round(relY * 100D), 0, 100);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/compat/OpenGlHelper.java,11,"x / 16, (int)y / 16);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/compat/OpenGlHelper.java,11,y / 16);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/EmotionHelper.java,133,f2 + cd;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/EmotionHelper.java,140,f2;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBBHaruna.java,1561,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBBHiei.java,1435,f2 + (ent.getTickExisted() % 256);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBBHiei.java,1558,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBBKirishima.java,1393,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBBKongou.java,1696,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipHime.java,740,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipNagato.java,837,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipRe.java,1012,f2 + (ent.getTickExisted() & 255);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipRe.java,1280,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipRu.java,1145,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipTa.java,531,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelBattleshipYamato.java,1522,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCAHime.java,1117,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCAHime.java,1139,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierAkagi.java,907,f2 % 60;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierAkagi.java,1008,f2 + tick;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierAkagi.java,1063,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierHime.java,990,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierHime.java,1002,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierHime.java,1012,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierKaga.java,858,f2 % 60;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierKaga.java,959,f2 + tick;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierKaga.java,1013,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierWDemon.java,717,f2 % 60;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierWDemon.java,821,f2 % 60;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierWDemon.java,955,f2 % 60;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierWDemon.java,1074,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCarrierWo.java,993,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserAtago.java,1228,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserTakao.java,1023,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserTatsuta.java,943,f2 + tick;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserTatsuta.java,1069,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserTenryuu.java,1062,f2 + tick;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelCruiserTenryuu.java,1101,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerAkatsuki.java,1038,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerHibiki.java,1158,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerHime.java,1106,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerIkazuchi.java,769,f2 + (ent.getTickExisted() % 256);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerIkazuchi.java,882,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerInazuma.java,848,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelDestroyerShimakaze.java,694,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelHarbourHime.java,430,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelHarbourHime.java,431,f2));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelHarbourHime.java,822,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelHeavyCruiserNe.java,719,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelHeavyCruiserRi.java,550,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelNorthernHime.java,974,f2)) * 0.75F - 0.5F;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSSNH.java,1147,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSSNH.java,1164,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmKa.java,595,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmKa.java,627,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmRo500.java,566,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmRo500.java,579,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmSo.java,586,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmSo.java,618,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmU511.java,525,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmU511.java,535,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmYo.java,1024,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/model/legacy/ship/ModelSubmYo.java,1055,f2);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/particle/LegacyEmotionParticle.java,458,this.playSpeedCount;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/CraneTerminalScreen.java,105,(mouseX - this.leftPos);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/CraneTerminalScreen.java,106,(mouseY - this.topPos);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,109,"((guiLeft+10)*GuiScale), (int)((guiTop+24)*GuiScale), 153, 12);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,109,"((guiTop+24)*GuiScale), 153, 12);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,133,"x, (int)y, button); return true;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,133,"y, button); return true;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,136,"x, (int)y, button, 0); return true;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,136,"y, button, 0); return true;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,282,(fontRendererObj.getStringWidth(str) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,369,px > 64) px = 64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,370,px < -64) px = -64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,371,pz > 64) pz = 64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,372,pz < -64) pz = -64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,378,px) > 48 || Mth.abs((int)pz) > 48),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,378,pz) > 48),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,380,(this.tickGUI * 0.125F + 6) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,382,px) > 32 || Mth.abs((int)pz) > 32),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,382,pz) > 32),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,384,(this.tickGUI * 0.125F + 4) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,386,px) > 16 || Mth.abs((int)pz) > 16),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,386,pz) > 16),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,388,(this.tickGUI * 0.125F + 2) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,392,(this.tickGUI * 0.125F) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,397,"px, guiTop+88+(int)pz, 0, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,397,"pz, 0, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,402,"px, guiTop+88+(int)pz, sIcon, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,402,"pz, sIcon, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,424,px > 64) px = 64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,425,px < -64) px = -64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,426,pz > 64) pz = 64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,427,pz < -64) pz = -64;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,432,px) > 48 || Mth.abs((int)pz) > 48),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,432,pz) > 48),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,434,(this.tickGUI * 0.125F + 6) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,436,px) > 32 || Mth.abs((int)pz) > 32),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,436,pz) > 32),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,438,(this.tickGUI * 0.125F + 4) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,440,px) > 16 || Mth.abs((int)pz) > 16),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,440,pz) > 16),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,442,(this.tickGUI * 0.125F + 2) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,446,(this.tickGUI * 0.125F) % 8 * 3;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,449,"px, guiTop+88+(int)pz, sIcon, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,449,"pz, sIcon, 192, 3, 3);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,505,"s2.getHealth() + ChatFormatting.RED + "" / "" + (int)s2.getMaxHealth();",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,505,s2.getMaxHealth();,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,513,"(texty*1.25F), 65535);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,515,"(texty*1.25F), 16581630);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,576,(tempCD * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,620,(tempCD * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,685,(tempCD * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,719,(this.fontRendererObj.getStringWidth(strLT) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,721,(this.fontRendererObj.getStringWidth(strLB) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,723,(this.fontRendererObj.getStringWidth(strRT) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,725,(this.fontRendererObj.getStringWidth(strRB) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,823,(this.fontRendererObj.getStringWidth(str) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1139,(mx * this.GuiScaleInv - this.guiLeft);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1140,(my * this.GuiScaleInv - this.guiTop);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1169,(xMouse * this.GuiScaleInv);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1170,(yMouse * this.GuiScaleInv);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1267,(posX * this.GuiScaleInv);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1268,(posY * this.GuiScaleInv);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreen.java,1702,(font.getStringWidth(str) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/DeskScreenSupport.java,218,(menu.getTeamCooldown() * 0.05F); },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,185,"mouseX - this.leftPos, (int)mouseY - this.topPos);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,185,mouseY - this.topPos);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,607,this.buffBar[i] > (int)this.buffBarFinal[i]),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,607,this.buffBarFinal[i]),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,612,this.buffBar[i] < (int)this.buffBarFinal[i]),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,612,this.buffBarFinal[i]),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,667,this.buffBar[i];,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,674,(-this.buffBar[i]);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,687,(this.font.width(strRadar) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,713,"shipList[i].getHealth() + "" / "" + ChatFormatting.RED +",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,714,shipList[i].getMaxHealth();,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,729,(font.width(str) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/FormationScreen.java,733,(font.width(str) * 0.5F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,102,"localX, (int) localY, 23, 93, 25, 20)) {",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,102,"localY, 23, 93, 25, 20)) {",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,110,"localX, (int) localY, 27, rowY, 18, 18)",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,110,"localY, 27, rowY, 18, 18)",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,111,"localX, (int) localY, 51, rowY + 5, 46, 8)) {",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/LargeShipyardScreen.java,111,"localY, 51, rowY + 5, 46, 8)) {",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,519,"(attrs.getAttrsBuffed(Attr.CRI) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,521,"(attrs.getAttrsBuffed(Attr.DHIT) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,523,"(attrs.getAttrsBuffed(Attr.THIT) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,525,(attrs.getAttrsBuffed(Attr.AA)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,527,(attrs.getAttrsBuffed(Attr.ASM)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,531,(this.entity.calcMissRate(0F) * 100F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,533,(this.entity.calcMissRate(attrs.getAttackRange()) * 100F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,552,"((attrs.getAttrsBuffed(Attr.XP) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,554,"((attrs.getAttrsBuffed(Attr.GRUDGE) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,556,"((attrs.getAttrsBuffed(Attr.AMMO) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,558,"((attrs.getAttrsBuffed(Attr.HPRES) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,560,"(attrs.getAttrsBuffed(Attr.KB) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,925,"x - this.leftPos, (int)y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,925,"y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,926,"x - this.leftPos, (int)y - this.topPos) >= 0",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,926,y - this.topPos) >= 0,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,927,"x - this.leftPos, (int)y - this.topPos) >= 0;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,927,y - this.topPos) >= 0;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,941,"x, (int)y, color, true); }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,941,"y, color, true); }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,970,(ticks * 0.05F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,1004,(255F * (1F - flv * 2F)) * 256 + 16711680;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,1009,(255F * (1F - flv * 2F)) + 16776960;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,1023,r << 16) + ((int)g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,1023,g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/MorphInventoryScreen.java,1023,b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,372,"(((entity.getStateMinor(""FollowMin"") - 1) / 30F) * 42F);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,373,"(((entity.getStateMinor(""FollowMax"") - 2) / 30F) * 42F);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,374,"((entity.getStateMinor(""FleeHP"") / 100F) * 42F);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,473,"(entity.getStateMinor(""WpStay"") * 0.0625F * 42F);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,474,"((entity.getStateMinor(""UseCombatRation"") - 1) * 14F);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,871,"(attrs.getAttrsBuffed(Attr.CRI) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,873,"(attrs.getAttrsBuffed(Attr.DHIT) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,875,"(attrs.getAttrsBuffed(Attr.THIT) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,877,(attrs.getAttrsBuffed(Attr.AA)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,879,(attrs.getAttrsBuffed(Attr.ASM)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,883,(this.entity.calcMissRate(0F) * 100F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,885,(this.entity.calcMissRate(attrs.getAttackRange()) * 100F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,904,"((attrs.getAttrsBuffed(Attr.XP) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,906,"((attrs.getAttrsBuffed(Attr.GRUDGE) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,908,"((attrs.getAttrsBuffed(Attr.AMMO) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,910,"((attrs.getAttrsBuffed(Attr.HPRES) - 1F) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,912,"(attrs.getAttrsBuffed(Attr.KB) * 100F)) + "" %"";",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1202,(this.controls.barPos / 42F * 30F + 1F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1212,(this.controls.barPos / 42F * 30F + 2F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1222,(this.controls.barPos / 42F * 100F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1260,(this.controls.barPos / (42F * 0.0625F))));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1270,(this.controls.barPos / (43F * 0.25F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1406,"x - this.leftPos, (int)y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1406,"y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1407,"x - this.leftPos, (int)y - this.topPos) >= 0;",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1407,y - this.topPos) >= 0;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1413,"x - this.leftPos, (int)y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1413,"y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1421,"x - this.leftPos, (int)y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1421,"y - this.topPos, button);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1437,"x, (int)y, color, true); }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1437,"y, color, true); }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1466,(ticks * 0.05F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1500,(255F * (1F - flv * 2F)) * 256 + 16711680;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1505,(255F * (1F - flv * 2F)) + 16776960;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,r << 16) + ((int)g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,g << 8) + (int)b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/client/screen/ShipInventoryScreen.java,1519,b;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,55,"numericList(""expGain"", COMMON.expGain, 2, 4, 5, 8, 10, 1, 2)[6]; }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/config/ShinColleConfig.java,57,"numericList(""itemShipTank"", COMMON.itemShipTank, 32000, 128000, 512000, 2048000)[tier]; }",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/crafting/LegacyEquipmentBuildHelper.java,108,(Math.abs(totalMaterials - mean) * 15.625F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/crafting/LegacyEquipmentBuildHelper.java,154,(totalMaterials * 15.625F) : 0;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/crafting/LegacyShipConstructionHelper.java,118,(meanDistance * 15.625F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/projectile/LegacyShipStaticEffectEntity.java,59,(20.0D + shipLevel * 0.125D));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipAircraftEntity.java,277,(100.0F / aircraftSpd) + 35);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,398,ship.getCompatAttackRange());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,786,"(Math.max(0, movementGrudge) * 0.2F));",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1534,(baseDelay / attackSpeed) : baseDelay;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1562,"(scale / 1.5D),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1574,"(scale / 1.5D),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1578,"(scale / 1.5D),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1582,"(scale / 1.5D),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1586,"(scale / 1.5D),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1684,"(ship.getShipLevel() * 0.05F), 0, 7);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1815,(base * 0.25F) + 1);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1847,"(base * 0.25F) + 1)),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1848,"(base * 0.25F) + 1)),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1849,"(base * 0.25F) + 1)),",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,1850,(base * 0.25F) + 1)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,2528,(count * (1.0F + (fortune + luck) * selected.fortuneMultiplier()));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,2640,(0.5F * 5 * 5);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4098,(5400F * target.getLegacyStats().get(LegacyShipStatTables.Attr.GRUDGE)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4103,(540F * target.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4108,(270F * target.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4135,(value * ship.getLegacyStats().get(statId));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4426,(6.0D * Math.cos(angle));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4427,(-6.0D * Math.sin(angle));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,4438,target.getBbHeight() + 7;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,5538,(ship.getShipLevel() * 0.035F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,5578,(ship.getShipLevel() * 0.035F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,5687,(ship.getShipLevel() * 0.03F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipBehaviorCatalog.java,5711,(ship.getShipLevel() * 0.015F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipCombatHelper.java,56,(BASE_ATTACK_SPEED[attackKind.delayType()] / attackSpeed) + FIXED_ATTACK_DELAY[attackKind.delayType()];,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipCombatHelper.java,63,(BASE_ATTACK_SPEED[LegacyShipAttackKind.LIGHT.delayType()] / attackSpeed),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,1932,(experience * this.legacyStats.get(LegacyShipStatTables.Attr.XP)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,3094,(20F * (150 - this.getShipLevel()) / 150F) + 10;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,3378,this.getCompatAttackRange();,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,3974,(this.yBodyRot * 1000.0F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,4141,"(distance * 1000.0D), 1, 32767));",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,4276,((worldTime / 1000L) % TIMEKEEPING_SOUNDS.length);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5195,(ration.rollGrudge(this.random) * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5227,Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5232,"(movement * 0.5F), 5, 50);",numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5289,(ammoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5318,(supply * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5865,(ration.rollGrudge(this.random) * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5950,nutrition + 5)),numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5961,(grudgeGain * this.legacyStats.get(LegacyShipStatTables.Attr.GRUDGE)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5962,(lightAmmoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/LegacyShipEntity.java,5963,(heavyAmmoGain * this.legacyStats.get(LegacyShipStatTables.Attr.AMMO)));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipGuardGoal.java,201,this.ship.getCompatAttackRange());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/goal/LegacyShipPickItemGoal.java,168,(10.0F / attackSpeed));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPath.java,49,(entity.getBbWidth() + 1.0F)) * 0.5D;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPath.java,51,(entity.getBbWidth() + 1.0F)) * 0.5D;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPath.java,88,vec.x && pathpoint.zCoord == (int)vec.z;,legacy X/Z truncation retained: legacy ai/path/ShipPath.java:141
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPath.java,88,vec.z;,legacy X/Z truncation retained: legacy ai/path/ShipPath.java:141
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPathNavigate.java,77,(range + 8.0F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/entity/ship/path/ShipPathNavigate.java,97,(range + 16.0F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,1168,(ration.rollGrudge(RandomSource.create(712L)),test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,1214,(raw * ship.getLegacyStats().get(,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7019,(80F / attackSpeed);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7020,(120F / attackSpeed) + 50;,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7167,(300F,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7187,(2700F,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7270,(3600 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.GRUDGE));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7271,(40 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,7272,(180 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8668,(300F * transport.getLegacyStats().get(LegacyShipStatTables.Attr.GRUDGE));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8669,(30F * transport.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8670,(15F * transport.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8704,(5400F * target.getLegacyStats().get(LegacyShipStatTables.Attr.GRUDGE));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8706,(540F * target.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8708,(270F * target.getLegacyStats().get(LegacyShipStatTables.Attr.AMMO));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,8710,(40F * transport.getLegacyStats().get(LegacyShipStatTables.Attr.XP));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,9869,(5F * ship.getLegacyStats().get(LegacyShipStatTables.Attr.XP)));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10067,(8 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.XP));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10256,(5 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.XP));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10262,(ship.getShipLevel() * 0.035F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10324,Math.floor(travelTicks / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10325,Math.floor(travelTicks * heightRatio / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10330,Math.floor(travelTicks * heightRatio / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10331,Math.floor(travelTicks / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10410,(5 * ship.getLegacyStats().get(LegacyShipStatTables.Attr.XP));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,10423,(ship.getShipLevel() * 0.035F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,11156,(5F * ship.getLegacyStats().get(LegacyShipStatTables.Attr.XP)));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,11176,(ship.getShipLevel() * 0.03F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,12231,Math.floor((horizontalDistance / speed) * heightRatio / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,14036,ship.getCompatAttackRange();,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,14982,(LegacyShipBehaviorCatalog.pickupExperience(),test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,16147,ship.getCompatAttackRange());,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,17528,Math.floor(travelTicks / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,17529,Math.floor(travelTicks * heightRatio / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,17534,Math.floor(travelTicks * heightRatio / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,17535,Math.floor(travelTicks / (1.0D + heightRatio));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/GameplayParityGameTests.java,18001,Math.floor(target.y)) {,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/ShipInventoryParityGameTests.java,98,(pos / 42F * 30F + 1F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/ShipInventoryParityGameTests.java,99,(pos / 42F * 30F + 2F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/ShipInventoryParityGameTests.java,100,(pos / 42F * 100F);,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/ShipInventoryParityGameTests.java,101,(pos / (42F * 0.0625F));,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/gametest/ShipInventoryParityGameTests.java,102,(pos / (43F * 0.25F)) + 1;,test numeric fixture/assertion
+src/modern/java/com/lulan/shincolle/item/CombatRationItem.java,106,(this.rollGrudge(player) * grudgeMultiplier));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/CraneTerminalMenu.java,121,(ticks * 0.05F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/DeskMenu.java,54,(DeskMenu.this.getTeamCooldown() * 0.05F); },numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LargeShipyardMenu.java,156,((this.getPowerRemained() * (double) height) / HeavyGrudgeBlockEntity.powerMax());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LargeShipyardMenu.java,164,(((this.getPowerGoal() - this.getPowerConsumed()) / (float) HeavyGrudgeBlockEntity.buildSpeed()) * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyCoreMenu.java,126,((this.getCharge() * (double) height) / this.getMaxCharge());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyShipInventoryControls.java,473,(barPos / 42F * 30F + 1F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyShipInventoryControls.java,477,(barPos / 42F * 30F + 2F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyShipInventoryControls.java,481,(barPos / 42F * 100F);,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyShipInventoryControls.java,485,(barPos / (42F * 0.0625F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/LegacyShipInventoryControls.java,489,(barPos / (43F * 0.25F)) + 1;,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/SmallShipyardMenu.java,139,((this.getPowerRemained() * (double) height) / SmallShipyardBlockEntity.powerMax());,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/menu/SmallShipyardMenu.java,147,(((this.getPowerGoal() - this.getPowerConsumed()) / (float) SmallShipyardBlockEntity.buildSpeed()) * 0.05F));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java,365,(baseValue * (1.0F + profile.buildEquipmentProfile().ammoBonus())));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java,387,(baseValue * (1.0F + profile.buildEquipmentProfile().ammoBonus())));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/network/GameplayCommandHandler.java,409,(baseValue * (1.0F + profile.buildEquipmentProfile().grudgeBonus())));,numeric/UI/animation/size narrowing; not world-position conversion
+src/modern/java/com/lulan/shincolle/teitoku/ShipWorldCacheEntry.java,156,"Math.floor(ship.getX()),",world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/teitoku/ShipWorldCacheEntry.java,157,"Math.floor(ship.getY()),",world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/teitoku/ShipWorldCacheEntry.java,158,"Math.floor(ship.getZ()),",world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java,124,"Math.floor(entity.getX()),",world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java,125,"Math.floor(entity.getBoundingBox().minY), (int) Math.floor(entity.getZ()));",world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/teitoku/TeitokuEvents.java,125,Math.floor(entity.getZ()));,world-coordinate conversion already explicitly floored
+src/modern/java/com/lulan/shincolle/world/MobGrudgeDropEvents.java,40,dropGrudge;,numeric/UI/animation/size narrowing; not world-position conversion

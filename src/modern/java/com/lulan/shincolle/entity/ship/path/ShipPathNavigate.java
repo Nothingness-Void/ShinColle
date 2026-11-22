@@ -57,12 +57,12 @@ public class ShipPathNavigate
     }
     public boolean tryMoveToXYZ(double x, double y, double z, double speed)
     {
-        ShipPath path = this.getPathToXYZ(Mth.floor(x), (int)y, Mth.floor(z));
+        ShipPath path = this.getPathToXYZ(Mth.floor(x), Mth.floor(y), Mth.floor(z));
         return this.setPath(path, speed);
     }
     public ShipPath getPathToXYZ(double x, double y, double z)
     {
-        return !this.canNavigate() ? null : this.getShipPathToXYZ(this.host, Mth.floor(x), (int)y, Mth.floor(z), this.getPathSearchRange(), this.hostShip.canFly());
+        return !this.canNavigate() ? null : this.getShipPathToXYZ(this.host, Mth.floor(x), Mth.floor(y), Mth.floor(z), this.getPathSearchRange(), this.hostShip.canFly());
     }
     public ShipPath getShipPathToXYZ(Entity entity, int x, int y, int z, float range, boolean canFly)
     {
@@ -267,7 +267,7 @@ public class ShipPathNavigate
         }
         else
         {
-             int i = (int) this.host.getY();
+             int i = Mth.floor(this.host.getY());
              BlockState block = this.world.getBlockState(new BlockPos(Mth.floor(this.host.getX()), i, Mth.floor(this.host.getZ())));
              int j = 0;
              do
@@ -288,7 +288,7 @@ public class ShipPathNavigate
                  ++j;
              }
              while (j <= 24);
-             return (int) this.host.getY();
+             return Mth.floor(this.host.getY());
         }
     }
     private boolean canNavigate()
@@ -302,7 +302,7 @@ public class ShipPathNavigate
     private boolean isDirectPathBetweenPoints(Vec3 pos1, Vec3 pos2, int sizeX, int sizeY, int sizeZ)
     {
         int x1 = Mth.floor(pos1.x);
-        int y1 = (int) pos1.y;
+        int y1 = Mth.floor(pos1.y);
         int z1 = Mth.floor(pos1.z);
         double xOffset = pos2.x - pos1.x;
         double yOffset = pos2.x - pos1.x;

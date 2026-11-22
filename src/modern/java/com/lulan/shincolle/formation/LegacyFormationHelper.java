@@ -38,7 +38,7 @@ public final class LegacyFormationHelper {
         if (slot < 0 || slot > 5) {
             slot = 0;
         }
-        BlockPos center = new BlockPos(Mth.floor(target.getX()), (int) (target.getY() + 0.5D), Mth.floor(target.getZ()));
+        BlockPos center = new BlockPos(Mth.floor(target.getX()), Mth.floor(target.getY() + 0.5D), Mth.floor(target.getZ()));
         boolean[] direction = getFormationDirection(target.getX(), target.getZ(), oldX, oldZ);
         BlockPos position = calcFormationPos(formationId, slot, center, direction);
         BlockPos safePosition = getSafeBlockWithin5x5(target.level(), position);

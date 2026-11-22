@@ -507,7 +507,7 @@ public class DeskScreen extends DeskScreenSupport {
                       Mth.ceil(s.ship.getX()) + " , " +
                       Mth.ceil(s.ship.getZ()) + "  " + ChatFormatting.LIGHT_PURPLE +
                       StrHeight + " " + ChatFormatting.YELLOW +
-                      (int)(s.ship.getY());
+                      Mth.floor(s.ship.getY());
                 GlStateManager.pushMatrix();
                 GlStateManager.scale(0.8F, 0.8F, 1F);
                 fontRendererObj.drawString(str, 184, (int)(texty*1.25F), 65535);
