@@ -1,7 +1,14 @@
 # Consolidated VM queue
 
-Implementation review complete except the live line-abreast settling cause.
-Final gates, commits and requested NeoForge VM screenshots pending below.
+Latest07:19: D3 Neo fixture/barrier cause resolved in2200559 (365/365, pushed),
+same wider fixture backported. B2 kill+entity-region reload resurrection reproduced
+and fixed in read health restoration; Forge360/360 green. See
+[B2 evidence](../2026-11-22-inventory-book-layout/round2-result.md).
+
+Authoritative latest: [CHECKPOINT06:53](CHECKPOINT.md). Forge357/357 is pushed;
+Neo build passes but365 GT have1 required D3 mount-route failure, not pushed.
+New B round2 kill/reload resurrection is OPEN; no verdict or production fix yet.
+Earlier progress below is superseded where the checkpoint explicitly differs.
 
 | Item | Verdict | Legacy evidence / change |
 | --- | --- | --- |

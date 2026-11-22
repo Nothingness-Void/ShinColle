@@ -23,7 +23,7 @@ public final class LegacyAircraftBlockCollisionGameTests {
     private LegacyAircraftBlockCollisionGameTests() {
     }
 
-    @GameTest(template = "gameplayparitygametests.empty")
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space")
     public static void floatingFortAndAllEightMountStylesKeepSolidsAndObstacleRoutes(GameTestHelper helper) {
         BlockPos origin = helper.absolutePos(new BlockPos(4, 5, 4));
         for (int x = -2; x <= 2; x++) {
@@ -68,6 +68,8 @@ public final class LegacyAircraftBlockCollisionGameTests {
         flyer.setPos(start);
         var navigation = new LegacyShipObstaclePath();
         Vec3 destination = start.add(0, 0, 12);
+        helper.assertTrue(helper.getLevel().noCollision(flyer, flyer.getBoundingBox().move(destination.subtract(start))),
+                "flight fixture must contain the entire destination box, without framework barriers");
         Vec3 lastOffset = Vec3.ZERO;
         for (int tick = 0; tick < 160 && flyer.getZ() < origin.getZ() + 5; tick++) {
             flyer.tickCount++;

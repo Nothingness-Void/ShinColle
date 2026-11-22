@@ -772,6 +772,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        boolean hasSavedHealth = tag.contains("Health", Tag.TAG_ANY_NUMERIC);
+        float savedHealth = tag.getFloat("Health");
         this.loadingSaveData = true;
         this.aircraftProfileInitialized = false;
         this.setVariantEggMeta(tag.getInt(VARIANT_EGG_META_TAG));
@@ -955,6 +957,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.entityData.set(DATA_HOSTILE_SCALE, this.isHostileVariant() ? Mth.clamp(scale, 0, 3) : 0);
         this.loadingSaveData = false;
         this.refreshFromVariant(true);
+        if (hasSavedHealth) {
+            this.setHealth(this.deathTime > 0 ? 0.0F : savedHealth);
+        }
     }
 
     @Override
