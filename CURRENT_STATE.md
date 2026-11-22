@@ -5,16 +5,16 @@
 <a id="当前任务"></a>
 ## 当前集成与任务边界
 
-- 分支：`devin/mc-1.21.1-neoforge`；原固定基线 `5b95cfe`，本轮 merge 已推送的 Forge 渲染回移 `1547691` 与水面判定修正 `bccd7dc`。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
+- 分支：`devin/mc-1.21.1-neoforge`；固定基线 `5b95cfe`；本轮 merge Forge 船坞修复 `e234d5b` 和最终证据 `cf08c01`。旧九批集成历史从 [索引](MIGRATION-CHANGELOG.md#九批-parity-集成收尾) 进入。
 - Minecraft **1.21.1**、NeoForge **21.1.267**、ModDevGradle **2.0.148**、Gradle **8.8**、JDK **21**；模组版本 **0.2.0-alpha**。
 - PR #11 复核末次代码提交：`3a06c51`；回收蛋旧 NBT 与宽泛附魔标签匹配已分别修复，伤害记录滞留已证实为 NeoForge 上游问题。初次完整构建及本轮证据见 [1.21.1 批次结果](migration_batches/neoforge-1.21.1/status.md#pr-11-review-follow-up)。
-- 当前任务：全部渲染修复已回移，用户批准的 Destroyer Hime 陆上开腿/水中保留旧姿态已完成；双分支 build/GameTests、1536 姿态及指定 VM 画面通过。仅推送当前 merge 后停止，不创建 PR 或自动开始后续批次。
+- 当前任务：GUI/audio 回归复核已完成；仅恢复船坞旧布局，雷达长名与冻结整点报时按旧版保留。双端门禁、NeoForge scale-8 GUI 与报时 A/B 已验证；推送本次 merge 后停止，不创建 PR 或自动开始后续批次。
 - 工作区边界：实现只在 `src/modern/java`、`src/modern/resources`，另有构建配置与迁移文档。`src/main/**` 继续只读，相对固定 parity 基线无差异。
 - 唯一下一步入口：[ROADMAP.md](ROADMAP.md)。无服务端验证阻塞；下述未验证项/遗留不因此消失。
 
 ## 最近证据与权威入口
 
-- 本轮 GUI/audio 复核：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时先按旧版保留。[复核记录](migration_batches/2026-11-22-gui-audio-regressions/README.md)。本轮仅按授权同步 NeoForge、验证截图并推送，不启动历史 NEXT。
+- 本轮 GUI/audio 复核完成：仅恢复大型船坞旧布局/错误提示；雷达长名字和冻结整点报时按旧版保留，报时 A/B 已复现。双端门禁和 scale-8 GUI 见[复核记录](migration_batches/2026-11-22-gui-audio-regressions/STATUS.md)。最终同步推送后停止，不启动历史 NEXT。
 
 - 最新 Destroyer Hime 取舍已获批准：仅陆上开腿，水中原样，显式 bit4 始终优先。最终使用既有模型 depth > 0（vanilla isInWater 漏掉水面悬浮薄层，已由实测排除）。Forge build 与 **344/344** GameTests、NeoForge build 与 **352/352** 均通过；两端 CPU 姿态各 1536 项，最终 VM 指定画面通过。[Forge 证据](migration_batches/rendering-backport-1.20.1/STATUS.md)、[NeoForge 本轮记录](migration_batches/neoforge-1.21.1/status.md#rendering-backport-and-approved-land-legs)。
 
