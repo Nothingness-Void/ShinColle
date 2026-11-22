@@ -1,13 +1,15 @@
 # 后续队列
 
-当前事实只看[CURRENT_STATE](CURRENT_STATE.md)；本轮细节只看[Pointer ownership 结果](migration_batches/2026-11-22-riding-aircraft-formation/pointer-owner-result.md)。
+当前事实：[CURRENT_STATE](CURRENT_STATE.md)；
+[本轮完整证据](migration_batches/2026-11-22-review-followups/result.md)。
 
-## NEXT：报告本轮并停在用户新包复测边界
+## NEXT：交还 0.2.1-alpha 验收边界
 
-1. 双端已绿；Neo 普通 push，包含 PR11A/B、recovery/crane 和本轮修复；Forge 继续本地 hold，不 force，不接管 PR10 CI。
-   本轮先交还 Pointer 新包复测：正常远距选自己舰娘/坐骑、蹲点当前队员不切模式、外舰/非队员 fall-through。当前仅 source/client-data-shaped GT 验证，不冒称实际 LocalPlayer 点击/渲染验收。
-2. 用户新包复测 NF07/08/02/01 与 NF10 的原宽墙场景。进入条件：新的实际 VM 结果或明确授权；记录 start/goal/path nodes/index/repath，区分非空路径墙顶渐近与 450 节点 null。退出条件：原场景给出可复现通过/失败证据，不靠控制场景推断全项通过。
-3. LEVITATION 仅保留已知 gap；用户明确禁止当前 LivingEntity 移植。不改 host 效果共享、搜索预算、RingFly 或矿车模型。音频与 F1 已关闭，不重复测试。
-4. 批次结果 → 目标矩阵/索引 → CURRENT_STATE/本路线 → 报告，停止。其它原队列见[STATUS](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)，未经授权不扩项。
+1. 报告两个新分支、独立 A/B 提交与 release SHA、真实 build/GameTest 输出及主 jar 路径。
+   用户已授权普通 push 这两个新分支；不 push 主线/原 hold 分支，不创建 PR。
+2. 用户新包验收：ore matching 开启时 water 模板拒绝 lava，合法同材质 ingot 仍匹配；
+   Forge 旧 drop 经 Neo 加载后 Desk radar 与 shipcleardrop 可见。服务端 NBT/命令测试
+   不冒称完整实际旧世界或客户端画面验证。
+3. 停止，不自动重开旧 mount/LEVITATION、RingFly、渲染或其它队列。
 
-门禁进入条件：相关源码确实改变；命令/范围只看[测试矩阵](MIGRATION-TEST-MATRIX.md)。源码输入未变不重跑，最后报告精确 SHA 与实际输出。
+源码、资源、版本输入在通过 gate 后未变，不重跑同输入全量验证。
