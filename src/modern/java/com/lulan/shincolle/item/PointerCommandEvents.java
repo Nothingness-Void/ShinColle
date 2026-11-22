@@ -13,6 +13,7 @@ import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -38,16 +39,31 @@ public final class PointerCommandEvents {
             return;
         }
 
-        int mode = PointerItem.getMode(pointer);
+        handleTarget(serverPlayer, event.getTarget());
+    }
+
+    public static void handleRayHit(ServerPlayer player, int entityId) {
+        if (!(player.getMainHandItem().getItem() instanceof PointerItem)
+                || PointerItem.isCaressMode(PointerItem.getMode(player.getMainHandItem()))) {
+            return;
+        }
+        Entity target = player.level().getEntity(entityId);
+        if (target != null && target.getBoundingBox().distanceToSqr(player.getEyePosition()) <= 64.0D * 64.0D) {
+            handleTarget(player, target);
+        }
+    }
+
+    private static void handleTarget(ServerPlayer serverPlayer, Entity target) {
+        int mode = PointerItem.getMode(serverPlayer.getMainHandItem());
         int commandMode = PointerItem.getCommandMode(mode);
 
-        if (event.getTarget() instanceof LegacyShipEntity ship) {
+        if (target instanceof LegacyShipEntity ship) {
             if (PlayerSkillHostResolver.sameOwner(serverPlayer, ship)) {
                 handleOwnedShipLeftClick(serverPlayer, ship, commandMode);
             }
             return;
         }
-        if (event.getTarget() instanceof LegacyShipMountEntity mount) {
+        if (target instanceof LegacyShipMountEntity mount) {
             LegacyShipEntity hostShip = mount.getHostShip();
             if (hostShip != null && PlayerSkillHostResolver.sameOwner(serverPlayer, hostShip)) {
                 handleOwnedShipLeftClick(serverPlayer, hostShip, commandMode);
@@ -55,7 +71,7 @@ public final class PointerCommandEvents {
             return;
         }
 
-        String targetClass = event.getTarget().getClass().getSimpleName();
+        String targetClass = target.getClass().getSimpleName();
         if (targetClass != null && !targetClass.isBlank()) {
             dispatch(serverPlayer, GameplayCommandType.TOGGLE_TARGET_CLASS, payload ->
                     payload.putString(GameplayCommandHandler.TAG_TARGET_CLASS, targetClass));

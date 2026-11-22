@@ -233,7 +233,7 @@ in the [batch record](migration_batches/2026-11-22-gui-audio-regressions/STATUS.
 - `ringScanAndLiquidDigMatchLegacy` / `ringFireAndMountDamageMatchLegacy`：扫描/NBT/持戒转换、挖掘数值、火伤与普通坐骑伤害。雾视觉不由服务端测试覆盖。
 - `ShipChunkLoaderGameTests`（2项）：罗盘/在线主人/票据范围、离线保票、撤装/移动/卸载释放及 Wrong location 下坐骑/removed恢复。真实关服重启 validation 不在覆盖内。
 - `MorphParityGameTests`（3项）：HP缩放/属性清理、登录/维度解除、空资源不自动解除、伤害早返/倍率/DEF/闪避/buff/女神消耗与计时、获取/owner与宿主顺序。
-- `MorphAndTeamParityGameTests`（3项）：Destroyer I获取与选择/激活；重复/负值/未知选择、旧零哨兵/正值/空字段迁移；当前队伍开关/空位/满员六槽游标/force/null/非本人拒绝/跨队伍保留；Pointer和网络对应调用、生命周期不全队清理、周期清理边界。
+- `MorphAndTeamParityGameTests`（4项）：Destroyer I获取与选择/激活；重复/负值/未知选择、旧零哨兵/正值/空字段迁移；当前队伍开关/空位/满员六槽游标/force/null/非本人拒绝/跨队伍保留；Pointer和网络对应调用、生命周期不全队清理、周期清理边界；新增64格ray选择TransportWa→实际crane RouteNode、空/遮挡/外人/越距伪包与mount-host focus。`LegacyAircraftBlockCollisionGameTests.allEightMountsActuallyTickPastIntermediateWaypoints`新增8种真实host/passenger/mount.tick有限墙路由/open/orphan边界；见[E3/D4结果](migration_batches/2026-11-22-riding-aircraft-formation/followup-result.md)。
 - 最终命令：`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 bash ./gradlew compileJava runGameTestServer`；JDK `17.0.20.1`。wrapper原无执行权限，使用bash等价调用，未更改权限。
 - 通过门槛：编译成功且全部required测试通过。最后生产/测试编辑后的结果：`All 310 required tests passed :)`；`BUILD SUCCESSFUL in 3m 19s`；退出码0。
 - 原始日志保存在外部：`/home/ubuntu/shincolle-zero-team-check.log`；SHA-256见 results/verification.json，不提交完整日志。本轮仅文档收口，不对未变的构建输入重复运行。

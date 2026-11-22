@@ -45,7 +45,8 @@ public enum GameplayCommandType {
     MOUNT_MOVE,
     SET_SHIP_HIT_ZONE,
     REQUEST_DESK_RADAR,
-    WRENCH_PAIR_TARGETS;
+    WRENCH_PAIR_TARGETS,
+    POINTER_LEFT_CLICK;
 
     public static GameplayCommandType fromOrdinal(int ordinal) {
         GameplayCommandType[] values = values();

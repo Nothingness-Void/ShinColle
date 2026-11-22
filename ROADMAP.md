@@ -4,6 +4,8 @@
 
 ## 当前指针
 
+最新NEXT09:12：Forge已364GT绿，按[E3/D4结果](migration_batches/2026-11-22-riding-aircraft-formation/followup-result.md)本地commit→普通merge Neo/API适配→一次build/fullGT→Neo普通push；Forge绝不push。然后仅hot-swap已核验mount/path方法体，重建factory+静止相机完成mount墙图。F3残留RingFly为legacy-identical，先请求行为变更授权；无授权不改源码/断言。其余open：独立mount levitation API差异、Akagi heavy高靶弹道、跨维cache原生/旧版窗口时长、缺少F3 raw时间/日志。不得把四张已成图或三种ring升水counter-check重复当待做。恢复细节[FOLLOWUP](migration_batches/2026-11-22-riding-aircraft-formation/FOLLOWUP.md)。
+
 最新NEXT08:00：源代码和两版门禁已绿，按[最终队列证据](migration_batches/2026-11-22-riding-aircraft-formation/queue-final-result.md)恢复有效客户端召唤夹具，再拍aircraft/fort/mount玻璃墙和核验Shimakaze normal/bored。当前NBT夹具多次失效已停止尝试，不得把诊断图标为通过。Forge继续禁止push，Neo允许普通merge/push。单横原session停滞仍未复现，不新增猜测修复。
 
 最新NEXT07:44：line动态trace和OpenAL审计已完成；Forge只本地commit不可push（新指令），Neo可merge/push。剩余指定客户端aircraft/fort/mount玻璃、玩家骑乘、Shimakaze矿车normal/bored截图，然后同步最终证据/报告。原始line停滞原因仍未复现，不再调参。

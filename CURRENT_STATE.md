@@ -1,5 +1,7 @@
 # 当前状态
 
+> 最新09:12：[E3/D4结果](migration_batches/2026-11-22-riding-aircraft-formation/followup-result.md)为当前入口，详细恢复见[FOLLOWUP](migration_batches/2026-11-22-riding-aircraft-formation/FOLLOWUP.md)。Forge offset+Pointer长距/crane+实际mount waypoint修复最终build/full364GT绿；待本地commit→普通merge Neo/API/gate/push（Forge继续禁止push），再stationary-owner mount图。Neo当前5eb457f含offset，四张factory/carrier/fort/cart有效图已存。F3水飞三种生存原生场景可升起未复现；RingFly残留经源码证实旧版相同，清理需行为变更授权；cache/audio和独立mount浮空药水API仍open。src/main未变；PR10 CI不在本任务。
+
 > 最新08:00：[queue-final-result](migration_batches/2026-11-22-riding-aircraft-formation/queue-final-result.md)为当前证据入口。源代码门禁Forge362/362、Neo370/370绿；Neo4302073已push，Forge44bfc38仅本地（严格保持push暂停）。真实右键骑Airfield挂载成功；三种玻璃墙图仍缺，Shimakaze两张仅诊断图且仍见靴外露，不算视觉通过。原live单横停滞未复现。唯一NEXT为有效客户端factory夹具和剩余视觉，不再猜测改移动/偏移；PR10 CI未接管。
 
 > 最新07:44：line-abreast动态六slot×384tick已完成，逐tick独立旧公式/4与7平方距离/continue条件/path端点记录通过，均进入旧arrival范围；原用户4.6–5.9停滞未复现，不做猜测修改。手动driver修复原生ServerLevel负责tickCount++的夹具时钟遗漏。Forge最终build19s、362/362 GT93s绿。OpenAL显式stop/custom sound audit无mod入口，vanilla/unattributed。下一步本地commit（Forge推送已被lead暂停）→Neo merge/API/gate/push→VM指定六图。详细line/openal-result在riding-aircraft-formation批次。
