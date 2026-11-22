@@ -45,6 +45,7 @@ import com.lulan.shincolle.entity.ship.goal.LegacyShipPickItemGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipAttackOnCollideGoal;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipWanderGoal;
 import com.lulan.shincolle.item.LegacyShipSpawnEggItem;
+import com.lulan.shincolle.item.MarriageRingItem;
 import com.lulan.shincolle.morph.MorphHelper;
 import com.lulan.shincolle.morph.MorphHostMode;
 import com.lulan.shincolle.morph.MorphProfile;
@@ -336,6 +337,62 @@ public final class GameplayParityGameTests {
             TeitokuHelper.markRingState(player, false);
             TeitokuHelper.incrementMarriageCount(player);
             helper.assertTrue(!data.hasRing() && data.isRingFlying(), "right click and marriage do not claim ring ownership or clear flight state");
+        } finally {
+            ShinColleConfig.clearTestOverrides();
+            player.getInventory().clearContent();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void ringWaterFlightNeverGrantsCreativeFlightPermission(GameTestHelper helper) {
+        ServerPlayer player = makeServerBackedPlayer(helper, "RingWaterFlight");
+        var data = TeitokuHelper.get(player).resolve().orElseThrow();
+        var ring = new ItemStack(ModItems.MARRIAGERING.get());
+        ring.getOrCreateTag().putBoolean("isActive", true);
+        player.getInventory().setItem(player.getInventory().selected, ring);
+        data.setHasRing(true);
+        data.setRingActive(true);
+        data.setMarriageNum(6);
+        var wet = helper.absolutePos(new BlockPos(1, 2, 1));
+        helper.getLevel().setBlockAndUpdate(wet, Blocks.WATER.defaultBlockState());
+        helper.getLevel().setBlockAndUpdate(wet.above(), Blocks.WATER.defaultBlockState());
+        player.setPos(wet.getX() + 0.5D, wet.getY() + 0.1D, wet.getZ() + 0.5D);
+        player.getAbilities().instabuild = false;
+        player.getAbilities().mayfly = false;
+        player.getAbilities().flying = false;
+        try {
+            ShinColleConfig.setTestOverride("ringAbility", new int[] {0, 6, 30, 20, 12});
+            player.baseTick();
+            helper.assertTrue(player.isInWaterOrBubble(), "water-flight fixture must actually enter water");
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            helper.assertTrue(player.getAbilities().flying && data.isRingFlying()
+                            && !player.getAbilities().mayfly,
+                    "ring water flight sets flying, never the creative mayfly permission");
+            ring.getItem().use(player.level(), player, InteractionHand.MAIN_HAND);
+            helper.assertTrue(!player.getAbilities().flying && !data.isRingFlying()
+                            && !player.getAbilities().mayfly,
+                    "disabling the ring cannot leave double-jump flight permission");
+            ring.getOrCreateTag().putBoolean("isActive", true);
+            data.setRingActive(true);
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            player.setPos(wet.getX() + 3.5D, wet.getY() + 0.1D, wet.getZ() + 0.5D);
+            player.baseTick();
+            helper.assertTrue(!player.isInWaterOrBubble(), "water-exit fixture must actually be dry");
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            helper.assertTrue(!player.getAbilities().flying && !data.isRingFlying()
+                            && !player.getAbilities().mayfly,
+                    "leaving water clears only the ring's temporary flight");
+            player.getAbilities().mayfly = true;
+            player.getAbilities().flying = true;
+            player.setPos(wet.getX() + 0.5D, wet.getY() + 0.1D, wet.getZ() + 0.5D);
+            player.baseTick();
+            MarriageRingItem.tickActiveRingEffects(player, ring);
+            helper.assertTrue(!data.isRingFlying(), "ring must not claim preexisting flight");
+            ring.getItem().use(player.level(), player, InteractionHand.MAIN_HAND);
+            MarriageRingItem.tickActiveRingEffects(player, ItemStack.EMPTY);
+            helper.assertTrue(player.getAbilities().mayfly && player.getAbilities().flying,
+                    "inactive/empty rings preserve independently granted flight abilities");
         } finally {
             ShinColleConfig.clearTestOverrides();
             player.getInventory().clearContent();
@@ -4533,7 +4590,7 @@ public final class GameplayParityGameTests {
                 stack(ModItems.GRUDGE.get()), stack(Items.COMPASS), stack(ModItems.GRUDGE.get()),
                 stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()), stack(ModItems.GRUDGE.get()));
         assertCrafts(helper, "blockdesk", new ItemStack(ModBlocks.BLOCK_DESK.get()),
-                stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.WHITE_WOOL),
+                stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.BLACK_WOOL),
                 stack(Items.OBSIDIAN), stack(Items.OBSIDIAN), stack(Items.OBSIDIAN),
                 stack(Items.OBSIDIAN), ItemStack.EMPTY, stack(Items.OBSIDIAN));
         assertCrafts(helper, "blocksmallshipyard", new ItemStack(ModBlocks.BLOCK_SMALL_SHIPYARD.get()),
@@ -4546,7 +4603,7 @@ public final class GameplayParityGameTests {
                 stack(ModItems.ABYSSMETAL1.get()), ItemStack.EMPTY, ItemStack.EMPTY);
         assertCrafts(helper, "targetwrench", new ItemStack(ModItems.TARGETWRENCH.get()),
                 stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()),
-                stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()),
+                ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY,
                 ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY);
         assertCrafts(helper, "blockwaypoint", new ItemStack(ModBlocks.BLOCK_WAYPOINT.get(), 16),
                 stack(ModItems.GRUDGE.get()), ItemStack.EMPTY, ItemStack.EMPTY,
@@ -5464,6 +5521,32 @@ public final class GameplayParityGameTests {
     }
 
     private record StaticLegacyModelAsset(String modelName, ResourceLocation sourceLocation) {
+    }
+
+    @GameTest(template = "empty")
+    public static void referenceRecipeCorrectionsRejectInventedAlternatives(GameTestHelper helper) {
+        assertCrafts(helper, "abyssmetal1_from_toyairplane", new ItemStack(ModItems.ABYSSMETAL1.get(), 5),
+                stack(ModItems.TOYAIRPLANE.get()));
+        assertCrafts(helper, "grudge1_from_experience_bottles", new ItemStack(ModItems.GRUDGE1.get()),
+                stack(Items.EXPERIENCE_BOTTLE), stack(Items.EXPERIENCE_BOTTLE), stack(Items.EXPERIENCE_BOTTLE),
+                stack(Items.EXPERIENCE_BOTTLE), stack(ModItems.GRUDGE.get()), stack(Items.EXPERIENCE_BOTTLE),
+                stack(Items.EXPERIENCE_BOTTLE), stack(Items.EXPERIENCE_BOTTLE), stack(Items.EXPERIENCE_BOTTLE));
+        ItemStack[][] invalid = {
+                {},
+                {stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()),
+                        stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()), stack(ModItems.ABYSSMETAL.get()),
+                        ItemStack.EMPTY, stack(ModItems.ABYSSMETAL.get()), ItemStack.EMPTY},
+                {stack(ModItems.DESKITEMRADAR.get()), stack(ModItems.DESKITEMBOOK.get()), stack(Items.WHITE_WOOL),
+                        stack(Items.OBSIDIAN), stack(Items.OBSIDIAN), stack(Items.OBSIDIAN),
+                        stack(Items.OBSIDIAN), ItemStack.EMPTY, stack(Items.OBSIDIAN)},
+                {stack(ModBlocks.BLOCK_GRUDGE_XP.get())}
+        };
+        for (var input : invalid) {
+            helper.assertTrue(helper.getLevel().getRecipeManager().getRecipeFor(
+                    RecipeType.CRAFTING, craftingGrid(input), helper.getLevel()).isEmpty(),
+                    "empty, six-ingot wrench, white-wool desk and invented XP unpacking must not craft");
+        }
+        helper.succeed();
     }
 
     private static void assertCrafts(GameTestHelper helper, String recipePath, ItemStack expected, ItemStack... inputs) {

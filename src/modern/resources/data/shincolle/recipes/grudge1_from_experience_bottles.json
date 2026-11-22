@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["xxx", "xgx", "xxx"],
+  "key": {
+    "x": {"item": "minecraft:experience_bottle"},
+    "g": {"item": "shincolle:grudge"}
+  },
+  "result": {"item": "shincolle:grudge1", "count": 1}
+}
