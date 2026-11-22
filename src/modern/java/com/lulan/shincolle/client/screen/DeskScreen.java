@@ -3,6 +3,7 @@ package com.lulan.shincolle.client.screen;
 import com.lulan.shincolle.blockentity.DeskBlockEntity;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.menu.DeskMenu;
+import com.lulan.shincolle.menu.DeskRadarVisibility;
 import com.lulan.shincolle.menu.LegacyDeskBookData;
 import com.lulan.shincolle.menu.LegacyDeskState;
 import com.lulan.shincolle.menu.LegacyShipInventoryCatalog;
@@ -358,7 +359,7 @@ public class DeskScreen extends DeskScreenSupport {
                 {
                     continue;
                 }
-                if (py > 0)
+                if (DeskRadarVisibility.isVisible(ship, this.player.level().getMinBuildHeight()))
                 {
                     px -= ox;
                     py -= oy;

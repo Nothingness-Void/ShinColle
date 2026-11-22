@@ -109,6 +109,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -4642,7 +4643,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
         if (this.routeNodePos != null) {
             String routeDimension = this.guardedBlockPos == null ? this.commandDimension : this.guardedBlockDimension;
-            if (this.routeNodePos.getY() <= 0 || !this.dimensionMatches(routeDimension, serverLevel)) {
+            if (this.routeNodePos.getY() <= serverLevel.getMinBuildHeight() || !this.dimensionMatches(routeDimension, serverLevel)) {
                 this.clearCommandState();
                 this.setTarget(null);
                 this.getShipNavigate().clearPathEntity();

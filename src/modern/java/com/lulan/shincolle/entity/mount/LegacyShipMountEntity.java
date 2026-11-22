@@ -400,7 +400,7 @@ public final class LegacyShipMountEntity extends Entity {
 
     @Override
     public boolean isPickable() {
-        return false;
+        return !this.isRemoved();
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.lulan.shincolle.gametest;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.path.ShipNavigationHost;
 import com.lulan.shincolle.registry.ModEntityTypes;
+import com.lulan.shincolle.menu.DeskRadarVisibility;
 import com.lulan.shincolle.teitoku.TeitokuEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -21,6 +22,22 @@ import java.util.Map;
 @PrefixGameTestTemplate(false)
 public final class LegacyNegativeHeightGameTests {
     private LegacyNegativeHeightGameTests() {
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
+    public static void radarHeightGateUsesBuildMinimumAndRejectsMissingEntities(GameTestHelper helper) {
+        int minimum = helper.getLevel().getMinBuildHeight();
+        helper.assertTrue(!DeskRadarVisibility.isVisible(null, minimum), "missing entity is not a radar position");
+        var ship = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        helper.assertTrue(ship != null, "radar fixture must exist");
+        for (double y : new double[] {minimum - 0.1D, minimum, minimum + 0.1D, -60.1D, 0.0D, 65.0D,
+                helper.getLevel().getMaxBuildHeight() + 1.0D}) {
+            ship.setPos(0.5D, y, 0.5D);
+            helper.assertTrue(DeskRadarVisibility.isVisible(ship, minimum) == (y > minimum),
+                    "radar must preserve the strict legacy lower gate relative to build minimum; Y=" + y);
+        }
+        ship.discard();
+        helper.succeed();
     }
 
     @GameTest(template = "gameplayparitygametests.empty")

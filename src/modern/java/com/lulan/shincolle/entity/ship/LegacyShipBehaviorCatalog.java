@@ -2035,9 +2035,9 @@ public final class LegacyShipBehaviorCatalog {
         }
 
         BlockPos paired = waypoint.getPairedChest();
-        if (paired == null || paired.getY() <= 0
+        if (paired == null || paired.getY() <= ship.level().getMinBuildHeight()
                 || ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
-            if (paired != null && paired.getY() > 0
+            if (paired != null && paired.getY() > ship.level().getMinBuildHeight()
                     && ship.distanceToSqr(paired.getX(), paired.getY(), paired.getZ()) > 25.0D) {
                 ship.getShipNavigate().tryMoveToXYZ(guard.getX() + 0.5D, guard.getY(), guard.getZ() + 0.5D, 1.0D);
             }
@@ -2624,7 +2624,7 @@ public final class LegacyShipBehaviorCatalog {
     }
 
     private static boolean isLegacyTaskGuard(LegacyShipEntity ship, @javax.annotation.Nullable BlockPos guard) {
-        if (guard == null || guard.getY() <= 0) {
+        if (guard == null || guard.getY() <= ship.level().getMinBuildHeight()) {
             return false;
         }
 
