@@ -4,6 +4,11 @@
 
 ## 当前指针
 
+当前NEXT：F round2 / D round3 最终收口。Forge源码和真实Curios5.14.1全量357/357已绿；
+push shared helper swept-box补充后，完成Neo merge及Curios9.6完整365项门禁，
+最后完成waypoint/aircraft/mount/fort/岛风VM截图与状态更新，按Forge→Neo顺序push后停止。
+Morph unlock-only gating不新增激活入口；OpenAL单条Stop和line-abreast实际振荡仍未归因。
+
 当前用户授权 NEXT：完成 VM A/B/C/D/E/F 回归队列。先收口 B inventory/book
 源码核对、D round2 aircraft block collision/pathing / mount right-click /
 line-abreast 调查；Waypoint harvest/B world-height 改动已在工作区。然后 Forge

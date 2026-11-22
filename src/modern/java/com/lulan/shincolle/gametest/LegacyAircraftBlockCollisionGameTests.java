@@ -34,10 +34,15 @@ public final class LegacyAircraftBlockCollisionGameTests {
         var host = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         var target = ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
         helper.assertTrue(host != null && target != null, "D3 host and target fixtures must exist");
+        host.setPos(origin.getX() - 4, origin.getY() - 4, origin.getZ() - 4);
+        target.setPos(origin.getX() - 4, origin.getY() - 4, origin.getZ() - 5);
+        helper.getLevel().addFreshEntity(host);
+        helper.getLevel().addFreshEntity(target);
         for (int egg : new int[] {23, 30, 31, 32, 22, 28, 35, 46}) {
             host.setVariantEggMeta(egg);
             var mount = LegacyShipMountEntity.create(helper.getLevel(), host);
             helper.assertTrue(mount != null, "all eight Hime variants must create their mount: " + egg);
+            helper.assertTrue(mount.getHostShip() == host, "mount collision fixture must resolve its real host profile");
             assertSolidsAndRoute(helper, origin, mount);
             mount.discard();
         }
@@ -63,17 +68,17 @@ public final class LegacyAircraftBlockCollisionGameTests {
         flyer.setPos(start);
         var navigation = new LegacyShipObstaclePath();
         Vec3 destination = start.add(0, 0, 12);
-        StringBuilder trace = new StringBuilder();
+        Vec3 lastOffset = Vec3.ZERO;
         for (int tick = 0; tick < 160 && flyer.getZ() < origin.getZ() + 5; tick++) {
             flyer.tickCount++;
             Vec3 offset = navigation.resolve(flyer, destination).subtract(flyer.position());
-            if (tick >= 144) trace.append(" ").append(flyer.position()).append(" -> ").append(offset);
+            lastOffset = offset;
             flyer.move(MoverType.SELF, offset.normalize().scale(Math.min(0.3D, offset.length())));
             helper.assertTrue(helper.getLevel().noCollision(flyer, flyer.getBoundingBox()),
                     "obstacle route must never enter glass: " + flyer.getType());
         }
         helper.assertTrue(flyer.getZ() >= origin.getZ() + 5,
-                "finite wall must have a usable solid-aware route: " + flyer.getType() + trace);
+                "finite wall must have a usable solid-aware route: " + flyer.getType() + " " + flyer.position() + " -> " + lastOffset);
         Vec3 open = new Vec3(origin.getX() + 15, origin.getY(), origin.getZ() - 2);
         flyer.setPos(open);
         flyer.horizontalCollision = false;
