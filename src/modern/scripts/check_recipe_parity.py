@@ -41,7 +41,10 @@ def ingredient(value):
             values = json.loads((DATA / "tags" / folder / (tag.split(":")[1] + ".json")).read_text())["values"]
             return ingredient([{"tag": v[1:]} if v.startswith("#") else {"item": v} for v in values])
         if tag.startswith(("forge:", "c:")):
-            tag = "common:" + tag.split(":", 1)[1]
+            path = tag.split(":", 1)[1]
+            path = {"flours": "flour", "foods/cooked_rice": "cooked_rice",
+                    "gunpowders": "gunpowder", "obsidians/normal": "obsidian"}.get(path, path)
+            tag = "common:" + path
         return "#" + tag
     return item(value)
 

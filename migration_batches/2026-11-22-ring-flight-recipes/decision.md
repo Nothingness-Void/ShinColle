@@ -62,3 +62,13 @@ Actual RecipeManager/assembly checks verify both restored recipes and quantities
 Forge final code gates: BUILD SUCCESSFUL in16s; 349 required tests passed.
 Logs: /home/ubuntu/shincolle-120-batch-def-{build,gametest}.log.
 NeoForge adaptation, final gates and waypoint visual evidence remain pending.
+
+NeoForge-specific follow-up: its universal JAR's c:obsidians contains BOTH
+obsidians/normal (minecraft:obsidian) and obsidians/crying (crying_obsidian), while
+Forge47's forge:obsidian contains only minecraft:obsidian. Eight recipes had been
+broadened during the initial API port: blockdesk, blockframe, blocksmallshipyard,
+shiptank1, blockvolblock/_alt and blockvolcore/_alt. Narrow to c:obsidians/normal
+on NeoForge only; Forge is already correct. Add a crying-obsidian desk rejection.
+API-only common-tag aliases are gunpowder/gunpowders, flour/flours and
+cooked_rice/foods/cooked_rice; the audit normalizes them, but deliberately does
+NOT equate the broad obsidians tag with legacy obsidian.
