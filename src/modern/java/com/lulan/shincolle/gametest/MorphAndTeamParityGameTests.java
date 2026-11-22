@@ -54,6 +54,47 @@ public final class MorphAndTeamParityGameTests {
     }
 
     @GameTest(template = "gameplayparitygametests.empty")
+    public static void pointerClientOwnershipUsesSyncedUuidWithoutNumericOwnerCache(GameTestHelper helper) throws Exception {
+        ServerPlayer player = player(helper);
+        var data = TeitokuHelper.get(player).resolve().orElseThrow();
+        data.clearCurrentTeam();
+        var owned = ship(helper, player);
+        owned.setVariantEggMeta(23);
+        helper.getLevel().addFreshEntity(owned);
+        owned.tickCount++;
+        owned.tick();
+        helper.assertTrue(data.addShipEntity(0, owned, false), "client snapshot requires a current-team ship");
+        var mount = LegacyShipMountEntity.create(helper.getLevel(), owned);
+        helper.assertTrue(mount != null, "client ownership requires a real mount host");
+        helper.getLevel().addFreshEntity(mount);
+        var ownerUid = LegacyShipEntity.class.getDeclaredField("ownerUid");
+        ownerUid.setAccessible(true);
+        int serverOwnerUid = owned.getOwnerUid();
+        try {
+            ownerUid.setInt(owned, 0);
+            helper.assertTrue(owned.getOwnerUid() == 0 && owned.isOwnedBy(player),
+                    "synced UUID must remain available without the server numeric owner cache");
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, owned)
+                            && PointerCommandEvents.consumesTargetClick(player, mount),
+                    "normal client owned ship and mount clicks must consume with numeric owner zero");
+            player.setShiftKeyDown(true);
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, owned)
+                            && PointerCommandEvents.consumesTargetClick(player, mount),
+                    "client teammate sneak clicks must consume instead of switching mode");
+            data.clearCurrentTeam();
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, owned),
+                    "own non-team sneak clicks must retain legacy fall-through");
+        } finally {
+            ownerUid.setInt(owned, serverOwnerUid);
+            player.setShiftKeyDown(false);
+            data.clearCurrentTeam();
+            mount.discard();
+            owned.discard();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void pointerTargetConsumptionRetainsLegacyModifierFallthrough(GameTestHelper helper) {
         ServerPlayer player = player(helper);
         var data = TeitokuHelper.get(player).resolve().orElseThrow();

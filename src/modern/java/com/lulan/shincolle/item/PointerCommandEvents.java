@@ -35,7 +35,7 @@ public final class PointerCommandEvents {
         } else {
             return target != null;
         }
-        if (ship == null || !PlayerSkillHostResolver.sameOwner(player, ship)) {
+        if (ship == null || !ship.isOwnedBy(player)) {
             return false;
         }
         int uid = ship.getShipUid();
