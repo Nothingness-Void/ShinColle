@@ -6,6 +6,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.sound.ShipSoundType;
 import com.lulan.shincolle.sound.ShinColleSoundHelper;
 import com.lulan.shincolle.teitoku.TeitokuData;
+import com.lulan.shincolle.teitoku.TeitokuEvents;
 import com.lulan.shincolle.teitoku.TeitokuHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
@@ -139,7 +140,7 @@ public class MarriageRingItem extends Item {
             return;
         }
 
-        boolean inLiquid = player.isInWaterOrBubble() || player.isInLava();
+        boolean inLiquid = TeitokuEvents.isInLegacyLiquid(player);
         if (inLiquid) {
             if (!player.getAbilities().flying && data.hasRing() && data.isRingActive()) {
                 player.getAbilities().flying = true;

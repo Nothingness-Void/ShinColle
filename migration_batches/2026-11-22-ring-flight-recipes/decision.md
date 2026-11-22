@@ -9,6 +9,10 @@ flight on liquid exit for noncreative players. onItemRightClick (74-77) and
 CapaTeitoku.setCapaDataMisc (1566-1571) clear flying and RingFly on disable.
 EventHandler's 16-tick inventory scan (696-700) clears flying on losing the ring,
 without touching allowFlying. None of these paths grants creative-style permission.
+EntityHelper.checkEntityIsInLiquid checks the block at floored X/Z and cast
+bounding-box minY, not cached vanilla fluid-contact flags. Reuse the already
+ported TeitokuEvents.isInLegacyLiquid helper for the identical wet/dry gate;
+new assertions cover both entry and exit before those vanilla flags refresh.
 
 Reachable regression: modern inventoryTick calls tickActiveRingEffects for active
 rings (the optional Curios tick calls it too); it unconditionally wrote mayfly=true
