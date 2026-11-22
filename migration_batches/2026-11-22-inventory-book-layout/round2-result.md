@@ -47,13 +47,28 @@ Logs /home/ubuntu/shincolle-kill-forge-final-{build,gametest}.log.
 D3 enlarged self-contained fixture was also backported with unchanged geometry
 and assertions; its Neo barrier explanation is in the Neo D3-resolution.md.
 
-Neo merge: source health fix merged mechanically; EntityStorage adapted to
-SimpleRegionStorage/RegionStorageInfo/DataFixTypes.ENTITY_CHUNK, Neo annotations.
-Initial full run failed the actual-kill precondition (before save/reload),
-without recording which case/HP. Instrumented messages and normal command
-feedback retained; no assertion weakened and no damage behavior changed.
-Next full run passed all368; first precondition failure is unexplained, not
-claimed fixed by logging. /home/ubuntu/shincolle-kill-neo-diag.log records five
-actual Killed messages and All368 required tests passed, BUILD SUCCESSFUL45s.
-Exact user B4-world causal match remains unverified; independent HP-load bug is
-reproduced on Forge baseline and fixed with damaged-live and corpse controls.
+## Additional verified Neo migration cause: amplified kill overflows into NaN
+
+Seed0 reproducer in actual `/kill` recorded53/0 hp=NaN tracked=true, not an
+unresolved UUID or dodge (/home/ubuntu/shincolle-kill-neo-seeded.log). The prior
+unseeded precondition failure was therefore not dismissed as a fixture problem.
+LegacyShipCombatHelper.applyDefenseReduction multiplies Float.MAX_VALUE by a
+random defense factor which can exceed1; damage becomes positive Infinity.
+NeoForge21.1.267 LivingEntity actuallyHurt patch unconditionally records ARMOR
+reduction as oldDamage - getDamageAfterArmorAbsorb(...), even on bypass-armor
+genericKill: Infinity-Infinity=NaN. DamageContainer.setReduction subtracts that
+NaN from newDamage; native HP becomes NaN. Subsequent old variant load healed it.
+Legacy/Forge direct-damage flow kills on Infinity rather than this new container
+subtraction. Native bundled source is vanilla; patch verified in cached
+neoforge21.1.267-userdev.jar and DamageContainer in its sources.jar.
+
+Minimum arithmetic adaptation on both branches: saturate amplified damage at
+Float.MAX_VALUE. Normal/zero damage retain bit-exact float math and same single
+random draw; extreme lethal damage stays lethal instead of producing invalid
+health. Seed0 is retained in every actual-kill case; new fourth GT checks finite
+overflow, ordinary exact16*factor and zero. No kill retries, direct HP0 cheat or
+assertion removals. Preexisting saved NaN repair is not added.
+
+Seeded final gates: Forge build20s, All361 required tests passed, GT1m9s;
+Neo build18s, All369 required tests passed, GT54s. Logs
+/home/ubuntu/shincolle-kill-finite-{forge,neo}-{build,gametest}.log.
