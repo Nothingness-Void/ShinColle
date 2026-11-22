@@ -27,6 +27,23 @@ public final class PointerCommandEvents {
     private PointerCommandEvents() {
     }
 
+    public static boolean consumesTargetClick(Player player, Entity target) {
+        LegacyShipEntity ship;
+        if (target instanceof LegacyShipEntity hitShip) {
+            ship = hitShip;
+        } else if (target instanceof LegacyShipMountEntity mount) {
+            ship = mount.getHostShip();
+        } else {
+            return target != null;
+        }
+        if (ship == null || !PlayerSkillHostResolver.sameOwner(player, ship)) {
+            return false;
+        }
+        int uid = ship.getShipUid();
+        return TeitokuHelper.get(player).map(data -> !player.isShiftKeyDown()
+                || (uid > 0 && findCurrentTeamSlot(data, uid) >= 0)).orElse(false);
+    }
+
     @SubscribeEvent
     public static void onAttackEntity(AttackEntityEvent event) {
         Player player = event.getEntity();

@@ -12,7 +12,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ModNetwork {
 
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     private ModNetwork() {
     }

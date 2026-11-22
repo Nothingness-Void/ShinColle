@@ -54,6 +54,53 @@ public final class MorphAndTeamParityGameTests {
     }
 
     @GameTest(template = "gameplayparitygametests.empty")
+    public static void pointerTargetConsumptionRetainsLegacyModifierFallthrough(GameTestHelper helper) {
+        ServerPlayer player = player(helper);
+        var data = TeitokuHelper.get(player).orElseThrow();
+        data.clearCurrentTeam();
+        var owned = ship(helper, player);
+        helper.getLevel().addFreshEntity(owned);
+        owned.tickCount++;
+        owned.tick();
+        var other = ship(helper, player);
+        other.setOwner(UUID.randomUUID(), "Foreign", 98402);
+        helper.getLevel().addFreshEntity(other);
+        owned.setVariantEggMeta(23);
+        var mount = LegacyShipMountEntity.create(helper.getLevel(), owned);
+        helper.assertTrue(mount != null, "Airfield mount target must exist");
+        helper.getLevel().addFreshEntity(mount);
+        try {
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, owned), "normal owned hit always consumes");
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, mount), "normal owned mount hit consumes");
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, other), "foreign ship must fall through");
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, null), "empty ray must fall through");
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, player), "non-ship targets retain SetTarClass consumption");
+            player.setShiftKeyDown(true);
+            player.setSprinting(true);
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, owned)
+                            && !PointerCommandEvents.consumesTargetClick(player, mount),
+                    "sneak+sprint on an own ship outside the team must reach clear-team logic");
+            data.addShipEntity(0, owned, false);
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, owned)
+                            && PointerCommandEvents.consumesTargetClick(player, mount),
+                    "sneak on a current-team ship or its mount consumes before clear-team logic");
+            player.setSprinting(false);
+            data.clearCurrentTeam();
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, owned),
+                    "sneak on own non-team ship must reach mode-switch logic");
+            helper.assertTrue(!PointerCommandEvents.consumesTargetClick(player, other), "sneaking foreign hits still fall through");
+            helper.assertTrue(PointerCommandEvents.consumesTargetClick(player, player), "sneak non-ship still consumes for SetTarClass");
+        } finally {
+            player.setShiftKeyDown(false);
+            player.setSprinting(false);
+            mount.discard();
+            owned.discard();
+            other.discard();
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void pointerLongRaySelectsOwnedTransportAndDispatchesToCrane(GameTestHelper helper) {
         ServerPlayer player = player(helper);
         LegacyShipEntity transport = ship(helper, player);

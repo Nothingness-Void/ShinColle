@@ -5,6 +5,7 @@ import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 import com.lulan.shincolle.item.PointerItem;
+import com.lulan.shincolle.item.PointerCommandEvents;
 import com.lulan.shincolle.network.GameplayCommandHandler;
 import com.lulan.shincolle.network.GameplayCommandType;
 import com.lulan.shincolle.network.ModNetwork;
@@ -17,6 +18,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -106,6 +108,16 @@ public final class PointerClientEvents {
         }
     }
 
+    @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        if (event.getEntity() instanceof LocalPlayer player
+                && player.getMainHandItem().getItem() instanceof PointerItem
+                && !PointerItem.isCaressMode(PointerItem.getMode(player.getMainHandItem()))
+                && !PointerCommandEvents.consumesTargetClick(player, event.getTarget())) {
+            handlePointerLeftClick(player);
+        }
+    }
+
     @SubscribeEvent(receiveCanceled = true)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
         if (!(event.getEntity() instanceof LocalPlayer player)) {
@@ -129,7 +141,7 @@ public final class PointerClientEvents {
         int mode = PointerItem.getMode(pointer);
         if (!PointerItem.isCaressMode(mode)) {
             EntityHitResult hit = PointerItem.pickCommandTarget(player);
-            if (hit != null) {
+            if (hit != null && PointerCommandEvents.consumesTargetClick(player, hit.getEntity())) {
                 sendCommand(GameplayCommandType.POINTER_LEFT_CLICK, payload ->
                         payload.putInt(GameplayCommandHandler.TAG_TARGET_ID, hit.getEntity().getId()));
                 return;
