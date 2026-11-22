@@ -109,7 +109,7 @@ public final class TeitokuEvents {
 
     public static boolean isInLegacyLiquid(Entity entity) {
         BlockPos pos = new BlockPos((int) Math.floor(entity.getX()),
-                (int) entity.getBoundingBox().minY, (int) Math.floor(entity.getZ()));
+                (int) Math.floor(entity.getBoundingBox().minY), (int) Math.floor(entity.getZ()));
         return entity.level().getBlockState(pos).liquid()
                 || entity.level().getBlockState(pos).getBlock() instanceof LiquidBlock;
     }

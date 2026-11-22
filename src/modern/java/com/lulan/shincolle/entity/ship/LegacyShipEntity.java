@@ -4786,7 +4786,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 break;
             }
 
-            this.legacyLiquidDepth = depth - (this.getY() - (int) this.getY());
+            this.legacyLiquidDepth = depth - (this.getY() - Mth.floor(this.getY()));
             updateCanFloat = foundSurface;
         }
 

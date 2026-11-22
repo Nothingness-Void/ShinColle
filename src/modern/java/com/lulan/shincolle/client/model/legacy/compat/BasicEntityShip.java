@@ -3,6 +3,7 @@ package com.lulan.shincolle.client.model.legacy.compat;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
 public class BasicEntityShip extends EntityLivingBase implements IShipEmotion, IShipFloating, IShipRiderType {
@@ -61,7 +62,7 @@ public class BasicEntityShip extends EntityLivingBase implements IShipEmotion, I
                 if (mount.level().getFluidState(new BlockPos(origin.getX(), y, origin.getZ())).isEmpty()) break;
                 depth++;
             }
-            return depth - (mount.getY() - (int)mount.getY());
+            return depth - (mount.getY() - Mth.floor(mount.getY()));
         }
         return getShipDepth();
     }

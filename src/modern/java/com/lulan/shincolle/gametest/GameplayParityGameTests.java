@@ -18031,7 +18031,7 @@ public final class GameplayParityGameTests {
         Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(22, upward ? 162 : 150, 8)));
         NavigationTestShip ship = new NavigationTestShip(helper, start);
         ShipPath path = ship.getShipNavigate().getPathToXYZ(target.x, target.y, target.z);
-        if (path == null || path.getFinalPathPoint().yCoord != (int) target.y) {
+        if (path == null || path.getFinalPathPoint().yCoord != (int) Math.floor(target.y)) {
             helper.fail("water navigator must find the requested vertical destination, not a ground approximation");
             return;
         }

@@ -31,11 +31,11 @@ public interface ShipNavigationHost {
 
     static boolean isInLiquid(Mob entity) {
         return isLiquid(entity.level().getBlockState(BlockPos.containing(
-                entity.getX(), (int) entity.getBoundingBox().minY, entity.getZ())));
+                entity.getX(), entity.getBoundingBox().minY, entity.getZ())));
     }
 
     static boolean isFree(Mob entity) {
-        BlockPos pos = BlockPos.containing(entity.getX(), (int) (entity.getBoundingBox().minY + 0.5D), entity.getZ());
+        BlockPos pos = BlockPos.containing(entity.getX(), entity.getBoundingBox().minY + 0.5D, entity.getZ());
         BlockState state = entity.level().getBlockState(pos);
         return state.isAir() || isLiquid(state) || state.is(ModBlocks.BLOCK_WAYPOINT.get())
                 || state.isPathfindable( PathComputationType.LAND);

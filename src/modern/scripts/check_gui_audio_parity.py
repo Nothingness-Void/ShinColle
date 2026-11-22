@@ -34,8 +34,9 @@ for before, after in {
     ".posX": ".getX()", ".posY": ".getY()", ".posZ": ".getZ()",
 }.items():
     old = old.replace(before, after)
+old = old.replace("(int)(s.ship.getY())", "Mth.floor(s.ship.getY())")
 assert normalized(old) == normalized(new), "radar text must retain the original unbounded drawing"
-print("Desk radar text: exact legacy body after API aliases; no truncation/scaling added")
+print("Desk radar text: legacy body after API aliases and negative-Y floor adaptation; no name truncation/scaling added")
 
 labels = method((modern / "client/screen/LargeShipyardScreen.java").read_text(), "protected void renderLabels(")
 for forbidden in ("structure_", "core_", "this.title", "isStructureComplete", "isCoreLinked"):
