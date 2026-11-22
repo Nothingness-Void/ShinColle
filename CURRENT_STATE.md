@@ -14,7 +14,9 @@
 
 ## 最近证据与权威入口
 
-- 最新渲染修复后的 JDK 21 `compileJava` 成功，全量 `runGameTestServer` **351/351 通过、0 失败**；资源检查为 0 个大小写路径冲突。舰娘站立/坐下与 hitbox、办公桌/起重机/小船坞/航点/火山核心的针对性截图与根因见 [客户端修复](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。本轮未重跑完整 `build`，以下 PR #11 的 348 项结果是历史证据。
+- 最新 Destroyer Hime 反馈：确认 egg 29 的无腿模型为旧版有意悬浮姿态，未擅自添加落地偏移。已完成 45 个模型源码比对、64 变体/768 姿态 CPU 顶点测量与同 Y 的开腿/隐藏腿客户端对照；`compileJava` 成功、全量 **352/352** GameTest 通过。实际强制落地需求与旧版视觉 parity 冲突，待明确取舍；证据与范围见 [审计决定](migration_batches/neoforge-1.21.1/decision.md)。
+
+- 此前渲染修复后的 JDK 21 `compileJava` 成功，全量 `runGameTestServer` **351/351 通过、0 失败**；资源检查为 0 个大小写路径冲突。舰娘站立/坐下与 hitbox、办公桌/起重机/小船坞/航点/火山核心的针对性截图与根因见 [客户端修复](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。本轮未重跑完整 `build`，以下 PR #11 的 348 项结果是历史证据。
 
 - PR #11 最后生产/测试代码修改后：JDK 21 的 `compileJava` 与完整 `runGameTestServer` 通过，`All 348 required tests passed :)`（原 340 项与 8 项兼容/诊断测试；0 失败）。本轮未重跑 `build`；初次移植的构建结果保留在批次记录。准确输出、范围与日志校验和见 [复核证据](migration_batches/neoforge-1.21.1/status.md#pr-11-review-follow-up)。1.20.1 的 340 项结果保留在 [历史集成证据](migration_batches/2026-11-22-parity-fix-teitoku-morph-skill/results/integration-merge.md)，不替代本轮结果。
 - 重复实现的归并约束与编号变更只见 [D-018 集成决定](MIGRATION-DECISIONS.md#九批集成的重复实现归并)：菜单网络 D-015、客户端 D-016、crafting D-017、Teitoku D-018，不覆盖 D-012～D-014。

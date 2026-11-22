@@ -2,6 +2,13 @@
 
 本文件定义测试触发条件、覆盖范围和批末策略，并提供批次结果摘要；精确执行证据写入批次 `results/`。
 
+## Destroyer Hime hover audit
+
+- JDK 21：`./gradlew --no-daemon compileJava`，`./gradlew --no-daemon runGameTestServer`。
+- 编译/客户端依赖准备后：`python3 src/modern/scripts/check_ship_pose_parity.py --csv migration_batches/neoforge-1.21.1/ship-pose-audit.csv`。
+- 通过条件：全注册模型源码与旧版一致（仅三项明确 API 别名）；外层姿态调用保留；64 变体/768 采样姿态均产生有限顶点；Destroyer Hime 的无腿悬浮和开腿落地均保留旧版行为。源码/CPU 审计不替代实际 draw path，须同 Y 比较 state 0/16 的站立、坐下客户端截图。
+- [范围、352 项结果、CSV 与截图证据](migration_batches/neoforge-1.21.1/decision.md)。强制无腿落地尚未获准偏离旧版，不作为已修复项目。
+
 ## 2026-11-22 方块与物品纠偏覆盖及结果
 
 - 批次：[方块与物品旧版行为纠偏](migration_batches/2026-11-22-parity-fix-items-blocks/)；命令与原始输出摘录见 [执行证据](migration_batches/2026-11-22-parity-fix-items-blocks/results/)。

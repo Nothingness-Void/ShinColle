@@ -387,3 +387,15 @@ This is not a claim that every previously saved chunk auto-relights. Full
 old-world upgrade, Windows-native checkout/build, complete large-shipyard
 multiblock visuals, all model/animation/rider combinations, and broad client
 parity remain unverified. No new mechanics or model-local gameplay values.
+
+## Destroyer Hime residual hover report
+
+The reported girl is egg 29 / legacy class 27, not the FR models 31/33 used
+in the earlier check. The apparent feet are her skirt; legacy state 0 hides
+the legs and deliberately hovers in the fueled standing pose. No production
+grounding override was made because it would change 1.12.2 visual behavior.
+See [decision, full model audit and evidence](decision.md): all 45 model bodies
+match reference, 64 variants/768 CPU pose cases measured, compileJava and full
+**352/352** GameTests passed, and the client shows state 16's legs grounded
+beside state 0's original hovering silhouette. Forcing the no-leg variant to
+ground remains a parity decision requiring explicit approval, not a claimed fix.

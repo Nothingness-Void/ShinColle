@@ -27,6 +27,27 @@ public final class LegacyShipModelMappingGameTests {
     private LegacyShipModelMappingGameTests() {}
 
     @GameTest(template = "gameplayparitygametests.empty")
+    public static void destroyerHimeRetainsLegacyLegVisibilitySwitch(GameTestHelper helper) {
+        var ship = com.lulan.shincolle.registry.ModEntityTypes.LEGACY_SHIP.get().create(helper.getLevel());
+        ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(29), null);
+        helper.assertTrue(LegacyShipModelKind.forSpec(ship.getSpec()) == LegacyShipModelKind.ModelDestroyerHime
+                        && ship.getModelState() == 0 && ship.getLegacyModelEmotion(0) == 0,
+                "Destroyer Hime must retain the legacy default model state, with leg bit 4 disabled");
+        ship.setGrudge(1000);
+        helper.assertTrue(!ship.hasNoFuel(), "the fueled ship must reach the normal model pose");
+        for (int state : new int[] {0, 16}) {
+            ship.setModelState(state);
+            for (boolean sitting : new boolean[] {false, true}) {
+                ship.setOrderedToSit(sitting);
+                helper.assertTrue(ship.getLegacyModelEmotion(0) == state && ship.isOrderedToSit() == sitting,
+                        "standing/sitting must not silently rewrite the legacy leg-visibility bit");
+            }
+        }
+        ship.discard();
+        helper.succeed();
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty")
     public static void hudPositionUsesLegacyConfig(GameTestHelper helper) {
         try {
             double[] defaults = {0.5D, 0.6D};

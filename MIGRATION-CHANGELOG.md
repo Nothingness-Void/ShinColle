@@ -2,6 +2,8 @@
 
 ## Minecraft 1.21.1 / NeoForge 21.1.267
 
+Destroyer Hime 后续反馈：新增全模型源码/CPU 顶点审计与 Leg 开关回归，确认 egg 29 默认无腿悬浮是旧版姿态而非遗漏的 renderer 分支；未改变旧版视觉。352 项验证及未决落地取舍见 [审计决定](migration_batches/neoforge-1.21.1/decision.md)。
+
 客户端反馈跟进：恢复舰娘旧版 `setRotationAngles` 外层姿态调用、办公桌/小船坞 TESR 物品路径与世界朝向/透光、起重机/航点的 3D 物品变换；删除 16 个现代资源大小写冲突路径。根因、351 项服务端测试与针对性截图见 [客户端修复记录](migration_batches/neoforge-1.21.1/status.md#client-rendering-follow-up-ship-placement)。
 
 固定 1.20.1 parity 基线上的版本升级，分支 `devin/mc-1.21.1-neoforge`。构建、数据兼容、获批的护甲前 Mixin 钩子、GameTest 夹具 API 适配、最终验收与未验范围均见 [批次结果](migration_batches/neoforge-1.21.1/status.md)；当前快照见 [CURRENT_STATE.md](CURRENT_STATE.md)，后续仅见 [ROADMAP.md](ROADMAP.md)。下方九批记录保留为 1.20.1 历史，不代表新增功能已在本轮补完。

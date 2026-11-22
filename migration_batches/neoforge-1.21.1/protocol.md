@@ -9,6 +9,14 @@
 
 ## Authorized client rendering follow-up
 
+### Residual Destroyer Hime placement audit
+
+Identify the FR egg 29 model/state path from the reported screenshot; compare all registered model classes, variants, standing and sitting against legacy defaults and transforms. Entry points: `ModelDestroyerHime`, `ShipModelBaseAdv`, legacy `EntityDestroyerHime`, model-state catalogs and compatibility entity/emotion bridge. Programmatically measure rendered geometry relative to entity origin where feasible; preserve intentional legacy poses instead of globally snapping feet. Verify any correction with compileJava, full GameTests and the specific client scene. No block/item changes or legacy source edits.
+
+Outcome: [decision and audit](decision.md). Legacy no-leg hovering reproduced;
+forcing that variant to ground is held for a parity decision. No production
+offset/default change is included in this audit-only follow-up.
+
 - Restore ship model placement from `RenderLivingBase`/`RenderBasic` and the legacy ship models; compare the fixed 1.20.1 wrapper and NeoForge 21.1.267 `LivingEntityRenderer`. Keep dimension, eye-height and rider-position numbers unchanged.
 - Restore crown/crane and desk rendering, and audit waypoint, both shipyards and volcano core against their legacy block JSON, TESRs and `RenderTileEntityItem`. Remove case-colliding modern texture files without changing the lowercase runtime assets.
 - Modern entry points: `LegacyShipPoseModel`, the three block entity renderers, `ModBlocks`, item renderer registration and the corresponding block/item model JSON. `src/main/**` remains read-only.
