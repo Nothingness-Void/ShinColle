@@ -101,8 +101,16 @@ public final class LegacyItemMatchHelper {
 
     private static boolean isLegacyMatchingTag(TagKey<Item> tag) {
         ResourceLocation id = tag.location();
+        if ((id.getNamespace().equals("c") || id.getNamespace().equals("forge"))
+                && switch (id.getPath()) {
+                    case "buckets", "ingots", "nuggets", "ores", "dusts", "gems", "storage_blocks" -> true;
+                    default -> false;
+                }) {
+            return false;
+        }
         if (id.getNamespace().equals("minecraft") && (id.getPath().startsWith("enchantable/")
-                || id.getPath().equals("meat") || id.getPath().equals("wolf_food"))) {
+                || id.getPath().equals("meat") || id.getPath().equals("wolf_food")
+                || id.getPath().equals("beacon_payment_items") || id.getPath().equals("trim_materials"))) {
             return false;
         }
         // Broad 1.21 classifications are not legacy OreDictionary names.

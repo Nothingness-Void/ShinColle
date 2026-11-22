@@ -1,5 +1,11 @@
 # Migration Test Matrix
 
+## Merged PR11 review follow-ups
+
+- `LegacyItemMatchGameTests`: both common tag namespaces; water/lava rejection through actual crane load/unload filters, identical items, material-specific ingots, generic-material rejection, ore-off and empty cases. Temporary holder tags restored in finally; no production fixture resources.
+- `LegacyDropMarkerPersistenceGameTests`: real ForgeData entity load/native save/reload, Desk radar payload and actual shipcleardrop, ordinary-item exclusion, missing/malformed/false marker cases. Neo additionally checks native-value precedence and unrelated-data isolation; Forge uses native load with no production migration.
+- Full requested default `build runGameTestServer`, JDK17/21; [exact evidence and limits](migration_batches/2026-11-22-review-followups/result.md). No source/resource/version input changed after the final passing gates.
+
 ## PR11 client ownership review
 
 - `MorphAndTeamParityGameTests.pointerClientOwnershipUsesSyncedUuidWithoutNumericOwnerCache`: numeric owner cache 0 with synchronized owner UUID and ship UID retained; normal owned ship/mount and teammate sneak consumption, non-team fall-through. Restore numeric field before server cleanup. Existing foreign/null/non-ship/sneak+sprint/long-ray dispatch cases remain required.
