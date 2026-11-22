@@ -1,17 +1,16 @@
 # 当前状态
 
 本文件只保存当前快照；唯一下一步见[ROADMAP](ROADMAP.md)。
-权威恢复入口：[宽墙/recovery/PR11/crane结果](migration_batches/2026-11-22-riding-aircraft-formation/broad-wall-recovery-result.md)。
+权威恢复入口：[section readiness 与实际 profile 结果](migration_batches/2026-11-22-riding-aircraft-formation/section-readiness-profile-result.md)。
 
-- Forge工作区：/home/ubuntu/repos/ShinColle-1.20-render-backport，分支devin/parity-fix-integration。源码9a34c55，本地ONLY，push hold继续。
-- Neo工作区：/home/ubuntu/repos/ShinColle，分支devin/mc-1.21.1-neoforge。源码837edb5，本地ONLY；remote仍77bd8ba。未push，普通merge，无force。
-- 当前改动：PR11A协议5145edf、Bfall-through6c5214c；recovery旧>200tick去重复470f762；crane空罐等待9a34c55。Neo已merge/API适配。
-- 门禁：Forge build+full368/368绿；Neo build阶段完成，但full376中1个新recovery加载可见性GT失败。**Neo不绿、不可push**。新断言未削弱，未移场。
-- 阻塞：Neo捕获到正确UUID/UID且removed=false的Nether原体，但强制区块/succeedWhen160tick后getEntity(id)仍null；尚未到去重断言。需诊断实体section visibility/added-to-level/FULL状态，不继续猜加delay。
-- 宽墙：精确卡点参数8组合均450节点后null，legacy3step/无飞行也如此；完整旧runtime未验证。新NF07/08/02/01仍open，NF08与通过的NF10同bbox；对照探针表见权威结果。独立LEV需完整living类型API范围决策，不偷偷代理host效果。
-- 新batchE crane：历史0aad501支持null-fluid wildcard，与当前src/main后期helper不同；双端源码已按历史修复并加GT。
-- batchF确认音频仅冻结1000饱和、1001停止，legacy一致，跳过后续音频任务；F1水飞live通过。RingFly明确保持legacy。Shimakaze+0.14/残余穿模不改。
-- src/main/**只读且本轮未变；PR10 CI未接管；旧mayfly迁移不动；Pointer/crane交互未做新视觉核验。
-- 私有client236617冻结；其他窗口56623113未动。日志、完整checks/SHAs、证据与旧队列入口均见权威结果与[批次STATUS](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)。
+- Forge：/home/ubuntu/repos/ShinColle-1.20-render-backport，devin/parity-fix-integration；源码检查点 a8af4d6，仍本地 ONLY，push hold 继续。
+- Neo：/home/ubuntu/repos/ShinColle，devin/mc-1.21.1-neoforge；源码 merge 检查点 163c20a。包含 PR11A 5145edf、B 6c5214c、recovery 470f762、crane 9a34c55；允许全绿后普通 push，最终同步 SHA 见交接报告。
+- 双端 build + full GameTest 已全绿：Forge 369，Neo 377。合并后 Neo src/modern 与已测试的 51a0beb 完全相同；后续仅文档。
+- recovery 已解除门禁阻塞：已注册但 hidden 的 destination section 在夹具中明确提升 ENTITY_TICKING；全部原有去重断言保留。真正玩家加载 Nether 的私有客户端对照自然可见且 ticking；详情只看权威结果。
+- 新实际五 profile trace 找到并修复高墙顶 waypoint 缺少 legacy +0.1 的渐近卡点；保留全 bbox 固体安全检查。完整旧 VM 场景的 NF10 通过/其余失败分组仍待新包复测；不把控制场景当作原世界逐项验收。
+- LEVITATION 明确保留缺口：不移植 LivingEntity，不代理 host 效果，不改 450 节点预算。旧精确 snapshot 的 bounded-search null 与本次非空路径墙顶卡点区分。
+- RingFly 保持 legacy；音频已由 batch F 关闭；F1 水飞通过；Shimakaze +0.14 与残余模型穿模不变。
+- src/main/** 只读且未改；Forge 禁 push、禁止 force、PR10 CI 未接管、旧 mayfly 迁移不动。Pointer/crane 无新视觉复测；本轮轨迹是原生实体数值验证，不是渲染截图验收。
+- 私有 client 236617 已回原位置并冻结；其他窗口 56623113 未动。旧队列保持[批次 STATUS](migration_batches/2026-11-22-riding-aircraft-formation/STATUS.md)，不自行扩项。
 
-总体迁移矩阵：[舰种](MIGRATION-SHIP-MATRIX.md) / [测试](MIGRATION-TEST-MATRIX.md)；历史入口：[变更索引](MIGRATION-CHANGELOG.md)。
+总体矩阵：[舰种](MIGRATION-SHIP-MATRIX.md) / [测试](MIGRATION-TEST-MATRIX.md)；历史入口：[变更索引](MIGRATION-CHANGELOG.md)。
