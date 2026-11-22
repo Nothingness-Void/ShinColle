@@ -4,6 +4,8 @@
 
 ## 当前指针
 
+最新NEXT08:00：源代码和两版门禁已绿，按[最终队列证据](migration_batches/2026-11-22-riding-aircraft-formation/queue-final-result.md)恢复有效客户端召唤夹具，再拍aircraft/fort/mount玻璃墙和核验Shimakaze normal/bored。当前NBT夹具多次失效已停止尝试，不得把诊断图标为通过。Forge继续禁止push，Neo允许普通merge/push。单横原session停滞仍未复现，不新增猜测修复。
+
 最新NEXT07:44：line动态trace和OpenAL审计已完成；Forge只本地commit不可push（新指令），Neo可merge/push。剩余指定客户端aircraft/fort/mount玻璃、玩家骑乘、Shimakaze矿车normal/bored截图，然后同步最终证据/报告。原始line停滞原因仍未复现，不再调参。
 
 最新NEXT07:30：B2双端新门禁361/369绿、seed0防溢出已验证；提交push/完成Neo merge后进行line-abreast-protocol.md，再OpenAL审计、VM六图、最终同步报告。旧预检失败已由seed0确定NaN链，不再是未解UUID猜测。

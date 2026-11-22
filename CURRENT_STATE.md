@@ -1,5 +1,7 @@
 # 当前状态
 
+> 最新08:00：[queue-final-result](migration_batches/2026-11-22-riding-aircraft-formation/queue-final-result.md)为当前证据入口。源代码门禁Forge362/362、Neo370/370绿；Neo4302073已push，Forge44bfc38仅本地（严格保持push暂停）。真实右键骑Airfield挂载成功；三种玻璃墙图仍缺，Shimakaze两张仅诊断图且仍见靴外露，不算视觉通过。原live单横停滞未复现。唯一NEXT为有效客户端factory夹具和剩余视觉，不再猜测改移动/偏移；PR10 CI未接管。
+
 > 最新07:44：line-abreast动态六slot×384tick已完成，逐tick独立旧公式/4与7平方距离/continue条件/path端点记录通过，均进入旧arrival范围；原用户4.6–5.9停滞未复现，不做猜测修改。手动driver修复原生ServerLevel负责tickCount++的夹具时钟遗漏。Forge最终build19s、362/362 GT93s绿。OpenAL显式stop/custom sound audit无mod入口，vanilla/unattributed。下一步本地commit（Forge推送已被lead暂停）→Neo merge/API/gate/push→VM指定六图。详细line/openal-result在riding-aircraft-formation批次。
 
 > 最新07:30：B2第二根因已证实：/kill的MAX伤害随机放大成Infinity→Neo DamageContainer Armor的Infinity-Infinity→HP NaN（seed0原始失败日志有tracked=true/hpNaN）。公共伤害放大结果限有限MAX；普通数值/随机序列不变。加上先前保存HP恢复，Forge build20s、361/361 GT69s；Neo build18s、369/369 GT54s绿（最终seed0）。证据inventory-book-layout/round2-result.md。提交同步后唯一NEXT=line-abreast动态跟随trace，之后OpenAL→VM指定截图。旧mayfly不动。

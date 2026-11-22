@@ -1,4 +1,12 @@
-# Queue checkpoint06:53 — Neo gate blocked
+# Queue checkpoint08:00 — gates green, VM partial
+
+Current recovery entry: [queue-final-result.md](queue-final-result.md).
+Forge push hold remains in effect. No current source/build/GameTest blocker.
+Remaining: three wall scenes and acceptable Shimakaze normal/bored visual checks;
+original live line-abreast stall not reproduced. Actual player right-click mount
+verified. Private QA client remains open/frozen; do not close window56623113.
+
+## Historical06:53 checkpoint (superseded, preserved investigation trail)
 
 > Superseded07:09: see D3-resolution.md;365/365 now pass after correcting the
 > too-small enclosed fixture, without relocating or weakening the original test.
