@@ -706,7 +706,25 @@ public final class TeitokuHelper {
             return;
         }
 
-        ShipCacheSavedData.get(serverLevel).updateFromShip(ship, dead, online);
+        ShipCacheSavedData cache = ShipCacheSavedData.get(serverLevel);
+        if (!dead && ship.tickCount > 200 && serverLevel.getEntity(ship.getId()) == ship) {
+            ShipWorldCacheEntry entry = cache.getShip(ship.getShipUid());
+            ResourceLocation dimension = entry == null ? null : ResourceLocation.tryParse(entry.dimensionId());
+            ServerLevel cachedLevel = dimension == null ? null : serverLevel.getServer().getLevel(
+                    ResourceKey.create(Registries.DIMENSION, dimension));
+            Entity candidate = cachedLevel == null ? null : cachedLevel.getEntity(entry.entityId());
+            if (candidate instanceof LegacyShipEntity other && other != ship
+                    && other.getShipUid() == ship.getShipUid() && other.tickCount > 200
+                    && other.isAlive() && ship.isAlive()) {
+                if (other.tickCount > ship.tickCount) {
+                    other.discard();
+                } else {
+                    ship.discard();
+                    ship = other;
+                }
+            }
+        }
+        cache.updateFromShip(ship, dead, online);
     }
 
     public static void renameOwnTeam(ServerPlayer player, String teamName) {
