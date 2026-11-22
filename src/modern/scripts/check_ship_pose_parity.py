@@ -52,7 +52,7 @@ def main():
         legacy = ROOT / f"src/main/java/com/lulan/shincolle/client/model/{kind}.java"
         body = model_body(modern.read_text())
         if kind == "ModelDestroyerHime":
-            override = "DestroyerHimePosePolicy.showLegs(state,((Entity)ent).isInWater())"
+            override = "DestroyerHimePosePolicy.showLegs(state,ent.getShipDepth(0))"
             assert body.count(override) == 2, "Both Hime visibility and pose must use the approved policy"
             body = body.replace(override, "EmotionHelper.checkModelState(4,state)")
         assert body == model_body(legacy.read_text()), kind

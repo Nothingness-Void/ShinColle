@@ -588,7 +588,7 @@ public class ModelDestroyerHime extends ShipModelBaseAdv
 		flag = !EmotionHelper.checkModelState(3, state);	//belt
 		this.BeltBase.isHidden = flag;
 
-		flag = !DestroyerHimePosePolicy.showLegs(state, ((Entity)ent).isInWater());	//leg
+		flag = !DestroyerHimePosePolicy.showLegs(state, ent.getShipDepth(0));	//leg
 		this.LegLeft01.isHidden = flag;
 		this.LegRight01.isHidden = flag;
 
@@ -700,7 +700,7 @@ public class ModelDestroyerHime extends ShipModelBaseAdv
   		float t2 = ent.getTickExisted() & 511;
 		int state = ent.getStateEmotion(ID.S.State);
 		boolean showCannon = EmotionHelper.checkModelState(0, state);
-		boolean showLeg = DestroyerHimePosePolicy.showLegs(state, ((Entity)ent).isInWater());
+		boolean showLeg = DestroyerHimePosePolicy.showLegs(state, ent.getShipDepth(0));
 
   		//水上漂浮
   		if (!ent.getIsSitting() && !showLeg)

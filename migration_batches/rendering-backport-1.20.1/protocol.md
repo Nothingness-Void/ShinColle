@@ -19,7 +19,8 @@ mechanical resolutions, stop on substantive conflicts. JDK21 build and complete
 GameTests, then push NeoForge. No force-push; no PR edits or unrelated work.
 
 Approved addition: Destroyer Hime only shows legs on dry land even with bit 4
-clear; water retains the legacy leg toggle. Use the live engine isInWater flag
-through the compatibility entity. Share a pure render policy with regression
+clear; water retains the legacy leg toggle. Use existing model ship depth
+(positive means legacy liquid), including the thin floating surface strip.
+Share a pure render policy with regression
 tests; never mutate stored model state. Document this visual deviation and
 capture NeoForge land/water plus ship/block/item overview screenshots.

@@ -31,7 +31,6 @@ public class Entity {
     }
     public Entity getRidingEntity() { return modern == null ? null : wrap(modern.getVehicle()); }
     public boolean isRiding() { return modern != null && modern.isPassenger(); }
-    public boolean isInWater() { return modern != null && modern.isInWater(); }
     public boolean isSneaking() { return modern != null && modern.isShiftKeyDown(); }
     public boolean isSprinting() { return modern != null && modern.isSprinting(); }
     public int getBrightnessForRender() { return LevelRenderer.getLightColor(modern.level(), modern.blockPosition()); }

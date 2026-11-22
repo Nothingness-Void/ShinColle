@@ -27,10 +27,14 @@ The saved model state, geometry, offsets and gameplay numbers are unchanged.
 ## Approved Destroyer Hime visual deviation
 
 Only ModelDestroyerHime replaces its two bit-4 checks (visibility and normal
-pose) with DestroyerHimePosePolicy.showLegs(state, inWater). The signal is the
-live vanilla Entity.isInWater() flag exposed through the compatibility entity,
-not a new gameplay flag, cached depth approximation or persisted bit rewrite.
-Effective legs = explicit bit 4 OR not in water. Other state bits do not enable
+pose) with DestroyerHimePosePolicy.showLegs(state, ent.getShipDepth(0)). Positive
+depth uses the model's existing legacy liquid classification (the same signal
+as its water-floating branch), not a new gameplay flag or persisted bit rewrite.
+The live NeoForge check disproved vanilla isInWater as a sufficient signal:
+the surface-floating entity at Y=99.9 showed legs despite standing over a
+water source at Y=99; vanilla's fluid-height test excludes that surface strip,
+whereas legacy depth is still positive. Both versions therefore use depth.
+Effective legs = explicit bit 4 OR depth <= 0. Other state bits do not enable
 legs in water. Existing sitting, no-fuel and swimming animation branches remain.
 The user's explicit leg enable therefore wins in both environments, while the
 default legs-hidden state retains its hovering pose only in water. This is an
