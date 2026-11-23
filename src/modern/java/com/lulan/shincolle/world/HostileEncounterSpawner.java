@@ -82,7 +82,7 @@ public final class HostileEncounterSpawner {
             groupsRemaining--;
             int shipNum = mobShipsPerGroup(mobSpawn, level.getRandom());
             for (int i = 0; i < shipNum; i++) {
-                spawnEncounterAt(level, anchor, player, HostileEncounterTable.commonProfile(level.getRandom()));
+                spawnEncounterAt(level, anchor, player, HostileEncounterTable.commonProfile(level.getRandom()), true);
             }
         }
     }
@@ -145,20 +145,26 @@ public final class HostileEncounterSpawner {
                                                               BlockPos anchor,
                                                               @Nullable ServerPlayer targetPlayer,
                                                               HostileSpawnProfile profile) {
+        return spawnEncounterAt(level, anchor, targetPlayer, profile, false);
+    }
+
+    public static @Nullable LegacyShipEntity spawnEncounterAt(ServerLevel level,
+                                                              BlockPos anchor,
+                                                              @Nullable ServerPlayer targetPlayer,
+                                                              HostileSpawnProfile profile,
+                                                              boolean commonGroup) {
         RandomSource random = level.getRandom();
         ShipEntitySpec spec = com.lulan.shincolle.entity.ship.ShipEntitySpecs.getByEggMeta(profile.eggMeta());
 
-        BlockPos spawnPos = anchor.offset(random.nextInt(3), 0, random.nextInt(3));
+        double x = anchor.getX() + (commonGroup ? random.nextDouble() : random.nextInt(3));
+        double z = anchor.getZ() + (commonGroup ? random.nextDouble() : random.nextInt(3));
+        BlockPos spawnPos = BlockPos.containing(x, anchor.getY(), z);
         LegacyShipEntity ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), level);
-        ship.moveTo(spawnPos.getX() + 0.5D, spawnPos.getY() + 0.5D, spawnPos.getZ() + 0.5D, random.nextFloat() * 360.0F, 0.0F);
+        ship.moveTo(x, anchor.getY() + 0.5D, z, random.nextFloat() * 360.0F, 0.0F);
         ship.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null, null);
         ship.applySpawnSpec(spec, null);
         ship.initializeHostileRuntime(true, profile.elite(), profile.boss());
         ship.setTarget(targetPlayer);
-        if (!level.noCollision(ship, ship.getBoundingBox())) {
-            ship.discard();
-            return null;
-        }
         level.addFreshEntity(ship);
         return ship;
     }

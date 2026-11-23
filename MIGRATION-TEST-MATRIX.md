@@ -1,5 +1,11 @@
 # Migration Test Matrix
 
+## Audit parity / 0.2.3-alpha
+
+- PR19/20: [routine tick64/HP-emotion updates separated from genuine hostile persistence; actual tick/reload/name-tag regression and refreshed gates/jars](migration_batches/2026-11-24-audit-parity/review-persistence.md). Shared lifecycle correction; per-ship LOCKED status unchanged.
+
+- A01–A09 fixed for both versions; S01 confirmed and corrected. [Legacy evidence and scoped decisions](migration_batches/2026-11-24-audit-parity/decision.md); [full gates, coverage, commits and release status](migration_batches/2026-11-24-audit-parity/STATUS.md).
+
 ## Ship smoke parity
 
 - Seven LegacyShipSmokeGameTests (PR17/18 adds ordinary type20/limiter and per-hostile scale/anchor coverage; corrects older friendly-kind/Hiei expectations): registered type-43 scale/spacing/velocity, HP type/count/client-16-tick cadence/empty states, exact hostile width*1.5 and swapped flame offsets, friendly/hostile death quality/scale/offsets, codec/network roundtrip and malformed/missing scale. HP cadence has no alive-state restriction, matching legacy; the separate existing chimney alive guard is retained.
