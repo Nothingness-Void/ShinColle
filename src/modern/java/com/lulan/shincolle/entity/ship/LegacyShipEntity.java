@@ -1639,6 +1639,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     @Override
     public void heal(float amount) {
+        if (!this.level().isClientSide()) {
+            amount = LegacyShipPotionHealing.apply(this, amount);
+        }
         super.heal(amount * this.legacyStats.healRate());
     }
 
