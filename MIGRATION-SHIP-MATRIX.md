@@ -1,5 +1,7 @@
 # ShinColle 逐舰迁移矩阵
 
+[0.2.2-alpha 整合记录](migration_batches/2026-11-23-ship-smoke/integration-release.md)：合并双方批次证据，逐舰状态不变。
+
 PR17/18：friendly Akatsuki/Hibiki/Ikazuchi/Inazuma type20 limiter 与 hostile Hiei 固定 chimney 参数已按实际 legacy callback 纠正；逐舰 LOCKED 不变，[review 证据](migration_batches/2026-11-23-ship-smoke/review-followups.md)。本轮未重新视觉验收。
 
 共通 smoke parity 不改变逐舰 LOCKED 状态：type43 chimney、HP-state（hostile width*1.5）及既有 ship-death callbacks；Neo VM HP 三档与 Kongou/rise 截图、门禁边界见 [本批证据](migration_batches/2026-11-23-ship-smoke/decision.md)。Aircraft recurring death smoke lifecycle 仍为获准文档 gap。
