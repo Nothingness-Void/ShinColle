@@ -1,0 +1,18 @@
+Forge FINAL: /home/ubuntu/shincolle-smoke-forge-corpse-final.log
+[15:10:01] [Server thread/INFO] [minecraft/GameTestServer]: ========= 379 GAME TESTS COMPLETE ======================
+[15:10:01] [Server thread/INFO] [minecraft/GameTestServer]: All 379 required tests passed :)
+BUILD SUCCESSFUL in 1m 6s
+
+Neo FINAL: /home/ubuntu/shincolle-smoke-neo-corpse-final.log
+[15:09:51] [Server thread/INFO] [minecraft/GameTestServer]: ========= 388 GAME TESTS COMPLETE IN 23.08 s ======================
+[15:09:51] [Server thread/INFO] [minecraft/GameTestServer]: All 388 required tests passed :)
+BUILD SUCCESSFUL in 50s
+
+Earlier Neo failure, before final independent corpse-HP gating correction:
+/home/ubuntu/shincolle-smoke-neo-final-restored.log
+[14:59:30] [Server thread/ERROR] [minecraft/LogTestReporter]: forgedatadropmarkersurvivesloadradarandclearcommand failed at -11174543, -60, 5552634! Desk radar must discover the loaded ForgeData drop and skip ordinary items
+BUILD FAILED in 37s
+
+Independent unchanged4380e97 baseline:
+/home/ubuntu/shincolle-pointer-water-baseline-neo.log
+[14:32:35] [Server thread/ERROR] [minecraft/LogTestReporter]: forgedatadropmarkersurvivesloadradarandclearcommand failed at 13244347, -60, -6178691! Desk radar must discover the loaded ForgeData drop and skip ordinary items

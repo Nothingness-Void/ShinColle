@@ -1,19 +1,27 @@
 # 当前状态
 
-当前任务：Pointer 水上部分舰船不移动的迁移回归已复现并作最小 mutex 修复。
-权威根因、历史行号、失败/对照及双端完整 gate：
-[本轮结果](migration_batches/2026-11-23-pointer-water-move/decision.md)。
+当前任务：将已合并 PR15/16 的 origin bases 正常 merge 到两个 smoke branches，
+已保留 Pointer 与 smoke/review；统一 0.2.2-alpha、双端完整门禁已绿，主 jars 已构建并验证元数据。
+[本轮整合入口](migration_batches/2026-11-23-ship-smoke/integration-release.md)。
 
-- Forge 新工作区：/home/ubuntu/repos/ShinColle-pointer-water-move-120；
-  devin/1795443831-pointer-water-move-120，基于指定 1b82b2c。
-- Neo 新工作区：/home/ubuntu/repos/ShinColle-pointer-water-move-121；
-  devin/1795443831-pointer-water-move-121，基于指定 4380e97。
-- 两端生产改动仅 floating goal 的独立 legacy mutex；新增真实六舰水/陆移动、
-  历史 mutex oracle、空选区及 dry/sitting 断言。完整 build + GameTests 已绿。
-- 本轮用户授权普通 push 以上两个新分支；不创建 PR、不操作旧 hold 分支。
-  既有工作区未动。额外只读 detached baseline 工作区用于复核既有 radar 测试偶发。
-- src/main/** 未改；不改版本、优先级、浮力、速度、导航范围或负 Y 适配。
-  无客户端视觉验证，未运行实际 1.12 客户端或原玩家存档。
-- 旧 mount/LEVITATION、RingFly、渲染等队列不扩项。
+- Forge worktree：/home/ubuntu/repos/ShinColle-ship-smoke-120，
+  devin/1795444967-ship-smoke-120；merge origin/codex/mc-1.20.1 0f6d350。
+- Neo worktree：/home/ubuntu/repos/ShinColle-ship-smoke-121，
+  devin/1795444967-ship-smoke-121；merge origin/mc-1.21.1 563779b。
+- 五个冲突均为 docs；矩阵/变更索引保留双方条目，CURRENT/ROADMAP 汇总两条工作线。
+  源码无冲突：Pointer floating TARGET、flee MOVE/LOOK/JUMP 和真实 water/land tests
+  与 smoke HP/death/type20/type43、Hiei 固定 chimney 参数全部保留。
+- 用户明确授权 gradle.properties mod_version=0.2.2-alpha；
+  normal merge/commit/push，不 rebase/force push，不 push 主线，不创建 PR。
+- 最后源码/版本输入后 full build+GameTests：Forge386/386，Neo395/395，均成功。
+  Neo 首轮仅历史 radar 断言失败，一次完整重跑通过；未改 radar。完整输出见本轮入口。
+  后续只有文档；不重复同输入构建。最终普通 push 与 release 复制 SHA/哈希由交接报告记录。
+  目标 /home/ubuntu/release/shincolle-0.2.2-alpha-mc1.20.1-forge.jar、
+  shincolle-0.2.2-alpha-mc1.21.1-neoforge.jar。
+- src/main/**、其它 worktrees、build/CI 及其它数值/机制不改。Aircraft lifecycle、
+  LEVITATION 等 gap 保留；本轮无新视觉验证。
+- 历史证据：[Pointer](migration_batches/2026-11-23-pointer-water-move/decision.md)、
+  [flee review](migration_batches/2026-11-23-pointer-water-move/flee-review.md)、
+  [smoke review](migration_batches/2026-11-23-ship-smoke/review-followups.md)。
 
 唯一下一步：[ROADMAP](ROADMAP.md)。
