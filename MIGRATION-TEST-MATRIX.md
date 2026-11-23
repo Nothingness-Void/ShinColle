@@ -1,5 +1,11 @@
 # Migration Test Matrix
 
+## Ship smoke parity
+
+- Five LegacyShipSmokeGameTests: registered type-43 scale/spacing/velocity, HP type/count/client-16-tick cadence/empty states, exact hostile width*1.5 and swapped flame offsets, friendly/hostile death quality/scale/offsets, codec/network roundtrip and malformed/missing scale. HP cadence has no alive-state restriction, matching legacy; the separate existing chimney alive guard is retained.
+- Full required tasks: Forge JDK17 `bash ./gradlew build runGameTestServer`; Neo JDK21 `./gradlew build runGameTestServer`. Pass requires all required tests, not just new smoke tests. [Exact final output and existing radar failure evidence](migration_batches/2026-11-23-ship-smoke/decision.md).
+- T3: Neo runClient DISPLAY=:0, actual minor/moderate/heavy and Kongou chimney/rise screenshots. Existing death callbacks/hostile variants are source/pure-emission checked, not separately visually exercised. Aircraft lifecycle is excluded by explicit approval.
+
 ## Merged PR11 review follow-ups
 
 - `LegacyItemMatchGameTests`: both common tag namespaces; water/lava rejection through actual crane load/unload filters, identical items, material-specific ingots, generic-material rejection, ore-off and empty cases. Temporary holder tags restored in finally; no production fixture resources.
