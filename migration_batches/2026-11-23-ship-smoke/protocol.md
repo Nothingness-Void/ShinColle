@@ -1,5 +1,18 @@
 # Ship smoke — approved parity scope
 
+## PR17/18 follow-up review
+
+Verify local/remote e34f5de (Forge) / ae383c4 (Neo) before editing.
+Audit historical 0aad501 friendly/hostile Akatsuki/Hibiki/Ikazuchi/Inazuma,
+Nagato/Yamato/Kongou/Hiei/Haruna/Kirishima chimney callbacks and
+ParticleHelper type20 versus43; compare catalog engine points and dispatch.
+Fix only verified per-ship particle type/limiter/scale differences on both
+existing smoke branches, with separate commits per finding and focused tests
+in LegacyShipSmokeGameTests; correct the disproven smoke expectations in
+GameplayParityGameTests against the historical callbacks. Full build/GameTests once after all code edits,
+JDK17/21 respectively; push once per branch. No unrelated lifecycle, gameplay,
+build/CI, version or read-only legacy edits. No new visual check requested.
+
 Fresh origin-based branches devin/1795444967-ship-smoke-121/-120, bases
 4380e97 / 1b82b2c. Do not merge Pointer commits or change existing worktrees.
 Read-only legacy/historical 0aad501 ParticleHelper types 4/5/7/43,
