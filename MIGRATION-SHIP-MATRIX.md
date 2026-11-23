@@ -1,5 +1,7 @@
 # ShinColle 逐舰迁移矩阵
 
+Pointer 水上共通 floating mutex 修复不改变逐舰状态；六舰真实 AI 水/陆对照及边界见[本轮证据](migration_batches/2026-11-23-pointer-water-move/decision.md)。
+
 Review follow-ups 不改变逐舰状态：crane 的 tag 等价关系与旧 drop marker 持久化只做 legacy parity 修复；[范围及证据](migration_batches/2026-11-22-review-followups/result.md)。
 
 更新时间：2026-11-22
