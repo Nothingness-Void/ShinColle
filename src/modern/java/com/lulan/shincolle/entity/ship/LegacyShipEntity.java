@@ -950,6 +950,10 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         this.loadShipInventory(tag);
         CompoundTag hostileTag = tag.getCompound(HOSTILE_RUNTIME_TAG);
         this.hostileRuntimeState.loadFromTag(hostileTag);
+        if (!hostileTag.contains("PersistenceRequired")) {
+            this.hostileRuntimeState.setPersistenceRequired(tag.contains(HOSTILE_RUNTIME_TAG)
+                    ? this.hasCustomName() : tag.getBoolean("PersistenceRequired"));
+        }
         // 旧的 1.20.1 存档用两个标志记录规模。
         int scale = tag.contains(HOSTILE_SCALE_TAG, Tag.TAG_ANY_NUMERIC)
                 ? tag.getByte(HOSTILE_SCALE_TAG)
@@ -4507,6 +4511,14 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 : 0;
     }
 
+    @Override
+    public void setPersistenceRequired() {
+        super.setPersistenceRequired();
+        if (this.hostileRuntimeState != null && !this.loadingSaveData && this.isHostileVariant()) {
+            this.hostileRuntimeState.setPersistenceRequired(true);
+        }
+    }
+
     private void tickHostileRuntime() {
         if (!(this.level() instanceof ServerLevel serverLevel) || !this.isHostileVariant()) {
             return;
@@ -4520,30 +4532,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             }
         }
 
-        if (this.hostileRuntimeState.isNaturalSpawn()) {
-            int limit = this.getLegacyHostileScaleLevel() > 1
-                    ? ShinColleConfig.despawnBoss()
-                    : ShinColleConfig.despawnMinion();
-            if (limit > -1 && this.tickCount > limit) {
-                boolean playerWithin128 = serverLevel.getNearestPlayer(this, 128.0D) != null;
-                if (!playerWithin128) {
-                    this.discard();
-                    return;
-                }
-                boolean playerWithin32 = serverLevel.getNearestPlayer(this, 32.0D) != null;
-                if (playerWithin32) {
-                    this.hostileRuntimeState.setDespawnTicks(0);
-                } else {
-                    int despawnTicks = this.hostileRuntimeState.getDespawnTicks() + 1;
-                    this.hostileRuntimeState.setDespawnTicks(despawnTicks);
-                    boolean playerWithin96 = serverLevel.getNearestPlayer(this, 96.0D) != null;
-                    if ((!playerWithin96 && despawnTicks > 900)
-                            || (despawnTicks > 600 && this.random.nextInt(800) == 0)) {
-                        this.discard();
-                        return;
-                    }
-                }
-            }
+        if (LegacyShipHostileDespawn.tick(this, this.hostileRuntimeState)) {
+            return;
         }
 
         if (this.isBossEncounter()) {
