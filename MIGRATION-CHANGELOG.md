@@ -1,5 +1,9 @@
 # 迁移变更索引
 
+## Pointer water movement
+
+- [Legacy floating mutex restoration, failing six-ship water reproduction, land/oracle controls and full gates](migration_batches/2026-11-23-pointer-water-move/decision.md).
+
 ## Merged PR11 review follow-ups / 0.2.1-alpha
 
 - [Ore-category matching, ForgeData drop-marker migration/native Forge audit, tests and release evidence](migration_batches/2026-11-22-review-followups/README.md).

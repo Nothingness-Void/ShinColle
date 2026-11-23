@@ -1,15 +1,15 @@
 # 后续队列
 
 当前事实：[CURRENT_STATE](CURRENT_STATE.md)；
-[本轮完整证据](migration_batches/2026-11-22-review-followups/result.md)。
+[本轮完整证据](migration_batches/2026-11-23-pointer-water-move/decision.md)。
 
-## NEXT：交还 0.2.1-alpha 验收边界
+## NEXT：交还 Pointer 水上移动回归验收边界
 
-1. 报告两个新分支、独立 A/B 提交与 release SHA、真实 build/GameTest 输出及主 jar 路径。
-   用户已授权普通 push 这两个新分支；不 push 主线/原 hold 分支，不创建 PR。
-2. 用户新包验收：ore matching 开启时 water 模板拒绝 lava，合法同材质 ingot 仍匹配；
-   Forge 旧 drop 经 Neo 加载后 Desk radar 与 shipcleardrop 可见。服务端 NBT/命令测试
-   不冒称完整实际旧世界或客户端画面验证。
-3. 停止，不自动重开旧 mount/LEVITATION、RingFly、渲染或其它队列。
+1. 普通提交/push 两个新分支，报告 SHA、legacy/modern 根因行号和完整 gate 输出；
+   不 push 主线/原 hold 分支，不创建 PR。
+2. 玩家新包复测真实 Pointer 水面群体移动；本轮 headless 真实 AI tick 不冒称
+   实际客户端点击/网络或 1.12 运行时回放。
+3. 停止，不自动扩展旧 mount/LEVITATION、RingFly、渲染或其它队列。
+   已独立复核的 radar 测试偶发不在此批修改，最终完整 gate 通过。
 
 源码、资源、版本输入在通过 gate 后未变，不重跑同输入全量验证。
