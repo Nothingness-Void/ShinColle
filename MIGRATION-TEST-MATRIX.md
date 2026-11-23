@@ -1,5 +1,10 @@
 # Migration Test Matrix
 
+## Pointer water movement
+
+- `PointerWaterMoveGameTests`: six real registered-goal ships on water and land, 32-tick path startup and 384-tick legacy arrival tolerance; independent legacy mutex oracle; real fluid/land ray Y, empty selection, dry/sitting and mutex contract. Forge advances/restores the server AI scheduling clock in its synchronous fixture.
+- Full default JDK17/21 `build runGameTestServer`; [exact results, initial failures and limits](migration_batches/2026-11-23-pointer-water-move/decision.md).
+
 ## Merged PR11 review follow-ups
 
 - `LegacyItemMatchGameTests`: both common tag namespaces; water/lava rejection through actual crane load/unload filters, identical items, material-specific ingots, generic-material rejection, ore-off and empty cases. Temporary holder tags restored in finally; no production fixture resources.
