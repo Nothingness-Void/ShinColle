@@ -13,7 +13,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import java.util.UUID;
@@ -27,16 +26,21 @@ public final class AuditVolCoreDamageGameTests {
         var core = (LegacyCoreBlockEntity) helper.getBlockEntity(new BlockPos(4, 2, 4));
         var apply = LegacyCoreBlockEntity.class.getDeclaredMethod("tickVolCoreAura", Level.class);
         apply.setAccessible(true);
-        var player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "AuditCoreFire"));
+        var player = new net.minecraft.world.entity.player.Player(helper.getLevel(), helper.absolutePos(new BlockPos(5, 2, 4)),
+                0.0F, new GameProfile(UUID.randomUUID(), "AuditCoreFire")) {
+            @Override public boolean isSpectator() { return false; }
+            @Override public boolean isCreative() { return false; }
+        };
         player.setPos(helper.absoluteVec(new Vec3(5, 2, 4)));
-        helper.getLevel().addNewPlayer(player);
+        helper.getLevel().addFreshEntity(player);
         player.getAbilities().instabuild = false;
         player.getAbilities().invulnerable = false;
         player.invulnerableTime = 0;
         player.setHealth(20.0F);
         try {
             apply.invoke(core, helper.getLevel());
-            helper.assertTrue(player.getHealth() == 16.0F && player.isOnFire(), "dry aura burns survival players for4");
+            helper.assertTrue(player.getHealth() == 16.0F && player.isOnFire(),
+                    "dry aura burns survival players for4; health=" + player.getHealth() + ", fire=" + player.isOnFire());
         } finally {
             player.discard();
         }

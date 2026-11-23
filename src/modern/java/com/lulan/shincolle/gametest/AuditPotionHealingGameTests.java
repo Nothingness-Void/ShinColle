@@ -49,9 +49,10 @@ public final class AuditPotionHealingGameTests {
     }
 
     private static void check(GameTestHelper helper, LegacyShipEntity ship, float expected) {
+        expected *= ship.getLegacyStats().healRate();
         ship.setHealth(1.0F);
         ship.heal(2.0F);
         helper.assertTrue(Math.abs(ship.getHealth() - Math.min(ship.getMaxHealth(), 1.0F + expected)) < 0.001F,
-                "actual heal override must apply the legacy proximity bonus");
+                "actual heal override must apply bonus then HPRES; actual=" + ship.getHealth() + ", heal=" + expected);
     }
 }
