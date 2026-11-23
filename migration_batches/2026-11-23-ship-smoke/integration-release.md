@@ -80,8 +80,13 @@ Neo source:
  /home/ubuntu/repos/ShinColle-ship-smoke-121/build/libs/shincolle-0.2.2-alpha.jar
 Target:
  /home/ubuntu/release/shincolle-0.2.2-alpha-mc1.21.1-neoforge.jar
-SHA256: 44143423bac2bf3c561908687a1d7d7284ad005d131e3a9a8b7c2964a7b9e19f
+SHA256: 9376f78e194dba30a93eef59d456578ba51feb8c9a3ad83a23dc58dc42cba50a
 Metadata META-INF/neoforge.mods.toml: modId=shincolle, version=0.2.2-alpha, neoforge.
 
-Final feature-branch push SHAs and post-push target-copy equality are recorded
-in the handoff. No new client/visual replay.
+Both target copies equal their final gated source jars by SHA256, with
+version=0.2.2-alpha in their loader-specific metadata. An earlier Neo checksum
+was sampled while the full-gate rerun was still rebuilding its jar; this
+evidence-only correction records the final completed-build checksum above.
+No source/resource/version inputs or gate results changed.
+Final feature-branch push SHAs are recorded in the handoff.
+No new client/visual replay.
