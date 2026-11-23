@@ -1,5 +1,16 @@
 # 迁移变更索引
 
+## 0.2.2-alpha integration release
+
+- [Normal base merges, Pointer+smoke docs conflict resolution, release gates and main jars](migration_batches/2026-11-23-ship-smoke/integration-release.md).
+
+## Ship smoke parity
+
+- PR17/18 两项独立 review 修复：[friendly type20 limiter / hostile Hiei fixed chimney、逐舰审计与门禁](migration_batches/2026-11-23-ship-smoke/review-followups.md)。
+
+- [Type-43 scale/velocity、HP-state effects、既有 ship-death callbacks、门禁与 VM 截图](migration_batches/2026-11-23-ship-smoke/README.md)。Aircraft death lifecycle 明确保留 gap，不改变 Pointer branches。
+
+
 ## Pointer water movement
 
 - [Legacy floating mutex restoration, failing six-ship water reproduction, land/oracle controls and full gates](migration_batches/2026-11-23-pointer-water-move/decision.md).

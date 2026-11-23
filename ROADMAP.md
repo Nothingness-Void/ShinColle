@@ -1,15 +1,14 @@
 # 后续队列
 
 当前事实：[CURRENT_STATE](CURRENT_STATE.md)；
-[本轮完整证据](migration_batches/2026-11-23-pointer-water-move/decision.md)。
+[整合与 release 记录](migration_batches/2026-11-23-ship-smoke/integration-release.md)。
 
-## NEXT：交还 Pointer 水上移动回归验收边界
+## NEXT：交还 0.2.2-alpha release 验收
 
-1. 普通提交/push 两个新分支，报告 SHA、legacy/modern 根因行号和完整 gate 输出；
-   不 push 主线/原 hold 分支，不创建 PR。
-2. 玩家新包复测真实 Pointer 水面群体移动；本轮 headless 真实 AI tick 不冒称
-   实际客户端点击/网络或 1.12 运行时回放。
-3. 停止，不自动扩展旧 mount/LEVITATION、RingFly、渲染或其它队列。
-   已独立复核的 radar 测试偶发不在此批修改，最终完整 gate 通过。
-
-源码、资源、版本输入在通过 gate 后未变，不重跑同输入全量验证。
+1. 两个现有 smoke branches 已正常 merge，五个 docs 冲突已合并双方记录；源码无冲突。
+2. 两端 0.2.2-alpha full gates 已通过；保留输出，不重复同输入构建。
+3. 普通 commit/push feature branches，使用同一通过门禁的 main release jars，
+   复制到用户指定两个 release 路径并核验元数据/哈希。
+   无源码/资源/版本变化，不重复已通过构建。
+4. 报告 pushed SHAs、真实 gate 输出、冲突文件与解决方法及 jar 路径，然后停止。
+   不扩展飞机生命周期、mount/LivingEntity、LEVITATION 或其它历史队列。

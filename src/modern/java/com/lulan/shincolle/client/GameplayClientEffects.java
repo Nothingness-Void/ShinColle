@@ -7,6 +7,7 @@ import com.lulan.shincolle.client.particle.LegacyTeamMarkerParticle;
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.projectile.LegacyShipProjectileVisual;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipSmoke;
 import com.lulan.shincolle.network.ClientboundCombatReactPacket;
 import com.lulan.shincolle.network.ClientboundSpawnParticlePacket;
 import com.lulan.shincolle.network.CombatReactType;
@@ -21,6 +22,18 @@ import net.minecraft.world.entity.Entity;
 public final class GameplayClientEffects {
 
     private GameplayClientEffects() {
+    }
+
+    public static void spawnLegacyShipDeathSmoke(LegacyShipEntity ship) {
+        if (!ship.level().isClientSide()) {
+            return;
+        }
+        int particleSetting = Minecraft.getInstance().options.particles().get().getId();
+        for (LegacyShipSmoke.Emission emission : LegacyShipSmoke.death(ship.getRandom(),
+                ship.isHostileVariant(), ship.getLegacyHostileScaleLevel(), ship.getBbWidth(),
+                particleSetting, ship.getX(), ship.getY(), ship.getZ())) {
+            emission.spawn(ship.level());
+        }
     }
 
     /** Spawns the entity-bound legacy ParticleTeam marker on the local client. */
