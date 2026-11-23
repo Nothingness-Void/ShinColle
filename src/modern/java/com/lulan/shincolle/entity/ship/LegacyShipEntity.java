@@ -1963,12 +1963,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         int currentLevel = this.getShipLevel();
         int levelCap = this.getLevelCap();
 
-        while (currentLevel < levelCap) {
-            int experienceNext = LegacyShipBehaviorCatalog.experienceToNext(currentLevel);
-            if (currentExperience < experienceNext) {
-                break;
-            }
-
+        int experienceNext = LegacyShipBehaviorCatalog.experienceToNext(currentLevel);
+        if (currentLevel < levelCap && currentExperience >= experienceNext) {
             currentExperience -= experienceNext;
             currentLevel++;
             this.playShipCombatSound(SoundEvents.PLAYER_LEVELUP, 0.7F, 1.0F);
