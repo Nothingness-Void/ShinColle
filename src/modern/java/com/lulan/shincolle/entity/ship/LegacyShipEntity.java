@@ -1,5 +1,6 @@
 package com.lulan.shincolle.entity.ship;
 
+import com.lulan.shincolle.client.GameplayClientEffects;
 import com.lulan.shincolle.registry.ModCapabilities;
 import com.lulan.shincolle.blockentity.CraneBlockEntity;
 import com.lulan.shincolle.blockentity.RouteNode;
@@ -1676,6 +1677,9 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     @Override
     protected void tickDeath() {
+        if (this.level().isClientSide() && (this.tickCount & 3) == 0) {
+            GameplayClientEffects.spawnLegacyShipDeathSmoke(this);
+        }
         if (!this.isHostileVariant()) {
             super.tickDeath();
             return;

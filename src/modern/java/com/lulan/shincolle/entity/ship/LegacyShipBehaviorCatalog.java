@@ -2925,8 +2925,20 @@ public final class LegacyShipBehaviorCatalog {
 
     /** Mirrors the per-class client-side engine branches from the legacy entities. */
     public static void tickLegacyClientBehavior(LegacyShipEntity ship) {
-        if (ship == null || !ship.level().isClientSide() || !ship.isAlive()
+        if (ship == null || !ship.level().isClientSide()
                 || (ship.tickCount & 3) != 0) {
+            return;
+        }
+
+        if (LegacyShipSmoke.damageTick(ship.level().isClientSide(), ship.tickCount)) {
+            for (LegacyShipSmoke.Emission emission : LegacyShipSmoke.damage(ship.getRandom(),
+                    ship.getHpState(), ship.isHostileVariant(), ship.getBbWidth(),
+                    ship.getX(), ship.getY(), ship.getZ())) {
+                emission.spawn(ship.level());
+            }
+        }
+
+        if (!ship.isAlive()) {
             return;
         }
 
@@ -2973,10 +2985,9 @@ public final class LegacyShipBehaviorCatalog {
             double x = ship.getX() - xOffset * Math.sin(radians);
             double z = ship.getZ() + xOffset * Math.cos(radians);
             if (point.kind() == EngineVisualKind.SMOKE_CHIMNEY_L) {
-                for (int segment = 0; segment < 3; segment++) {
-                    ship.level().addParticle(ParticleTypes.LARGE_SMOKE,
-                            x, ship.getY() + point.yOffset() + segment * 0.3D, z,
-                            point.particleScale(), 0.0D, 0.0D);
+                for (LegacyShipSmoke.Emission emission : LegacyShipSmoke.scaled(
+                        x, ship.getY() + point.yOffset(), z, point.particleScale(), 0.0D)) {
+                    emission.spawn(ship.level());
                 }
             } else if (point.kind() == EngineVisualKind.YAMATO_SPEED_BLUR) {
                 spawnYamatoSpeedBlur(ship, x, ship.getY() + point.yOffset(), z);

@@ -37,6 +37,8 @@ import com.lulan.shincolle.registry.ModEntityTypes;
 import com.lulan.shincolle.registry.ModFeatures;
 import com.lulan.shincolle.registry.ModItems;
 import com.lulan.shincolle.registry.ModMenus;
+import com.lulan.shincolle.registry.ModParticleTypes;
+import com.lulan.shincolle.client.particle.LegacySmokeParticle;
 import com.lulan.shincolle.registry.ModSoundEvents;
 import com.lulan.shincolle.teitoku.TeitokuEvents;
 import com.lulan.shincolle.world.ShipChunkLoader;
@@ -87,6 +89,7 @@ public class ShinColle {
         ModFeatures.FEATURES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
+        ModParticleTypes.PARTICLE_TYPES.register(modEventBus);
         ModSoundEvents.SOUND_EVENTS.register(modEventBus);
         ModCreativeModeTabs.TABS.register(modEventBus);
         modEventBus.addListener(ModNetwork::register);
@@ -110,6 +113,11 @@ public class ShinColle {
 
     @EventBusSubscriber(modid = MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
+
+        @SubscribeEvent
+        public static void registerParticles(net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent event) {
+            event.registerSpriteSet(ModParticleTypes.LEGACY_SMOKE.get(), LegacySmokeParticle.Provider::new);
+        }
 
         @SubscribeEvent
         public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
