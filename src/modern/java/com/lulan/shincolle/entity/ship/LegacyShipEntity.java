@@ -5742,7 +5742,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 return InteractionResult.CONSUME;
             }
 
-            if (this.getShipLevel() >= this.getLevelCap()) {
+            if (this.getShipLevel() >= 150) {
                 player.displayClientMessage(Component.translatable("chat.shincolle.ship.training_cap",
                         this.getName().copy().withStyle(ChatFormatting.GRAY), this.getLevelCap()), true);
                 return InteractionResult.CONSUME;
@@ -5750,6 +5750,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
             int levelGain = 5 + this.random.nextInt(6);
             this.setShipLevel(this.getShipLevel() + levelGain);
+            this.setHealth(this.getMaxHealth());
             this.consumeHeldItem(player, hand, 1);
             ShinColleSoundHelper.playForPlayer(this.level(), player, ModSoundEvents.SHIP_LEVELUP.get(), 0.75F,
                     ShinColleSoundHelper.variedPitch(player, 1.0F, 0.04F));
