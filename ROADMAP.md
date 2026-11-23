@@ -2,9 +2,10 @@
 
 当前事实：[CURRENT_STATE](CURRENT_STATE.md)。
 
-## NEXT：完成并交还 audit parity 0.2.3-alpha
+## NEXT：交还 audit parity 0.2.3-alpha，然后停止
 
-1. A01–A09 分 finding commit，逐项 Forge first then Neo；S01 只修复完整旧版分派已证实的差异。
-2. 完整 JDK17/21 build runGameTestServer 门禁；不重复未改变输入的通过门禁。
-3. 记录 [STATUS](migration_batches/2026-11-24-audit-parity/STATUS.md)，更新矩阵/变更索引，普通 push 两个 feature branches，复制并核验指定 release jars。
-4. 报告 pushed SHAs、逐 finding legacy evidence/commits、S01 verdict 和真实 gate 输出，然后停止；不扩大至历史 backlog。
+进入条件已满足：A01–A09 与 S01 分开修复、双端完整门禁通过、release code commits 已普通 push 并核对 remote、指定 jars 已复制/核验。[完整证据](migration_batches/2026-11-24-audit-parity/STATUS.md)。
+
+1. 提交/普通 push 本次交付状态的纯文档补充；不重复未改变输入的成功门禁。
+2. 报告最终 pushed HEAD、逐 finding commits/legacy evidence、S01 verdict、真实 gate 输出与 jar 路径。
+3. 停止，不扩展飞机生命周期、Morph、config 或其它历史 backlog；新工作须用户另行授权。
