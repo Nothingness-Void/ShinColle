@@ -7828,12 +7828,12 @@ public final class GameplayParityGameTests {
             List<LegacyShipBehaviorCatalog.EngineVisualPoint> points =
                     LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(spec, 0);
             if (points.size() != 1
-                    || points.get(0).kind() != LegacyShipBehaviorCatalog.EngineVisualKind.SMOKE_CHIMNEY_L
+                    || points.get(0).kind() != LegacyShipBehaviorCatalog.EngineVisualKind.SMOKE_CHIMNEY_NORMAL
                     || points.get(0).requiredModelStateBit() != 0
                     || !points.get(0).requiresActiveFriendlyState()
                     || !engineVisualPointMatches(points.get(0), -0.42F, 1.4F, 1.0F)) {
                 helper.fail("friendly six destroyer " + friendlyEggMetas[index]
-                        + " should keep the legacy active bit-0 smoke point");
+                        + " should keep the legacy active bit-0 ordinary type-20 smoke point");
                 return;
             }
         }

@@ -220,6 +220,7 @@ public final class LegacyShipBehaviorCatalog {
 
     public enum EngineVisualKind {
         SMOKE_CHIMNEY_L,
+        SMOKE_CHIMNEY_NORMAL,
         YAMATO_SPEED_BLUR
     }
 
@@ -2988,6 +2989,11 @@ public final class LegacyShipBehaviorCatalog {
                         x, ship.getY() + point.yOffset(), z, point.particleScale(), 0.0D)) {
                     emission.spawn(ship.level());
                 }
+            } else if (point.kind() == EngineVisualKind.SMOKE_CHIMNEY_NORMAL) {
+                for (LegacyShipSmoke.Emission emission : LegacyShipSmoke.normal(
+                        x, ship.getY() + point.yOffset(), z)) {
+                    emission.spawn(ship.level());
+                }
             } else if (point.kind() == EngineVisualKind.YAMATO_SPEED_BLUR) {
                 spawnYamatoSpeedBlur(ship, x, ship.getY() + point.yOffset(), z);
             }
@@ -3431,7 +3437,7 @@ public final class LegacyShipBehaviorCatalog {
         if (normalizedClassId >= 51 && normalizedClassId <= 54) {
             if (!spec.hostile()) {
                 return List.of(new EngineVisualPoint(-0.42F, 1.4F, 1.0F,
-                        EngineVisualKind.SMOKE_CHIMNEY_L, 0, true));
+                        EngineVisualKind.SMOKE_CHIMNEY_NORMAL, 0, true));
             }
 
             int scale = Mth.clamp(hostileScaleLevel, 0, 3);

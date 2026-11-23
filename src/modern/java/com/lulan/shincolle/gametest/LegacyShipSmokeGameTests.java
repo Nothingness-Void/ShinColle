@@ -1,7 +1,9 @@
 package com.lulan.shincolle.gametest;
 
 import com.google.gson.JsonObject;
+import com.lulan.shincolle.entity.ship.LegacyShipBehaviorCatalog;
 import com.lulan.shincolle.entity.ship.LegacyShipSmoke;
+import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.registry.LegacySmokeOptions;
 import com.lulan.shincolle.registry.ModParticleTypes;
 import com.mojang.serialization.JsonOps;
@@ -152,5 +154,38 @@ public final class LegacyShipSmokeGameTests {
 
     private static boolean close(double a, double b) {
         return Math.abs(a - b) < 0.000000001D;
+    }
+
+    @GameTest(template = "gameplayparitygametests.empty", batch = "ship_smoke")
+    public static void friendlyDestroyerChimneysKeepOrdinarySmokeAndParticleLimiter(GameTestHelper helper) {
+        for (int meta : new int[] {53, 54, 55, 56}) {
+            for (int scale = 0; scale <= 3; scale++) {
+                var points = LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(ShipEntitySpecs.getByEggMeta(meta), scale);
+                helper.assertTrue(points.size() == 1
+                        && points.get(0).kind() == LegacyShipBehaviorCatalog.EngineVisualKind.SMOKE_CHIMNEY_NORMAL,
+                        "friendly destroyer uses legacy type 20, not custom type 43");
+                helper.assertTrue(LegacyShipBehaviorCatalog.legacyEngineSmokePointsFor(
+                        ShipEntitySpecs.getByEggMeta(meta), scale).isEmpty(), "ordinary smoke is not a type-43 point");
+                var hostile = LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(
+                        ShipEntitySpecs.getByEggMeta(meta + 2000), scale);
+                helper.assertTrue(hostile.size() == 1
+                        && hostile.get(0).kind() == LegacyShipBehaviorCatalog.EngineVisualKind.SMOKE_CHIMNEY_L
+                        && close(hostile.get(0).particleScale(), 1.0F + scale * 0.8F),
+                        "hostile destroyers retain scaled type 43");
+            }
+        }
+        var smoke = LegacyShipSmoke.normal(2, 3, 4);
+        helper.assertTrue(smoke.size() == 3, "type 20 has three ordinary smoke particles");
+        for (int i = 0; i < smoke.size(); i++) {
+            var point = smoke.get(i);
+            helper.assertTrue(point.particle() == ParticleTypes.SMOKE
+                    && !point.particle().getType().getOverrideLimiter(), "ordinary smoke respects particle settings");
+            helper.assertTrue(point.x() == 2 && close(point.y(), 3 + i * 0.1D) && point.z() == 4
+                    && point.velocityX() == 0 && point.velocityY() == 0 && point.velocityZ() == 0,
+                    "type 20 retains legacy spacing and zero supplied velocity");
+        }
+        helper.assertTrue(LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(null, 0).isEmpty(),
+                "missing spec has no engine effect");
+        helper.succeed();
     }
 }

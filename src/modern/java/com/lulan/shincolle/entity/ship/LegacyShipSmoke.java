@@ -31,6 +31,14 @@ public final class LegacyShipSmoke {
         return result;
     }
 
+    public static List<Emission> normal(double x, double y, double z) {
+        List<Emission> result = new ArrayList<>(3);
+        for (int i = 0; i < 3; i++) {
+            result.add(new Emission(ParticleTypes.SMOKE, x, y + i * 0.1D, z, 0.0D, 0.0D, 0.0D));
+        }
+        return result;
+    }
+
     public static int damageEffectType(int hpState) {
         return switch (hpState) {
             case 1 -> 4;
