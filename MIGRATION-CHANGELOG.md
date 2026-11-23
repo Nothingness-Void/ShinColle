@@ -2,6 +2,8 @@
 
 ## Ship smoke parity
 
+- PR17/18 两项独立 review 修复：[friendly type20 limiter / hostile Hiei fixed chimney、逐舰审计与门禁](migration_batches/2026-11-23-ship-smoke/review-followups.md)。
+
 - [Type-43 scale/velocity、HP-state effects、既有 ship-death callbacks、门禁与 VM 截图](migration_batches/2026-11-23-ship-smoke/README.md)。Aircraft death lifecycle 明确保留 gap，不改变 Pointer branches。
 
 ## Merged PR11 review follow-ups / 0.2.1-alpha

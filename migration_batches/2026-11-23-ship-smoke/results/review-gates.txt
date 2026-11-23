@@ -1,0 +1,18 @@
+Forge JDK17: bash ./gradlew build runGameTestServer
+/home/ubuntu/shincolle-smoke-review-forge-final2.log
+[15:22:13] [Server thread/INFO] [minecraft/GameTestServer]: ========= 381 GAME TESTS COMPLETE ======================
+[15:22:13] [Server thread/INFO] [minecraft/GameTestServer]: All 381 required tests passed :)
+BUILD SUCCESSFUL in 1m 4s
+
+Neo JDK21: ./gradlew build runGameTestServer
+/home/ubuntu/shincolle-smoke-review-neo-final.log
+[15:20:00] [Server thread/INFO] [minecraft/GameTestServer]: ========= 390 GAME TESTS COMPLETE IN 29.28 s ======================
+[15:20:00] [Server thread/INFO] [minecraft/GameTestServer]: All 390 required tests passed :)
+BUILD SUCCESSFUL in 1m 2s
+
+First Forge full run: /home/ubuntu/shincolle-smoke-review-forge-final.log
+[15:20:16] [Server thread/ERROR] [minecraft/LogTestReporter]: gameplayparitygametests.craneroutetransfersfiltereditemsbetweenchestandship failed! crane load row should move only matching chest items into ship cargo; expected=4909/3432400d-791a-43f9-9de2-71c371e9cc7a actual=null
+BUILD FAILED in 1m 26s
+
+Same earlier recorded assertion: /home/ubuntu/shincolle-pointer-owner-forge-final.log
+[10:36:00] [Server thread/ERROR] [minecraft/LogTestReporter]: gameplayparitygametests.craneroutetransfersfiltereditemsbetweenchestandship failed! crane load row should move only matching chest items into ship cargo; expected=4068/d6fc4082-b2e1-4af1-b0bf-39d741fbaa13 actual=null
