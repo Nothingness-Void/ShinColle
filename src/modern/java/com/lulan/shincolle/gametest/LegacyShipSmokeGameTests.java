@@ -152,6 +152,37 @@ public final class LegacyShipSmokeGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "gameplayparitygametests.empty", batch = "ship_smoke")
+    public static void hostileChimneysKeepPerShipLegacyParticleScales(GameTestHelper helper) {
+        for (int meta : new int[] {2039, 2048, 2062, 2063, 2064, 2065}) {
+            for (int scale = 0; scale <= 3; scale++) {
+                var points = LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(ShipEntitySpecs.getByEggMeta(meta), scale);
+                helper.assertTrue(points.size() == (meta == 2062 ? 2 : 1), "legacy hostile chimney count");
+                for (var point : points) {
+                    float expected = meta == 2063 ? 1.0F : 1.0F + scale;
+                    helper.assertTrue(point.kind() == LegacyShipBehaviorCatalog.EngineVisualKind.SMOKE_CHIMNEY_L
+                            && close(point.particleScale(), expected), "each hostile ship keeps its legacy type-43 scale");
+                    if (meta == 2063) {
+                        helper.assertTrue(point.xOffset() == -0.6F && point.yOffset() == 1.17F,
+                                "Hiei callback uses literal anchors, not its unused scaled fields");
+                    }
+                    for (var emission : LegacyShipSmoke.scaled(0, 0, 0, point.particleScale(), 0)) {
+                        helper.assertTrue(emission.particle() instanceof LegacySmokeOptions options
+                                && options.scale() == expected && options.getType().getOverrideLimiter(),
+                                "type-43 options retain the per-ship scale and direct-renderer limiter policy");
+                    }
+                }
+            }
+        }
+        for (int scale : new int[] {-1, 4}) {
+            var point = LegacyShipBehaviorCatalog.legacyEngineVisualPointsFor(
+                    ShipEntitySpecs.getByEggMeta(2063), scale).get(0);
+            helper.assertTrue(point.particleScale() == 1.0F && point.xOffset() == -0.6F
+                    && point.yOffset() == 1.17F, "Hiei remains fixed even for an out-of-range encounter scale");
+        }
+        helper.succeed();
+    }
+
     private static boolean close(double a, double b) {
         return Math.abs(a - b) < 0.000000001D;
     }

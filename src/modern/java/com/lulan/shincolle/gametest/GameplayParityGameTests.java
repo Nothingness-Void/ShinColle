@@ -7511,8 +7511,8 @@ public final class GameplayParityGameTests {
         List<LegacyShipBehaviorCatalog.EngineSmokePoint> hostileHieiSmoke =
                 LegacyShipBehaviorCatalog.legacyEngineSmokePointsFor(hostileHiei, 2);
         if (hostileHieiSmoke.size() != 1
-                || !engineSmokePointMatches(hostileHieiSmoke.get(0), -1.76F, 3.4F, 3.0F)) {
-            helper.fail("hostile Hiei should keep its legacy scaled x, y, and particle scale");
+                || !engineSmokePointMatches(hostileHieiSmoke.get(0), -0.6F, 1.17F, 1.0F)) {
+            helper.fail("hostile Hiei should keep its legacy fixed x, y, and particle scale");
             return;
         }
 
