@@ -2,6 +2,8 @@
 
 ## Audit parity / 0.2.3-alpha
 
+- PR19/20: [routine tick64/HP-emotion updates separated from genuine hostile persistence; actual tick/reload/name-tag regression and refreshed gates/jars](migration_batches/2026-11-24-audit-parity/review-persistence.md). Shared lifecycle correction; per-ship LOCKED status unchanged.
+
 - A01–A09 fixed for both versions; S01 confirmed and corrected. [Legacy evidence and scoped decisions](migration_batches/2026-11-24-audit-parity/decision.md); [full gates, coverage, commits and release status](migration_batches/2026-11-24-audit-parity/STATUS.md).
 
 ## Ship smoke parity

@@ -2,10 +2,10 @@
 
 当前事实：[CURRENT_STATE](CURRENT_STATE.md)。
 
-## NEXT：交还 audit parity 0.2.3-alpha，然后停止
+## NEXT：交还 PR19/20 persistence review，然后停止
 
-进入条件已满足：A01–A09 与 S01 分开修复、双端完整门禁通过、release code commits 已普通 push 并核对 remote、指定 jars 已复制/核验。[完整证据](migration_batches/2026-11-24-audit-parity/STATUS.md)。
+进入条件：local/remote reviewed HEAD 已核对；root fix、真实 tick64/reload/name-tag GameTest、双端完整门禁和原路径0.2.3-alpha jars 刷新均完成。[证据](migration_batches/2026-11-24-audit-parity/review-persistence.md)。
 
-1. 提交/普通 push 本次交付状态的纯文档补充；不重复未改变输入的成功门禁。
-2. 报告最终 pushed HEAD、逐 finding commits/legacy evidence、S01 verdict、真实 gate 输出与 jar 路径。
-3. 停止，不扩展飞机生命周期、Morph、config 或其它历史 backlog；新工作须用户另行授权。
+1. 每分支单独一个 review-fix commit，包含证据/索引；每分支一次合并后的普通 push，不 force。
+2. 核对 clean worktree 与 remote HEAD；报告 verdict、SHAs、真实门禁输出、jars 和存量 true 的兼容性边界。
+3. 停止，不自动清除存量 persistence 或扩展其它审计 backlog。退出条件：交接完成。

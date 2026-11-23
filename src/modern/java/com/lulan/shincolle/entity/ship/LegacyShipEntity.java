@@ -501,7 +501,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         @Override
         public void setChanged() {
             super.setChanged();
-            LegacyShipEntity.this.setPersistenceRequired();
+            LegacyShipEntity.this.requireNativePersistence();
             LegacyShipEntity.this.refreshEquipmentProfile(true);
         }
     };
@@ -631,7 +631,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     public LegacyShipEntity(EntityType<? extends LegacyShipEntity> entityType, Level level) {
         super(entityType, level);
         this.noCulling = true;
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
         this.setCanPickUpLoot(false);
     }
 
@@ -2073,7 +2073,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setCombatRationLevel(int level) {
         this.entityData.set(DATA_COMBAT_RATION_LEVEL, level);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getFleeHp() {
@@ -2082,7 +2082,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setFleeHp(int fleeHp) {
         this.entityData.set(DATA_FLEE_HP, Mth.clamp(fleeHp, 0, 100));
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getFoodSaturation() {
@@ -2091,7 +2091,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setFoodSaturation(int saturation) {
         this.entityData.set(DATA_FOOD_SATURATION, saturation);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public void addFoodSaturation(int amount) {
@@ -2108,7 +2108,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setTask(int task) {
         this.entityData.set(DATA_TASK, task);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy TaskSide uses bits 0-17 for item sides and bits 18-20 for metadata checks. */
@@ -2118,7 +2118,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setTaskSide(int taskSide) {
         this.entityData.set(DATA_TASK_SIDE, taskSide);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getLegacyTaskTime() {
@@ -2127,7 +2127,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setLegacyTaskTime(int taskTime) {
         this.legacyTaskTime = Math.max(0, taskTime);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Returns the task main-hand slot used by BasicEntityShip, not the rider-facing hand. */
@@ -2161,7 +2161,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setModelState(int modelState) {
         this.entityData.set(DATA_MODEL_STATE, modelState);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy Display.HPState tracks normal, minor, moderate, and heavy damage. */
@@ -2171,7 +2171,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setHpState(int hpState) {
         this.entityData.set(DATA_HP_STATE, Mth.clamp(hpState, 0, 3));
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy Display.Emotion controls face emotion values consumed by the old model layer. */
@@ -2181,7 +2181,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setEmotion(int emotion) {
         this.entityData.set(DATA_EMOTION, emotion);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy Display.Emotion2 stores the head-tilt completion state. */
@@ -2191,7 +2191,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setEmotion2(int emotion2) {
         this.entityData.set(DATA_EMOTION2, emotion2);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy Display.Emotion4 controls the alternate sitting pose emotion. */
@@ -2201,7 +2201,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setEmotion4(int emotion4) {
         this.entityData.set(DATA_EMOTION4, emotion4);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** 舰种专属动画与攻击的旧版 Display.Phase。 */
@@ -2211,7 +2211,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setDisplayPhase(int phase) {
         this.entityData.set(DATA_DISPLAY_PHASE, phase);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getLegacySkillTimer() {
@@ -2220,7 +2220,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setLegacySkillTimer(int timer) {
         this.legacySkillTimer = Math.max(0, timer);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getLegacySkillRemaining() {
@@ -2229,7 +2229,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setLegacySkillRemaining(int remaining) {
         this.legacySkillRemaining = Math.max(0, remaining);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public Vec3 getLegacySkillMotion() {
@@ -2238,7 +2238,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setLegacySkillMotion(Vec3 motion) {
         this.legacySkillMotion = motion == null ? Vec3.ZERO : motion;
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public BlockPos getLegacySkillTarget() {
@@ -2247,7 +2247,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setLegacySkillTarget(BlockPos target) {
         this.legacySkillTarget = target == null ? BlockPos.ZERO : target.immutable();
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public void resetLegacySkillState() {
@@ -2343,7 +2343,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
                 ? (this.isHostileVariant() ? 10 : 6)
                 : this.isBattleshipTaVariant() ? 6 : 0;
         this.entityData.set(DATA_RENSOUHOU_COUNT, Mth.clamp(count, 0, maximum));
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public void addShimakazeRensouhouCount(int amount) {
@@ -2358,7 +2358,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     public void setUseAttackMelee(boolean enabled) {
         this.entityData.set(DATA_USE_MELEE, enabled);
         this.updateMeleeGoal();
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     private void updateMeleeGoal() {
@@ -2383,7 +2383,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setUseAttackLight(boolean enabled) {
         this.entityData.set(DATA_USE_LIGHT, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy ShipFlags.AmmoH controls the autonomous heavy cannon channel. */
@@ -2393,7 +2393,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setUseAttackHeavy(boolean enabled) {
         this.entityData.set(DATA_USE_HEAVY, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy ShipFlags.AirL controls the autonomous light aircraft channel. */
@@ -2403,7 +2403,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setUseAttackAirLight(boolean enabled) {
         this.entityData.set(DATA_USE_AIR_LIGHT, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy ShipFlags.AirH controls the autonomous heavy aircraft channel. */
@@ -2413,7 +2413,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setUseAttackAirHeavy(boolean enabled) {
         this.entityData.set(DATA_USE_AIR_HEAVY, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean hasNoFuel() {
@@ -2466,7 +2466,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             value = Math.min(value, this.maxAircraftLight);
         }
         this.entityData.set(DATA_AIRCRAFT_LIGHT, value);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public void setAircraftHeavy(int amount) {
@@ -2475,7 +2475,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
             value = Math.min(value, this.maxAircraftHeavy);
         }
         this.entityData.set(DATA_AIRCRAFT_HEAVY, value);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean hasAircraftFor(LegacyShipAttackKind attackKind) {
@@ -2563,7 +2563,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setRingEffectEnabled(boolean enabled) {
         this.entityData.set(DATA_RING_EFFECT, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
         this.refreshFromVariant(true);
     }
 
@@ -2573,7 +2573,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setTimeKeeper(boolean enabled) {
         this.entityData.set(DATA_TIME_KEEPER, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean isAutoPump() {
@@ -2582,7 +2582,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setAutoPump(boolean enabled) {
         this.entityData.set(DATA_AUTO_PUMP, enabled);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getModernizationCount() {
@@ -2705,7 +2705,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     public void setAiPvpFirst(boolean aiPvpFirst) {
         this.aiPvpFirst = aiPvpFirst;
         this.entityData.set(DATA_PVP_FIRST, aiPvpFirst);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean isAiAntiAir() {
@@ -2715,7 +2715,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     public void setAiAntiAir(boolean aiAntiAir) {
         this.aiAntiAir = aiAntiAir;
         this.entityData.set(DATA_ANTI_AIR, aiAntiAir);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean isAiAntiSub() {
@@ -2725,7 +2725,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
     public void setAiAntiSub(boolean aiAntiSub) {
         this.aiAntiSub = aiAntiSub;
         this.entityData.set(DATA_ANTI_SUB, aiAntiSub);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean canFloatUp() {
@@ -2734,7 +2734,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setCanFloatUp(boolean canFloatUp) {
         this.entityData.set(DATA_CAN_FLOAT_UP, canFloatUp);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public boolean canFollow() {
@@ -2743,7 +2743,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setCanFollow(boolean canFollow) {
         this.entityData.set(DATA_CAN_FOLLOW, canFollow);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy ShipFlags.HeldItem controls the client-side held-item display gate. */
@@ -2753,7 +2753,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setShowHeldItem(boolean showHeldItem) {
         this.entityData.set(DATA_SHOW_HELD_ITEM, showHeldItem);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy CanDropItem is server-side and prevents duplicate recovery/hostile egg drops. */
@@ -2763,7 +2763,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setCanDropItem(boolean canDropItem) {
         this.canDropItem = canDropItem;
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public double getLegacyLiquidDepth() {
@@ -2841,7 +2841,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setFollowMin(int followMin) {
         this.entityData.set(DATA_FOLLOW_MIN, followMin);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     /** Legacy StateMinor FollowMax. */
@@ -2851,7 +2851,7 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
 
     public void setFollowMax(int followMax) {
         this.entityData.set(DATA_FOLLOW_MAX, followMax);
-        this.setPersistenceRequired();
+        this.requireNativePersistence();
     }
 
     public int getAiFlagsBitmask() {
@@ -4507,6 +4507,10 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         return minor.contains(LEGACY_EXPERIENCE_TAG, Tag.TAG_INT)
                 ? minor.getInt(LEGACY_EXPERIENCE_TAG)
                 : 0;
+    }
+
+    private void requireNativePersistence() {
+        super.setPersistenceRequired();
     }
 
     @Override
