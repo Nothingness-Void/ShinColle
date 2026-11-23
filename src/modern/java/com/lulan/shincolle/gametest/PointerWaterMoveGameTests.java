@@ -3,6 +3,8 @@ package com.lulan.shincolle.gametest;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
 import com.lulan.shincolle.entity.ship.ShipEntitySpecs;
 import com.lulan.shincolle.entity.ship.goal.LegacyShipFloatGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipFleeGoal;
+import com.lulan.shincolle.entity.ship.goal.LegacyShipGuardGoal;
 import com.lulan.shincolle.network.ServerboundShipCommandPacket;
 import com.lulan.shincolle.network.ShipCommandService;
 import com.lulan.shincolle.registry.ModEntityTypes;
@@ -45,6 +47,65 @@ public final class PointerWaterMoveGameTests {
     @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space")
     public static void legacyMutexOracleWaterFleetArrives(GameTestHelper helper) {
         moveFleet(helper, true, true);
+        helper.succeed();
+    }
+
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "pointer_water_flee")
+    public static void floatingLowHpShipFleesToOwnerInsteadOfPointerDestination(GameTestHelper helper) throws Exception {
+        for (int x = 1; x < 25; x++) for (int z = 1; z < 23; z++) {
+            helper.setBlock(x, 0, z, Blocks.STONE);
+            for (int y = 1; y < 5; y++) helper.setBlock(x, y, z, Blocks.WATER);
+        }
+        var owner = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "WaterFlee"));
+        owner.setPos(helper.absoluteVec(new Vec3(6.5D, 3.7D, 10.5D)));
+        helper.getLevel().addNewPlayer(owner);
+        var data = TeitokuHelper.get(owner).orElseThrow(IllegalStateException::new);
+        data.setPlayerUid(TeitokuSavedData.get(helper.getLevel()).getOrCreateUid(owner));
+        data.setFormationId(0);
+        var ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel()) {
+            public boolean running(Class<? extends Goal> type) {
+                return this.goalSelector.getAvailableGoals().stream()
+                        .anyMatch(goal -> goal.isRunning() && type.isInstance(goal.getGoal()));
+            }
+        };
+        try {
+            ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(55), owner);
+            ship.setAiPickItem(false);
+            ship.setCanFollow(false);
+            ship.setFleeHp(0);
+            ship.setGrudge(1000);
+            ship.setPos(helper.absoluteVec(new Vec3(12.5D, 3.7D, 10.5D)));
+            helper.getLevel().addFreshEntity(ship);
+            ship.tickCount = 41;
+            ship.tick();
+            data.assignCurrentTeamSlot(0, ship.getShipUid());
+            BlockPos destination = helper.absolutePos(new BlockPos(22, 4, 10));
+            helper.assertTrue(ShipCommandService.handleForTesting(owner,
+                    ServerboundShipCommandPacket.moveTo(2, -1, -1, destination)), "Pointer order must dispatch");
+            ship.setFleeHp(50);
+            ship.setHealth(ship.getMaxHealth() * 0.25F);
+            helper.assertTrue(ship.getOwnerPlayer() == owner, "flee resolves the actual level-registered owner");
+            helper.assertTrue(ship.canUseLegacyFloatingGoal(), "fixture must activate floating, not only wet movement");
+            var flee = new LegacyShipFleeGoal(ship);
+            helper.assertTrue(flee.getFlags().equals(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP)),
+                    "legacy flee mutex 7 is MOVE/LOOK/JUMP, independent from floating mutex 8");
+            helper.assertTrue(flee.canUse(), "low HP, fuel and owner distance must make flee eligible");
+            double startX = ship.getX();
+            boolean fled = false;
+            boolean guarded = false;
+            for (int tick = 0; tick < 16; tick++) {
+                ship.tickCount++;
+                ship.tick();
+                fled |= ship.running(LegacyShipFleeGoal.class);
+                guarded |= ship.running(LegacyShipGuardGoal.class);
+            }
+            helper.assertTrue(fled && !guarded, "registered flee must win over Pointer guard while floating");
+            helper.assertTrue(ship.getX() < startX - 0.01D && owner.getX() < ship.getX()
+                    && ship.getX() < destination.getX(), "movement must start toward owner, not the opposite Pointer destination");
+        } finally {
+            ship.discard();
+            helper.getLevel().removePlayerImmediately(owner, net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+        }
         helper.succeed();
     }
 

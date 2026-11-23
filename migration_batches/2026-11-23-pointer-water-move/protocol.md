@@ -23,3 +23,10 @@ only; no src/main edits, version bump, unrelated movement redesign, LivingEntity
 mount port, RingFly changes or build/CI changes. Full JDK17 Forge / JDK21 Neo
 build runGameTestServer gates after final edits; commit and normal-push both new
 feature branches if regression verified. No PR creation/client visual ask.
+
+PR15/16 follow-up: audit historical EntityAIShipFlee mutex versus modern
+LegacyShipFleeGoal and registered Float/Flee/Guard priority. Restore mutex 7
+(MOVE/LOOK/JUMP), with a floating, fueled low-HP ship, real level-resolvable
+owner in flee range and opposite Pointer destination. Assert actual registered
+flee wins over guard and movement starts toward owner. Full gates and separate
+review-fix commit/push both Pointer branches; do not include smoke work.
