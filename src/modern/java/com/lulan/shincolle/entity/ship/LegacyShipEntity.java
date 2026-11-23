@@ -1967,10 +1967,8 @@ public class LegacyShipEntity extends PathfinderMob implements ShipNavigationHos
         if (currentLevel < levelCap && currentExperience >= experienceNext) {
             currentExperience -= experienceNext;
             currentLevel++;
-            this.playShipCombatSound(SoundEvents.PLAYER_LEVELUP, 0.7F, 1.0F);
-            if (this.random.nextInt(4) == 0) {
-                this.playShipCombatSound(ModSoundEvents.SHIP_LEVELUP.get(), 1.0F, 1.0F);
-            }
+            LegacyShipLevelUpSound sound = LegacyShipLevelUpSound.forRoll(this.random.nextInt(4));
+            this.playShipCombatSound(sound.sound(), sound.volume(), sound.pitch());
         }
 
         this.setShipExperience(currentExperience);
