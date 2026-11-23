@@ -27,7 +27,7 @@ public final class AuditVolCoreAuraGameTests {
         var ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());
         ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2), null);
         ship.setNoAi(true);
-        ship.setPos(helper.absoluteVec(new Vec3(6.5D, 2.1D, 4.5D)));
+        ship.setPos(helper.absoluteVec(new Vec3(6.5D, 2.0D, 4.5D)));
         helper.getLevel().addFreshEntity(ship);
         try {
             ship.tickCount = 200;
@@ -38,7 +38,8 @@ public final class AuditVolCoreAuraGameTests {
             helper.assertTrue(ship.getHealth() == 1.0F && ship.getMorale() == 5000, "combat blocks both restoration effects");
             ship.tickCount += 129;
             apply.invoke(core, helper.getLevel());
-            helper.assertTrue(ship.getHealth() > 1.0F && ship.getMorale() == 5080, "wet out-of-combat ship heals and gains80");
+            helper.assertTrue(ship.getHealth() > 1.0F && ship.getMorale() == 5080,
+                    "wet out-of-combat ship heals and gains80; health=" + ship.getHealth() + ", morale=" + ship.getMorale());
             int threshold = (int) (5100 * 1.8F);
             ship.setMorale(threshold);
             apply.invoke(core, helper.getLevel());
