@@ -356,11 +356,11 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         for (int slot = 0; slot < this.fuelItems.getSlots(); slot++) {
             net.minecraft.world.item.ItemStack stack = this.fuelItems.getStackInSlot(slot);
             int fuelValue = this.getFuelValue(stack);
-            if (fuelValue <= 0) {
+            if (fuelValue <= 0 || fuelValue + this.storedCharge >= this.maxCharge()) {
                 continue;
             }
 
-            this.storedCharge = Math.min(this.maxCharge(), this.storedCharge + fuelValue);
+            this.storedCharge += fuelValue;
             stack.shrink(1);
             this.fuelItems.setStackInSlot(slot, stack.isEmpty() ? net.minecraft.world.item.ItemStack.EMPTY : stack);
             return true;
