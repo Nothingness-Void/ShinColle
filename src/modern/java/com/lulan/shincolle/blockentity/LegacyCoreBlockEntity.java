@@ -377,11 +377,16 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     private boolean tickVolCoreAura(Level level) {
-        AABB area = new AABB(this.worldPosition).inflate(VOLCORE_AURA_RADIUS);
+        AABB area = AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(this.worldPosition),
+                VOLCORE_AURA_RADIUS * 2, VOLCORE_AURA_RADIUS * 2, VOLCORE_AURA_RADIUS * 2);
         if (this.hasNearbyFluid(level)) {
             boolean affected = false;
             for (LegacyShipEntity ship : level.getEntitiesOfClass(LegacyShipEntity.class, area)) {
-                if (!ship.isAlive() || ship.isHostileVariant() || !ship.isInWaterRainOrBubble()) {
+                BlockPos feet = new BlockPos(Mth.floor(ship.getX()), (int) ship.getBoundingBox().minY,
+                        Mth.floor(ship.getZ()));
+                if (ship.isHostileVariant() || !ship.isLegacyOutOfCombat()
+                        || !(level.getBlockState(feet).liquid()
+                        || level.getBlockState(feet).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)) {
                     continue;
                 }
 
@@ -390,8 +395,10 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
                     affected = true;
                 }
 
-                ship.addMorale(80);
-                affected = true;
+                if (ship.getMorale() < (int) (5100 * 1.8F)) {
+                    ship.addMorale(80);
+                    affected = true;
+                }
             }
 
             return affected;
