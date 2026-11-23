@@ -2,14 +2,11 @@ package com.lulan.shincolle.entity.ship.goal;
 
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
@@ -93,7 +90,8 @@ public class LegacyShipFleeGoal extends Goal {
         if (!canMove && ShinColleConfig.canTeleport()) {
             double distSq = this.ship.distanceToSqr(this.escortTarget);
             if (distSq > 100.0D && this.ship.level() == this.escortTarget.level()) {
-                this.tryTeleportNearTarget(this.escortTarget);
+                LegacyShipTeleportHelper.applyTeleport(this.ship, distSq,
+                        new Vec3(this.escortTarget.getX(), this.escortTarget.getY() + 0.5D, this.escortTarget.getZ()));
             }
         }
     }
@@ -109,37 +107,4 @@ public class LegacyShipFleeGoal extends Goal {
         return this.ship.getOwnerPlayer();
     }
 
-    private void tryTeleportNearTarget(LivingEntity target) {
-        BlockPos targetPos = target.blockPosition();
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                if (Math.abs(dx) < 2 && Math.abs(dz) < 2) {
-                    continue;
-                }
-                BlockPos candidate = targetPos.offset(dx, 0, dz);
-                if (this.canTeleportTo(candidate)) {
-                    this.ship.moveTo(candidate.getX() + 0.5D, candidate.getY(), candidate.getZ() + 0.5D,
-                            this.ship.getYRot(), this.ship.getXRot());
-                    this.ship.getShipNavigate().clearPathEntity();
-                    return;
-                }
-            }
-        }
-    }
-
-    private boolean canTeleportTo(BlockPos pos) {
-        BlockPos below = pos.below();
-        BlockState floorState = this.ship.level().getBlockState(below);
-        if (floorState.isAir() && !this.ship.level().getFluidState(below).is(FluidTags.WATER)) {
-            return false;
-        }
-        if (!floorState.isPathfindable( PathComputationType.LAND)
-                && !this.ship.level().getFluidState(below).is(FluidTags.WATER)) {
-            return false;
-        }
-        return this.ship.level().noCollision(this.ship, this.ship.getBoundingBox().move(
-                pos.getX() + 0.5D - this.ship.getX(),
-                pos.getY() - this.ship.getY(),
-                pos.getZ() + 0.5D - this.ship.getZ()));
-    }
 }
