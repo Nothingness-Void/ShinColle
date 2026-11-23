@@ -49,6 +49,29 @@ points, Hiei's fixed anchor, custom options/limiter, and out-of-range Hiei
 inputs. The older Hiei assertion was disproven by the actual legacy callback
 and corrected rather than preserving the copied unused-field expectation.
 
-Finding 1 and finding 2 are separate commits on each branch. Full gates are
-run after both fixes, before one push per branch. Results will be recorded
-here after the final checks. Client visuals are not rechecked for this review.
+## Commits and final gates
+
+| Finding | Forge | Neo |
+| --- | --- | --- |
+| 1 | b2003d110a3cec25f245548d021388b4a1cbb15c | e224e8747562a84267d3cfab03fe15be7746123d |
+| 2 | 35c89367954cac7443d9342e93a93377676b01ab | d4894a9c147afe48350c7d36618a92f1406e5ef1 |
+
+Full requested build + GameTests after both fixes, JDK17/21:
+Forge all381 passed, BUILD SUCCESSFUL in1m4s;
+Neo all390 passed, BUILD SUCCESSFUL in1m2s.
+[Exact excerpts](results/review-gates.txt).
+No source/resource input changed after these passing gates.
+One push per branch after the separate fix commits and documentation commit.
+
+The first Forge full run failed only craneRouteTransfersFilteredItemsBetweenChestAndShip:
+crane load row should move only matching chest items into ship cargo; actual=null.
+The exact assertion was also recorded before this review in
+/home/ubuntu/shincolle-pointer-owner-forge-final.log. No crane implementation
+or crane fixture change was made. Production smoke dispatch is client-gated
+and the new tests manipulate only pure emission data; no direct server-crane
+production path invokes these changes. A single full rerun passed all381.
+This does not establish the precise crane flake cause or claim to fix it.
+
+Client visuals were not rechecked for this review; original smoke screenshots
+predate these per-ship corrections and do not verify their limiter/scale
+appearance. No other production scope, legacy, build/CI or version changes.

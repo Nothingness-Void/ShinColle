@@ -1,7 +1,14 @@
 # Status
 
-Complete: type-43 chimney smoke, HP-state effects (including hostile width*1.5 and legacy HP emission during death), existing friendly/hostile ship-death callbacks, five focused GameTests on both versions, and requested Neo VM screenshots.
+PR17/18 review follow-ups complete on both existing smoke branches: friendly
+destroyers use ordinary type20 respecting particle settings; hostile Hiei
+uses fixed chimney anchor and scale1. Other audited hostile scales unchanged.
 
-Final full build + GameTests after the last code edit: Forge379/379, Neo388/388, both BUILD SUCCESSFUL. Subsequent edits are documentation only. Earlier Neo radar-only failures independently reproduce on unchanged4380e97; no radar fix was made and its exact flake cause remains uninvestigated.
+Seven focused smoke GameTests plus corrected historical expectations in
+GameplayParityGameTests. Final full build/GameTests: Forge381/381,
+Neo390/390, both BUILD SUCCESSFUL. No source/resource change after these gates.
+[Review evidence](review-followups.md) includes separate per-finding commits.
 
-Feature-branch commit/push SHAs are in the handoff. No PR, version bump, Pointer merge, src/main edit or aircraft lifecycle port. See decision.md and results/gates.txt for exact evidence and limits.
+Initial smoke implementation/screenshots remain in decision.md. These review
+changes are not newly visually verified. Aircraft death lifecycle remains the
+approved gap. No PR, version/build/CI or src/main edit.
