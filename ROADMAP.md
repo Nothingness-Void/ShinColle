@@ -1,14 +1,11 @@
 # 后续队列
 
-当前事实：[CURRENT_STATE](CURRENT_STATE.md)；
-[整合与 release 记录](migration_batches/2026-11-23-ship-smoke/integration-release.md)。
+当前事实：[CURRENT_STATE](CURRENT_STATE.md)。
 
-## NEXT：交还 0.2.2-alpha release 验收
+## NEXT：交还 PR19/20 persistence review，然后停止
 
-1. 两个现有 smoke branches 已正常 merge，五个 docs 冲突已合并双方记录；源码无冲突。
-2. 两端 0.2.2-alpha full gates 已通过；保留输出，不重复同输入构建。
-3. 普通 commit/push feature branches，使用同一通过门禁的 main release jars，
-   复制到用户指定两个 release 路径并核验元数据/哈希。
-   无源码/资源/版本变化，不重复已通过构建。
-4. 报告 pushed SHAs、真实 gate 输出、冲突文件与解决方法及 jar 路径，然后停止。
-   不扩展飞机生命周期、mount/LivingEntity、LEVITATION 或其它历史队列。
+进入条件：local/remote reviewed HEAD 已核对；root fix、真实 tick64/reload/name-tag GameTest、双端完整门禁和原路径0.2.3-alpha jars 刷新均完成。[证据](migration_batches/2026-11-24-audit-parity/review-persistence.md)。
+
+1. 每分支单独一个 review-fix commit，包含证据/索引；每分支一次合并后的普通 push，不 force。
+2. 核对 clean worktree 与 remote HEAD；报告 verdict、SHAs、真实门禁输出、jars 和存量 true 的兼容性边界。
+3. 停止，不自动清除存量 persistence 或扩展其它审计 backlog。退出条件：交接完成。

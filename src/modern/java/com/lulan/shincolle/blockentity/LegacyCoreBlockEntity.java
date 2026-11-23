@@ -2,6 +2,9 @@ package com.lulan.shincolle.blockentity;
 
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
+import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.registry.ModBlockEntities;
@@ -14,6 +17,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -356,11 +360,11 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         for (int slot = 0; slot < this.fuelItems.getSlots(); slot++) {
             net.minecraft.world.item.ItemStack stack = this.fuelItems.getStackInSlot(slot);
             int fuelValue = this.getFuelValue(stack);
-            if (fuelValue <= 0) {
+            if (fuelValue <= 0 || fuelValue + this.storedCharge >= this.maxCharge()) {
                 continue;
             }
 
-            this.storedCharge = Math.min(this.maxCharge(), this.storedCharge + fuelValue);
+            this.storedCharge += fuelValue;
             stack.shrink(1);
             this.fuelItems.setStackInSlot(slot, stack.isEmpty() ? net.minecraft.world.item.ItemStack.EMPTY : stack);
             return true;
@@ -370,11 +374,16 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
     }
 
     private boolean tickVolCoreAura(Level level) {
-        AABB area = new AABB(this.worldPosition).inflate(VOLCORE_AURA_RADIUS);
+        AABB area = AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(this.worldPosition),
+                VOLCORE_AURA_RADIUS * 2, VOLCORE_AURA_RADIUS * 2, VOLCORE_AURA_RADIUS * 2);
         if (this.hasNearbyFluid(level)) {
             boolean affected = false;
             for (LegacyShipEntity ship : level.getEntitiesOfClass(LegacyShipEntity.class, area)) {
-                if (!ship.isAlive() || ship.isHostileVariant() || !ship.isInWaterRainOrBubble()) {
+                BlockPos feet = new BlockPos(Mth.floor(ship.getX()), (int) ship.getBoundingBox().minY,
+                        Mth.floor(ship.getZ()));
+                if (ship.isHostileVariant() || !ship.isLegacyOutOfCombat()
+                        || !(level.getBlockState(feet).liquid()
+                        || level.getBlockState(feet).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)) {
                     continue;
                 }
 
@@ -383,19 +392,24 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
                     affected = true;
                 }
 
-                ship.addMorale(80);
-                affected = true;
+                if (ship.getMorale() < (int) (5100 * 1.8F)) {
+                    ship.addMorale(80);
+                    affected = true;
+                }
             }
 
             return affected;
         }
 
         boolean affected = false;
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
-            if (entity instanceof LegacyShipEntity || entity instanceof Player || !entity.isAlive()) {
-                continue;
+        for (Entity candidate : level.getEntitiesOfClass(Entity.class, area,
+                entity -> entity instanceof LivingEntity || entity instanceof LegacyShipMountEntity
+                        || entity instanceof LegacyShipAircraftEntity || entity instanceof LegacyShipFloatingFortEntity)) {
+            if (candidate instanceof LegacyShipEntity || candidate instanceof LegacyShipMountEntity
+                    || candidate instanceof LegacyShipAircraftEntity || candidate instanceof LegacyShipFloatingFortEntity) {
+                return affected;
             }
-
+            LivingEntity entity = (LivingEntity) candidate;
             entity.igniteForSeconds(2);
             entity.hurt(level.damageSources().inFire(), 4.0F);
             affected = true;
