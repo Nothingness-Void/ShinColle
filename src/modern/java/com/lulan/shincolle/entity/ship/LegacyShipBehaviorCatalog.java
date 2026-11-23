@@ -3476,8 +3476,7 @@ public final class LegacyShipBehaviorCatalog {
                     new EngineVisualPoint(hostileKongouSmokeX(scale, true),
                             hostileKongouSmokeY(scale, true), 1.0F + scale,
                             EngineVisualKind.SMOKE_CHIMNEY_L, 0, false));
-            case 61 -> List.of(new EngineVisualPoint(hostileHieiSmokeX(scale),
-                    hostileHieiSmokeY(scale), 1.0F + scale,
+            case 61 -> List.of(new EngineVisualPoint(-0.6F, 1.17F, 1.0F,
                     EngineVisualKind.SMOKE_CHIMNEY_L, 0, false));
             case 62, 63 -> List.of(new EngineVisualPoint(hostileHieiSmokeX(scale),
                     hostileHieiSmokeY(scale), 1.0F + scale,

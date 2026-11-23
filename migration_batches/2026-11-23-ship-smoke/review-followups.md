@@ -22,6 +22,33 @@ New focused coverage checks all four variants and scale levels0–3, vanilla
 limiter flag, triple count, spacing, velocity and empty spec. Corrected the
 older friendly-kind expectation against the historical source.
 
+## Finding 2 — real; the caller table, not scaled(), was wrong
+
+Historical 0aad501 EntityBBHieiMob:109–116 uses literal rotated X=-0.6,
+Y=1.17, particle scale1, independent of encounter scale. Its constructor
+does assign scaled smokeX1/smokeY1 fields, but the active client callback
+does not read them. Modern class61 used those scaled anchor values plus
+particle scale1+level. Restore the callback's fixed anchor and scale;
+do not alter the general LegacyShipSmoke.scaled helper.
+
+Hostile chimney audit, historical spawnAttackParticleAt callbacks:
+
+| Family | Legacy particle scale | Evidence |
+| --- | --- | --- |
+| Nagato | 1+level | EntityBattleshipNGTMob:121 |
+| Yamato | 1+level | EntityBattleshipYMTMob:115 |
+| Kongou, both chimneys | 1+level | EntityBBKongouMob:125,127 |
+| Hiei | 1 | EntityBBHieiMob:116; literal anchor too |
+| Haruna | 1+level | EntityBBHarunaMob:117 |
+| Kirishima | 1+level | EntityBBKirishimaMob:117 |
+| Four hostile destroyers | 1+0.8*level | Finding1 callbacks above |
+
+All other audited hostile particle-scale mappings already match and remain
+unchanged. New tests cover each battleship family at levels0–3, both Kongou
+points, Hiei's fixed anchor, custom options/limiter, and out-of-range Hiei
+inputs. The older Hiei assertion was disproven by the actual legacy callback
+and corrected rather than preserving the copied unused-field expectation.
+
 Finding 1 and finding 2 are separate commits on each branch. Full gates are
 run after both fixes, before one push per branch. Results will be recorded
 here after the final checks. Client visuals are not rechecked for this review.
