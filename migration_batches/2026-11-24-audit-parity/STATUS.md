@@ -6,7 +6,7 @@ Version: **0.2.3-alpha** on both branches. All A01–A09 production fixes are se
 - Forge: devin/1795453712-audit-parity-120, fresh base origin/codex/mc-1.20.1 at6d2c54d; /home/ubuntu/repos/ShinColle-audit-parity-120.
 - Neo: devin/1795453712-audit-parity-121, fresh base origin/mc-1.21.1 atde91016; /home/ubuntu/repos/ShinColle-audit-parity-121.
 - Read-only src/main/** unchanged, verified with git diff against each base. No shared build/CI changes or changes to other existing worktrees.
-- Ordinary feature-branch push/remote-HEAD verification follows this release evidence commit; the exact final published HEAD is reported in the handoff.
+- Release code/evidence commits were ordinary-pushed and remote-verified: Forge8038a1725209995107ff042c55ccdce8a5725cc2; Neof9654a297db4d00730daf3a2af88effde50fe0ce. The subsequent delivery-state update is documentation only; its final published HEAD is reported in the handoff.
 
 ## Finding commits
 | Finding | Forge | NeoForge |
