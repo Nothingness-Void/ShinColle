@@ -2,6 +2,9 @@ package com.lulan.shincolle.blockentity;
 
 import com.lulan.shincolle.config.ShinColleConfig;
 import com.lulan.shincolle.entity.ship.LegacyShipEntity;
+import com.lulan.shincolle.entity.mount.LegacyShipMountEntity;
+import com.lulan.shincolle.entity.ship.LegacyShipAircraftEntity;
+import com.lulan.shincolle.entity.projectile.LegacyShipFloatingFortEntity;
 import com.lulan.shincolle.menu.LegacyCoreMenu;
 import com.lulan.shincolle.ownership.PlayerOwnerData;
 import com.lulan.shincolle.registry.ModBlockEntities;
@@ -14,6 +17,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -398,11 +402,14 @@ public class LegacyCoreBlockEntity extends BlockEntity implements LegacyCoreAcce
         }
 
         boolean affected = false;
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
-            if (entity instanceof LegacyShipEntity || entity instanceof Player || !entity.isAlive()) {
-                continue;
+        for (Entity candidate : level.getEntitiesOfClass(Entity.class, area,
+                entity -> entity instanceof LivingEntity || entity instanceof LegacyShipMountEntity
+                        || entity instanceof LegacyShipAircraftEntity || entity instanceof LegacyShipFloatingFortEntity)) {
+            if (candidate instanceof LegacyShipEntity || candidate instanceof LegacyShipMountEntity
+                    || candidate instanceof LegacyShipAircraftEntity || candidate instanceof LegacyShipFloatingFortEntity) {
+                return affected;
             }
-
+            LivingEntity entity = (LivingEntity) candidate;
             entity.igniteForSeconds(2);
             entity.hurt(level.damageSources().inFire(), 4.0F);
             affected = true;
