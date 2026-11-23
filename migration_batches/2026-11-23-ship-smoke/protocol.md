@@ -1,5 +1,18 @@
 # Ship smoke — approved parity scope
 
+## Post-PR15/16 integration and 0.2.2-alpha release
+
+Fetch and normal-merge origin/codex/mc-1.20.1 (0f6d350) into the existing
+Forge smoke branch and origin/mc-1.21.1 (563779b) into the existing Neo branch.
+No rebase/force push. Resolve only actual conflicts, retaining both Pointer
+float/flee flags and registered-goal tests, plus smoke/review changes.
+Allowed additional input: gradle.properties mod_version=0.2.2-alpha on both.
+Full build + GameTests under JDK17/21 after final code/version inputs; commit,
+normal push and copy gated main release jars to /home/ubuntu/release/
+shincolle-0.2.2-alpha-mc1.20.1-forge.jar and
+shincolle-0.2.2-alpha-mc1.21.1-neoforge.jar. Record conflict paths/resolution,
+real gate output, pushed SHAs and artifact metadata/hash. No unrelated edits.
+
 ## PR17/18 follow-up review
 
 Verify local/remote e34f5de (Forge) / ae383c4 (Neo) before editing.

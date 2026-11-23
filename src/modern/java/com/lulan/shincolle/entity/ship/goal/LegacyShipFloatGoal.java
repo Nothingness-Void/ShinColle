@@ -10,7 +10,7 @@ public final class LegacyShipFloatGoal extends Goal {
 
     public LegacyShipFloatGoal(LegacyShipEntity ship) {
         this.ship = ship;
-        this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+        this.setFlags(EnumSet.of(Goal.Flag.TARGET));
     }
 
     @Override

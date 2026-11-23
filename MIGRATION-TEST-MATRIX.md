@@ -6,6 +6,12 @@
 - Full required tasks: Forge JDK17 `bash ./gradlew build runGameTestServer`; Neo JDK21 `./gradlew build runGameTestServer`. Pass requires all required tests, not just new smoke tests. [Exact final output and existing radar failure evidence](migration_batches/2026-11-23-ship-smoke/decision.md).
 - T3: Neo runClient DISPLAY=:0, actual minor/moderate/heavy and Kongou chimney/rise screenshots. Existing death callbacks/hostile variants are source/pure-emission checked, not separately visually exercised. Aircraft lifecycle is excluded by explicit approval.
 
+
+## Pointer water movement
+
+- `PointerWaterMoveGameTests`: six real registered-goal ships on water and land, 32-tick path startup and 384-tick legacy arrival tolerance; independent legacy mutex oracle; real fluid/land ray Y, empty selection, dry/sitting and mutex contract. Forge advances/restores the server AI scheduling clock in its synchronous fixture.
+- Full default JDK17/21 `build runGameTestServer`; [exact results, initial failures and limits](migration_batches/2026-11-23-pointer-water-move/decision.md).
+
 ## Merged PR11 review follow-ups
 
 - `LegacyItemMatchGameTests`: both common tag namespaces; water/lava rejection through actual crane load/unload filters, identical items, material-specific ingots, generic-material rejection, ore-off and empty cases. Temporary holder tags restored in finally; no production fixture resources.

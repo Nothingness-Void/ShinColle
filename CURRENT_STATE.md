@@ -1,21 +1,25 @@
 # 当前状态
 
-当前任务：PR17/18 smoke review follow-ups 已完成；
-[两项 finding、legacy 证据及最终门禁](migration_batches/2026-11-23-ship-smoke/review-followups.md)。
+当前任务：将已合并 PR15/16 的 origin bases 正常 merge 到两个 smoke branches，
+保留 Pointer 与 smoke/review；准备统一 0.2.2-alpha、双端完整门禁和 release jars。
+[本轮整合入口](migration_batches/2026-11-23-ship-smoke/integration-release.md)。
 
-- Forge：/home/ubuntu/repos/ShinColle-ship-smoke-120，
-  devin/1795444967-ship-smoke-120。起始 local/remote e34f5de 一致且 clean。
-- Neo：/home/ubuntu/repos/ShinColle-ship-smoke-121，
-  devin/1795444967-ship-smoke-121。起始 local/remote ae383c4 一致且 clean。
-- Finding1：friendly 六驱四舰恢复普通 type20 / vanilla limiter；hostile 保留 type43。
-- Finding2：hostile Hiei chimney 固定 scale1、X=-0.6、Y=1.17；
-  其它 hostile chimney 的 legacy scaling 保持不变。两项修复在每端分开提交。
-- 最终 full build/GameTests：Forge381/381、Neo390/390。最后源码更改后无新增
-  源码/资源输入；此前 Forge crane actual=null 间歇失败已留原始证据，未改 crane。
-- 本轮未重新客户端视觉验证；初次 smoke 截图不冒充 type20 limiter/Hiei review 画面。
-- 仅 modern 与文档；src/main/**、版本、build/CI、其它 worktrees 均不改。
-  用户授权每个现有 smoke branch 一次普通 push，不创建 PR 或 push 主线。
-- Aircraft death lifecycle 明确保留 gap；Pointer、mount/LivingEntity、LEVITATION、
-  RingFly 及其它历史队列不扩项。[原 smoke 决定](migration_batches/2026-11-23-ship-smoke/decision.md)。
+- Forge worktree：/home/ubuntu/repos/ShinColle-ship-smoke-120，
+  devin/1795444967-ship-smoke-120；merge origin/codex/mc-1.20.1 0f6d350。
+- Neo worktree：/home/ubuntu/repos/ShinColle-ship-smoke-121，
+  devin/1795444967-ship-smoke-121；merge origin/mc-1.21.1 563779b。
+- 五个冲突均为 docs；矩阵/变更索引保留双方条目，CURRENT/ROADMAP 汇总两条工作线。
+  源码无冲突：Pointer floating TARGET、flee MOVE/LOOK/JUMP 和真实 water/land tests
+  与 smoke HP/death/type20/type43、Hiei 固定 chimney 参数全部保留。
+- 用户明确授权 gradle.properties mod_version=0.2.2-alpha；
+  normal merge/commit/push，不 rebase/force push，不 push 主线，不创建 PR。
+- 最后源码/版本输入之后运行 JDK17/21 full build+GameTests；随后文档记录和复制主 jars。
+  目标 /home/ubuntu/release/shincolle-0.2.2-alpha-mc1.20.1-forge.jar、
+  shincolle-0.2.2-alpha-mc1.21.1-neoforge.jar。
+- src/main/**、其它 worktrees、build/CI 及其它数值/机制不改。Aircraft lifecycle、
+  LEVITATION 等 gap 保留；本轮无新视觉验证。
+- 历史证据：[Pointer](migration_batches/2026-11-23-pointer-water-move/decision.md)、
+  [flee review](migration_batches/2026-11-23-pointer-water-move/flee-review.md)、
+  [smoke review](migration_batches/2026-11-23-ship-smoke/review-followups.md)。
 
 唯一下一步：[ROADMAP](ROADMAP.md)。
