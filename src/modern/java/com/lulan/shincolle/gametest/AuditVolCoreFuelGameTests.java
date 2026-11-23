@@ -15,7 +15,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditVolCoreFuelGameTests {
-    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_volcore_fuel")
+    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_parity")
     public static void fuelMustFitStrictlyAndNeverLoseOverflow(GameTestHelper helper) throws Exception {
         var core = LegacyCoreBlockEntity.newVolCore(BlockPos.ZERO, ModBlocks.BLOCK_VOL_CORE.get().defaultBlockState());
         var charge = LegacyCoreBlockEntity.class.getDeclaredField("storedCharge");

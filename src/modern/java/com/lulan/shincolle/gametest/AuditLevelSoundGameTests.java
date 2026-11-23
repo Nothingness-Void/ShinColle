@@ -11,7 +11,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditLevelSoundGameTests {
-    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_level_sound")
+    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_parity")
     public static void levelSoundIsExclusiveOneVanillaThreeShipRolls(GameTestHelper helper) {
         for (int roll = 0; roll < 4; roll++) {
             var sound = LegacyShipLevelUpSound.forRoll(roll);

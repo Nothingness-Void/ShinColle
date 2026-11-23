@@ -1,14 +1,10 @@
 # 后续队列
 
-当前事实：[CURRENT_STATE](CURRENT_STATE.md)；
-[整合与 release 记录](migration_batches/2026-11-23-ship-smoke/integration-release.md)。
+当前事实：[CURRENT_STATE](CURRENT_STATE.md)。
 
-## NEXT：交还 0.2.2-alpha release 验收
+## NEXT：完成并交还 audit parity 0.2.3-alpha
 
-1. 两个现有 smoke branches 已正常 merge，五个 docs 冲突已合并双方记录；源码无冲突。
-2. 两端 0.2.2-alpha full gates 已通过；保留输出，不重复同输入构建。
-3. 普通 commit/push feature branches，使用同一通过门禁的 main release jars，
-   复制到用户指定两个 release 路径并核验元数据/哈希。
-   无源码/资源/版本变化，不重复已通过构建。
-4. 报告 pushed SHAs、真实 gate 输出、冲突文件与解决方法及 jar 路径，然后停止。
-   不扩展飞机生命周期、mount/LivingEntity、LEVITATION 或其它历史队列。
+1. A01–A09 分 finding commit，逐项 Forge first then Neo；S01 只修复完整旧版分派已证实的差异。
+2. 完整 JDK17/21 build runGameTestServer 门禁；不重复未改变输入的通过门禁。
+3. 记录 [STATUS](migration_batches/2026-11-24-audit-parity/STATUS.md)，更新矩阵/变更索引，普通 push 两个 feature branches，复制并核验指定 release jars。
+4. 报告 pushed SHAs、逐 finding legacy evidence/commits、S01 verdict 和真实 gate 输出，然后停止；不扩大至历史 backlog。

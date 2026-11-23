@@ -17,7 +17,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditFleeTeleportGameTests {
-    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_flee")
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_parity")
     public static void failedFleeUsesExactEscortPositionAndConfigGate(GameTestHelper helper) {
         var ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel()) {
             private final ShipPathNavigate blocked = new ShipPathNavigate(this) {

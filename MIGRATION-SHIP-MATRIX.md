@@ -1,5 +1,9 @@
 # ShinColle 逐舰迁移矩阵
 
+## Audit parity / 0.2.3-alpha
+
+- A01–A09 fixed for both versions; S01 confirmed and corrected. [Legacy evidence and scoped decisions](migration_batches/2026-11-24-audit-parity/decision.md); [full gates, coverage, commits and release status](migration_batches/2026-11-24-audit-parity/STATUS.md).
+
 [0.2.2-alpha 整合记录](migration_batches/2026-11-23-ship-smoke/integration-release.md)：合并双方批次证据，逐舰状态不变。
 
 PR17/18：friendly Akatsuki/Hibiki/Ikazuchi/Inazuma type20 limiter 与 hostile Hiei 固定 chimney 参数已按实际 legacy callback 纠正；逐舰 LOCKED 不变，[review 证据](migration_batches/2026-11-23-ship-smoke/review-followups.md)。本轮未重新视觉验收。

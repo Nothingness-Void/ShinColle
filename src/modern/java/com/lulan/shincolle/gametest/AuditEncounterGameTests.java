@@ -12,7 +12,7 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditEncounterGameTests {
-    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_encounter")
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_parity")
     public static void rolledEncountersKeepLegacyOffsetsWithoutCollisionVeto(GameTestHelper helper) {
         for (int x = 3; x < 9; x++) for (int z = 3; z < 9; z++) for (int y = 1; y < 6; y++) {
             helper.setBlock(x, y, z, Blocks.STONE);
