@@ -1,5 +1,8 @@
 # Audit parity fix protocol
 
+## PR19/20 persistence review follow-up
+Authorized scope: trace tick64 tickLegacyEmotionState -> setHpState -> setPersistenceRequired and other internal state setters in LegacyShipEntity, comparing BasicEntityShip/BasicEntityShipHostile display setters and vanilla NameTag persistence semantics. Distinguish native unified-Mob retention from genuine explicit hostile persistence, without weakening named/explicit persistence. Add integrated tick64/age/reload and genuine-request controls to AuditHostileDespawnGameTests. Forge first then Neo; full build runGameTestServer once after final edits, JDK17/21. One review-fix commit per branch; push once each, refresh existing0.2.3-alpha release jars. No config/version bump, src/main edit, new despawn mechanism, client/visual check, or unrelated fixture-body changes.
+
 Authorized scope: A01–A09 from /home/ubuntu/audit-2026-11-24, plus S01 only after verifying vanilla1.12 despawn/persistence. Forge first per finding, then Neo. src/main/** remains read-only; use pinned0aad501 reference snapshot. No aircraft lifecycle/Morph/config backlog changes.
 
 Legacy entries: BasicEntityShip.addShipExp/heal/setShipLevel/training interaction; BuffHelper.applyBuffOnHeal; EntityAIShipFlee and EntityHelper.applyTeleport/spawnMobShip/spawnBossShip; TileEntityVolCore; BasicEntityShipHostile.canDespawn/ShipSpawnEgg and vanilla EntityLiving/Forge patch.

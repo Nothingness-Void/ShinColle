@@ -1,13 +1,12 @@
 # 当前状态
 
-当前任务已完成：A01–A09 audit parity 与已确认的 S01 egg-hostile despawn；两版本0.2.3-alpha。
+当前任务：PR19/20 S01 persistence review 修复；A01–A09 scope 与0.2.3-alpha不变。实现、完整双端门禁与指定 jars 刷新已完成；最终单次普通 push 的 HEAD 由交接报告给出。
 
-- Fresh worktrees：/home/ubuntu/repos/ShinColle-audit-parity-120 与 -121。
-- Branches：devin/1795453712-audit-parity-120（base6d2c54d）与 devin/1795453712-audit-parity-121（basede91016）。
-- Release code commits 已 push 并核对 remote：Forge8038a1725209995107ff042c55ccdce8a5725cc2，Neof9654a297db4d00730daf3a2af88effde50fe0ce。本次仅补充交付后的文档状态；最终文档 HEAD 由交接报告给出。
-- 两端完整门禁通过，指定 release jars 已复制并核对 SHA256/metadata。[权威门禁/commits/交付证据](migration_batches/2026-11-24-audit-parity/STATUS.md)。
-- [Legacy 决定与 S01 分派证据](migration_batches/2026-11-24-audit-parity/decision.md)。src/main/**、build/CI 和其它已有 worktrees 未改。
-- 无实现 blocker；中间 Forge Pointer/flyer fixture failure 的精确原因未确认，最终完整门禁已通过，记录见 STATUS；不声称已证明是 baseline failure。
-- 未做本轮 visual/audio 或完整真实旧世界 replay；Aircraft lifecycle、Morph/config backlog 不在范围。
+- Worktrees：/home/ubuntu/repos/ShinColle-audit-parity-120 与 -121。
+- Branches：devin/1795453712-audit-parity-120 与 -121；review 开始 local/remote 分别核对1e42146、443f40f。
+- 当前证据：[review-persistence](migration_batches/2026-11-24-audit-parity/review-persistence.md)；[完整 status / commits / jars](migration_batches/2026-11-24-audit-parity/STATUS.md)。
+- 仅 routine native-retention 与 genuine explicit persistence 分离；HP/emotion 不再制造永久标记。既有已保存 true 无法区分真实请求与误写，不做破坏性清除。
+- 无实现 blocker；首轮 Neo Desk marker assertion 的精确原因仍未确认，一次 clean-world 完整重跑通过；未改 Desk 或现有 test bodies。
+- src/main/**、version/build/CI、其它 worktrees 未改。无 client/visual replay；飞机 lifecycle/Morph/config backlog 不在范围。
 
 唯一下一步：[ROADMAP](ROADMAP.md)。
