@@ -19,7 +19,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditPotionHealingGameTests {
-    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_potion_healing")
+    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_parity")
     public static void cloudWinsThenSplashThenOrdinaryHealing(GameTestHelper helper) {
         var ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());
         ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2), null);

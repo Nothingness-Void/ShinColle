@@ -16,7 +16,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditVolCoreAuraGameTests {
-    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_volcore_aura")
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_parity")
     public static void auraRequiresOutOfCombatLiquidFeetAndMoraleBelowThreshold(GameTestHelper helper) throws Exception {
         helper.setBlock(4, 2, 4, ModBlocks.BLOCK_VOL_CORE.get());
         helper.setBlock(5, 2, 4, Blocks.WATER);

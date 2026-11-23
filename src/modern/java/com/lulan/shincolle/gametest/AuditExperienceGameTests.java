@@ -12,7 +12,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditExperienceGameTests {
-    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_experience")
+    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_parity")
     public static void oneAwardLevelsOnlyOnceAndKeepsCarry(GameTestHelper helper) {
         LegacyShipEntity ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());
         ship.applySpawnSpec(ShipEntitySpecs.getByEggMeta(2), null);

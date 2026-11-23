@@ -17,7 +17,7 @@ import java.util.UUID;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditTrainingGameTests {
-    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_training")
+    @GameTest(template = "gameplayparitygametests.empty", batch = "audit_parity")
     public static void trainingHealsConsumesAtUnmarriedCapButStopsAt150(GameTestHelper helper) {
         var owner = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "AuditTraining"));
         var ship = new LegacyShipEntity(ModEntityTypes.LEGACY_SHIP.get(), helper.getLevel());

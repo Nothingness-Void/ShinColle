@@ -1,5 +1,9 @@
 # 迁移变更索引
 
+## Audit parity / 0.2.3-alpha
+
+- A01–A09 fixed for both versions; S01 confirmed and corrected. [Legacy evidence and scoped decisions](migration_batches/2026-11-24-audit-parity/decision.md); [full gates, coverage, commits and release status](migration_batches/2026-11-24-audit-parity/STATUS.md).
+
 ## 0.2.2-alpha integration release
 
 - [Normal base merges, Pointer+smoke docs conflict resolution, release gates and main jars](migration_batches/2026-11-23-ship-smoke/integration-release.md).

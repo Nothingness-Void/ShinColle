@@ -20,7 +20,7 @@ import java.util.UUID;
 @GameTestHolder("shincolle")
 @PrefixGameTestTemplate(false)
 public final class AuditVolCoreDamageGameTests {
-    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_volcore_damage")
+    @GameTest(template = "legacyaircraftblockcollisiongametests.flight_space", batch = "audit_parity")
     public static void dryCoreBurnsPlayersAndStopsEntireLoopAtShip(GameTestHelper helper) throws Exception {
         helper.setBlock(4, 2, 4, ModBlocks.BLOCK_VOL_CORE.get());
         var core = (LegacyCoreBlockEntity) helper.getBlockEntity(new BlockPos(4, 2, 4));
